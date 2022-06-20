@@ -24,6 +24,4 @@ there is only one module that is special among all the others, and that is
 `core`
 
 this module implements what will be an effective `standard library` for 
-the rest of the neonwood project
-
-
+the rest of the neonwood stack

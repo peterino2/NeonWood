@@ -1,0 +1,3 @@
+[submodule "engine/modules/graphics/lib/vulkan-zig"]
+	path = engine/modules/graphics/lib/vulkan-zig
+	url = https://github.com/Snektron/vulkan-zig.git
