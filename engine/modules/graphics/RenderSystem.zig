@@ -132,6 +132,8 @@ pub fn cleanup(self: *Self) !void {
     if (!self.bIsInitialized)
         return error.RenderSystemNotInitialized;
 
+    self._apiContext.deinit();
+
     c.glfwTerminate();
 
     _ = self.gpa.deinit();
