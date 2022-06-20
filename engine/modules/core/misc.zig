@@ -20,3 +20,11 @@ pub fn range(comptime start: usize, comptime end: anytype) [end - start]@TypeOf(
 
     return comptime r;
 }
+
+pub fn slice_to_cstr(str: []const u8) ?[*:0]const u8 {
+    return @ptrCast(?[*:0]const u8, str.ptr);
+}
+
+pub fn buf_to_cstr(str: anytype) ?[*:0]const u8 {
+    return @ptrCast(?[*:0]const u8, &str[0]);
+}
