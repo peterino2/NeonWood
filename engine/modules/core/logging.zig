@@ -1,0 +1,21 @@
+const std = @import("std");
+
+pub fn engine_log(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("[ENGINE]: " ++ fmt ++ "\n", args);
+}
+
+pub fn engine_logs(comptime fmt: []const u8) void {
+    std.debug.print("[ENGINE]: " ++ fmt ++ "\n", .{});
+}
+
+pub fn test_log(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("[TEST]: " ++ fmt ++ "\n", args);
+}
+
+pub fn test_logs(comptime fmt: []const u8) void {
+    std.debug.print("[TEST]: " ++ fmt ++ "\n", .{});
+}
+
+pub fn test_setup() void {
+    std.debug.print("\n", .{});
+}
