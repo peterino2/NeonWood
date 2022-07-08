@@ -166,6 +166,7 @@ fn setup_pipeline_layout(self: *Self) !void {
 fn init_pipelines(self: *Self) !void {
     _ = self;
     try self.setup_pipeline_layout();
+    try createPipeline(self._gc, self._pipelineLayout);
 }
 
 fn init_load_engine_assets(self: *Self) !void {
@@ -185,9 +186,6 @@ pub fn run(self: *Self) !void {
     while (c.glfwWindowShouldClose(self._window) == c.GLFW_FALSE) {
         var w: c_int = undefined;
         var h: c_int = undefined;
-
-        _ = w;
-        _ = h;
 
         c.glfwGetWindowSize(self._window, &w, &h);
         c.glfwPollEvents();
@@ -213,7 +211,7 @@ pub fn cleanup(self: *Self) !void {
     _ = self.gpa.deinit();
 }
 
-pub fn createPipeline(
+fn createPipeline(
     gc: GraphicsContext,
     layout: vk.PipelineLayout,
 ) !void {
