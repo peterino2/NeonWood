@@ -7,6 +7,7 @@ const graphics_log = core.graphics_log;
 const slice_to_cstr = core.slice_to_cstr;
 const buf_to_cstr = core.buf_to_cstr;
 const Allocator = std.mem.Allocator;
+const vulkan_constants = @import("vulkan_constants.zig");
 
 const required_device_extensions = [_][*:0]const u8{vk.extension_info.khr_swapchain.name};
 
@@ -112,6 +113,7 @@ pub const GraphicsContext = struct {
         const validationLayerAvailable = try checkValidationLayerSupport(self.vkb, allocator);
         _ = validationLayerAvailable;
         if (!validationLayerAvailable) {
+            graphics_logs("Unable to find Validation Layer");
             return error.ValidationLayerNotAvailable;
         }
 
@@ -372,8 +374,11 @@ fn checkExtensionSupport(
     return true;
 }
 
+// Todo, this one is just a dumb straight rip of all layers and comparing them against
+// VK_LAYER_KHRONOS_validation
 fn checkValidationLayerSupport(vkb: BaseDispatch, allocator: std.mem.Allocator) !bool {
     var count: u32 = 0;
+
     graphics_logs("checking for validation support");
     _ = try vkb.enumerateInstanceLayerProperties(&count, null);
 
@@ -394,7 +399,7 @@ fn checkValidationLayerSupport(vkb: BaseDispatch, allocator: std.mem.Allocator) 
             buf_to_cstr(layer.description),
         });
 
-        if (c.strcmp(layerName, buf_to_cstr("VK_LAYER_KHRONOS_validation")) == 0) {
+        if (c.strcmp(layerName, buf_to_cstr(vulkan_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
             found = true;
             validationLayerIndex = i;
         }
