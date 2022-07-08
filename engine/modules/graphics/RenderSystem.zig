@@ -12,6 +12,7 @@ const engine_log = core.engine_log;
 
 const graphics_logs = core.graphics_logs;
 const graphics_log = core.graphics_log;
+const resources = @import("resources");
 
 const Self = @This();
 
@@ -210,4 +211,18 @@ pub fn cleanup(self: *Self) !void {
     c.glfwTerminate();
 
     _ = self.gpa.deinit();
+}
+
+pub fn createPipeline(
+    gc: GraphicsContext,
+    layout: vk.PipelineLayout,
+) !void {
+    _ = gc;
+    _ = layout;
+    const vert = try gc.vkd.createShaderModule(gc.dev, &.{
+        .flags = .{},
+        .code_size = resources.triangle_vert.len,
+        .p_code = @ptrCast([*]const u32, resources.triangle_vert),
+    }, null);
+    defer gc.vkd.destroyShaderModule(gc.dev, vert, null);
 }
