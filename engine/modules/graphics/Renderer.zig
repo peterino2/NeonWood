@@ -72,6 +72,18 @@ pub const Renderer = struct {
     pub fn init_api(self: *Self) !void {
         self.vkb = try BaseDispatch.load(c.glfwGetInstanceProcAddress);
 
+        try self.createVulkanInstance();
+        errdefer self.vki.destroyInstance(self.instance, null);
+
+        // create KHR surface structure
+        try self.createSurface();
+        errdefer self.vki.destroySurfaceKHR(self.instance, self.surface, null);
+
+        try self.pickPhysicalDevices();
+        errdefer self.vkd.destroyDevice(self.dev, null);
+    }
+
+    fn createVulkanInstance(self: *Self) !void {
         var glfwExtensionsCount: u32 = 0;
         const glfwExtensions = c.glfwGetRequiredInstanceExtensions(&glfwExtensionsCount);
 
@@ -111,17 +123,6 @@ pub const Renderer = struct {
 
         // load vulkan per instance functions
         self.vki = try InstanceDispatch.load(self.instance, c.glfwGetInstanceProcAddress);
-        errdefer self.vki.destroyInstance(self.instance, null);
-
-        // create KHR surface structure
-        try self.createSurface();
-        errdefer self.vki.destroySurfaceKHR(self.instance, self.surface, null);
-
-        try self.pickPhysicalDevices();
-    }
-
-    fn createVulkanInstance(self: *Self) !void {
-        _ = self;
     }
 
     fn pickPhysicalDevices(self: *Self) !void {
