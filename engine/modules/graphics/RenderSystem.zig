@@ -242,6 +242,7 @@ fn createPipeline(
     gc: GraphicsContext,
     layout: vk.PipelineLayout,
 ) !void {
+    _ = self;
     _ = gc;
     _ = layout;
     const vert = try gc.vkd.createShaderModule(gc.dev, &.{
@@ -318,50 +319,50 @@ fn createPipeline(
     // };
     // _ = pcbas;
 
-    const pcbsci = vk.PipelineColorBlendStateCreateInfo{
-        .flags = .{},
-        .logic_op_enable = vk.FALSE,
-        .logic_op = .copy,
-        .attachment_count = 1,
-        .p_attachments = @ptrCast([*]const vk.PipelineColorBlendAttachmentState, &pcbas),
-        .blend_constants = [_]f32{ 0, 0, 0, 0 },
-    };
+    // const pcbsci = vk.PipelineColorBlendStateCreateInfo{
+    //     .flags = .{},
+    //     .logic_op_enable = vk.FALSE,
+    //     .logic_op = .copy,
+    //     .attachment_count = 1,
+    //     .p_attachments = @ptrCast([*]const vk.PipelineColorBlendAttachmentState, &pcbas),
+    //     .blend_constants = [_]f32{ 0, 0, 0, 0 },
+    // };
 
-    const dynstate = [_]vk.DynamicState{ .viewport, .scissor };
-    const pdsci = vk.PipelineDynamicStateCreateInfo{
-        .flags = .{},
-        .dynamic_state_count = dynstate.len,
-        .p_dynamic_states = &dynstate,
-    };
+    // const dynstate = [_]vk.DynamicState{ .viewport, .scissor };
+    // const pdsci = vk.PipelineDynamicStateCreateInfo{
+    //     .flags = .{},
+    //     .dynamic_state_count = dynstate.len,
+    //     .p_dynamic_states = &dynstate,
+    // };
 
-    const gpci = vk.GraphicsPipelineCreateInfo{
-        .flags = .{},
-        .stage_count = 2,
-        .p_stages = &pssci,
-        .p_vertex_input_state = &pvisci,
-        .p_input_assembly_state = &piasci,
-        .p_tessellation_state = null,
-        .p_viewport_state = &pvsci,
-        .p_rasterization_state = &prsci,
-        .p_multisample_state = &pmsci,
-        .p_depth_stencil_state = null,
-        .p_color_blend_state = &pcbsci,
-        .p_dynamic_state = &pdsci,
-        .layout = layout,
-        .render_pass = self._renderPass,
-        .subpass = 0,
-        .base_pipeline_handle = .null_handle,
-        .base_pipeline_index = -1,
-    };
+    // const gpci = vk.GraphicsPipelineCreateInfo{
+    //     .flags = .{},
+    //     .stage_count = 2,
+    //     .p_stages = &pssci,
+    //     .p_vertex_input_state = &pvisci,
+    //     .p_input_assembly_state = &piasci,
+    //     .p_tessellation_state = null,
+    //     .p_viewport_state = &pvsci,
+    //     .p_rasterization_state = &prsci,
+    //     .p_multisample_state = &pmsci,
+    //     .p_depth_stencil_state = null,
+    //     .p_color_blend_state = &pcbsci,
+    //     .p_dynamic_state = &pdsci,
+    //     .layout = layout,
+    //     .render_pass = self._renderPass,
+    //     .subpass = 0,
+    //     .base_pipeline_handle = .null_handle,
+    //     .base_pipeline_index = -1,
+    // };
 
-    var pipeline: vk.Pipeline = undefined;
-    _ = try gc.vkd.createGraphicsPipelines(
-        gc.dev,
-        .null_handle,
-        1,
-        @ptrCast([*]const vk.GraphicsPipelineCreateInfo, &gpci),
-        null,
-        @ptrCast([*]vk.Pipeline, &pipeline),
-    );
-    _ = pipeline;
+    // var pipeline: vk.Pipeline = undefined;
+    // _ = try gc.vkd.createGraphicsPipelines(
+    //     gc.dev,
+    //     .null_handle,
+    //     1,
+    //     @ptrCast([*]const vk.GraphicsPipelineCreateInfo, &gpci),
+    //     null,
+    //     @ptrCast([*]vk.Pipeline, &pipeline),
+    // );
+    // _ = pipeline;
 }
