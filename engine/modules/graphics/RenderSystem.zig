@@ -18,6 +18,32 @@ const Self = @This();
 
 const Swapchain = @import("swapchain.zig").Swapchain;
 
+const Vertex = struct {
+    const binding_description = vk.VertexInputBindingDescription{
+        .binding = 0,
+        .stride = @sizeOf(Vertex),
+        .input_rate = .vertex,
+    };
+
+    const attribute_description = [_]vk.VertexInputAttributeDescription{
+        .{
+            .binding = 0,
+            .location = 0,
+            .format = .r32g32_sfloat,
+            .offset = @offsetOf(Vertex, "pos"),
+        },
+        .{
+            .binding = 0,
+            .location = 1,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(Vertex, "color"),
+        },
+    };
+
+    pos: [2]f32,
+    color: [3]f32,
+};
+
 bIsInitialized: bool = false,
 gpa: std.heap.GeneralPurposeAllocator(.{}) = undefined,
 allocator: std.mem.Allocator = undefined,
@@ -212,6 +238,7 @@ pub fn cleanup(self: *Self) !void {
 }
 
 fn createPipeline(
+    self: *Self,
     gc: GraphicsContext,
     layout: vk.PipelineLayout,
 ) !void {
@@ -223,4 +250,118 @@ fn createPipeline(
         .p_code = @ptrCast([*]const u32, resources.triangle_vert),
     }, null);
     defer gc.vkd.destroyShaderModule(gc.dev, vert, null);
+
+    const frag = try gc.vkd.createShaderModule(gc.dev, &.{
+        .flags = .{},
+        .code_size = resources.triangle_frag.len,
+        .p_code = @ptrCast([*]const u32, resources.triangle_vert),
+    }, null);
+    defer gc.vkd.destroyShaderModule(gc.dev, frag, null);
+
+    // pipeline shader stage creation info struct
+    const pssci = [_]vk.PipelineShaderStageCreateInfo{
+        .{
+            .flags = .{},
+            .stage = .{ .vertex_bit = true },
+            .module = vert,
+            .p_name = "main",
+            .p_specialization_info = null,
+        },
+        .{
+            .flags = .{},
+            .stage = .{ .fragment_bit = true },
+            .module = vert,
+            .p_name = "main",
+            .p_specialization_info = null,
+        },
+    };
+    _ = pssci;
+
+    //
+    const pvisci = vk.PipelineVertexInputStateCreateInfo{
+        .flags = .{},
+        .vertex_binding_description_count = 1,
+        .p_vertex_binding_descriptions = @ptrCast([*]const vk.VertexInputBindingDescription, &Vertex.binding_description),
+        .vertex_attribute_description_count = Vertex.attribute_description.len,
+        .p_vertex_attribute_descriptions = &Vertex.attribute_description,
+    };
+    _ = pvisci;
+
+    const piasci = vk.PipelineInputAssemblyStateCreateInfo{
+        .flags = .{},
+        .topology = .triangle_list,
+        .primitive_restart_enable = vk.FALSE,
+    };
+    _ = piasci;
+
+    const pvsci = vk.PipelineViewportStateCreateInfo{
+        .flags = {},
+        .viewport_count = 1,
+        .p_viewports = undefined,
+        .scissor_count = 1,
+        .p_scissors = undefined,
+    };
+    _ = pvsci;
+
+    const prsci = vk.PipelineRasterizationStateCreateInfo{
+        .flags = .{},
+    };
+    _ = prsci;
+
+    const pmsci = vk.PipelineMultisampleStateCreateInfo{
+        .flags = .{},
+    };
+    _ = pmsci;
+
+    const pcbas = vk.PipelineColorBlendAttachmentState{
+        .flag = .{},
+    };
+    _ = pcbas;
+
+    const pcbsci = vk.PipelineColorBlendStateCreateInfo{
+        .flags = .{},
+        .logic_op_enable = vk.FALSE,
+        .logic_op = .copy,
+        .attachment_count = 1,
+        .p_attachments = @ptrCast([*]const vk.PipelineColorBlendAttachmentState, &pcbas),
+        .blend_constants = [_]f32{ 0, 0, 0, 0 },
+    };
+
+    const dynstate = [_]vk.DynamicState{ .viewport, .scissor };
+    const pdsci = vk.PipelineDynamicStateCreateInfo{
+        .flags = .{},
+        .dynamic_state_count = dynstate.len,
+        .p_dynamic_states = &dynstate,
+    };
+
+    const gpci = vk.GraphicsPipelineCreateInfo{
+        .flags = .{},
+        .stage_count = 2,
+        .p_stages = &pssci,
+        .p_vertex_input_state = &pvisci,
+        .p_input_assembly_state = &piasci,
+        .p_tessellation_state = null,
+        .p_viewport_state = &pvsci,
+        .p_rasterization_state = &prsci,
+        .p_multisample_state = &pmsci,
+        .p_depth_stencil_state = null,
+        .p_color_blend_state = &pcbsci,
+        .p_dynamic_state = &pdsci,
+        .layout = layout,
+        .render_pass = self._renderPass,
+        .subpass = 0,
+        .base_pipeline_handle = .null_handle,
+        .base_pipeline_index = -1,
+    };
+
+    var pipeline: vk.Pipeline = undefined;
+    _ = try gc.vkd.createGraphicsPipelines(
+        gc.dev,
+        .null_handle,
+        1,
+        @ptrCast([*]const vk.GraphicsPipelineCreateInfo, &gpci),
+        null,
+        @ptrCast([*]vk.Pipeline, &pipeline),
+    );
+    _ = pipeline;
 }
