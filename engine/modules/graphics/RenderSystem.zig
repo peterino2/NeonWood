@@ -303,20 +303,20 @@ fn createPipeline(
     };
     _ = pvsci;
 
-    const prsci = vk.PipelineRasterizationStateCreateInfo{
-        .flags = .{},
-    };
-    _ = prsci;
+    // const prsci = vk.PipelineRasterizationStateCreateInfo{
+    //     .flags = .{},
+    // };
+    // _ = prsci;
 
-    const pmsci = vk.PipelineMultisampleStateCreateInfo{
-        .flags = .{},
-    };
-    _ = pmsci;
+    // const pmsci = vk.PipelineMultisampleStateCreateInfo{
+    //     .flags = .{},
+    // };
+    // _ = pmsci;
 
-    const pcbas = vk.PipelineColorBlendAttachmentState{
-        .flag = .{},
-    };
-    _ = pcbas;
+    // const pcbas = vk.PipelineColorBlendAttachmentState{
+    //     .flag = .{},
+    // };
+    // _ = pcbas;
 
     const pcbsci = vk.PipelineColorBlendStateCreateInfo{
         .flags = .{},
