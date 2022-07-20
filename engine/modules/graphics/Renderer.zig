@@ -18,6 +18,12 @@ const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
 };
 
+pub const NeonVkSwapImage = struct {
+    image: vk.Image,
+    view: vk.ImageView,
+    imageIndex: usize,
+};
+
 pub const NeonVkQueue = struct {
     handle: vk.Queue,
     family: u32,
@@ -31,7 +37,7 @@ pub const NeonVkQueue = struct {
 };
 
 pub const NeonVkPhysicalDeviceInfo = struct {
-    pdev: vk.PhysicalDevice,
+    physicalDevice: vk.PhysicalDevice,
     queueFamilyProperties: ArrayList(vk.QueueFamilyProperties),
     supportedExtensions: ArrayList(vk.ExtensionProperties),
     surfaceFormats: ArrayList(vk.SurfaceFormatKHR),
@@ -54,7 +60,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
             .memoryProperties = undefined,
             .deviceProperties = undefined,
             .surfaceCapabilites = undefined,
-            .pdev = pdevice,
+            .physicalDevice = pdevice,
         };
 
         core.graphics_logs("=== Enumerating Device ===");
@@ -110,9 +116,11 @@ pub const NeonVkPhysicalDeviceInfo = struct {
     }
 };
 
-pub const NeonVkRenderer = struct {
+pub const NeonVkContext = struct {
     const Self = @This();
-    // Quirks of the way the zig wrapper loads the functions for vulkan
+    const NumFrames = 3;
+
+    // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
     vkb: vulkan_constants.BaseDispatch,
     vki: vulkan_constants.InstanceDispatch,
     vkd: vulkan_constants.DeviceDispatch,
@@ -138,6 +146,8 @@ pub const NeonVkRenderer = struct {
     window: ?*c.GLFWwindow,
     windowName: [*c]const u8,
     extent: vk.Extent2D,
+    actual_extent: vk.Extent2D,
+    caps: vk.SurfaceCapabilitiesKHR,
 
     acquireSemaphores: ArrayList(vk.Semaphore),
     renderCompleteSemaphores: ArrayList(vk.Semaphore),
@@ -145,42 +155,191 @@ pub const NeonVkRenderer = struct {
     commandPool: vk.CommandPool,
     commandBuffers: ArrayList(vk.CommandBuffer),
     commandBufferFences: ArrayList(vk.Fence),
+    renderPass: vk.RenderPass,
 
     surfaceFormat: vk.SurfaceFormatKHR,
     presentMode: vk.PresentModeKHR,
-    swapchain: vk.Swapchain,
+    swapchain: vk.SwapchainKHR,
+    swapImages: ArrayList(NeonVkSwapImage),
+    framebuffers: ArrayList(vk.Framebuffer),
+
+    depthFormat: vk.Format,
 
     pub fn create_object() !Self {
         var self: Self = undefined;
 
-        try self.init_zig_allocators();
+        try self.init_zig_data();
         try self.init_glfw();
         try self.init_api();
         try self.init_device();
         try self.init_syncs();
         try self.init_command_pools();
         try self.init_command_buffers();
-        try self.init_formats_and_modes();
+        try self.init_or_recycle_swapchain();
+        try self.init_rendertarget();
+        try self.init_renderpasses();
+        try self.init_framebuffers();
 
         return self;
     }
 
-    pub fn init_formats_and_modes(self: *Self) !void {
-        try self.find_surface_format();
-        try self.find_present_mode();
+    fn init_framebuffers(self: *Self) !void {
+        self.framebuffers = ArrayList(vk.Framebuffer).init(self.allocator);
+        try self.framebuffers.resize(self.swapImages.items.len);
+
+        var attachments = try self.allocator.alloc(vk.ImageView, 1);
+        defer self.allocator.free(attachments);
+        //attachments[1] = self.depthImage; // slot 0 is going to be the current image view, slot 1 is the depth image view
+
+        var fbci = vk.FramebufferCreateInfo{
+            .flags = .{},
+            .render_pass = self.renderPass,
+            .attachment_count = 1,
+            .p_attachments = attachments.ptr,
+            .width = self.actual_extent.width,
+            .height = self.actual_extent.height,
+            .layers = 1,
+        };
+
+        core.graphics_log("swapImages count = {d}", .{self.swapImages.items.len});
+
+        for (self.swapImages.items) |image, i| {
+            attachments[0] = image.view;
+            debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
+            self.framebuffers.items[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
+            core.graphics_logs("Created a framebuffer!");
+        }
     }
 
-    pub fn recycle_swapchain(self: *Self) !void {
-        const caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.pdev, self.surface);
+    fn init_rendertarget(self: *Self) !void {
+        var formats = [_]vk.Format{
+            .d32_sfloat_s8_uint,
+            .d24_unorm_s8_uint,
+        };
 
-        const actual_extent = findActualExtent(caps, self.extent);
-        if (actual_extent.width == 0 or actual_extent.height == 0) {
+        self.depthFormat = try self.find_supported_format(formats[0..], .optimal, .{ .depth_stencil_attachment_bit = true });
+        core.graphics_log("created depth format: {any}", .{self.depthFormat});
+    }
+
+    fn init_renderpasses(self: *Self) !void {
+        var attachments = ArrayList(vk.AttachmentDescription).init(self.allocator);
+        defer attachments.deinit();
+
+        // create color attachment
+        var colorAttachment = vk.AttachmentDescription{
+            .flags = .{},
+            .format = self.surfaceFormat.format,
+            .samples = .{ .@"1_bit" = true },
+            .load_op = .dont_care,
+            .store_op = .dont_care,
+            .stencil_load_op = .load, // equals to zero
+            .stencil_store_op = .store, // equals to zero but we don't care
+            .initial_layout = .@"undefined",
+            .final_layout = .present_src_khr,
+        };
+
+        var colorAttachmentRef = vk.AttachmentReference{
+            .attachment = @intCast(u32, attachments.items.len),
+            .layout = .color_attachment_optimal,
+        };
+
+        try attachments.append(colorAttachment);
+
+        var depthAttachment = vk.AttachmentDescription{
+            .flags = .{},
+            .format = self.depthFormat,
+            .samples = .{ .@"1_bit" = true },
+            .load_op = .dont_care,
+            .store_op = .dont_care,
+            .stencil_load_op = .load, // equals to zero
+            .stencil_store_op = .store, // equals to zero but we don't care
+            .initial_layout = .@"undefined",
+            .final_layout = .depth_stencil_attachment_optimal,
+        };
+
+        var depthAttachmentRef = vk.AttachmentReference{
+            .attachment = @intCast(u32, attachments.items.len),
+            .layout = .depth_stencil_attachment_optimal,
+        };
+        _ = depthAttachmentRef;
+        try attachments.append(depthAttachment);
+
+        var subpass = std.mem.zeroes(vk.SubpassDescription);
+        subpass.flags = .{};
+        subpass.pipeline_bind_point = .graphics;
+        subpass.input_attachment_count = 0;
+        subpass.color_attachment_count = 1;
+        subpass.p_color_attachments = @ptrCast([*]const vk.AttachmentReference, &colorAttachmentRef);
+        //subpass.p_depth_stencil_attachment = &depthAttachmentRef; // disable the depth attachment for now
+        subpass.p_depth_stencil_attachment = null;
+
+        var rpci = std.mem.zeroes(vk.RenderPassCreateInfo);
+        rpci.s_type = .render_pass_create_info;
+        rpci.flags = .{};
+        rpci.attachment_count = @intCast(u32, attachments.items.len - 1);
+        rpci.p_attachments = attachments.items.ptr;
+        rpci.subpass_count = 1;
+        rpci.p_subpasses = @ptrCast([*]const vk.SubpassDescription, &subpass);
+        debug_struct("rpci", rpci);
+
+        self.renderPass = try self.vkd.createRenderPass(self.dev, &rpci, null);
+    }
+
+    pub fn find_supported_format(
+        self: Self,
+        formats: []vk.Format,
+        imageTiling: vk.ImageTiling,
+        features: vk.FormatFeatureFlags,
+    ) !vk.Format {
+        for (formats) |format| {
+            var props = self.vki.getPhysicalDeviceFormatProperties(self.physicalDevice, format);
+            if (imageTiling == .linear and (@bitCast(u32, props.linear_tiling_features) & @bitCast(u32, features)) == @bitCast(u32, features)) {
+                return format;
+            } else if (imageTiling == .optimal and (@bitCast(u32, props.optimal_tiling_features) & @bitCast(u32, features)) == @bitCast(u32, features)) {
+                return format;
+            }
+        }
+
+        return error.NoDefinedFormats;
+    }
+
+    fn find_actual_extent(self: *Self) !void {
+        const caps = self.caps;
+        const extent = self.extent;
+        if (caps.current_extent.width != 0xFFFF_FFFF) {
+            self.actual_extent = caps.current_extent;
+        } else {
+            self.actual_extent = .{
+                .width = std.math.clamp(extent.width, caps.min_image_extent.width, caps.max_image_extent.width),
+                .height = std.math.clamp(extent.height, caps.min_image_extent.height, caps.max_image_extent.height),
+            };
+        }
+    }
+
+    pub fn debug_struct(preamble: []const u8, s: anytype) void {
+        core.graphics_log("{s}:", .{preamble});
+        core.graphics_log("  {any}", .{s});
+    }
+
+    pub fn init_or_recycle_swapchain(self: *Self) !void {
+        self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
+
+        try self.find_surface_format();
+        debug_struct("selected surface format", self.surfaceFormat);
+
+        try self.find_present_mode();
+        debug_struct("selected present mode", self.presentMode);
+
+        try self.find_actual_extent();
+        debug_struct("actual extent", self.actual_extent);
+
+        if (self.actual_extent.width == 0 or self.actual_extent.height == 0) {
             return error.InvalidSurfaceDimensions;
         }
 
-        var image_count = caps.min_image_count + 1;
-        if (caps.max_image_count > 0) {
-            image_count = std.math.min(image_count, caps.max_image_count);
+        var image_count = self.caps.min_image_count + 1;
+        if (self.caps.max_image_count > 0) {
+            image_count = std.math.min(image_count, self.caps.max_image_count);
         }
 
         const qfi = [_]u32{ self.graphicsQueue.family, self.presentQueue.family };
@@ -196,13 +355,13 @@ pub const NeonVkRenderer = struct {
             .min_image_count = image_count,
             .image_format = self.surfaceFormat.format,
             .image_color_space = self.surfaceFormat.color_space,
-            .image_extent = actual_extent,
+            .image_extent = self.actual_extent,
             .image_array_layers = 1,
             .image_usage = .{ .color_attachment_bit = true, .transfer_dst_bit = true },
             .image_sharing_mode = sharing_mode,
             .queue_family_index_count = qfi.len,
             .p_queue_family_indices = &qfi,
-            .pre_transform = caps.current_transform,
+            .pre_transform = self.caps.current_transform,
             .composite_alpha = .{ .opaque_bit_khr = true },
             .present_mode = self.presentMode,
             .clipped = vk.TRUE,
@@ -210,21 +369,76 @@ pub const NeonVkRenderer = struct {
         };
 
         var newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
-        errdefer self.vkd.destroySwapchainKHR(self.dev, handle, null);
+        errdefer self.vkd.destroySwapchainKHR(self.dev, newSwapchain, null);
 
         if (self.swapchain != .null_handle) {
             self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
         }
 
         self.swapchain = newSwapchain;
+        try self.create_swapchain_images_and_views();
+    }
+
+    fn create_swapchain_images_and_views(self: *Self) !void {
+        self.swapImages = ArrayList(NeonVkSwapImage).init(self.allocator);
+
+        var count: u32 = 0;
+        _ = try self.vkd.getSwapchainImagesKHR(self.dev, self.swapchain, &count, null);
+        if (count == 0) {
+            core.engine_errs("No swap chain image found");
+            return error.NoSwapchainImagesFound;
+        }
+        core.graphics_log("Creating {d} swap images", .{count});
+
+        try self.swapImages.resize(count);
+        const images = try self.allocator.alloc(vk.Image, count);
+        defer self.allocator.free(images);
+
+        _ = try self.vkd.getSwapchainImagesKHR(self.dev, self.swapchain, &count, images.ptr);
+
+        for (core.count(NumFrames)) |_, i| {
+            const image = images[i];
+
+            var ivci = vk.ImageViewCreateInfo{
+                .flags = .{},
+                .image = image,
+                .view_type = .@"2d",
+                .format = self.surfaceFormat.format,
+                .components = .{ .r = .r, .g = .g, .b = .b, .a = .a },
+                .subresource_range = .{
+                    .aspect_mask = .{
+                        .color_bit = true,
+                    },
+                    .base_mip_level = 0,
+                    .level_count = 1,
+                    .base_array_layer = 0,
+                    .layer_count = 1,
+                },
+            };
+
+            var imageView = try self.vkd.createImageView(self.dev, &ivci, null);
+
+            debug_struct("imageView", imageView);
+
+            var swapImage = NeonVkSwapImage{
+                .image = image,
+                .view = imageView,
+                .imageIndex = i,
+            };
+
+            self.swapImages.items[i] = swapImage;
+
+            debug_struct("swapImage", swapImage);
+            debug_struct("self.swapImages.items[i]", self.swapImages.items[i]);
+        }
     }
 
     pub fn init_syncs(self: *Self) !void {
-        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, 2);
-        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, 2);
+        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
+        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
 
-        try self.acquireSemaphores.resize(2);
-        try self.renderCompleteSemaphores.resize(2);
+        try self.acquireSemaphores.resize(NumFrames);
+        try self.renderCompleteSemaphores.resize(NumFrames);
 
         var sci = vk.SemaphoreCreateInfo{
             .flags = .{},
@@ -239,24 +453,23 @@ pub const NeonVkRenderer = struct {
     pub fn init_command_buffers(self: *Self) !void {
         self.commandBuffers = ArrayList(vk.CommandBuffer).init(self.allocator);
         self.commandBufferFences = ArrayList(vk.Fence).init(self.allocator);
-        try self.commandBuffers.resize(2);
-        try self.commandBufferFences.resize(2);
+        try self.commandBuffers.resize(NumFrames);
+        try self.commandBufferFences.resize(NumFrames);
 
         var cbai = vk.CommandBufferAllocateInfo{
             .command_pool = self.commandPool,
             .level = vk.CommandBufferLevel.primary,
-            .command_buffer_count = 2,
+            .command_buffer_count = NumFrames,
         };
 
         try self.vkd.allocateCommandBuffers(self.dev, &cbai, self.commandBuffers.items.ptr);
 
         // then create fences for the command buffers
-        //
         var fci = vk.FenceCreateInfo{
             .flags = .{},
         };
 
-        for (core.count(2)) |_, i| {
+        for (core.count(NumFrames)) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
     }
@@ -270,9 +483,10 @@ pub const NeonVkRenderer = struct {
         errdefer self.vkd.destroyCommandPool(self.dev, pool, null);
     }
 
-    pub fn init_zig_allocators(self: *Self) !void {
+    pub fn init_zig_data(self: *Self) !void {
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
         self.allocator = self.gpa.allocator();
+        self.swapchain = .null_handle;
     }
 
     pub fn init_api(self: *Self) !void {
@@ -423,7 +637,7 @@ pub const NeonVkRenderer = struct {
                 if (props.queue_count == 0)
                     continue;
 
-                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.pdev, @intCast(u32, i), self.surface);
+                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @intCast(u32, i), self.surface);
                 if (supportsPresent > 0) {
                     presentID = @intCast(isize, i);
                     break;
@@ -431,7 +645,7 @@ pub const NeonVkRenderer = struct {
             }
 
             if (graphicsID != -1 and presentID != -1) {
-                self.physicalDevice = pDeviceInfo.pdev;
+                self.physicalDevice = pDeviceInfo.physicalDevice;
                 self.physicalDeviceProperties = pDeviceInfo.deviceProperties;
                 self.physicalDeviceMemoryProperties = pDeviceInfo.memoryProperties;
                 self.graphicsFamilyIndex = @intCast(usize, graphicsID);
@@ -448,12 +662,12 @@ pub const NeonVkRenderer = struct {
 
     fn check_extension_support(self: *Self, deviceInfo: NeonVkPhysicalDeviceInfo) !bool {
         var count: u32 = undefined;
-        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.pdev, null, &count, null);
+        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.physicalDevice, null, &count, null);
 
         const extension_list = try self.allocator.alloc(vk.ExtensionProperties, count);
         defer self.allocator.free(extension_list);
 
-        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.pdev, null, &count, extension_list.ptr);
+        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.physicalDevice, null, &count, extension_list.ptr);
 
         for (required_device_extensions) |required_extension| {
             for (extension_list) |ext| {
@@ -550,30 +764,33 @@ pub const NeonVkRenderer = struct {
             .color_space = .srgb_nonlinear_khr,
         };
 
-        var count: u32 = undefined;
+        var count: u32 = 0;
 
-        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.pdev, self.surface, &count, null);
+        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.physicalDevice, self.surface, &count, null);
 
         const surface_formats = try self.allocator.alloc(vk.SurfaceFormatKHR, count);
         defer self.allocator.free(surface_formats);
 
-        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.pdev, self.surface, &count, surface_formats.ptr);
+        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.physicalDevice, self.surface, &count, surface_formats.ptr);
 
         for (surface_formats) |sfmt| {
             if (std.meta.eql(sfmt, preferred)) {
-                return preferred;
+                self.surfaceFormat = preferred;
+                return;
             }
         }
 
         self.surfaceFormat = surface_formats[0];
+
+        core.graphics_log("selected surface format\n   {any}", .{self.surfaceFormat});
     }
 
     pub fn find_present_mode(self: *Self) !void {
         var count: u32 = undefined;
-        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.pdev, self.surface, &count, null);
+        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.physicalDevice, self.surface, &count, null);
         const present_modes = try self.allocator.alloc(vk.PresentModeKHR, count);
         defer self.allocator.free(present_modes);
-        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.pdev, self.surface, &count, present_modes.ptr);
+        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.physicalDevice, self.surface, &count, present_modes.ptr);
 
         const preferred = [_]vk.PresentModeKHR{
             .mailbox_khr,
@@ -623,14 +840,3 @@ pub const NeonVkRenderer = struct {
         ) orelse return error.WindowInitFailed;
     }
 };
-
-fn findActualExtent(caps: vk.SurfaceCapabilitiesKHR, extent: vk.Extent2D) vk.Extent2D {
-    if (caps.current_extent.width != 0xFFFF_FFFF) {
-        return caps.current_extent;
-    } else {
-        return .{
-            .width = std.math.clamp(extent.width, caps.min_image_extent.width, caps.max_image_extent.width),
-            .height = std.math.clamp(extent.height, caps.min_image_extent.height, caps.max_image_extent.height),
-        };
-    }
-}
