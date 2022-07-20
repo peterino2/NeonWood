@@ -3,6 +3,8 @@ const vk = @import("vulkan");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 
+pub const REQUESTED_EXTENSIONS: []core.CStr = .{VK_KHRONOS_VALIDATION_LAYER_STRING};
+
 pub const VK_KHRONOS_VALIDATION_LAYER_STRING: core.CStr = "VK_LAYER_KHRONOS_validation";
 
 pub const BaseDispatch = vk.BaseWrapper(.{

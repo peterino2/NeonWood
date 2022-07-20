@@ -14,7 +14,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-const required_device_extensions = [_]core.CString{
+const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
 };
 
@@ -30,6 +30,86 @@ pub const VkQueue = struct {
     }
 };
 
+pub const NeonVkPhysicalDeviceInfo = struct {
+    pdev: vk.PhysicalDevice,
+    queueFamilyProperties: ArrayList(vk.QueueFamilyProperties),
+    supportedExtensions: ArrayList(vk.ExtensionProperties),
+    surfaceFormats: ArrayList(vk.SurfaceFormatKHR),
+    presentModes: ArrayList(vk.PresentModeKHR),
+    memoryProperties: vk.PhysicalDeviceMemoryProperties,
+    deviceProperties: vk.PhysicalDeviceProperties,
+    surfaceCapabilites: vk.SurfaceCapabilitiesKHR,
+
+    pub fn enumerateFrom(
+        vki: InstanceDispatch,
+        pdevice: vk.PhysicalDevice,
+        surface: vk.SurfaceKHR,
+        allocator: std.mem.Allocator,
+    ) !NeonVkPhysicalDeviceInfo {
+        var self = NeonVkPhysicalDeviceInfo{
+            .queueFamilyProperties = ArrayList(vk.QueueFamilyProperties).init(allocator),
+            .supportedExtensions = ArrayList(vk.ExtensionProperties).init(allocator),
+            .surfaceFormats = ArrayList(vk.SurfaceFormatKHR).init(allocator),
+            .presentModes = ArrayList(vk.PresentModeKHR).init(allocator),
+            .memoryProperties = undefined,
+            .deviceProperties = undefined,
+            .surfaceCapabilites = undefined,
+            .pdev = pdevice,
+        };
+
+        core.graphics_logs("=== Enumerating Device ===");
+
+        var count: u32 = 0; // adding this for the vulkan two-step
+        // load family properties
+        vki.getPhysicalDeviceQueueFamilyProperties(pdevice, &count, null);
+        core.graphics_log("  Found {d} family properties", .{count});
+        if (count == 0)
+            return error.NoPhysicalDeviceQueueFamilyProperties;
+        try self.queueFamilyProperties.resize(@intCast(usize, count));
+        vki.getPhysicalDeviceQueueFamilyProperties(pdevice, &count, self.queueFamilyProperties.items.ptr);
+
+        // load supported extensions
+        _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, null);
+        core.graphics_log("  Found {d} extension properties", .{count});
+        if (count > 0) {
+            try self.queueFamilyProperties.resize(@intCast(usize, count));
+            _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, self.supportedExtensions.items.ptr);
+        }
+
+        // load surface formats
+        _ = try vki.getPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &count, null);
+        core.graphics_log("  Found {d} surface formats", .{count});
+        if (count > 0) {
+            try self.surfaceFormats.resize(@intCast(usize, count));
+            _ = try vki.getPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &count, self.surfaceFormats.items.ptr);
+        }
+
+        // load present modes
+        _ = try vki.getPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &count, null);
+        core.graphics_log("  Found {d} present modes", .{count});
+        if (count > 0) {
+            try self.presentModes.resize(@intCast(usize, count));
+            _ = try vki.getPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &count, self.presentModes.items.ptr);
+        }
+
+        // load device properties
+        self.deviceProperties = vki.getPhysicalDeviceProperties(pdevice);
+        // load memory properties
+        self.memoryProperties = vki.getPhysicalDeviceMemoryProperties(pdevice);
+        // get surface capabilities
+        self.surfaceCapabilites = try vki.getPhysicalDeviceSurfaceCapabilitiesKHR(pdevice, surface);
+
+        return self;
+    }
+
+    pub fn deinit(self: *NeonVkPhysicalDeviceInfo) void {
+        self.queueFamilyProperties.deinit();
+        self.supportedExtensions.deinit();
+        self.surfaceFormats.deinit();
+        self.presentModes.deinit();
+    }
+};
+
 pub const Renderer = struct {
     const Self = @This();
     // Quirks of the way the zig wrapper loads the functions for vulkan
@@ -42,6 +122,11 @@ pub const Renderer = struct {
     physicalDevice: vk.PhysicalDevice,
     physicalDeviceProperties: vk.PhysicalDeviceProperties,
     physicalDeviceMemoryProperties: vk.PhysicalDeviceMemoryProperties,
+
+    enumeratedPhysicalDevices: ArrayList(NeonVkPhysicalDeviceInfo),
+
+    graphicsFamilyIndex: usize,
+    presentFamilyIndex: usize,
 
     dev: vk.Device,
     graphicsQueue: VkQueue,
@@ -72,18 +157,18 @@ pub const Renderer = struct {
     pub fn init_api(self: *Self) !void {
         self.vkb = try BaseDispatch.load(c.glfwGetInstanceProcAddress);
 
-        try self.createVulkanInstance();
+        try self.create_vulkan_instance();
         errdefer self.vki.destroyInstance(self.instance, null);
 
         // create KHR surface structure
-        try self.createSurface();
+        try self.create_surface();
         errdefer self.vki.destroySurfaceKHR(self.instance, self.surface, null);
 
-        try self.pickPhysicalDevices();
+        try self.setup_physical_device();
         errdefer self.vkd.destroyDevice(self.dev, null);
     }
 
-    fn createVulkanInstance(self: *Self) !void {
+    fn create_vulkan_instance(self: *Self) !void {
         var glfwExtensionsCount: u32 = 0;
         const glfwExtensions = c.glfwGetRequiredInstanceExtensions(&glfwExtensionsCount);
 
@@ -98,7 +183,7 @@ pub const Renderer = struct {
 
         // Make a request for vulkan layers
         const ExtraLayers = [1]CStr{vulkan_constants.VK_KHRONOS_VALIDATION_LAYER_STRING};
-        try self.checkRequiredVulkanLayers(ExtraLayers[0..]);
+        try self.check_required_vulkan_layers(ExtraLayers[0..]);
 
         // setup vulkan application info
         const appInfo = vk.ApplicationInfo{
@@ -125,23 +210,136 @@ pub const Renderer = struct {
         self.vki = try InstanceDispatch.load(self.instance, c.glfwGetInstanceProcAddress);
     }
 
-    fn pickPhysicalDevices(self: *Self) !void {
-        _ = self;
+    fn setup_physical_device(self: *Self) !void {
+        try self.enumerate_physical_devices();
+        try self.find_physical_device();
     }
 
-    fn createSurface(self: *Self) !void {
-        if (self.window == null)
-            return error.WindowIsNullCantMakeSurface;
+    fn find_physical_device(self: *Self) !void {
+        for (self.enumeratedPhysicalDevices.items) |pDeviceInfo| {
+            var graphicsID: isize = -1;
+            var presentID: isize = -1;
 
-        var surface: vk.SurfaceKHR = undefined;
+            if (!try self.check_extension_support(pDeviceInfo))
+                continue;
 
-        if (c.glfwCreateWindowSurface(self.instance, self.window.?, null, &surface) != .success) {
-            core.engine_errs("Unable to create glfw surface");
-            return error.SurfaceInitFailed;
+            if (pDeviceInfo.presentModes.items.len == 0)
+                continue;
+
+            if (pDeviceInfo.surfaceFormats.items.len == 0)
+                continue;
+
+            // look for queueFamilyProperties looking for both a graphics card and a present queue
+
+            for (pDeviceInfo.queueFamilyProperties.items) |props, i| {
+                if (props.queue_count == 0)
+                    continue;
+
+                if (props.queue_flags.graphics_bit) {
+                    core.graphics_log("Found suitable graphics device with queue id: {d}", .{i});
+                    graphicsID = @intCast(isize, i);
+                }
+            }
+
+            //  find the present queue family
+
+            for (pDeviceInfo.queueFamilyProperties.items) |props, i| {
+                if (props.queue_count == 0)
+                    continue;
+
+                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.pdev, @intCast(u32, i), self.surface);
+                if (supportsPresent > 0) {
+                    presentID = @intCast(isize, i);
+                    break;
+                }
+            }
+
+            if (graphicsID != -1 and presentID != -1) {
+                self.physicalDevice = pDeviceInfo.pdev;
+                self.physicalDeviceProperties = pDeviceInfo.deviceProperties;
+                self.physicalDeviceMemoryProperties = pDeviceInfo.memoryProperties;
+                self.graphicsFamilyIndex = @intCast(usize, graphicsID);
+                self.presentFamilyIndex = @intCast(usize, presentID);
+                core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
+                core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
+                return;
+            }
+        }
+
+        core.engine_errs("Unable to find a physical device which fits.");
+        return error.NoValidDevice;
+    }
+
+    fn check_extension_support(self: *Self, deviceInfo: NeonVkPhysicalDeviceInfo) !bool {
+        var count: u32 = undefined;
+        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.pdev, null, &count, null);
+
+        const extension_list = try self.allocator.alloc(vk.ExtensionProperties, count);
+        defer self.allocator.free(extension_list);
+
+        _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.pdev, null, &count, extension_list.ptr);
+
+        for (required_device_extensions) |required_extension| {
+            for (extension_list) |ext| {
+                const len = std.mem.indexOfScalar(u8, &ext.extension_name, 0).?;
+                const prop_ext_name = ext.extension_name[0..len];
+
+                if (std.mem.eql(u8, std.mem.span(required_extension), prop_ext_name)) {
+                    break;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn check_surface_support(self: *Self, deviceInfo: NeonVkPhysicalDeviceInfo) !bool {
+        _ = self;
+        _ = deviceInfo;
+        return true;
+    }
+
+    fn enumerate_physical_devices(self: *Self) !void {
+        const vki = self.vki;
+        var numDevices: u32 = 0;
+        _ = try vki.enumeratePhysicalDevices(self.instance, &numDevices, null);
+
+        if (numDevices == 0)
+            return error.NoDevicesFound;
+
+        const devices = try self.allocator.alloc(vk.PhysicalDevice, numDevices);
+        defer self.allocator.free(devices);
+
+        _ = try vki.enumeratePhysicalDevices(self.instance, &numDevices, devices.ptr);
+
+        self.enumeratedPhysicalDevices = try ArrayList(NeonVkPhysicalDeviceInfo).initCapacity(self.allocator, @intCast(usize, numDevices));
+        core.graphics_log("Enumerating {d} devices...", .{numDevices});
+        var i: usize = 0;
+        while (i < numDevices) : (i += 1) {
+            self.enumeratedPhysicalDevices.appendAssumeCapacity(try NeonVkPhysicalDeviceInfo.enumerateFrom(
+                self.vki,
+                devices[i],
+                self.surface,
+                self.allocator,
+            ));
         }
     }
 
-    fn checkRequiredVulkanLayers(self: *Self, requiredNames: []const CStr) !void {
+    fn create_surface(self: *Self) !void {
+        if (self.window == null)
+            return error.WindowIsNullCantMakeSurface;
+
+        if (c.glfwCreateWindowSurface(self.instance, self.window.?, null, &self.surface) != .success) {
+            core.engine_errs("Unable to create glfw surface");
+            return error.SurfaceInitFailed;
+        }
+
+        core.graphics_logs("Suraface creation completed!");
+    }
+
+    fn check_required_vulkan_layers(self: *Self, requiredNames: []const CStr) !void {
         var layers = try self.get_layer_extensions();
         defer self.allocator.free(layers);
         for (layers) |layer, i| {
