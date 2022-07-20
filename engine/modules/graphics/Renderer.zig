@@ -146,6 +146,10 @@ pub const NeonVkRenderer = struct {
     commandBuffers: ArrayList(vk.CommandBuffer),
     commandBufferFences: ArrayList(vk.Fence),
 
+    surfaceFormat: vk.SurfaceFormatKHR,
+    presentMode: vk.PresentModeKHR,
+    swapchain: vk.Swapchain,
+
     pub fn create_object() !Self {
         var self: Self = undefined;
 
@@ -156,8 +160,63 @@ pub const NeonVkRenderer = struct {
         try self.init_syncs();
         try self.init_command_pools();
         try self.init_command_buffers();
+        try self.init_formats_and_modes();
 
         return self;
+    }
+
+    pub fn init_formats_and_modes(self: *Self) !void {
+        try self.find_surface_format();
+        try self.find_present_mode();
+    }
+
+    pub fn recycle_swapchain(self: *Self) !void {
+        const caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.pdev, self.surface);
+
+        const actual_extent = findActualExtent(caps, self.extent);
+        if (actual_extent.width == 0 or actual_extent.height == 0) {
+            return error.InvalidSurfaceDimensions;
+        }
+
+        var image_count = caps.min_image_count + 1;
+        if (caps.max_image_count > 0) {
+            image_count = std.math.min(image_count, caps.max_image_count);
+        }
+
+        const qfi = [_]u32{ self.graphicsQueue.family, self.presentQueue.family };
+
+        const sharing_mode: vk.SharingMode = if (self.graphicsQueue.family != self.presentQueue.family)
+            .concurrent
+        else
+            .exclusive;
+
+        var scci = vk.SwapchainCreateInfoKHR{
+            .flags = .{},
+            .surface = self.surface,
+            .min_image_count = image_count,
+            .image_format = self.surfaceFormat.format,
+            .image_color_space = self.surfaceFormat.color_space,
+            .image_extent = actual_extent,
+            .image_array_layers = 1,
+            .image_usage = .{ .color_attachment_bit = true, .transfer_dst_bit = true },
+            .image_sharing_mode = sharing_mode,
+            .queue_family_index_count = qfi.len,
+            .p_queue_family_indices = &qfi,
+            .pre_transform = caps.current_transform,
+            .composite_alpha = .{ .opaque_bit_khr = true },
+            .present_mode = self.presentMode,
+            .clipped = vk.TRUE,
+            .old_swapchain = self.swapchain,
+        };
+
+        var newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
+        errdefer self.vkd.destroySwapchainKHR(self.dev, handle, null);
+
+        if (self.swapchain != .null_handle) {
+            self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
+        }
+
+        self.swapchain = newSwapchain;
     }
 
     pub fn init_syncs(self: *Self) !void {
@@ -485,6 +544,52 @@ pub const NeonVkRenderer = struct {
         core.graphics_logs("All requested layers are available :)");
     }
 
+    pub fn find_surface_format(self: *Self) !void {
+        const preferred = vk.SurfaceFormatKHR{
+            .format = .b8g8r8a8_srgb,
+            .color_space = .srgb_nonlinear_khr,
+        };
+
+        var count: u32 = undefined;
+
+        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.pdev, self.surface, &count, null);
+
+        const surface_formats = try self.allocator.alloc(vk.SurfaceFormatKHR, count);
+        defer self.allocator.free(surface_formats);
+
+        _ = try self.vki.getPhysicalDeviceSurfaceFormatsKHR(self.pdev, self.surface, &count, surface_formats.ptr);
+
+        for (surface_formats) |sfmt| {
+            if (std.meta.eql(sfmt, preferred)) {
+                return preferred;
+            }
+        }
+
+        self.surfaceFormat = surface_formats[0];
+    }
+
+    pub fn find_present_mode(self: *Self) !void {
+        var count: u32 = undefined;
+        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.pdev, self.surface, &count, null);
+        const present_modes = try self.allocator.alloc(vk.PresentModeKHR, count);
+        defer self.allocator.free(present_modes);
+        _ = try self.vki.getPhysicalDeviceSurfacePresentModesKHR(self.pdev, self.surface, &count, present_modes.ptr);
+
+        const preferred = [_]vk.PresentModeKHR{
+            .mailbox_khr,
+            .immediate_khr,
+        };
+
+        for (preferred) |mode| {
+            if (std.mem.indexOfScalar(vk.PresentModeKHR, present_modes, mode) != null) {
+                self.presentMode = mode;
+                break;
+            }
+        }
+
+        self.presentMode = .fifo_khr;
+    }
+
     pub fn get_layer_extensions(self: *Self) ![]const vk.LayerProperties {
         var count: u32 = 0;
         _ = try self.vkb.enumerateInstanceLayerProperties(&count, null);
@@ -518,3 +623,14 @@ pub const NeonVkRenderer = struct {
         ) orelse return error.WindowInitFailed;
     }
 };
+
+fn findActualExtent(caps: vk.SurfaceCapabilitiesKHR, extent: vk.Extent2D) vk.Extent2D {
+    if (caps.current_extent.width != 0xFFFF_FFFF) {
+        return caps.current_extent;
+    } else {
+        return .{
+            .width = std.math.clamp(extent.width, caps.min_image_extent.width, caps.max_image_extent.width),
+            .height = std.math.clamp(extent.height, caps.min_image_extent.height, caps.max_image_extent.height),
+        };
+    }
+}
