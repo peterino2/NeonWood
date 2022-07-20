@@ -3,7 +3,9 @@ const vk = @import("vulkan");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 
-pub const REQUESTED_EXTENSIONS: []core.CStr = .{VK_KHRONOS_VALIDATION_LAYER_STRING};
+pub const DEVICE_LAYERS: []core.CStr = .{VK_KHRONOS_VALIDATION_LAYER_STRING};
+
+pub const required_device_layers = [_][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
 
 pub const VK_KHRONOS_VALIDATION_LAYER_STRING: core.CStr = "VK_LAYER_KHRONOS_validation";
 

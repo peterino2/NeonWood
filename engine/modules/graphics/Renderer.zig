@@ -18,7 +18,7 @@ const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
 };
 
-pub const VkQueue = struct {
+pub const NeonVkQueue = struct {
     handle: vk.Queue,
     family: u32,
 
@@ -110,7 +110,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
     }
 };
 
-pub const Renderer = struct {
+pub const NeonVkRenderer = struct {
     const Self = @This();
     // Quirks of the way the zig wrapper loads the functions for vulkan
     vkb: vulkan_constants.BaseDispatch,
@@ -129,8 +129,8 @@ pub const Renderer = struct {
     presentFamilyIndex: usize,
 
     dev: vk.Device,
-    graphicsQueue: VkQueue,
-    presentQueue: VkQueue,
+    graphicsQueue: NeonVkQueue,
+    presentQueue: NeonVkQueue,
 
     gpa: std.heap.GeneralPurposeAllocator(.{}),
     allocator: std.mem.Allocator,
@@ -139,17 +139,79 @@ pub const Renderer = struct {
     windowName: [*c]const u8,
     extent: vk.Extent2D,
 
+    acquireSemaphores: ArrayList(vk.Semaphore),
+    renderCompleteSemaphores: ArrayList(vk.Semaphore),
+
+    commandPool: vk.CommandPool,
+    commandBuffers: ArrayList(vk.CommandBuffer),
+    commandBufferFences: ArrayList(vk.Fence),
+
     pub fn create_object() !Self {
         var self: Self = undefined;
 
-        try self.init_allocators();
+        try self.init_zig_allocators();
         try self.init_glfw();
         try self.init_api();
+        try self.init_device();
+        try self.init_syncs();
+        try self.init_command_pools();
+        try self.init_command_buffers();
 
         return self;
     }
 
-    pub fn init_allocators(self: *Self) !void {
+    pub fn init_syncs(self: *Self) !void {
+        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, 2);
+        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, 2);
+
+        try self.acquireSemaphores.resize(2);
+        try self.renderCompleteSemaphores.resize(2);
+
+        var sci = vk.SemaphoreCreateInfo{
+            .flags = .{},
+        };
+
+        for (self.acquireSemaphores.items) |_, i| {
+            self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
+            self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
+        }
+    }
+
+    pub fn init_command_buffers(self: *Self) !void {
+        self.commandBuffers = ArrayList(vk.CommandBuffer).init(self.allocator);
+        self.commandBufferFences = ArrayList(vk.Fence).init(self.allocator);
+        try self.commandBuffers.resize(2);
+        try self.commandBufferFences.resize(2);
+
+        var cbai = vk.CommandBufferAllocateInfo{
+            .command_pool = self.commandPool,
+            .level = vk.CommandBufferLevel.primary,
+            .command_buffer_count = 2,
+        };
+
+        try self.vkd.allocateCommandBuffers(self.dev, &cbai, self.commandBuffers.items.ptr);
+
+        // then create fences for the command buffers
+        //
+        var fci = vk.FenceCreateInfo{
+            .flags = .{},
+        };
+
+        for (core.count(2)) |_, i| {
+            self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
+        }
+    }
+
+    pub fn init_command_pools(self: *Self) !void {
+        var cpci = vk.CommandPoolCreateInfo{ .flags = .{}, .queue_family_index = undefined };
+        cpci.flags.reset_command_buffer_bit = true;
+        cpci.queue_family_index = @intCast(u32, self.graphicsFamilyIndex);
+
+        self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
+        errdefer self.vkd.destroyCommandPool(self.dev, pool, null);
+    }
+
+    pub fn init_zig_allocators(self: *Self) !void {
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
         self.allocator = self.gpa.allocator();
     }
@@ -163,9 +225,6 @@ pub const Renderer = struct {
         // create KHR surface structure
         try self.create_surface();
         errdefer self.vki.destroySurfaceKHR(self.instance, self.surface, null);
-
-        try self.setup_physical_device();
-        errdefer self.vkd.destroyDevice(self.dev, null);
     }
 
     fn create_vulkan_instance(self: *Self) !void {
@@ -210,7 +269,65 @@ pub const Renderer = struct {
         self.vki = try InstanceDispatch.load(self.instance, c.glfwGetInstanceProcAddress);
     }
 
-    fn setup_physical_device(self: *Self) !void {
+    fn init_device(self: *Self) !void {
+        try self.create_physical_devices();
+        errdefer self.vkd.destroyDevice(self.dev, null);
+
+        var ids = ArrayList(u32).init(self.allocator);
+        defer ids.deinit();
+
+        try core.AppendToArrayListUnique(&ids, @intCast(u32, self.graphicsFamilyIndex));
+        try core.AppendToArrayListUnique(&ids, @intCast(u32, self.presentFamilyIndex));
+
+        var createQueueInfoList = ArrayList(vk.DeviceQueueCreateInfo).init(self.allocator);
+        defer createQueueInfoList.deinit();
+
+        const priority = [_]f32{1.0};
+
+        for (ids.items) |id| {
+            try createQueueInfoList.append(.{
+                .flags = .{},
+                .queue_family_index = id,
+                .queue_count = 1,
+                .p_queue_priorities = &priority,
+            });
+        }
+
+        var deviceFeatures = vk.PhysicalDeviceFeatures{};
+        deviceFeatures.texture_compression_bc = vk.TRUE;
+        deviceFeatures.image_cube_array = vk.TRUE;
+        deviceFeatures.depth_clamp = vk.TRUE;
+        deviceFeatures.depth_bias_clamp = vk.TRUE;
+        deviceFeatures.depth_bounds = vk.TRUE;
+        deviceFeatures.fill_mode_non_solid = vk.TRUE;
+
+        var dci = vk.DeviceCreateInfo{
+            .flags = .{},
+            .queue_create_info_count = @intCast(u32, createQueueInfoList.items.len),
+            .p_queue_create_infos = createQueueInfoList.items.ptr,
+            .enabled_layer_count = 0,
+            .pp_enabled_layer_names = undefined,
+            .enabled_extension_count = @intCast(u32, required_device_extensions.len),
+            .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &required_device_extensions),
+            .p_enabled_features = &deviceFeatures,
+        };
+
+        dci.enabled_layer_count = vulkan_constants.required_device_layers.len;
+        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vulkan_constants.required_device_layers);
+
+        self.dev = try self.vki.createDevice(self.physicalDevice, &dci, null);
+
+        self.vkd = try DeviceDispatch.load(self.dev, self.vki.dispatch.vkGetDeviceProcAddr);
+        errdefer self.vkd.destroyDevice(self.dev, null);
+
+        core.graphics_logs("Successfully created device");
+    }
+
+    fn create_command_pool(self: *Self) !void {
+        _ = self;
+    }
+
+    fn create_physical_devices(self: *Self) !void {
         try self.enumerate_physical_devices();
         try self.find_physical_device();
     }
