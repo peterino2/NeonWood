@@ -16,7 +16,10 @@ pub fn shutdown_module() void {
 
 pub fn run() !void {
     var renderer = try NeonVkContext.create_object();
-    _ = renderer;
+
+    while (!try renderer.shouldExit()) {
+        try renderer.draw(0.016);
+    }
     // var system = RenderSystem.create_object();
 
     // try system.init();

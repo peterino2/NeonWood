@@ -196,6 +196,8 @@ pub const NeonVkContext = struct {
     commandBufferFences: ArrayList(vk.Fence),
     renderPass: vk.RenderPass,
 
+    renderFence: vk.Fence,
+
     surfaceFormat: vk.SurfaceFormatKHR,
     presentMode: vk.PresentModeKHR,
     swapchain: vk.SwapchainKHR,
@@ -221,6 +223,53 @@ pub const NeonVkContext = struct {
         try self.init_framebuffers();
 
         return self;
+    }
+
+    pub fn shouldExit(self: Self) !bool {
+        return c.glfwWindowShouldClose(self.window) == c.GLFW_TRUE;
+    }
+
+    pub fn draw(self: *Self, deltaTime: f64) !void {
+        _ = deltaTime;
+        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.renderFence), 1, 1000000000);
+        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.renderFence));
+        // get next swapchain
+
+        // so some issues... we should fix this rendering stuff here, we did something out of order,
+        // we are currently doing triple buffering....
+        // not sure how that happened but obviously our code is not set up for that
+        var result = try self.vkd.acquireNextImageKHR(self.dev, self.swapchain, 1000000000, self.acquireSemaphores.items[0], .null_handle);
+        _ = result;
+
+        try self.vkd.resetCommandBuffer(self.commandBuffers.items[0], .{});
+
+        var cmd = self.commandBuffers.items[0];
+
+        var cbi = vk.CommandBufferBeginInfo{
+            .p_inheritance_info = null,
+            .flags = .{ .one_time_submit_bit = true },
+        };
+
+        try self.vkd.beginCommandBuffer(cmd, &cbi);
+
+        var clearValue = vk.ClearValue{ .color = .{
+            .float_32 = [4]f32{ 0, 0, 1.0, 1.0 },
+        } };
+
+        var rpbi = vk.RenderPassBeginInfo{
+            .render_area = .{
+                .extent = self.actual_extent,
+                .offset = .{ .x = 0, .y = 0 },
+            },
+            .framebuffer = self.framebuffers.items[0],
+            .render_pass = self.renderPass,
+            .clear_value_count = 1,
+            .p_clear_values = @ptrCast([*]const vk.ClearValue, &clearValue),
+        };
+
+        self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
+
+        c.glfwPollEvents();
     }
 
     fn init_vk_allocator(self: *Self) !void {
@@ -519,6 +568,8 @@ pub const NeonVkContext = struct {
         for (core.count(NumFrames)) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
+
+        self.renderFence = try self.vkd.createFence(self.dev, &fci, null);
     }
 
     pub fn init_command_pools(self: *Self) !void {
