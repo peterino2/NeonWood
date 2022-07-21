@@ -6,7 +6,7 @@ const core = @import("../core/core.zig");
 pub const NUM_FRAMES: usize = 3;
 pub const DEVICE_LAYERS: []core.CStr = .{VK_KHRONOS_VALIDATION_LAYER_STRING};
 
-pub const required_device_layers = [_][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
+pub const required_device_layers = [_]core.CStr{"VK_LAYER_KHRONOS_validation"};
 
 pub const VK_KHRONOS_VALIDATION_LAYER_STRING: core.CStr = "VK_LAYER_KHRONOS_validation";
 
@@ -19,6 +19,7 @@ pub const BaseDispatch = vk.BaseWrapper(.{
 });
 
 pub const InstanceDispatch = vk.InstanceWrapper(.{
+    .getPhysicalDeviceFeatures = true,
     .destroyInstance = true,
     .createDevice = true,
     .destroySurfaceKHR = true,

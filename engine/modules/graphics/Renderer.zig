@@ -591,16 +591,15 @@ pub const NeonVkContext = struct {
 
     fn init_device(self: *Self) !void {
         try self.create_physical_devices();
-        errdefer self.vkd.destroyDevice(self.dev, null);
 
         var ids = ArrayList(u32).init(self.allocator);
-        defer ids.deinit();
+        //defer ids.deinit();
 
         try core.AppendToArrayListUnique(&ids, @intCast(u32, self.graphicsFamilyIndex));
         try core.AppendToArrayListUnique(&ids, @intCast(u32, self.presentFamilyIndex));
 
         var createQueueInfoList = ArrayList(vk.DeviceQueueCreateInfo).init(self.allocator);
-        defer createQueueInfoList.deinit();
+        //defer createQueueInfoList.deinit();
 
         const priority = [_]f32{1.0};
 
@@ -613,13 +612,12 @@ pub const NeonVkContext = struct {
             });
         }
 
-        var deviceFeatures = vk.PhysicalDeviceFeatures{};
-        deviceFeatures.texture_compression_bc = vk.TRUE;
-        deviceFeatures.image_cube_array = vk.TRUE;
-        deviceFeatures.depth_clamp = vk.TRUE;
-        deviceFeatures.depth_bias_clamp = vk.TRUE;
-        deviceFeatures.depth_bounds = vk.TRUE;
-        deviceFeatures.fill_mode_non_solid = vk.TRUE;
+        var desiredFeatures = vk.PhysicalDeviceFeatures{};
+        desiredFeatures.texture_compression_bc = vk.TRUE;
+        desiredFeatures.image_cube_array = vk.TRUE;
+        desiredFeatures.depth_clamp = vk.TRUE;
+        desiredFeatures.depth_bias_clamp = vk.TRUE;
+        desiredFeatures.fill_mode_non_solid = vk.TRUE;
 
         var dci = vk.DeviceCreateInfo{
             .flags = .{},
@@ -629,7 +627,7 @@ pub const NeonVkContext = struct {
             .pp_enabled_layer_names = undefined,
             .enabled_extension_count = @intCast(u32, required_device_extensions.len),
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &required_device_extensions),
-            .p_enabled_features = &deviceFeatures,
+            .p_enabled_features = &desiredFeatures,
         };
 
         dci.enabled_layer_count = vulkan_constants.required_device_layers.len;
@@ -699,6 +697,7 @@ pub const NeonVkContext = struct {
                 self.presentFamilyIndex = @intCast(usize, presentID);
                 core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
+                debug_struct("selected physical device:", self.physicalDevice);
                 return;
             }
         }
