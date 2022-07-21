@@ -1,5 +1,5 @@
 
-# Crank Toy Game Development Toolkit
+# NeonWood Toy Game Development Toolkit
 
 This is an attempt at creating a higher level game development
 toolkit developed in zig specifically targeting the vulkan renderer

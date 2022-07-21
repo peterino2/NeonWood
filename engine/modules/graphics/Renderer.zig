@@ -2,8 +2,11 @@ const std = @import("std");
 const vk = @import("vulkan");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
-
 const vulkan_constants = @import("vulkan_constants.zig");
+
+const vkAllocator = @import("VkAllocator.zig");
+const NeonVkAllocator = vkAllocator.NeonVkAllocator;
+const NeonVkAllocation = vkAllocator.NeonVkAllocation;
 // Aliases
 
 const DeviceDispatch = vulkan_constants.DeviceDispatch;
@@ -13,6 +16,8 @@ const InstanceDispatch = vulkan_constants.InstanceDispatch;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
+
+const debug_struct = core.debug_struct;
 
 const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
@@ -34,6 +39,32 @@ pub const NeonVkQueue = struct {
             .familly = family,
         };
     }
+};
+
+const Vertex = struct {
+    const binding_description = vk.VertexInputBindingDescription{
+        .binding = 0,
+        .stride = @sizeOf(Vertex),
+        .input_rate = .vertex,
+    };
+
+    const attribute_description = [_]vk.VertexInputAttributeDescription{
+        .{
+            .binding = 0,
+            .location = 0,
+            .format = .r32g32_sfloat,
+            .offset = @offsetOf(Vertex, "pos"),
+        },
+        .{
+            .binding = 0,
+            .location = 1,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(Vertex, "color"),
+        },
+    };
+
+    pos: [2]f32,
+    color: [3]f32,
 };
 
 pub const NeonVkPhysicalDeviceInfo = struct {
@@ -118,12 +149,20 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 
 pub const NeonVkContext = struct {
     const Self = @This();
-    const NumFrames = 3;
+    const NumFrames = vulkan_constants.NUM_FRAMES;
+
+    const vertices = [_]Vertex{
+        .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
+        .{ .pos = .{ 0.5, 0.5 }, .color = .{ 0, 1, 0 } },
+        .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
+    };
 
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
     vkb: vulkan_constants.BaseDispatch,
     vki: vulkan_constants.InstanceDispatch,
     vkd: vulkan_constants.DeviceDispatch,
+
+    nvka: NeonVkAllocator,
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -175,12 +214,25 @@ pub const NeonVkContext = struct {
         try self.init_syncs();
         try self.init_command_pools();
         try self.init_command_buffers();
+        try self.init_vk_allocator();
         try self.init_or_recycle_swapchain();
         try self.init_rendertarget();
         try self.init_renderpasses();
         try self.init_framebuffers();
 
         return self;
+    }
+
+    fn init_vk_allocator(self: *Self) !void {
+        self.nvka = try NeonVkAllocator.init(
+            self.vki,
+            self.vkb,
+            self.vkd,
+            self.dev,
+            self.physicalDeviceMemoryProperties,
+            self.physicalDeviceProperties,
+            self.allocator,
+        );
     }
 
     fn init_framebuffers(self: *Self) !void {
@@ -314,11 +366,6 @@ pub const NeonVkContext = struct {
                 .height = std.math.clamp(extent.height, caps.min_image_extent.height, caps.max_image_extent.height),
             };
         }
-    }
-
-    pub fn debug_struct(preamble: []const u8, s: anytype) void {
-        core.graphics_log("{s}:", .{preamble});
-        core.graphics_log("  {any}", .{s});
     }
 
     pub fn init_or_recycle_swapchain(self: *Self) !void {

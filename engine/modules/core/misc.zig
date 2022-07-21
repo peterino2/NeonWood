@@ -30,3 +30,8 @@ pub fn buf_to_cstr(str: anytype) ?[*:0]const u8 {
 }
 
 pub const CStr = [*:0]const u8;
+
+pub fn debug_struct(preamble: []const u8, s: anytype) void {
+    logging.graphics_log("{s}:", .{preamble});
+    logging.graphics_log("  {any}", .{s});
+}
