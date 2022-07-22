@@ -1,3 +1,6 @@
 [submodule "engine/modules/graphics/lib/vulkan-zig"]
 	path = engine/modules/graphics/lib/vulkan-zig
 	url = https://github.com/Snektron/vulkan-zig.git
+[submodule "engine/modules/graphics/lib/zig-vma"]
+	path = engine/modules/graphics/lib/zig-vma
+	url = https://github.com/SpexGuy/Zig-VMA.git
