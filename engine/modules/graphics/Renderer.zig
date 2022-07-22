@@ -190,6 +190,7 @@ pub const NeonVkContext = struct {
 
     acquireSemaphores: ArrayList(vk.Semaphore),
     renderCompleteSemaphores: ArrayList(vk.Semaphore),
+    extraSemaphore: vk.Semaphore,
 
     commandPool: vk.CommandPool,
     commandBuffers: ArrayList(vk.CommandBuffer),
@@ -233,18 +234,22 @@ pub const NeonVkContext = struct {
     pub fn draw(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
         // get next swapchain
-
-        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
-        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
-
+        //
         var result = try self.vkd.acquireNextImageKHR(
             self.dev,
             self.swapchain,
             1000000000,
-            self.acquireSemaphores.items[self.nextFrameIndex],
+            //self.acquireSemaphores.items[self.nextFrameIndex],
+            self.extraSemaphore,
             .null_handle,
             //self.commandBufferFences.items[self.nextFrameIndex],
         );
+        self.nextFrameIndex = result.image_index;
+
+        std.mem.swap(vk.Semaphore, &self.extraSemaphore, &self.acquireSemaphores.items[self.nextFrameIndex]);
+
+        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
+        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
 
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
         try self.vkd.resetCommandBuffer(cmd, .{});
@@ -256,12 +261,12 @@ pub const NeonVkContext = struct {
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
         var clearValue = vk.ClearValue{ .color = .{
-            .float_32 = [4]f32{ 0, 0, 1.0, 1.0 },
+            .float_32 = [4]f32{ 0.005, 0.005, 0.005, 1.0 },
         } };
 
         var rpbi = vk.RenderPassBeginInfo{
             .render_area = .{
-                .extent = self.extent,
+                .extent = self.actual_extent,
                 .offset = .{ .x = 0, .y = 0 },
             },
             .framebuffer = self.framebuffers.items[self.nextFrameIndex],
@@ -294,25 +299,32 @@ pub const NeonVkContext = struct {
             self.commandBufferFences.items[self.nextFrameIndex],
         );
 
-        try self.poll_events();
-        self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
+        try self.finish_frame();
+        // self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
     }
 
-    fn poll_events(self: *Self) !void {
+    fn finish_frame(self: *Self) !void {
         var presentInfo = vk.PresentInfoKHR{
             .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
             .swapchain_count = 1,
             .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[self.nextFrameIndex]),
             .wait_semaphore_count = 1,
-            .p_image_indices = @ptrCast([*]const u32, &result.image_index),
+            .p_image_indices = @ptrCast([*]const u32, &self.nextFrameIndex),
             .p_results = null,
         };
 
-        var result = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo);
-        
-        if(result = error.OutOfDateKHR)
-        {
-            // query glfw for data and perform a resize operation.
+        var outOfDate: bool = false;
+        _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
+            error.OutOfDateKHR => {
+                outOfDate = true;
+                return error.OutOfDateKHR;
+            },
+            else => |narrow| return narrow,
+        };
+
+        if (outOfDate) {
+            ////
+            core.engine_errs("swapchain out of date");
         }
 
         c.glfwPollEvents();
@@ -377,10 +389,10 @@ pub const NeonVkContext = struct {
             .flags = .{},
             .format = self.surfaceFormat.format,
             .samples = .{ .@"1_bit" = true },
-            .load_op = .dont_care,
-            .store_op = .dont_care,
-            .stencil_load_op = .load, // equals to zero
-            .stencil_store_op = .store, // equals to zero but we don't care
+            .load_op = .clear,
+            .store_op = .store,
+            .stencil_load_op = .dont_care,
+            .stencil_store_op = .dont_care,
             .initial_layout = .@"undefined",
             .final_layout = .present_src_khr,
         };
@@ -499,7 +511,7 @@ pub const NeonVkContext = struct {
             .image_color_space = self.surfaceFormat.color_space,
             .image_extent = self.actual_extent,
             .image_array_layers = 1,
-            .image_usage = .{ .color_attachment_bit = true, .transfer_src_bit = true },
+            .image_usage = .{ .color_attachment_bit = true, .transfer_dst_bit = true },
             .image_sharing_mode = sharing_mode,
             .queue_family_index_count = qfi.len,
             .p_queue_family_indices = &qfi,
@@ -590,6 +602,8 @@ pub const NeonVkContext = struct {
             self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
             self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
         }
+
+        self.extraSemaphore = try self.vkd.createSemaphore(self.dev, &sci, null);
     }
 
     pub fn init_command_buffers(self: *Self) !void {
