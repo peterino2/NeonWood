@@ -36,7 +36,7 @@ pub const NeonVkQueue = struct {
     fn init(vkd: DeviceDispatch, dev: vk.Device, family: u32) @This() {
         return .{
             .handle = vkd.getDeviceQueue(dev, family, 0),
-            .familly = family,
+            .family = family,
         };
     }
 };
@@ -172,8 +172,8 @@ pub const NeonVkContext = struct {
 
     enumeratedPhysicalDevices: ArrayList(NeonVkPhysicalDeviceInfo),
 
-    graphicsFamilyIndex: usize,
-    presentFamilyIndex: usize,
+    graphicsFamilyIndex: u32,
+    presentFamilyIndex: u32,
 
     dev: vk.Device,
     graphicsQueue: NeonVkQueue,
@@ -203,6 +203,7 @@ pub const NeonVkContext = struct {
     swapchain: vk.SwapchainKHR,
     swapImages: ArrayList(NeonVkSwapImage),
     framebuffers: ArrayList(vk.Framebuffer),
+    nextFrameIndex: u32,
 
     depthFormat: vk.Format,
 
@@ -213,9 +214,9 @@ pub const NeonVkContext = struct {
         try self.init_glfw();
         try self.init_api();
         try self.init_device();
-        try self.init_syncs();
         try self.init_command_pools();
         try self.init_command_buffers();
+        try self.init_syncs();
         try self.init_vk_allocator();
         try self.init_or_recycle_swapchain();
         try self.init_rendertarget();
@@ -231,25 +232,25 @@ pub const NeonVkContext = struct {
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
-        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.renderFence), 1, 1000000000);
-        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.renderFence));
+        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
+        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
+
         // get next swapchain
+        var result = try self.vkd.acquireNextImageKHR(
+            self.dev,
+            self.swapchain,
+            1000000000,
+            self.acquireSemaphores.items[self.nextFrameIndex],
+            self.commandBufferFences.items[self.nextFrameIndex],
+        );
 
-        // so some issues... we should fix this rendering stuff here, we did something out of order,
-        // we are currently doing triple buffering....
-        // not sure how that happened but obviously our code is not set up for that
-        var result = try self.vkd.acquireNextImageKHR(self.dev, self.swapchain, 1000000000, self.acquireSemaphores.items[0], .null_handle);
-        _ = result;
-
-        try self.vkd.resetCommandBuffer(self.commandBuffers.items[0], .{});
-
-        var cmd = self.commandBuffers.items[0];
+        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+        try self.vkd.resetCommandBuffer(cmd, .{});
 
         var cbi = vk.CommandBufferBeginInfo{
             .p_inheritance_info = null,
             .flags = .{ .one_time_submit_bit = true },
         };
-
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
         var clearValue = vk.ClearValue{ .color = .{
@@ -258,10 +259,10 @@ pub const NeonVkContext = struct {
 
         var rpbi = vk.RenderPassBeginInfo{
             .render_area = .{
-                .extent = self.actual_extent,
+                .extent = self.extent,
                 .offset = .{ .x = 0, .y = 0 },
             },
-            .framebuffer = self.framebuffers.items[0],
+            .framebuffer = self.framebuffers.items[self.nextFrameIndex],
             .render_pass = self.renderPass,
             .clear_value_count = 1,
             .p_clear_values = @ptrCast([*]const vk.ClearValue, &clearValue),
@@ -269,6 +270,39 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
+        self.vkd.cmdEndRenderPass(cmd);
+
+        var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
+
+        var submit = vk.SubmitInfo{
+            .p_wait_dst_stage_mask = @ptrCast([*]const vk.PipelineStageFlags, &waitStage),
+            .wait_semaphore_count = 1,
+            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.acquireSemaphores.items[self.nextFrameIndex]),
+            .signal_semaphore_count = 1,
+            .p_signal_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[self.nextFrameIndex]),
+            .command_buffer_count = 1,
+            .p_command_buffers = @ptrCast([*]const vk.CommandBuffer, &self.commandBuffers.items[self.nextFrameIndex]),
+        };
+
+        try self.vkd.queueSubmit(
+            self.graphicsQueue.handle,
+            1,
+            @ptrCast([*]const vk.SubmitInfo, &submit),
+            self.commandBufferFences.items[self.nextFrameIndex],
+        );
+
+        var presentInfo = vk.PresentInfoKHR{
+            .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
+            .swapchain_count = 1,
+            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[0]),
+            .wait_semaphore_count = 1,
+            .p_image_indices = @ptrCast([*]const u32, &result.image_index),
+            .p_results = null,
+        };
+
+        _ = try self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo);
+
+        self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
         c.glfwPollEvents();
     }
 
@@ -433,7 +467,7 @@ pub const NeonVkContext = struct {
             return error.InvalidSurfaceDimensions;
         }
 
-        var image_count = self.caps.min_image_count + 1;
+        var image_count = @intCast(u32, NumFrames);
         if (self.caps.max_image_count > 0) {
             image_count = std.math.min(image_count, self.caps.max_image_count);
         }
@@ -453,7 +487,7 @@ pub const NeonVkContext = struct {
             .image_color_space = self.surfaceFormat.color_space,
             .image_extent = self.actual_extent,
             .image_array_layers = 1,
-            .image_usage = .{ .color_attachment_bit = true, .transfer_dst_bit = true },
+            .image_usage = .{ .color_attachment_bit = true, .transfer_src_bit = true },
             .image_sharing_mode = sharing_mode,
             .queue_family_index_count = qfi.len,
             .p_queue_family_indices = &qfi,
@@ -540,7 +574,7 @@ pub const NeonVkContext = struct {
             .flags = .{},
         };
 
-        for (self.acquireSemaphores.items) |_, i| {
+        for (core.count(NumFrames)) |_, i| {
             self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
             self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
         }
@@ -562,7 +596,7 @@ pub const NeonVkContext = struct {
 
         // then create fences for the command buffers
         var fci = vk.FenceCreateInfo{
-            .flags = .{},
+            .flags = .{ .signaled_bit = true },
         };
 
         for (core.count(NumFrames)) |_, i| {
@@ -585,6 +619,7 @@ pub const NeonVkContext = struct {
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
         self.allocator = self.gpa.allocator();
         self.swapchain = .null_handle;
+        self.nextFrameIndex = 0;
     }
 
     pub fn init_api(self: *Self) !void {
@@ -689,6 +724,9 @@ pub const NeonVkContext = struct {
         self.vkd = try DeviceDispatch.load(self.dev, self.vki.dispatch.vkGetDeviceProcAddr);
         errdefer self.vkd.destroyDevice(self.dev, null);
 
+        self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex);
+        self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex);
+
         core.graphics_logs("Successfully created device");
     }
 
@@ -744,8 +782,8 @@ pub const NeonVkContext = struct {
                 self.physicalDevice = pDeviceInfo.physicalDevice;
                 self.physicalDeviceProperties = pDeviceInfo.deviceProperties;
                 self.physicalDeviceMemoryProperties = pDeviceInfo.memoryProperties;
-                self.graphicsFamilyIndex = @intCast(usize, graphicsID);
-                self.presentFamilyIndex = @intCast(usize, presentID);
+                self.graphicsFamilyIndex = @intCast(u32, graphicsID);
+                self.presentFamilyIndex = @intCast(u32, presentID);
                 core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
                 debug_struct("selected physical device:", self.physicalDevice);
