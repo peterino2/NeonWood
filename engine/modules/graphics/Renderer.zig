@@ -232,16 +232,18 @@ pub const NeonVkContext = struct {
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
+        // get next swapchain
+
         _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
 
-        // get next swapchain
         var result = try self.vkd.acquireNextImageKHR(
             self.dev,
             self.swapchain,
             1000000000,
             self.acquireSemaphores.items[self.nextFrameIndex],
-            self.commandBufferFences.items[self.nextFrameIndex],
+            .null_handle,
+            //self.commandBufferFences.items[self.nextFrameIndex],
         );
 
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
@@ -271,6 +273,7 @@ pub const NeonVkContext = struct {
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
         self.vkd.cmdEndRenderPass(cmd);
+        try self.vkd.endCommandBuffer(cmd);
 
         var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
@@ -291,18 +294,27 @@ pub const NeonVkContext = struct {
             self.commandBufferFences.items[self.nextFrameIndex],
         );
 
+        try self.poll_events();
+        self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
+    }
+
+    fn poll_events(self: *Self) !void {
         var presentInfo = vk.PresentInfoKHR{
             .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
             .swapchain_count = 1,
-            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[0]),
+            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[self.nextFrameIndex]),
             .wait_semaphore_count = 1,
             .p_image_indices = @ptrCast([*]const u32, &result.image_index),
             .p_results = null,
         };
 
-        _ = try self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo);
+        var result = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo);
+        
+        if(result = error.OutOfDateKHR)
+        {
+            // query glfw for data and perform a resize operation.
+        }
 
-        self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
         c.glfwPollEvents();
     }
 
