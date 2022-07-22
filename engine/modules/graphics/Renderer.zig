@@ -205,6 +205,7 @@ pub const NeonVkContext = struct {
     swapImages: ArrayList(NeonVkSwapImage),
     framebuffers: ArrayList(vk.Framebuffer),
     nextFrameIndex: u32,
+    rendererTime: f64,
 
     depthFormat: vk.Format,
 
@@ -231,22 +232,26 @@ pub const NeonVkContext = struct {
         return c.glfwWindowShouldClose(self.window) == c.GLFW_TRUE;
     }
 
-    pub fn draw(self: *Self, deltaTime: f64) !void {
-        _ = deltaTime;
-        // get next swapchain
-        //
-        var result = try self.vkd.acquireNextImageKHR(
+    pub fn getNextSwapImage(self: *Self) !u32 {
+        var image_index = (try self.vkd.acquireNextImageKHR(
             self.dev,
             self.swapchain,
             1000000000,
-            //self.acquireSemaphores.items[self.nextFrameIndex],
             self.extraSemaphore,
             .null_handle,
-            //self.commandBufferFences.items[self.nextFrameIndex],
-        );
-        self.nextFrameIndex = result.image_index;
+        )).image_index;
 
         std.mem.swap(vk.Semaphore, &self.extraSemaphore, &self.acquireSemaphores.items[self.nextFrameIndex]);
+        return image_index;
+    }
+
+    pub fn updateTime(self: *Self, deltaTime: f64) void {
+        self.rendererTime += deltaTime;
+    }
+
+    pub fn draw(self: *Self, deltaTime: f64) !void {
+        self.updateTime(deltaTime);
+        self.nextFrameIndex = try self.getNextSwapImage();
 
         _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
@@ -280,6 +285,10 @@ pub const NeonVkContext = struct {
         self.vkd.cmdEndRenderPass(cmd);
         try self.vkd.endCommandBuffer(cmd);
 
+        try self.finish_frame();
+    }
+
+    fn finish_frame(self: *Self) !void {
         var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
         var submit = vk.SubmitInfo{
@@ -299,11 +308,6 @@ pub const NeonVkContext = struct {
             self.commandBufferFences.items[self.nextFrameIndex],
         );
 
-        try self.finish_frame();
-        // self.nextFrameIndex = (self.nextFrameIndex + 1) % @intCast(u32, NumFrames);
-    }
-
-    fn finish_frame(self: *Self) !void {
         var presentInfo = vk.PresentInfoKHR{
             .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
             .swapchain_count = 1,
@@ -317,17 +321,32 @@ pub const NeonVkContext = struct {
         _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
             error.OutOfDateKHR => {
                 outOfDate = true;
-                return error.OutOfDateKHR;
             },
             else => |narrow| return narrow,
         };
 
-        if (outOfDate) {
-            ////
-            core.engine_errs("swapchain out of date");
+        var w: c_int = undefined;
+        var h: c_int = undefined;
+        c.glfwGetWindowSize(self.window, &w, &h);
+
+        if (outOfDate or self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) {
+            self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
+
+            try self.vkd.deviceWaitIdle(self.dev);
+            //try self.destroy_framebuffers();
+
+            try self.init_or_recycle_swapchain();
+            try self.init_framebuffers();
         }
 
         c.glfwPollEvents();
+    }
+
+    fn destroy_framebuffers(self: *Self) !void {
+        for (self.framebuffers.items) |framebuffer| {
+            self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
+        }
+        self.framebuffers.deinit();
     }
 
     fn init_vk_allocator(self: *Self) !void {
@@ -643,9 +662,10 @@ pub const NeonVkContext = struct {
 
     pub fn init_zig_data(self: *Self) !void {
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        self.allocator = self.gpa.allocator();
+        self.allocator = std.heap.c_allocator;
         self.swapchain = .null_handle;
         self.nextFrameIndex = 0;
+        self.rendererTime = 0;
     }
 
     pub fn init_api(self: *Self) !void {

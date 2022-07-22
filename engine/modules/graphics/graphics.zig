@@ -17,8 +17,12 @@ pub fn shutdown_module() void {
 pub fn run() !void {
     var renderer = try NeonVkContext.create_object();
 
+    var lastTimeStamp = core.getEngineTime();
+
     while (!try renderer.shouldExit()) {
-        try renderer.draw(0.016);
+        const newTime = core.getEngineTime();
+        try renderer.draw(newTime - lastTimeStamp);
+        lastTimeStamp = newTime;
     }
     // var system = RenderSystem.create_object();
 
