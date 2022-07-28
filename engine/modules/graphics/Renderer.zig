@@ -241,7 +241,11 @@ pub const NeonVkContext = struct {
             .null_handle,
         )).image_index;
 
-        std.mem.swap(vk.Semaphore, &self.extraSemaphore, &self.acquireSemaphores.items[self.nextFrameIndex]);
+        std.mem.swap(
+            vk.Semaphore,
+            &self.extraSemaphore,
+            &self.acquireSemaphores.items[image_index],
+        );
         return image_index;
     }
 
