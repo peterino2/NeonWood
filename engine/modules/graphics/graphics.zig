@@ -1,7 +1,6 @@
 // this will be replaced by build system symbols later.
 const core = @import("../core/core.zig");
-const RenderSystem = @import("RenderSystem.zig");
-const NeonVkContext = @import("Renderer.zig").NeonVkContext;
+const NeonVkContext = @import("VkRenderer.zig").NeonVkContext;
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;

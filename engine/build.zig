@@ -1,5 +1,6 @@
 const std = @import("std");
 const vkgen = @import("modules/graphics/lib/vulkan-zig/generator/index.zig");
+const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
 
@@ -85,17 +86,24 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
+    const cflags: []const []const u8 = &.{"-Imodules/core/lib/stb/"};
+
     const exe = b.addExecutable("NeonWood", "modules/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
+    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags);
+    exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
+    const vma = vma_build.pkg(exe.builder, "zig-cache/vk.zig");
+
     exe.addPackage(gen.package);
+    exe.addPackage(vma);
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());
@@ -109,6 +117,8 @@ pub fn build(b: *std.build.Builder) void {
     const res = ResourceGenStep.init(b, "resources.zig");
     res.addShader("triangle_vert", "modules/graphics/resources/triangle.vert");
     res.addShader("triangle_frag", "modules/graphics/resources/triangle.frag");
+    res.addShader("triangle_vert_static", "modules/graphics/resources/triangle_static.vert");
+    res.addShader("triangle_frag_static", "modules/graphics/resources/triangle_static.frag");
     exe.addPackage(res.package);
 
     const exe_tests = b.addTest("modules/main.zig");

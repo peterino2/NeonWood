@@ -1,12 +1,12 @@
 const std = @import("std");
 const vk = @import("vulkan");
+const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const vulkan_constants = @import("vulkan_constants.zig");
+const VkPipeline = @import("VkPipeline.zig");
+const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
 
-const vkAllocator = @import("VkAllocator.zig");
-const NeonVkAllocator = vkAllocator.NeonVkAllocator;
-const NeonVkAllocation = vkAllocator.NeonVkAllocation;
 // Aliases
 
 const DeviceDispatch = vulkan_constants.DeviceDispatch;
@@ -162,8 +162,6 @@ pub const NeonVkContext = struct {
     vki: vulkan_constants.InstanceDispatch,
     vkd: vulkan_constants.DeviceDispatch,
 
-    nvka: NeonVkAllocator,
-
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
     physicalDevice: vk.PhysicalDevice,
@@ -225,7 +223,20 @@ pub const NeonVkContext = struct {
         try self.init_renderpasses();
         try self.init_framebuffers();
 
+        try self.init_pipelines();
+
         return self;
+    }
+
+    pub fn init_pipelines(self: *Self) !void {
+        var builder = try NeonVkPipelineBuilder.init(
+            self.dev,
+            self.vkd,
+            self.allocator,
+            resources.triangle_vert_static,
+            resources.triangle_frag_static,
+        );
+        defer builder.deinit();
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -241,7 +252,11 @@ pub const NeonVkContext = struct {
             .null_handle,
         )).image_index;
 
-        std.mem.swap(vk.Semaphore, &self.extraSemaphore, &self.acquireSemaphores.items[self.nextFrameIndex]);
+        std.mem.swap(
+            vk.Semaphore,
+            &self.extraSemaphore,
+            &self.acquireSemaphores.items[image_index],
+        );
         return image_index;
     }
 
@@ -350,15 +365,7 @@ pub const NeonVkContext = struct {
     }
 
     fn init_vk_allocator(self: *Self) !void {
-        self.nvka = try NeonVkAllocator.init(
-            self.vki,
-            self.vkb,
-            self.vkd,
-            self.dev,
-            self.physicalDeviceMemoryProperties,
-            self.physicalDeviceProperties,
-            self.allocator,
-        );
+        _ = self;
     }
 
     fn init_framebuffers(self: *Self) !void {
@@ -458,7 +465,7 @@ pub const NeonVkContext = struct {
         rpci.p_attachments = attachments.items.ptr;
         rpci.subpass_count = 1;
         rpci.p_subpasses = @ptrCast([*]const vk.SubpassDescription, &subpass);
-        debug_struct("rpci", rpci);
+        // debug_struct("rpci", rpci);
 
         self.renderPass = try self.vkd.createRenderPass(self.dev, &rpci, null);
     }
@@ -1012,6 +1019,8 @@ pub const NeonVkContext = struct {
         self.windowName = "NeonWood Sample Application";
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        //c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
+
         self.window = c.glfwCreateWindow(
             @intCast(c_int, self.extent.width),
             @intCast(c_int, self.extent.height),
@@ -1019,5 +1028,17 @@ pub const NeonVkContext = struct {
             null,
             null,
         ) orelse return error.WindowInitFailed;
+        var h: c_int = -1;
+        var w: c_int = -1;
+        var comp: c_int = -1;
+        var pixels: ?*u8 = core.stbi_load("assets/image_wank.png", &w, &h, &comp, core.STBI_rgb);
+        var iconImage = c.GLFWimage{
+            .width = w,
+            .height = h,
+            .pixels = pixels,
+        };
+        _ = comp;
+        c.glfwSetWindowIcon(self.window, 1, &iconImage);
+        defer core.stbi_image_free(pixels);
     }
 };
