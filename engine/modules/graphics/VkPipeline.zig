@@ -66,9 +66,87 @@ pub const NeonVkPipelineBuilder = struct {
         return self;
     }
 
-    pub fn init_all(self: *NeonVkPipelineBuilder) !void {
+    pub fn init_all(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
         try self.add_shader_stage(.{ .vertex_bit = true }, self.vertShaderModule);
         try self.add_shader_stage(.{ .fragment_bit = true }, self.fragShaderModule);
+
+        self.pvisci = vk.PipelineVertexInputStateCreateInfo{
+            .flags = .{},
+            .vertex_binding_description_count = 0,
+            .p_vertex_binding_descriptions = undefined,
+            .vertex_attribute_description_count = 0,
+            .p_vertex_attribute_descriptions = undefined,
+        };
+
+        self.piasci = vk.PipelineInputAssemblyStateCreateInfo{
+            .flags = .{},
+            .topology = .triangle_list,
+            .primitive_restart_enable = vk.FALSE,
+        };
+
+        self.prsci = .{
+            .flags = .{},
+            .depth_clamp_enable = vk.FALSE,
+            .rasterizer_discard_enable = vk.FALSE,
+            .polygon_mode = .fill,
+            .cull_mode = .{},
+            .front_face = .clockwise,
+            .depth_bias_enable = vk.FALSE,
+            .depth_bias_constant_factor = 0.0,
+            .depth_bias_clamp = 0.0,
+            .depth_bias_slope_factor = 0.0,
+            .line_width = 1.0,
+        }; // rasterizer settings
+
+        self.pmsci = .{
+            .flags = .{},
+            .rasterization_samples = .{ .@"1_bit" = true },
+            .min_sample_shading = 1.0,
+            .sample_shading_enable = vk.FALSE,
+            .p_sample_mask = null,
+            .alpha_to_coverage_enable = vk.FALSE,
+            .alpha_to_one_enable = vk.FALSE,
+        }; // multisampling settings
+
+        self.viewport = vk.Viewport{
+            .x = 0,
+            .y = 0,
+            .width = @intToFloat(f32, extents.width),
+            .height = @intToFloat(f32, extents.height),
+            .min_depth = 0.0,
+            .max_depth = 1.0,
+        };
+
+        self.scissor = .{
+            .offset = .{ .x = 0, .y = 0 },
+            .extent = extents,
+        };
+
+        self.colorBlendAttachment = .{
+            .blend_enable = vk.FALSE,
+            .src_color_blend_factor = .zero,
+            .dst_color_blend_factor = .zero,
+            .src_alpha_blend_factor = .zero,
+            .dst_alpha_blend_factor = .zero,
+            .alpha_blend_op = .add,
+            .color_write_mask = .{
+                .r_bit = true,
+                .g_bit = true,
+                .b_bit = true,
+                .a_bit = true,
+            },
+            .color_blend_op = .add,
+        }; //
+
+        const plci = vk.PipelineLayoutCreateInfo{
+            .flags = .{},
+            .set_layout_count = 0,
+            .p_set_layouts = undefined,
+            .push_constant_range_count = 0,
+            .p_push_constant_ranges = undefined,
+        };
+
+        self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &plci, null);
     }
 
     pub fn add_shader_stage(self: *NeonVkPipelineBuilder, stageFlags: vk.ShaderStageFlags, shaderModule: vk.ShaderModule) !void {

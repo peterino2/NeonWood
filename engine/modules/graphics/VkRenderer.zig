@@ -236,7 +236,7 @@ pub const NeonVkContext = struct {
             resources.triangle_vert_static,
             resources.triangle_frag_static,
         );
-        try builder.init_all();
+        try builder.init_all(self.actual_extent);
         defer builder.deinit();
     }
 
@@ -282,7 +282,7 @@ pub const NeonVkContext = struct {
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
         var clearValue = vk.ClearValue{ .color = .{
-            .float_32 = [4]f32{ 0.005, 0.005, 0.005, 1.0 },
+            .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 },
         } };
 
         var rpbi = vk.RenderPassBeginInfo{
