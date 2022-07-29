@@ -86,11 +86,15 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
+    const cflags: []const []const u8 = &.{"-Imodules/core/lib/stb/"};
+
     const exe = b.addExecutable("NeonWood", "modules/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
+    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags);
+    exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");

@@ -1016,6 +1016,8 @@ pub const NeonVkContext = struct {
         self.windowName = "NeonWood Sample Application";
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        //c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
+
         self.window = c.glfwCreateWindow(
             @intCast(c_int, self.extent.width),
             @intCast(c_int, self.extent.height),
@@ -1023,5 +1025,17 @@ pub const NeonVkContext = struct {
             null,
             null,
         ) orelse return error.WindowInitFailed;
+        var h: c_int = -1;
+        var w: c_int = -1;
+        var comp: c_int = -1;
+        var pixels: ?*u8 = core.stbi_load("assets/image_wank.png", &w, &h, &comp, core.STBI_rgb);
+        var iconImage = c.GLFWimage{
+            .width = w,
+            .height = h,
+            .pixels = pixels,
+        };
+        _ = comp;
+        c.glfwSetWindowIcon(self.window, 1, &iconImage);
+        defer core.stbi_image_free(pixels);
     }
 };
