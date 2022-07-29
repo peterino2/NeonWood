@@ -236,6 +236,7 @@ pub const NeonVkContext = struct {
             resources.triangle_vert_static,
             resources.triangle_frag_static,
         );
+        try builder.init_all();
         defer builder.deinit();
     }
 

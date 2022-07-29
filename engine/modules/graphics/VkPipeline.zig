@@ -22,7 +22,7 @@ pub const NeonVkPipelineBuilder = struct {
     vertShaderModule: vk.ShaderModule,
     fragShaderModule: vk.ShaderModule,
 
-    shaderStages: vk.PipelineShaderStageCreateInfo,
+    sscis: ArrayList(vk.PipelineShaderStageCreateInfo),
     pvisci: vk.PipelineVertexInputStateCreateInfo,
     piasci: vk.PipelineInputAssemblyStateCreateInfo,
     prsci: vk.PipelineRasterizationStateCreateInfo,
@@ -34,21 +34,12 @@ pub const NeonVkPipelineBuilder = struct {
     colorBlendAttachment: vk.PipelineColorBlendAttachmentState,
     pipelineLayout: vk.PipelineLayout,
 
+    // call after all parameters are good to go.
     pub fn build(self: *NeonVkPipelineBuilder, renderPass: vk.RenderPass) !vk.Pipeline {
         _ = self;
         _ = renderPass;
         return error.NotImplemented;
     }
-
-    // std::vector<VkPipelineShaderStageCreateInfo> _shaderStages;
-    // VkPipelineVertexInputStateCreateInfo _vertexInputInfo;
-    // VkPipelineInputAssemblyStateCreateInfo _inputAssembly;
-    // VkViewport _viewport;
-    // VkRect2D _scissor;
-    // VkPipelineRasterizationStateCreateInfo _rasterizer;
-    // VkPipelineColorBlendAttachmentState _colorBlendAttachment;
-    // VkPipelineMultisampleStateCreateInfo _multisampling;
-    // VkPipelineLayout _pipelineLayout;
 
     // VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
 
@@ -58,6 +49,7 @@ pub const NeonVkPipelineBuilder = struct {
         self.vkd = vkd;
         self.allocator = allocator;
         self.dev = dev;
+        self.sscis = ArrayList(vk.PipelineShaderStageCreateInfo).init(allocator);
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
@@ -72,6 +64,22 @@ pub const NeonVkPipelineBuilder = struct {
         }, null);
 
         return self;
+    }
+
+    pub fn init_all(self: *NeonVkPipelineBuilder) !void {
+        try self.add_shader_stage(.{ .vertex_bit = true }, self.vertShaderModule);
+        try self.add_shader_stage(.{ .fragment_bit = true }, self.fragShaderModule);
+    }
+
+    pub fn add_shader_stage(self: *NeonVkPipelineBuilder, stageFlags: vk.ShaderStageFlags, shaderModule: vk.ShaderModule) !void {
+        var info = vk.PipelineShaderStageCreateInfo{
+            .flags = .{},
+            .stage = stageFlags,
+            .module = shaderModule,
+            .p_name = "main",
+            .p_specialization_info = null,
+        };
+        try self.sscis.append(info);
     }
 
     pub fn deinit(self: *NeonVkPipelineBuilder) void {
