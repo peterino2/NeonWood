@@ -368,7 +368,7 @@ pub const NeonVkContext = struct {
             self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
 
             try self.vkd.deviceWaitIdle(self.dev);
-            //try self.destroy_framebuffers();
+            try self.destroy_framebuffers();
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
@@ -382,6 +382,7 @@ pub const NeonVkContext = struct {
             self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
         }
         self.framebuffers.deinit();
+        self.swapImages.deinit();
     }
 
     fn init_vk_allocator(self: *Self) !void {
@@ -1051,7 +1052,7 @@ pub const NeonVkContext = struct {
         var h: c_int = -1;
         var w: c_int = -1;
         var comp: c_int = -1;
-        var pixels: ?*u8 = core.stbi_load("wank.png", &w, &h, &comp, core.STBI_rgb_alpha);
+        var pixels: ?*u8 = core.stbi_load("assets/icon.png", &w, &h, &comp, core.STBI_rgb_alpha);
         var iconImage = c.GLFWimage{
             .width = w,
             .height = h,
