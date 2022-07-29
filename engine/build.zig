@@ -117,6 +117,8 @@ pub fn build(b: *std.build.Builder) void {
     const res = ResourceGenStep.init(b, "resources.zig");
     res.addShader("triangle_vert", "modules/graphics/resources/triangle.vert");
     res.addShader("triangle_frag", "modules/graphics/resources/triangle.frag");
+    res.addShader("triangle_vert_static", "modules/graphics/resources/triangle_static.vert");
+    res.addShader("triangle_frag_static", "modules/graphics/resources/triangle_static.frag");
     exe.addPackage(res.package);
 
     const exe_tests = b.addTest("modules/main.zig");

@@ -1,12 +1,12 @@
 const std = @import("std");
 const vk = @import("vulkan");
+const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const vulkan_constants = @import("vulkan_constants.zig");
+const VkPipeline = @import("VkPipeline.zig");
+const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
 
-const vkAllocator = @import("VkAllocator.zig");
-const NeonVkAllocator = vkAllocator.NeonVkAllocator;
-const NeonVkAllocation = vkAllocator.NeonVkAllocation;
 // Aliases
 
 const DeviceDispatch = vulkan_constants.DeviceDispatch;
@@ -162,8 +162,6 @@ pub const NeonVkContext = struct {
     vki: vulkan_constants.InstanceDispatch,
     vkd: vulkan_constants.DeviceDispatch,
 
-    nvka: NeonVkAllocator,
-
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
     physicalDevice: vk.PhysicalDevice,
@@ -225,7 +223,21 @@ pub const NeonVkContext = struct {
         try self.init_renderpasses();
         try self.init_framebuffers();
 
+        try self.init_pipelines();
+
         return self;
+    }
+
+    pub fn init_pipelines(self: *Self) !void {
+        var builder = try NeonVkPipelineBuilder.init(
+            self.dev,
+            self.vkd,
+            self.allocator,
+            resources.triangle_vert_static,
+            resources.triangle_frag_static,
+        );
+        try builder.init_all(self.actual_extent);
+        defer builder.deinit();
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -270,7 +282,7 @@ pub const NeonVkContext = struct {
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
         var clearValue = vk.ClearValue{ .color = .{
-            .float_32 = [4]f32{ 0.005, 0.005, 0.005, 1.0 },
+            .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 },
         } };
 
         var rpbi = vk.RenderPassBeginInfo{
@@ -354,15 +366,7 @@ pub const NeonVkContext = struct {
     }
 
     fn init_vk_allocator(self: *Self) !void {
-        self.nvka = try NeonVkAllocator.init(
-            self.vki,
-            self.vkb,
-            self.vkd,
-            self.dev,
-            self.physicalDeviceMemoryProperties,
-            self.physicalDeviceProperties,
-            self.allocator,
-        );
+        _ = self;
     }
 
     fn init_framebuffers(self: *Self) !void {
@@ -462,7 +466,7 @@ pub const NeonVkContext = struct {
         rpci.p_attachments = attachments.items.ptr;
         rpci.subpass_count = 1;
         rpci.p_subpasses = @ptrCast([*]const vk.SubpassDescription, &subpass);
-        debug_struct("rpci", rpci);
+        // debug_struct("rpci", rpci);
 
         self.renderPass = try self.vkd.createRenderPass(self.dev, &rpci, null);
     }
