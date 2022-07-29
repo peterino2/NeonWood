@@ -4,6 +4,8 @@ const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
 
+const shaders_folder = "modules/graphics/shaders/";
+
 pub const ResourceGenStep = struct {
     step: Step,
     shader_step: *vkgen.ShaderCompileStep,
@@ -115,10 +117,12 @@ pub fn build(b: *std.build.Builder) void {
     run_step.dependOn(&run_cmd.step);
 
     const res = ResourceGenStep.init(b, "resources.zig");
-    res.addShader("triangle_vert", "modules/graphics/resources/triangle.vert");
-    res.addShader("triangle_frag", "modules/graphics/resources/triangle.frag");
-    res.addShader("triangle_vert_static", "modules/graphics/resources/triangle_static.vert");
-    res.addShader("triangle_frag_static", "modules/graphics/resources/triangle_static.frag");
+    res.addShader("triangle_vert", shaders_folder ++ "triangle.vert");
+    res.addShader("triangle_frag", shaders_folder ++ "triangle.frag");
+    res.addShader("triangle_vert_static", shaders_folder ++ "triangle_static.vert");
+    res.addShader("triangle_frag_static", shaders_folder ++ "triangle_static.frag");
+    res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");
+    res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
     exe.addPackage(res.package);
 
     const exe_tests = b.addTest("modules/main.zig");

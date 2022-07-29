@@ -207,6 +207,9 @@ pub const NeonVkContext = struct {
 
     depthFormat: vk.Format,
 
+    static_triangle_pipeline: vk.Pipeline,
+    static_colored_triangle_pipeline: vk.Pipeline,
+
     pub fn create_object() !Self {
         var self: Self = undefined;
 
@@ -229,15 +232,27 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_pipelines(self: *Self) !void {
-        var builder = try NeonVkPipelineBuilder.init(
+        var static_tri_builder = try NeonVkPipelineBuilder.init(
             self.dev,
             self.vkd,
             self.allocator,
             resources.triangle_vert_static,
             resources.triangle_frag_static,
         );
-        try builder.init_all(self.actual_extent);
-        defer builder.deinit();
+        try static_tri_builder.init_standard_pipeline(self.actual_extent);
+        self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
+        defer static_tri_builder.deinit();
+
+        var colored_tri_b = try NeonVkPipelineBuilder.init(
+            self.dev,
+            self.vkd,
+            self.allocator,
+            resources.triangle_vert_colored,
+            resources.triangle_frag_colored,
+        );
+        try colored_tri_b.init_standard_pipeline(self.actual_extent);
+        self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
+        defer colored_tri_b.deinit();
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -297,6 +312,10 @@ pub const NeonVkContext = struct {
         };
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
+
+        //self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
+        self.vkd.cmdBindPipeline(cmd, .graphics, self.static_colored_triangle_pipeline);
+        self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
 
         self.vkd.cmdEndRenderPass(cmd);
         try self.vkd.endCommandBuffer(cmd);
@@ -1032,12 +1051,13 @@ pub const NeonVkContext = struct {
         var h: c_int = -1;
         var w: c_int = -1;
         var comp: c_int = -1;
-        var pixels: ?*u8 = core.stbi_load("assets/image_wank.png", &w, &h, &comp, core.STBI_rgb);
+        var pixels: ?*u8 = core.stbi_load("wank.png", &w, &h, &comp, core.STBI_rgb_alpha);
         var iconImage = c.GLFWimage{
             .width = w,
             .height = h,
             .pixels = pixels,
         };
+        debug_struct("loaded image: ", iconImage);
         _ = comp;
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         defer core.stbi_image_free(pixels);

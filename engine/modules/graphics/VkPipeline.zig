@@ -14,6 +14,8 @@ const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
 const debug_struct = core.debug_struct;
+const p2a = core.p_to_a;
+const p2av = core.p_to_av;
 
 pub const NeonVkPipelineBuilder = struct {
     vkd: DeviceDispatch,
@@ -35,10 +37,50 @@ pub const NeonVkPipelineBuilder = struct {
     pipelineLayout: vk.PipelineLayout,
 
     // call after all parameters are good to go.
-    pub fn build(self: *NeonVkPipelineBuilder, renderPass: vk.RenderPass) !vk.Pipeline {
-        _ = self;
-        _ = renderPass;
-        return error.NotImplemented;
+    pub fn build(self: *NeonVkPipelineBuilder, renderPass: vk.RenderPass) !?vk.Pipeline {
+        var pvsci = vk.PipelineViewportStateCreateInfo{
+            .flags = .{},
+            .viewport_count = 1,
+            .p_viewports = p2a(&self.viewport),
+            .scissor_count = 1,
+            .p_scissors = p2a(&self.scissor),
+        };
+
+        var pcbsci = vk.PipelineColorBlendStateCreateInfo{
+            .flags = .{},
+            .logic_op_enable = vk.FALSE,
+            .attachment_count = 1,
+            .p_attachments = p2a(&self.colorBlendAttachment),
+            .logic_op = .copy,
+            .blend_constants = [4]f32{ 0, 0, 0, 0 },
+        };
+
+        // its here....
+        var gpci = vk.GraphicsPipelineCreateInfo{
+            .flags = .{},
+            .stage_count = @intCast(u32, self.sscis.items.len),
+            .p_stages = self.sscis.items.ptr,
+            .p_vertex_input_state = &self.pvisci, // : ?*const PipelineVertexInputStateCreateInfo,
+            .p_input_assembly_state = &self.piasci, //: ?*const PipelineInputAssemblyStateCreateInfo,
+            .p_tessellation_state = null, //: ?*const PipelineTessellationStateCreateInfo,
+            .p_viewport_state = &pvsci, //: ?*const PipelineViewportStateCreateInfo,
+            .p_rasterization_state = &self.prsci, //: *const PipelineRasterizationStateCreateInfo,
+            .p_multisample_state = &self.pmsci, //: ?*const PipelineMultisampleStateCreateInfo,
+            .p_depth_stencil_state = null, //: ?*const PipelineDepthStencilStateCreateInfo,
+            .p_color_blend_state = &pcbsci, //: ?*const PipelineColorBlendStateCreateInfo,
+            .p_dynamic_state = null, //: ?*const PipelineDynamicStateCreateInfo,
+            .layout = self.pipelineLayout,
+            .render_pass = renderPass,
+            .subpass = 0,
+            .base_pipeline_handle = .null_handle,
+            .base_pipeline_index = 0,
+        };
+
+        var pipeline: vk.Pipeline = undefined;
+
+        _ = self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline)) catch return null;
+
+        return pipeline;
     }
 
     // VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
@@ -66,7 +108,7 @@ pub const NeonVkPipelineBuilder = struct {
         return self;
     }
 
-    pub fn init_all(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
+    pub fn init_standard_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
         try self.add_shader_stage(.{ .vertex_bit = true }, self.vertShaderModule);
         try self.add_shader_stage(.{ .fragment_bit = true }, self.fragShaderModule);
 
@@ -161,8 +203,9 @@ pub const NeonVkPipelineBuilder = struct {
     }
 
     pub fn deinit(self: *NeonVkPipelineBuilder) void {
-        core.graphics_logs("destroying pipeline builder resources");
+        core.graphics_logs("cleaning up pipeline builder");
         self.vkd.destroyShaderModule(self.dev, self.fragShaderModule, null);
         self.vkd.destroyShaderModule(self.dev, self.vertShaderModule, null);
+        self.sscis.deinit();
     }
 };
