@@ -2,6 +2,8 @@ usingnamespace @import("misc.zig");
 usingnamespace @import("logging.zig");
 usingnamespace @import("algorithm.zig");
 usingnamespace @import("engineTime.zig");
+pub const zm = @import("lib/zmath/zmath.zig");
+pub const math = @import("math.zig");
 
 const tests = @import("tests.zig");
 

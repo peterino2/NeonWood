@@ -116,7 +116,7 @@ pub const NeonVkPipelineBuilder = struct {
         return self;
     }
 
-    pub fn init_standard_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
+    pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
         try self.add_shader_stage(.{ .vertex_bit = true }, self.vertShaderModule);
         try self.add_shader_stage(.{ .fragment_bit = true }, self.fragShaderModule);
 

@@ -7,6 +7,7 @@ const core = @import("../core/core.zig");
 const vulkan_constants = @import("vulkan_constants.zig");
 const VkPipeline = @import("VkPipeline.zig");
 const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
+const Meshes = @import("Meshes.zig");
 
 // Aliases
 
@@ -22,6 +23,11 @@ const debug_struct = core.debug_struct;
 
 const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
+};
+
+pub const NeonVkBuffer = struct {
+    buffer: vk.Buffer,
+    allocation: vma.Allocation,
 };
 
 pub const NeonVkSwapImage = struct {
@@ -211,8 +217,12 @@ pub const NeonVkContext = struct {
     static_triangle_pipeline: vk.Pipeline,
     static_colored_triangle_pipeline: vk.Pipeline,
 
+    mesh_pipeline: vk.Pipeline,
+
     vmaFunctions: vma.VulkanFunctions,
     vmaAllocator: vma.Allocator,
+
+    testMesh: Meshes.Mesh,
 
     pub fn create_object() !Self {
         var self: Self = undefined;
@@ -232,8 +242,55 @@ pub const NeonVkContext = struct {
         try self.init_framebuffers();
 
         try self.init_pipelines();
+        try self.init_meshes();
 
         return self;
+    }
+
+    pub fn init_meshes(self: *Self) !void {
+        self.testMesh = Meshes.Mesh.init(self, self.allocator);
+        try self.testMesh.vertices.resize(3);
+        self.testMesh.vertices.items[0].position = .{ .x = 1.0, .y = 1.0, .z = 0.0 };
+        self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
+        self.testMesh.vertices.items[2].position = .{ .x = 0.0, .y = -1.0, .z = 0.0 };
+
+        self.testMesh.vertices.items[0].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+
+        self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
+    }
+
+    pub fn upload_mesh(self: *Self, mesh: *Meshes.Mesh) !NeonVkBuffer {
+        const size = mesh.vertices.items.len * @sizeOf(Meshes.Vertex);
+        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, mesh.vertices.items.len });
+        var bci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = size,
+            .usage = .{ .vertex_buffer_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var vmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .cpuToGpu,
+        };
+
+        const results = try self.vmaAllocator.createBuffer(bci, vmaCreateInfo);
+
+        var buffer = NeonVkBuffer{
+            .buffer = results.buffer,
+            .allocation = results.allocation,
+        };
+
+        const data = try self.vmaAllocator.mapMemory(buffer.allocation, u8);
+        defer self.vmaAllocator.unmapMemory(buffer.allocation);
+
+        @memcpy(data, @ptrCast([*]const u8, mesh.vertices.items.ptr), size);
+
+        return buffer;
     }
 
     pub fn init_vma(self: *Self) !void {
@@ -262,7 +319,7 @@ pub const NeonVkContext = struct {
             resources.triangle_frag_static.len,
             @ptrCast([*]const u32, resources.triangle_frag_static),
         );
-        try static_tri_builder.init_standard_pipeline(self.actual_extent);
+        try static_tri_builder.init_triangle_pipeline(self.actual_extent);
         self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
         defer static_tri_builder.deinit();
 
@@ -275,7 +332,7 @@ pub const NeonVkContext = struct {
             resources.triangle_frag_colored.len,
             @ptrCast([*]const u32, resources.triangle_frag_colored),
         );
-        try colored_tri_b.init_standard_pipeline(self.actual_extent);
+        try colored_tri_b.init_triangle_pipeline(self.actual_extent);
         self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
         defer colored_tri_b.deinit();
     }
@@ -861,6 +918,7 @@ pub const NeonVkContext = struct {
                 if (props.queue_flags.graphics_bit) {
                     core.graphics_log("Found suitable graphics device with queue id: {d}", .{i});
                     graphicsID = @intCast(isize, i);
+                    break;
                 }
             }
 
@@ -871,13 +929,14 @@ pub const NeonVkContext = struct {
                     continue;
 
                 var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @intCast(u32, i), self.surface);
+
                 if (supportsPresent > 0) {
                     presentID = @intCast(isize, i);
                     break;
                 }
             }
 
-            if (graphicsID != -1 and presentID != -1) {
+            if ((graphicsID != -1) and (presentID != -1)) {
                 self.physicalDevice = pDeviceInfo.physicalDevice;
                 self.physicalDeviceProperties = pDeviceInfo.deviceProperties;
                 self.physicalDeviceMemoryProperties = pDeviceInfo.memoryProperties;

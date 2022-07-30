@@ -570,12 +570,13 @@ pub const Allocator = enum(usize) {
         var data: *anyopaque = undefined;
         const rc = vmaMapMemory(allocator, allocation, &data);
         if (@enumToInt(rc) >= 0) return @intToPtr([*]T, @ptrToInt(data));
-        return switch (rc) {
-            .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
-            .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
-            .ERROR_MEMORY_MAP_FAILED => error.VK_MEMORY_MAP_FAILED,
-            else => error.VK_UNDOCUMENTED_ERROR,
-        };
+        return error.VK_UNDOCUMENTED_ERROR;
+        //return switch (rc) {
+        //    .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
+        //    .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
+        //    .ERROR_MEMORY_MAP_FAILED => error.VK_MEMORY_MAP_FAILED,
+        //    else => error.VK_UNDOCUMENTED_ERROR,
+        //};
     }
 
     /// \brief Unmaps memory represented by given allocation, mapped previously using MapMemory().
@@ -855,17 +856,18 @@ pub const Allocator = enum(usize) {
             outInfo,
         );
         if (@enumToInt(rc) >= 0) return result;
-        return switch (rc) {
-            .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
-            .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
-            .ERROR_TOO_MANY_OBJECTS => error.VK_TOO_MANY_OBJECTS,
-            .ERROR_INVALID_EXTERNAL_HANDLE => error.VK_INVALID_EXTERNAL_HANDLE,
-            .ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS => error.VK_INVALID_OPAQUE_CAPTURE_ADDRESS,
-            .ERROR_MEMORY_MAP_FAILED => error.VK_MEMORY_MAP_FAILED,
-            .ERROR_FRAGMENTED_POOL => error.VK_FRAGMENTED_POOL,
-            .ERROR_OUT_OF_POOL_MEMORY => error.VK_OUT_OF_POOL_MEMORY,
-            else => error.VK_UNDOCUMENTED_ERROR,
-        };
+        return error.VK_UNDOCUMENTED_ERROR;
+        //switch (rc) {
+        //.ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
+        //.ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
+        //.ERROR_TOO_MANY_OBJECTS => error.VK_TOO_MANY_OBJECTS,
+        //.ERROR_INVALID_EXTERNAL_HANDLE => error.VK_INVALID_EXTERNAL_HANDLE,
+        //.ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS => error.VK_INVALID_OPAQUE_CAPTURE_ADDRESS,
+        //.ERROR_MEMORY_MAP_FAILED => error.VK_MEMORY_MAP_FAILED,
+        //.ERROR_FRAGMENTED_POOL => error.VK_FRAGMENTED_POOL,
+        //.ERROR_OUT_OF_POOL_MEMORY => error.VK_OUT_OF_POOL_MEMORY,
+        //else => error.VK_UNDOCUMENTED_ERROR,
+        //};
     }
     pub const CreateBufferResult = struct {
         buffer: vk.Buffer,
@@ -1454,7 +1456,7 @@ pub const AllocationCreateFlags = packed struct {
         .strategyFirstFit = true,
     };
 
-    pub usingnamespace vk.FlagsMixin(@This());
+    pub usingnamespace vk.FlagsMixin(@This(), vk.Flags);
 };
 
 pub const AllocationCreateInfo = extern struct {
