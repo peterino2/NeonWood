@@ -2,6 +2,7 @@ const std = @import("std");
 const vk = @import("vulkan");
 const resources = @import("resources");
 const c = @import("c.zig");
+const vma = @import("vma");
 const core = @import("../core/core.zig");
 const vulkan_constants = @import("vulkan_constants.zig");
 const VkPipeline = @import("VkPipeline.zig");
@@ -210,6 +211,9 @@ pub const NeonVkContext = struct {
     static_triangle_pipeline: vk.Pipeline,
     static_colored_triangle_pipeline: vk.Pipeline,
 
+    vmaFunctions: vma.VulkanFunctions,
+    vmaAllocator: vma.Allocator,
+
     pub fn create_object() !Self {
         var self: Self = undefined;
 
@@ -217,6 +221,7 @@ pub const NeonVkContext = struct {
         try self.init_glfw();
         try self.init_api();
         try self.init_device();
+        try self.init_vma();
         try self.init_command_pools();
         try self.init_command_buffers();
         try self.init_syncs();
