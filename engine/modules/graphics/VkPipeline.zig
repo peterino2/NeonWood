@@ -85,7 +85,15 @@ pub const NeonVkPipelineBuilder = struct {
 
     // VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
 
-    pub fn init(dev: vk.Device, vkd: DeviceDispatch, allocator: Allocator, vert_spv: []const u8, frag_spv: []const u8) !NeonVkPipelineBuilder {
+    pub fn init(
+        dev: vk.Device,
+        vkd: DeviceDispatch,
+        allocator: Allocator,
+        vert_spv_len: u32,
+        vert_spv: [*]const u32,
+        frag_spv_len: u32,
+        frag_spv: [*]const u32,
+    ) !NeonVkPipelineBuilder {
         var self: NeonVkPipelineBuilder = undefined;
 
         self.vkd = vkd;
@@ -95,14 +103,14 @@ pub const NeonVkPipelineBuilder = struct {
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
-            .code_size = vert_spv.len,
-            .p_code = @ptrCast([*]const u32, @alignCast(4, vert_spv)),
+            .code_size = vert_spv_len,
+            .p_code = vert_spv,
         }, null);
 
         self.fragShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
-            .code_size = frag_spv.len,
-            .p_code = @ptrCast([*]const u32, @alignCast(4, frag_spv)),
+            .code_size = frag_spv_len,
+            .p_code = frag_spv,
         }, null);
 
         return self;

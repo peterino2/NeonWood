@@ -101,11 +101,19 @@ pub fn build(b: *std.build.Builder) void {
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 
+    if (target.getOs().tag == .windows) {
+        exe.addObjectFile("modules/graphics/lib/zig-vma/test/vulkan-1.lib");
+    } else {
+        exe.linkSystemLibrary("vulkan");
+    }
+
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
-    const vma = vma_build.pkg(exe.builder, "zig-cache/vk.zig");
+    //const vma = vma_build.link(exe.builder, "zig-cache/vk.zig");
+
+    vma_build.link(exe, "zig-cache/vk.zig", mode, target);
 
     exe.addPackage(gen.package);
-    exe.addPackage(vma);
+    //exe.addPackage(vma);
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());

@@ -221,12 +221,12 @@ pub const NeonVkContext = struct {
         try self.init_glfw();
         try self.init_api();
         try self.init_device();
-        try self.init_vma();
         try self.init_command_pools();
         try self.init_command_buffers();
         try self.init_syncs();
         try self.init_vk_allocator();
         try self.init_or_recycle_swapchain();
+        try self.init_vma();
         try self.init_rendertarget();
         try self.init_renderpasses();
         try self.init_framebuffers();
@@ -236,13 +236,31 @@ pub const NeonVkContext = struct {
         return self;
     }
 
+    pub fn init_vma(self: *Self) !void {
+        self.vmaFunctions = vma.VulkanFunctions.init(self.instance, self.dev, self.vkb.dispatch.vkGetInstanceProcAddr);
+
+        self.vmaAllocator = try vma.Allocator.create(.{
+            .instance = self.instance,
+            .physicalDevice = self.physicalDevice,
+            .device = self.dev,
+            .frameInUseCount = NumFrames,
+            .pVulkanFunctions = &self.vmaFunctions,
+        });
+    }
+
+    pub fn deinit_vma(self: *Self) void {
+        self.vmaAllocator.destroy();
+    }
+
     pub fn init_pipelines(self: *Self) !void {
         var static_tri_builder = try NeonVkPipelineBuilder.init(
             self.dev,
             self.vkd,
             self.allocator,
-            resources.triangle_vert_static,
-            resources.triangle_frag_static,
+            resources.triangle_vert_static.len,
+            @ptrCast([*]const u32, resources.triangle_vert_static),
+            resources.triangle_frag_static.len,
+            @ptrCast([*]const u32, resources.triangle_frag_static),
         );
         try static_tri_builder.init_standard_pipeline(self.actual_extent);
         self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
@@ -252,8 +270,10 @@ pub const NeonVkContext = struct {
             self.dev,
             self.vkd,
             self.allocator,
-            resources.triangle_vert_colored,
-            resources.triangle_frag_colored,
+            resources.triangle_vert_colored.len,
+            @ptrCast([*]const u32, resources.triangle_vert_colored),
+            resources.triangle_frag_colored.len,
+            @ptrCast([*]const u32, resources.triangle_frag_colored),
         );
         try colored_tri_b.init_standard_pipeline(self.actual_extent);
         self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
