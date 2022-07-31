@@ -26,7 +26,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn div(self: @This(), other: @This()) @This() {
+        pub fn sub(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,

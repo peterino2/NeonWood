@@ -3,11 +3,11 @@ const vk = @import("vulkan");
 const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
-const vulkan_constants = @import("vulkan_constants.zig");
+const VkConstants = @import("VkConstants.zig");
 
-const DeviceDispatch = vulkan_constants.DeviceDispatch;
-const BaseDispatch = vulkan_constants.BaseDispatch;
-const InstanceDispatch = vulkan_constants.InstanceDispatch;
+const DeviceDispatch = VkConstants.DeviceDispatch;
+const BaseDispatch = VkConstants.BaseDispatch;
+const InstanceDispatch = VkConstants.InstanceDispatch;
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;

@@ -4,16 +4,16 @@ const resources = @import("resources");
 const c = @import("c.zig");
 const vma = @import("vma");
 const core = @import("../core/core.zig");
-const vulkan_constants = @import("vulkan_constants.zig");
+const VkConstants = @import("VkConstants.zig");
 const VkPipeline = @import("VkPipeline.zig");
 const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
 const Meshes = @import("Meshes.zig");
 
 // Aliases
 
-const DeviceDispatch = vulkan_constants.DeviceDispatch;
-const BaseDispatch = vulkan_constants.BaseDispatch;
-const InstanceDispatch = vulkan_constants.InstanceDispatch;
+const DeviceDispatch = VkConstants.DeviceDispatch;
+const BaseDispatch = VkConstants.BaseDispatch;
+const InstanceDispatch = VkConstants.InstanceDispatch;
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
@@ -156,7 +156,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 
 pub const NeonVkContext = struct {
     const Self = @This();
-    const NumFrames = vulkan_constants.NUM_FRAMES;
+    const NumFrames = VkConstants.NUM_FRAMES;
 
     const vertices = [_]Vertex{
         .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
@@ -165,9 +165,9 @@ pub const NeonVkContext = struct {
     };
 
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
-    vkb: vulkan_constants.BaseDispatch,
-    vki: vulkan_constants.InstanceDispatch,
-    vkd: vulkan_constants.DeviceDispatch,
+    vkb: VkConstants.BaseDispatch,
+    vki: VkConstants.InstanceDispatch,
+    vkd: VkConstants.DeviceDispatch,
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -803,7 +803,7 @@ pub const NeonVkContext = struct {
         }
 
         // Make a request for vulkan layers
-        const ExtraLayers = [1]CStr{vulkan_constants.VK_KHRONOS_VALIDATION_LAYER_STRING};
+        const ExtraLayers = [1]CStr{VkConstants.VK_KHRONOS_VALIDATION_LAYER_STRING};
         try self.check_required_vulkan_layers(ExtraLayers[0..]);
 
         // setup vulkan application info
@@ -872,8 +872,8 @@ pub const NeonVkContext = struct {
             .p_enabled_features = &desiredFeatures,
         };
 
-        dci.enabled_layer_count = vulkan_constants.required_device_layers.len;
-        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vulkan_constants.required_device_layers);
+        dci.enabled_layer_count = VkConstants.required_device_layers.len;
+        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &VkConstants.required_device_layers);
 
         self.dev = try self.vki.createDevice(self.physicalDevice, &dci, null);
 
@@ -1037,7 +1037,7 @@ pub const NeonVkContext = struct {
             var layerFound: bool = false;
             for (layers) |layer| {
                 var layerName = core.buf_to_cstr(layer.layer_name);
-                if (c.strcmp(layerName, core.buf_to_cstr(vulkan_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
+                if (c.strcmp(layerName, core.buf_to_cstr(VkConstants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
                     layerFound = true;
                 }
             }
