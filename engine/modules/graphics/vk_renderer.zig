@@ -16,6 +16,7 @@ const Vector4f = core.Vector4f;
 const Vectorf = core.Vectorf;
 const Quat = core.Quat;
 const Mat = core.Mat;
+const mul = core.zm.mul;
 
 const DeviceDispatch = vk_constants.DeviceDispatch;
 const BaseDispatch = vk_constants.BaseDispatch;
@@ -242,6 +243,18 @@ pub const NeonVkContext = struct {
 
     exitSignal: bool,
     mesh_pipeline_layout: vk.PipelineLayout,
+    firstFrame: bool,
+
+    pub fn init_zig_data(self: *Self) !void {
+        self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        self.allocator = std.heap.c_allocator;
+        self.swapchain = .null_handle;
+        self.nextFrameIndex = 0;
+        self.rendererTime = 0;
+        self.exitSignal = false;
+        self.mode = 0;
+        self.firstFrame = true;
+    }
 
     pub fn create_object() !Self {
         var self: Self = undefined;
@@ -444,7 +457,7 @@ pub const NeonVkContext = struct {
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
         if (self.mode == 0) {
-            self.render_mesh();
+            self.render_mesh(deltaTime);
         } else if (self.mode == 1) {
             self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
             self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
@@ -457,9 +470,12 @@ pub const NeonVkContext = struct {
         try self.vkd.endCommandBuffer(cmd);
 
         try self.finish_frame();
+
+        self.firstFrame = false;
     }
 
-    fn render_mesh(self: *Self) void {
+    fn render_mesh(self: *Self, deltaTime: f64) void {
+        _ = deltaTime;
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
         var offset: vk.DeviceSize = 0;
 
@@ -469,17 +485,22 @@ pub const NeonVkContext = struct {
         var cameraPosition: Vectorf = .{
             .x = 0.0,
             .y = 0.0,
-            .z = 0.2,
+            .z = -0.2,
         };
 
         var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        var projection: Mat = core.zm.perspectiveFovRh(90, 800 / 600, 0.1, 200);
-        var final = core.zm.mul(projection, view);
+        var projection: Mat = core.zm.perspectiveFovRh(core.radians(90.0), 16.0 / 9.0, 0.1, 200);
+        var model = core.zm.rotationZ(core.radians(45.0) * @floatCast(f32, self.rendererTime));
+        var final = mul(mul(projection, view), model);
+        _ = final;
 
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
-            .render_matrix = final,
+            .render_matrix = core.zm.transpose(final),
         };
+
+        if (self.firstFrame)
+            debug_struct("x", constants.render_matrix);
 
         self.vkd.cmdPushConstants(cmd, self.mesh_pipeline_layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
@@ -785,8 +806,6 @@ pub const NeonVkContext = struct {
 
             var imageView = try self.vkd.createImageView(self.dev, &ivci, null);
 
-            //debug_struct("imageView", imageView);
-
             var swapImage = NeonVkSwapImage{
                 .image = image,
                 .view = imageView,
@@ -794,9 +813,6 @@ pub const NeonVkContext = struct {
             };
 
             self.swapImages.items[i] = swapImage;
-
-            //debug_struct("swapImage", swapImage);
-            //debug_struct("self.swapImages.items[i]", self.swapImages.items[i]);
         }
     }
 
@@ -850,16 +866,6 @@ pub const NeonVkContext = struct {
 
         self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
         errdefer self.vkd.destroyCommandPool(self.dev, pool, null);
-    }
-
-    pub fn init_zig_data(self: *Self) !void {
-        self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        self.allocator = std.heap.c_allocator;
-        self.swapchain = .null_handle;
-        self.nextFrameIndex = 0;
-        self.rendererTime = 0;
-        self.exitSignal = false;
-        self.mode = 0;
     }
 
     pub fn init_api(self: *Self) !void {

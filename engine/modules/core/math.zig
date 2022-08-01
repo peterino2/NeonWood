@@ -3,6 +3,11 @@ const misc = @import("misc.zig");
 const logging = @import("logging.zig");
 const algorithm = @import("algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
+const math = std.math;
+
+pub fn radians(f: anytype) @TypeOf(f) {
+    return f * math.pi / 180.0;
+}
 
 pub fn Vector3Type(comptime T: type) type {
     return struct {
