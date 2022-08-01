@@ -4,6 +4,7 @@ const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const VkConstants = @import("VkConstants.zig");
+const Meshes = @import("Meshes.zig");
 
 const DeviceDispatch = VkConstants.DeviceDispatch;
 const BaseDispatch = VkConstants.BaseDispatch;
@@ -32,6 +33,8 @@ pub const NeonVkPipelineBuilder = struct {
 
     viewport: vk.Viewport,
     scissor: vk.Rect2D,
+
+    vertexInputDescription: ?Meshes.VertexInputDescription,
 
     colorBlendAttachment: vk.PipelineColorBlendAttachmentState,
     pipelineLayout: vk.PipelineLayout,
@@ -113,7 +116,13 @@ pub const NeonVkPipelineBuilder = struct {
             .p_code = frag_spv,
         }, null);
 
+        self.vertexInputDescription = null;
+
         return self;
+    }
+
+    pub fn add_mesh_description(self: *NeonVkPipelineBuilder) !void {
+        self.vertexInputDescription = try Meshes.VertexInputDescription.init(self.allocator);
     }
 
     pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
@@ -123,10 +132,20 @@ pub const NeonVkPipelineBuilder = struct {
         self.pvisci = vk.PipelineVertexInputStateCreateInfo{
             .flags = .{},
             .vertex_binding_description_count = 0,
-            .p_vertex_binding_descriptions = undefined,
             .vertex_attribute_description_count = 0,
             .p_vertex_attribute_descriptions = undefined,
+            .p_vertex_binding_descriptions = undefined,
         };
+
+        if (self.vertexInputDescription != null) {
+            const desc = self.vertexInputDescription.?;
+
+            self.pvisci.vertex_attribute_description_count = @intCast(u32, desc.attributes.items.len);
+            self.pvisci.p_vertex_attribute_descriptions = desc.attributes.items.ptr;
+
+            self.pvisci.vertex_binding_description_count = @intCast(u32, desc.bindings.items.len);
+            self.pvisci.p_vertex_binding_descriptions = desc.bindings.items.ptr;
+        }
 
         self.piasci = vk.PipelineInputAssemblyStateCreateInfo{
             .flags = .{},
@@ -212,8 +231,12 @@ pub const NeonVkPipelineBuilder = struct {
 
     pub fn deinit(self: *NeonVkPipelineBuilder) void {
         core.graphics_logs("cleaning up pipeline builder");
+
         self.vkd.destroyShaderModule(self.dev, self.fragShaderModule, null);
         self.vkd.destroyShaderModule(self.dev, self.vertShaderModule, null);
         self.sscis.deinit();
+
+        if (self.vertexInputDescription != null)
+            self.vertexInputDescription.?.deinit();
     }
 };

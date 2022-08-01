@@ -127,6 +127,8 @@ pub fn build(b: *std.build.Builder) void {
     const res = ResourceGenStep.init(b, "resources.zig");
     res.addShader("triangle_vert", shaders_folder ++ "triangle.vert");
     res.addShader("triangle_frag", shaders_folder ++ "triangle.frag");
+    res.addShader("triangle_mesh_vert", shaders_folder ++ "triangle_mesh.vert");
+    res.addShader("triangle_mesh_frag", shaders_folder ++ "triangle_mesh.frag");
     res.addShader("triangle_vert_static", shaders_folder ++ "triangle_static.vert");
     res.addShader("triangle_frag_static", shaders_folder ++ "triangle_static.frag");
     res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");

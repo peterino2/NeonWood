@@ -10,6 +10,8 @@ const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
 const Meshes = @import("Meshes.zig");
 
 // Aliases
+const p2a = core.p_to_a;
+const p2av = core.p_to_av;
 
 const DeviceDispatch = VkConstants.DeviceDispatch;
 const BaseDispatch = VkConstants.BaseDispatch;
@@ -335,6 +337,22 @@ pub const NeonVkContext = struct {
         try colored_tri_b.init_triangle_pipeline(self.actual_extent);
         self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
         defer colored_tri_b.deinit();
+
+        {
+            var mesh_pipeline_b = try NeonVkPipelineBuilder.init(
+                self.dev,
+                self.vkd,
+                self.allocator,
+                resources.triangle_vert_colored.len,
+                @ptrCast([*]const u32, resources.triangle_vert_static),
+                resources.triangle_frag_colored.len,
+                @ptrCast([*]const u32, resources.triangle_frag_colored),
+            );
+            try mesh_pipeline_b.add_mesh_description();
+            try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
+            self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
+            defer mesh_pipeline_b.deinit();
+        }
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -396,8 +414,12 @@ pub const NeonVkContext = struct {
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
         //self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
-        self.vkd.cmdBindPipeline(cmd, .graphics, self.static_colored_triangle_pipeline);
-        self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
+        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
+
+        var offset: vk.DeviceSize = 0;
+        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
+
+        self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
 
         self.vkd.cmdEndRenderPass(cmd);
         try self.vkd.endCommandBuffer(cmd);

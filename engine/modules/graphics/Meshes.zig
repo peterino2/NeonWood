@@ -2,12 +2,14 @@ const std = @import("std");
 const core = @import("../core/core.zig");
 const VkConstants = @import("VkConstants.zig");
 const VkRenderer = @import("VkRenderer.zig");
-const vk = @import("vk");
+const vk = @import("vulkan");
 
 const ArrayList = std.ArrayList;
 const Vectorf = core.math.Vectorf;
 const NeonVkContext = VkRenderer.NeonVkContext;
 const NeonVkBuffer = VkRenderer.NeonVkBuffer;
+
+const debug_struct = core.debug_struct;
 
 pub const Vertex = struct {
     position: Vectorf,
@@ -46,6 +48,8 @@ pub const VertexInputDescription = struct {
             .input_rate = .vertex,
         });
 
+        debug_struct("bindings 0", self.bindings.items[0]);
+
         // position
         try self.attributes.append(.{
             .binding = 0,
@@ -53,6 +57,7 @@ pub const VertexInputDescription = struct {
             .format = .r32g32b32_sfloat,
             .offset = @offsetOf(Vertex, "position"),
         });
+        debug_struct("attributes 0", self.attributes.items[0]);
 
         // normal
         try self.attributes.append(.{
@@ -62,6 +67,7 @@ pub const VertexInputDescription = struct {
             .offset = @offsetOf(Vertex, "normal"),
         });
 
+        debug_struct("attributes 0", self.attributes.items[1]);
         // color
         try self.attributes.append(.{
             .binding = 0,
@@ -69,6 +75,7 @@ pub const VertexInputDescription = struct {
             .format = .r32g32b32a32_sfloat,
             .offset = @offsetOf(Vertex, "color"),
         });
+        debug_struct("attributes 0", self.attributes.items[2]);
 
         return self;
     }
