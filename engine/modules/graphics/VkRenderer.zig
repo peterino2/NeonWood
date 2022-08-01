@@ -256,9 +256,9 @@ pub const NeonVkContext = struct {
         self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[2].position = .{ .x = 0.0, .y = -1.0, .z = 0.0 };
 
-        self.testMesh.vertices.items[0].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[0].color = .{ .r = 1.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 1.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[2].color = .{ .r = 1.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
 
         self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
     }
