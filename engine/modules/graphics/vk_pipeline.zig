@@ -6,6 +6,11 @@ const core = @import("../core/core.zig");
 const VkConstants = @import("vk_constants.zig");
 const meshes = @import("meshes.zig");
 
+pub const NeonVkMeshPushConstant = struct {
+    data: core.Vector4f,
+    render_matrix: core.Mat,
+};
+
 const DeviceDispatch = VkConstants.DeviceDispatch;
 const BaseDispatch = VkConstants.BaseDispatch;
 const InstanceDispatch = VkConstants.InstanceDispatch;
@@ -17,6 +22,16 @@ const CStr = core.CStr;
 const debug_struct = core.debug_struct;
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
+
+pub fn default_pipeline_layout() vk.PipelineLayoutCreateInfo {
+    return vk.PipelineLayoutCreateInfo{
+        .flags = .{},
+        .set_layout_count = 0,
+        .p_set_layouts = undefined,
+        .push_constant_range_count = 0,
+        .p_push_constant_ranges = undefined,
+    };
+}
 
 pub const NeonVkPipelineBuilder = struct {
     vkd: DeviceDispatch,
@@ -30,6 +45,9 @@ pub const NeonVkPipelineBuilder = struct {
     piasci: vk.PipelineInputAssemblyStateCreateInfo,
     prsci: vk.PipelineRasterizationStateCreateInfo,
     pmsci: vk.PipelineMultisampleStateCreateInfo,
+    plci: ?vk.PipelineLayoutCreateInfo,
+
+    pushConstantRange: ?vk.PushConstantRange,
 
     viewport: vk.Viewport,
     scissor: vk.Rect2D,
@@ -79,7 +97,7 @@ pub const NeonVkPipelineBuilder = struct {
             .base_pipeline_index = 0,
         };
 
-        debug_struct("building with pvisci: ", self.pvisci);
+        //debug_struct("building with pvisci: ", self.pvisci);
 
         var pipeline: vk.Pipeline = undefined;
 
@@ -105,6 +123,8 @@ pub const NeonVkPipelineBuilder = struct {
         self.allocator = allocator;
         self.dev = dev;
         self.sscis = ArrayList(vk.PipelineShaderStageCreateInfo).init(allocator);
+        self.plci = null;
+        self.pushConstantRange = null;
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
@@ -121,6 +141,18 @@ pub const NeonVkPipelineBuilder = struct {
         self.vertexInputDescription = null;
 
         return self;
+    }
+
+    pub fn add_push_constant(self: *NeonVkPipelineBuilder) !void {
+        self.plci = default_pipeline_layout();
+        self.pushConstantRange = vk.PushConstantRange{
+            .offset = 0,
+            .size = @sizeOf(NeonVkMeshPushConstant),
+            .stage_flags = .{ .vertex_bit = true },
+        };
+
+        self.plci.?.push_constant_range_count = 1;
+        self.plci.?.p_push_constant_ranges = p2a(&(self.pushConstantRange.?));
     }
 
     pub fn add_mesh_description(self: *NeonVkPipelineBuilder) !void {
@@ -211,15 +243,10 @@ pub const NeonVkPipelineBuilder = struct {
             .color_blend_op = .add,
         }; //
 
-        const plci = vk.PipelineLayoutCreateInfo{
-            .flags = .{},
-            .set_layout_count = 0,
-            .p_set_layouts = undefined,
-            .push_constant_range_count = 0,
-            .p_push_constant_ranges = undefined,
-        };
+        if (self.plci == null)
+            self.plci = default_pipeline_layout();
 
-        self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &plci, null);
+        self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &(self.plci.?), null);
     }
 
     pub fn add_shader_stage(self: *NeonVkPipelineBuilder, stageFlags: vk.ShaderStageFlags, shaderModule: vk.ShaderModule) !void {
@@ -243,6 +270,6 @@ pub const NeonVkPipelineBuilder = struct {
         if (self.vertexInputDescription != null)
             self.vertexInputDescription.?.deinit();
 
-        self.vkd.destroyPipelineLayout(self.dev, self.pipelineLayout, null);
+        //self.vkd.destroyPipelineLayout(self.dev, self.pipelineLayout, null);
     }
 };

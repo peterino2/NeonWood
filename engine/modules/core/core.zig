@@ -4,7 +4,7 @@ usingnamespace @import("algorithm.zig");
 usingnamespace @import("engineTime.zig");
 const engine = @import("engine.zig");
 pub const zm = @import("lib/zmath/zmath.zig");
-pub const math = @import("math.zig");
+usingnamespace @import("math.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });

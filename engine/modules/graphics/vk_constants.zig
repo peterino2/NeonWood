@@ -88,4 +88,5 @@ pub const DeviceDispatch = vk.DeviceWrapper(.{
     .cmdSetScissor = true,
     .cmdBindVertexBuffers = true,
     .cmdCopyBuffer = true,
+    .cmdPushConstants = true,
 });

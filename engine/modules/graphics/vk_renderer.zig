@@ -12,6 +12,10 @@ const meshes = @import("meshes.zig");
 // Aliases
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
+const Vector4f = core.Vector4f;
+const Vectorf = core.Vectorf;
+const Quat = core.Quat;
+const Mat = core.Mat;
 
 const DeviceDispatch = vk_constants.DeviceDispatch;
 const BaseDispatch = vk_constants.BaseDispatch;
@@ -23,6 +27,7 @@ const CStr = core.CStr;
 
 const debug_struct = core.debug_struct;
 
+const NeonVkMeshPushConstant = vk_pipeline.NeonVkMeshPushConstant;
 const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
 };
@@ -236,6 +241,7 @@ pub const NeonVkContext = struct {
     testMesh: meshes.Mesh,
 
     exitSignal: bool,
+    mesh_pipeline_layout: vk.PipelineLayout,
 
     pub fn create_object() !Self {
         var self: Self = undefined;
@@ -328,8 +334,10 @@ pub const NeonVkContext = struct {
             resources.triangle_frag_static.len,
             @ptrCast([*]const u32, resources.triangle_frag_static),
         );
+
         try static_tri_builder.init_triangle_pipeline(self.actual_extent);
         self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
+        self.vkd.destroyPipelineLayout(self.dev, static_tri_builder.pipelineLayout, null);
         defer static_tri_builder.deinit();
 
         var colored_tri_b = try NeonVkPipelineBuilder.init(
@@ -343,6 +351,7 @@ pub const NeonVkContext = struct {
         );
         try colored_tri_b.init_triangle_pipeline(self.actual_extent);
         self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
+        self.vkd.destroyPipelineLayout(self.dev, colored_tri_b.pipelineLayout, null);
         defer colored_tri_b.deinit();
 
         {
@@ -357,8 +366,10 @@ pub const NeonVkContext = struct {
                 @ptrCast([*]const u32, resources.triangle_mesh_frag),
             );
             try mesh_pipeline_b.add_mesh_description();
+            try mesh_pipeline_b.add_push_constant();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
+            self.mesh_pipeline_layout = mesh_pipeline_b.pipelineLayout;
             defer mesh_pipeline_b.deinit();
         }
         core.graphics_logs("Finishing up pipeline creation");
@@ -433,11 +444,7 @@ pub const NeonVkContext = struct {
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
         if (self.mode == 0) {
-            self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
-            var offset: vk.DeviceSize = 0;
-            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
-
-            self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
+            self.render_mesh();
         } else if (self.mode == 1) {
             self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
             self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
@@ -450,6 +457,37 @@ pub const NeonVkContext = struct {
         try self.vkd.endCommandBuffer(cmd);
 
         try self.finish_frame();
+    }
+
+    fn render_mesh(self: *Self) void {
+        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
+        var offset: vk.DeviceSize = 0;
+        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
+
+        var cameraPosition: Vectorf = .{
+            .x = 0.0,
+            .y = 0.0,
+            .z = 0.2,
+        };
+
+        var view: Mat = core.zm.mul(
+            core.zm.identity(),
+            core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z),
+        );
+
+        var projection: Mat = core.zm.perspectiveFovRh(90, 800 / 600, 0.1, 200);
+
+        var final = core.zm.mul(projection, view);
+
+        var constants: NeonVkMeshPushConstant = NeonVkMeshPushConstant{
+            .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
+            .render_matrix = final,
+        };
+
+        self.vkd.cmdPushConstants(cmd, self.mesh_pipeline_layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
+
+        self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
     }
 
     fn finish_frame(self: *Self) !void {
@@ -751,7 +789,7 @@ pub const NeonVkContext = struct {
 
             var imageView = try self.vkd.createImageView(self.dev, &ivci, null);
 
-            debug_struct("imageView", imageView);
+            //debug_struct("imageView", imageView);
 
             var swapImage = NeonVkSwapImage{
                 .image = image,
@@ -761,8 +799,8 @@ pub const NeonVkContext = struct {
 
             self.swapImages.items[i] = swapImage;
 
-            debug_struct("swapImage", swapImage);
-            debug_struct("self.swapImages.items[i]", self.swapImages.items[i]);
+            //debug_struct("swapImage", swapImage);
+            //debug_struct("self.swapImages.items[i]", self.swapImages.items[i]);
         }
     }
 
@@ -1218,6 +1256,7 @@ pub const NeonVkContext = struct {
         self.vkd.destroyPipeline(self.dev, self.static_triangle_pipeline, null);
         self.vkd.destroyPipeline(self.dev, self.static_colored_triangle_pipeline, null);
         self.vkd.destroyPipeline(self.dev, self.mesh_pipeline, null);
+        self.vkd.destroyPipelineLayout(self.dev, self.mesh_pipeline_layout, null);
     }
 
     pub fn destroy_renderpass(self: *Self) !void {
