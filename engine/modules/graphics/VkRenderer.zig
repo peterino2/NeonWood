@@ -166,6 +166,9 @@ pub const NeonVkContext = struct {
         .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
     };
 
+    pub const maxNode = 2;
+    mode: u32,
+
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
     vkb: VkConstants.BaseDispatch,
     vki: VkConstants.InstanceDispatch,
@@ -225,6 +228,8 @@ pub const NeonVkContext = struct {
     vmaAllocator: vma.Allocator,
 
     testMesh: Meshes.Mesh,
+
+    exitSignal: bool,
 
     pub fn create_object() !Self {
         var self: Self = undefined;
@@ -358,7 +363,13 @@ pub const NeonVkContext = struct {
     }
 
     pub fn shouldExit(self: Self) !bool {
-        return c.glfwWindowShouldClose(self.window) == c.GLFW_TRUE;
+        if (c.glfwWindowShouldClose(self.window) == c.GLFW_TRUE)
+            return true;
+
+        if (self.exitSignal)
+            return true;
+
+        return false;
     }
 
     pub fn getNextSwapImage(self: *Self) !u32 {
@@ -378,7 +389,11 @@ pub const NeonVkContext = struct {
         return image_index;
     }
 
-    pub fn updateTime(self: *Self, deltaTime: f64) void {
+    pub fn pollRendererEvents(self: *Self) !void {
+        _ = self;
+    }
+
+    fn updateTime(self: *Self, deltaTime: f64) void {
         self.rendererTime += deltaTime;
     }
 
@@ -415,13 +430,19 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
-        //self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
-        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
+        if (self.mode == 0) {
+            self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
+            var offset: vk.DeviceSize = 0;
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
 
-        var offset: vk.DeviceSize = 0;
-        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
-
-        self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
+            self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
+        } else if (self.mode == 1) {
+            self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
+            self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
+        } else if (self.mode == 2) {
+            self.vkd.cmdBindPipeline(cmd, .graphics, self.static_colored_triangle_pipeline);
+            self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
+        }
 
         self.vkd.cmdEndRenderPass(cmd);
         try self.vkd.endCommandBuffer(cmd);
@@ -800,6 +821,8 @@ pub const NeonVkContext = struct {
         self.swapchain = .null_handle;
         self.nextFrameIndex = 0;
         self.rendererTime = 0;
+        self.exitSignal = false;
+        self.mode = 0;
     }
 
     pub fn init_api(self: *Self) !void {
@@ -1170,5 +1193,33 @@ pub const NeonVkContext = struct {
         _ = comp;
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         defer core.stbi_image_free(pixels);
+
+        _ = c.glfwSetKeyCallback(self.window, neon_glfw_input_callback);
     }
 };
+
+pub var context: *NeonVkContext = undefined;
+
+pub fn neon_glfw_input_callback(
+    window: ?*c.GLFWwindow,
+    key: c_int,
+    scancode: c_int,
+    action: c_int,
+    mods: c_int,
+) callconv(.C) void {
+    _ = window;
+    _ = key;
+    _ = scancode;
+    _ = action;
+    _ = mods;
+
+    if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
+        core.engine_logs("Escape key pressed, everything dies now");
+        context.exitSignal = true;
+    }
+
+    if (key == c.GLFW_KEY_D and action == c.GLFW_PRESS) {
+        context.mode = (context.mode + 1) % 3;
+        core.engine_log("mode == {d}", .{context.mode});
+    }
+}
