@@ -4,18 +4,18 @@ const resources = @import("resources");
 const c = @import("c.zig");
 const vma = @import("vma");
 const core = @import("../core/core.zig");
-const VkConstants = @import("VkConstants.zig");
-const VkPipeline = @import("VkPipeline.zig");
-const NeonVkPipelineBuilder = VkPipeline.NeonVkPipelineBuilder;
-const Meshes = @import("Meshes.zig");
+const vk_constants = @import("vk_constants.zig");
+const vk_pipeline = @import("vk_pipeline.zig");
+const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
+const meshes = @import("meshes.zig");
 
 // Aliases
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
 
-const DeviceDispatch = VkConstants.DeviceDispatch;
-const BaseDispatch = VkConstants.BaseDispatch;
-const InstanceDispatch = VkConstants.InstanceDispatch;
+const DeviceDispatch = vk_constants.DeviceDispatch;
+const BaseDispatch = vk_constants.BaseDispatch;
+const InstanceDispatch = vk_constants.InstanceDispatch;
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
@@ -30,12 +30,20 @@ const required_device_extensions = [_]CStr{
 pub const NeonVkBuffer = struct {
     buffer: vk.Buffer,
     allocation: vma.Allocation,
+
+    pub fn deinit(self: *NeonVkBuffer, allocator: vma.Allocator) void {
+        allocator.destroyBuffer(self.buffer, self.allocation);
+    }
 };
 
 pub const NeonVkSwapImage = struct {
     image: vk.Image,
     view: vk.ImageView,
     imageIndex: usize,
+
+    pub fn deinit(self: *NeonVkSwapImage, ctx: *NeonVkContext) void {
+        ctx.vkd.destroyImageView(ctx.dev, self.view, null);
+    }
 };
 
 pub const NeonVkQueue = struct {
@@ -158,7 +166,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 
 pub const NeonVkContext = struct {
     const Self = @This();
-    const NumFrames = VkConstants.NUM_FRAMES;
+    const NumFrames = vk_constants.NUM_FRAMES;
 
     const vertices = [_]Vertex{
         .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
@@ -170,9 +178,9 @@ pub const NeonVkContext = struct {
     mode: u32,
 
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
-    vkb: VkConstants.BaseDispatch,
-    vki: VkConstants.InstanceDispatch,
-    vkd: VkConstants.DeviceDispatch,
+    vkb: vk_constants.BaseDispatch,
+    vki: vk_constants.InstanceDispatch,
+    vkd: vk_constants.DeviceDispatch,
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -207,8 +215,6 @@ pub const NeonVkContext = struct {
     commandBufferFences: ArrayList(vk.Fence),
     renderPass: vk.RenderPass,
 
-    renderFence: vk.Fence,
-
     surfaceFormat: vk.SurfaceFormatKHR,
     presentMode: vk.PresentModeKHR,
     swapchain: vk.SwapchainKHR,
@@ -227,7 +233,7 @@ pub const NeonVkContext = struct {
     vmaFunctions: vma.VulkanFunctions,
     vmaAllocator: vma.Allocator,
 
-    testMesh: Meshes.Mesh,
+    testMesh: meshes.Mesh,
 
     exitSignal: bool,
 
@@ -255,7 +261,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_meshes(self: *Self) !void {
-        self.testMesh = Meshes.Mesh.init(self, self.allocator);
+        self.testMesh = meshes.Mesh.init(self, self.allocator);
         try self.testMesh.vertices.resize(3);
         self.testMesh.vertices.items[0].position = .{ .x = 1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
@@ -268,8 +274,8 @@ pub const NeonVkContext = struct {
         self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
     }
 
-    pub fn upload_mesh(self: *Self, mesh: *Meshes.Mesh) !NeonVkBuffer {
-        const size = mesh.vertices.items.len * @sizeOf(Meshes.Vertex);
+    pub fn upload_mesh(self: *Self, mesh: *meshes.Mesh) !NeonVkBuffer {
+        const size = mesh.vertices.items.len * @sizeOf(meshes.Vertex);
         core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, mesh.vertices.items.len });
         var bci = vk.BufferCreateInfo{
             .flags = .{},
@@ -310,10 +316,6 @@ pub const NeonVkContext = struct {
             .frameInUseCount = NumFrames,
             .pVulkanFunctions = &self.vmaFunctions,
         });
-    }
-
-    pub fn deinit_vma(self: *Self) void {
-        self.vmaAllocator.destroy();
     }
 
     pub fn init_pipelines(self: *Self) !void {
@@ -509,6 +511,9 @@ pub const NeonVkContext = struct {
             self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
         }
         self.framebuffers.deinit();
+        for (self.swapImages.items) |_, i| {
+            self.swapImages.items[i].deinit(self);
+        }
         self.swapImages.deinit();
     }
 
@@ -802,8 +807,6 @@ pub const NeonVkContext = struct {
         for (core.count(NumFrames)) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
-
-        self.renderFence = try self.vkd.createFence(self.dev, &fci, null);
     }
 
     pub fn init_command_pools(self: *Self) !void {
@@ -850,7 +853,7 @@ pub const NeonVkContext = struct {
         }
 
         // Make a request for vulkan layers
-        const ExtraLayers = [1]CStr{VkConstants.VK_KHRONOS_VALIDATION_LAYER_STRING};
+        const ExtraLayers = [1]CStr{vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING};
         try self.check_required_vulkan_layers(ExtraLayers[0..]);
 
         // setup vulkan application info
@@ -882,13 +885,13 @@ pub const NeonVkContext = struct {
         try self.create_physical_devices();
 
         var ids = ArrayList(u32).init(self.allocator);
-        //defer ids.deinit();
+        defer ids.deinit();
 
         try core.AppendToArrayListUnique(&ids, @intCast(u32, self.graphicsFamilyIndex));
         try core.AppendToArrayListUnique(&ids, @intCast(u32, self.presentFamilyIndex));
 
         var createQueueInfoList = ArrayList(vk.DeviceQueueCreateInfo).init(self.allocator);
-        //defer createQueueInfoList.deinit();
+        defer createQueueInfoList.deinit();
 
         const priority = [_]f32{1.0};
 
@@ -919,8 +922,8 @@ pub const NeonVkContext = struct {
             .p_enabled_features = &desiredFeatures,
         };
 
-        dci.enabled_layer_count = VkConstants.required_device_layers.len;
-        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &VkConstants.required_device_layers);
+        dci.enabled_layer_count = vk_constants.required_device_layers.len;
+        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vk_constants.required_device_layers);
 
         self.dev = try self.vki.createDevice(self.physicalDevice, &dci, null);
 
@@ -931,10 +934,6 @@ pub const NeonVkContext = struct {
         self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex);
 
         core.graphics_logs("Successfully created device");
-    }
-
-    fn create_command_pool(self: *Self) !void {
-        _ = self;
     }
 
     fn create_physical_devices(self: *Self) !void {
@@ -1084,7 +1083,7 @@ pub const NeonVkContext = struct {
             var layerFound: bool = false;
             for (layers) |layer| {
                 var layerName = core.buf_to_cstr(layer.layer_name);
-                if (c.strcmp(layerName, core.buf_to_cstr(VkConstants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
+                if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
                     layerFound = true;
                 }
             }
@@ -1196,9 +1195,58 @@ pub const NeonVkContext = struct {
 
         _ = c.glfwSetKeyCallback(self.window, neon_glfw_input_callback);
     }
+
+    pub fn destroy_syncs(self: *Self) !void {
+        for (self.acquireSemaphores.items) |x| {
+            self.vkd.destroySemaphore(self.dev, x, null);
+        }
+
+        for (self.renderCompleteSemaphores.items) |x| {
+            self.vkd.destroySemaphore(self.dev, x, null);
+        }
+        self.vkd.destroySemaphore(self.dev, self.extraSemaphore, null);
+        self.acquireSemaphores.deinit();
+        self.renderCompleteSemaphores.deinit();
+
+        for (self.commandBufferFences.items) |x| {
+            self.vkd.destroyFence(self.dev, x, null);
+        }
+        self.commandBufferFences.deinit();
+    }
+
+    pub fn destroy_pipelines(self: *Self) !void {
+        self.vkd.destroyPipeline(self.dev, self.static_triangle_pipeline, null);
+        self.vkd.destroyPipeline(self.dev, self.static_colored_triangle_pipeline, null);
+        self.vkd.destroyPipeline(self.dev, self.mesh_pipeline, null);
+    }
+
+    pub fn destroy_renderpass(self: *Self) !void {
+        self.vkd.destroyRenderPass(self.dev, self.renderPass, null);
+    }
+
+    pub fn destroy_meshes(self: *Self) !void {
+        self.testMesh.deinit(self.vmaAllocator);
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.vkd.deviceWaitIdle(self.dev) catch unreachable;
+
+        self.destroy_pipelines() catch unreachable;
+        self.destroy_renderpass() catch unreachable;
+        self.destroy_syncs() catch unreachable;
+        self.destroy_meshes() catch unreachable;
+        self.destroy_framebuffers() catch unreachable;
+
+        self.vmaAllocator.destroy();
+
+        self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
+        self.vkd.destroyDevice(self.dev, null);
+        self.vki.destroySurfaceKHR(self.instance, self.surface, null);
+        self.vki.destroyInstance(self.instance, null);
+    }
 };
 
-pub var context: *NeonVkContext = undefined;
+pub var gContext: *NeonVkContext = undefined;
 
 pub fn neon_glfw_input_callback(
     window: ?*c.GLFWwindow,
@@ -1215,11 +1263,10 @@ pub fn neon_glfw_input_callback(
 
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, everything dies now");
-        context.exitSignal = true;
+        gContext.exitSignal = true;
     }
 
     if (key == c.GLFW_KEY_D and action == c.GLFW_PRESS) {
-        context.mode = (context.mode + 1) % 3;
-        core.engine_log("mode == {d}", .{context.mode});
+        gContext.mode = (gContext.mode + 1) % 3;
     }
 }

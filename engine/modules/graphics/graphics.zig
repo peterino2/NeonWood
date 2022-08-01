@@ -1,7 +1,7 @@
 // this will be replaced by build system symbols later.
 const core = @import("../core/core.zig");
-const VkRenderer = @import("VkRenderer.zig");
-const NeonVkContext = @import("VkRenderer.zig").NeonVkContext;
+const vk_renderer = @import("vk_renderer.zig");
+const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;
@@ -16,9 +16,10 @@ pub fn shutdown_module() void {
 
 pub fn run() !void {
     var renderer = try NeonVkContext.create_object();
+    defer renderer.deinit();
 
-    VkRenderer.context = &renderer;
-    defer VkRenderer.context = undefined;
+    vk_renderer.gContext = &renderer;
+    defer vk_renderer.gContext = undefined;
 
     var lastTimeStamp = core.getEngineTime();
 
@@ -29,10 +30,4 @@ pub fn run() !void {
         try renderer.draw(newTime - lastTimeStamp);
         lastTimeStamp = newTime;
     }
-    // var system = RenderSystem.create_object();
-
-    // try system.init();
-    // try system.run();
-
-    // try system.cleanup();
 }

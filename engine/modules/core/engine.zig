@@ -11,6 +11,8 @@ const AutoHashMap = std.AutoHashMap;
 const engine_log = logging.engine_log;
 
 pub const Engine = struct {
+    exitSignal: bool,
+
     subsystems: ArrayList(*anyopaque),
     subsystemsByType: AutoHashMap(u32, usize),
     alloc: std.mem.Allocator,
@@ -20,6 +22,7 @@ pub const Engine = struct {
             .subsystems = ArrayList(*anyopaque).init(alloc),
             .subsystemsByType = AutoHashMap(u32, usize).init(alloc),
             .alloc = alloc,
+            .exitSignal = false,
         };
 
         return rv;

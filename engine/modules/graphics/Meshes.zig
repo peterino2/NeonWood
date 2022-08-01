@@ -1,13 +1,14 @@
 const std = @import("std");
 const core = @import("../core/core.zig");
-const VkConstants = @import("VkConstants.zig");
-const VkRenderer = @import("VkRenderer.zig");
+const vk_constants = @import("vk_constants.zig");
+const vk_renderer = @import("vk_renderer.zig");
+const vma = @import("vma");
 const vk = @import("vulkan");
 
 const ArrayList = std.ArrayList;
 const Vectorf = core.math.Vectorf;
-const NeonVkContext = VkRenderer.NeonVkContext;
-const NeonVkBuffer = VkRenderer.NeonVkBuffer;
+const NeonVkContext = vk_renderer.NeonVkContext;
+const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
 const debug_struct = core.debug_struct;
 
@@ -28,6 +29,10 @@ pub const Mesh = struct {
         };
         _ = context;
         return self;
+    }
+
+    pub fn deinit(self: *Mesh, allocator: vma.Allocator) void {
+        self.buffer.deinit(allocator);
     }
 };
 

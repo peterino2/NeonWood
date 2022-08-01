@@ -3,8 +3,8 @@ const vk = @import("vulkan");
 const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
-const VkConstants = @import("VkConstants.zig");
-const Meshes = @import("Meshes.zig");
+const VkConstants = @import("vk_constants.zig");
+const meshes = @import("meshes.zig");
 
 const DeviceDispatch = VkConstants.DeviceDispatch;
 const BaseDispatch = VkConstants.BaseDispatch;
@@ -34,7 +34,7 @@ pub const NeonVkPipelineBuilder = struct {
     viewport: vk.Viewport,
     scissor: vk.Rect2D,
 
-    vertexInputDescription: ?Meshes.VertexInputDescription,
+    vertexInputDescription: ?meshes.VertexInputDescription,
 
     colorBlendAttachment: vk.PipelineColorBlendAttachmentState,
     pipelineLayout: vk.PipelineLayout,
@@ -125,7 +125,7 @@ pub const NeonVkPipelineBuilder = struct {
 
     pub fn add_mesh_description(self: *NeonVkPipelineBuilder) !void {
         core.graphics_logs("adding vertex mesh description");
-        self.vertexInputDescription = try Meshes.VertexInputDescription.init(self.allocator);
+        self.vertexInputDescription = try meshes.VertexInputDescription.init(self.allocator);
     }
 
     pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
@@ -242,5 +242,7 @@ pub const NeonVkPipelineBuilder = struct {
 
         if (self.vertexInputDescription != null)
             self.vertexInputDescription.?.deinit();
+
+        self.vkd.destroyPipelineLayout(self.dev, self.pipelineLayout, null);
     }
 };
