@@ -339,20 +339,22 @@ pub const NeonVkContext = struct {
         defer colored_tri_b.deinit();
 
         {
+            core.graphics_logs("Creating mesh pipeline");
             var mesh_pipeline_b = try NeonVkPipelineBuilder.init(
                 self.dev,
                 self.vkd,
                 self.allocator,
-                resources.triangle_vert_colored.len,
-                @ptrCast([*]const u32, resources.triangle_vert_static),
-                resources.triangle_frag_colored.len,
-                @ptrCast([*]const u32, resources.triangle_frag_colored),
+                resources.triangle_mesh_vert.len,
+                @ptrCast([*]const u32, resources.triangle_mesh_vert),
+                resources.triangle_mesh_frag.len,
+                @ptrCast([*]const u32, resources.triangle_mesh_frag),
             );
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
             defer mesh_pipeline_b.deinit();
         }
+        core.graphics_logs("Finishing up pipeline creation");
     }
 
     pub fn shouldExit(self: Self) !bool {

@@ -79,6 +79,8 @@ pub const NeonVkPipelineBuilder = struct {
             .base_pipeline_index = 0,
         };
 
+        debug_struct("building with pvisci: ", self.pvisci);
+
         var pipeline: vk.Pipeline = undefined;
 
         _ = self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline)) catch return null;
@@ -122,6 +124,7 @@ pub const NeonVkPipelineBuilder = struct {
     }
 
     pub fn add_mesh_description(self: *NeonVkPipelineBuilder) !void {
+        core.graphics_logs("adding vertex mesh description");
         self.vertexInputDescription = try Meshes.VertexInputDescription.init(self.allocator);
     }
 
@@ -145,6 +148,7 @@ pub const NeonVkPipelineBuilder = struct {
 
             self.pvisci.vertex_binding_description_count = @intCast(u32, desc.bindings.items.len);
             self.pvisci.p_vertex_binding_descriptions = desc.bindings.items.ptr;
+            core.graphics_logs("setting up vertex description");
         }
 
         self.piasci = vk.PipelineInputAssemblyStateCreateInfo{
