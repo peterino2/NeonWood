@@ -14,7 +14,6 @@ layout (push_constant) uniform constants
 
 void main()
 {
-	//gl_Position = PushConstants.render_matrix * vec4(vPosition, 1.0f);
-	gl_Position = vec4(vPosition, 1.0f);
+	gl_Position = PushConstants.render_matrix * vec4(vPosition, 1.0f);
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
 }

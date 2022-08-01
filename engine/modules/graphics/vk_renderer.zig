@@ -461,8 +461,9 @@ pub const NeonVkContext = struct {
 
     fn render_mesh(self: *Self) void {
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
-        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
         var offset: vk.DeviceSize = 0;
+
+        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
         self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
 
         var cameraPosition: Vectorf = .{
@@ -471,16 +472,11 @@ pub const NeonVkContext = struct {
             .z = 0.2,
         };
 
-        var view: Mat = core.zm.mul(
-            core.zm.identity(),
-            core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z),
-        );
-
+        var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
         var projection: Mat = core.zm.perspectiveFovRh(90, 800 / 600, 0.1, 200);
-
         var final = core.zm.mul(projection, view);
 
-        var constants: NeonVkMeshPushConstant = NeonVkMeshPushConstant{
+        var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
             .render_matrix = final,
         };
