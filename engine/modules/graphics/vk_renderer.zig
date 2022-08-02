@@ -286,9 +286,9 @@ pub const NeonVkContext = struct {
         self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[2].position = .{ .x = 0.0, .y = -1.0, .z = 0.0 };
 
-        self.testMesh.vertices.items[0].color = .{ .r = 1.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 1.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[2].color = .{ .r = 1.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[0].color = .{ .r = 1.0, .g = 0.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
+        self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
 
         self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
     }
@@ -485,22 +485,43 @@ pub const NeonVkContext = struct {
         var cameraPosition: Vectorf = .{
             .x = 0.0,
             .y = 0.0,
-            .z = -0.2,
+            .z = -2.0,
         };
 
         var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        var projection: Mat = core.zm.perspectiveFovRh(core.radians(90.0), 16.0 / 9.0, 0.1, 200);
-        var model = core.zm.rotationZ(core.radians(45.0) * @floatCast(f32, self.rendererTime));
-        var final = mul(mul(projection, view), model);
+        var projection: Mat = core.zm.perspectiveFovRh(
+            core.radians(70.0),
+            16.0 / 9.0,
+            0.1,
+            2000,
+        );
+        var translate = core.zm.translation(
+            //@floatCast(f32, std.math.sin((self.rendererTime)) * 0.5),
+            0.0,
+            0.0,
+            0.8,
+        );
+        var model = core.zm.rotationY(
+            core.radians(90.0) * @floatCast(f32, self.rendererTime),
+        );
+
+        var model2 = core.zm.rotationZ(
+            core.radians(180.0) * @floatCast(f32, self.rendererTime),
+        );
+        _ = model2;
+        var final = mul(model, mul(view, projection));
         _ = final;
+        var scale = core.zm.scaling(0.5, 0.5, 0.5);
+        _ = translate;
+        _ = scale;
 
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
-            .render_matrix = core.zm.transpose(final),
+            //.render_matrix = mul(scale, mul(translate, model)),
+            //.render_matrix = mul(core.zm.identity(), mul(scale, mul(model, translate))),
+            //.render_matrix = mul(scale, mul(model2, core.zm.identity())),
+            .render_matrix = final,
         };
-
-        if (self.firstFrame)
-            debug_struct("x", constants.render_matrix);
 
         self.vkd.cmdPushConstants(cmd, self.mesh_pipeline_layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
