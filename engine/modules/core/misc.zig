@@ -28,3 +28,18 @@ pub fn slice_to_cstr(str: []const u8) ?[*:0]const u8 {
 pub fn buf_to_cstr(str: anytype) ?[*:0]const u8 {
     return @ptrCast(?[*:0]const u8, &str[0]);
 }
+
+pub const CStr = [*:0]const u8;
+
+pub fn debug_struct(preamble: []const u8, s: anytype) void {
+    logging.graphics_log("{s}:", .{preamble});
+    logging.graphics_log("  {any}", .{s});
+}
+
+pub fn p_to_a(a: anytype) [*]const @TypeOf(a.*) {
+    return @ptrCast([*]const @TypeOf(a.*), a);
+}
+
+pub fn p_to_av(a: anytype) [*]@TypeOf(a.*) {
+    return @ptrCast([*]@TypeOf(a.*), a);
+}

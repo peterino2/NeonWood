@@ -1,0 +1,6 @@
+[submodule "engine/modules/graphics/lib/vulkan-zig"]
+	path = engine/modules/graphics/lib/vulkan-zig
+	url = https://github.com/Snektron/vulkan-zig.git
+[submodule "engine/modules\\graphics\\lib\\objLoader"]
+	path = engine/modules\\graphics\\lib\\objLoader
+	url = https://github.com/peterino2/zig_obj_loader.git

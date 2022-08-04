@@ -3,7 +3,7 @@
 
 This is an attempt at creating a higher level game development
 toolkit developed in zig specifically targeting the vulkan renderer
-initially (then webgpu or webgl depending on how often that stuff
+initially (then webgpu or webgl depending on availability for that stuff
 would be available).
 
 The goal is to create a highly flexible in-house toolkit of 
@@ -24,6 +24,4 @@ there is only one module that is special among all the others, and that is
 `core`
 
 this module implements what will be an effective `standard library` for 
-the rest of the neonwood project
-
-
+the rest of the neonwood stack
