@@ -4,6 +4,7 @@ const vk_constants = @import("vk_constants.zig");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
+pub const tinyobj = @import("lib/tinyobjloader/tinyobjloader.zig");
 
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;

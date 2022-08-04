@@ -240,10 +240,12 @@ pub const NeonVkContext = struct {
     vmaAllocator: vma.Allocator,
 
     testMesh: meshes.Mesh,
+    monkeyMesh: meshes.Mesh,
 
     exitSignal: bool,
     mesh_pipeline_layout: vk.PipelineLayout,
     firstFrame: bool,
+    shouldResize: bool,
 
     pub fn init_zig_data(self: *Self) !void {
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -291,6 +293,9 @@ pub const NeonVkContext = struct {
         self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
 
         self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
+
+        self.monkeyMesh = meshes.Mesh.init(self, self.allocator);
+        try meshes.tinyobj.load_obj_to_mesh("assets/monkey.obj");
     }
 
     pub fn upload_mesh(self: *Self, mesh: *meshes.Mesh) !NeonVkBuffer {
@@ -456,6 +461,10 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
+        if (self.shouldResize) {
+            self.shouldResize = false;
+        }
+
         if (self.mode == 0) {
             self.render_mesh(deltaTime);
         } else if (self.mode == 1) {
@@ -574,6 +583,7 @@ pub const NeonVkContext = struct {
 
             try self.vkd.deviceWaitIdle(self.dev);
             try self.destroy_framebuffers();
+            self.shouldResize = true;
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
@@ -1133,7 +1143,7 @@ pub const NeonVkContext = struct {
         var layers = try self.get_layer_extensions();
         defer self.allocator.free(layers);
         for (layers) |layer, i| {
-            core.graphics_log("  {d}: Layer name: {s} \"{s}\"", .{
+            core.graphics_log("  {d}: Layer name: {?s} \"{?s}\"", .{
                 i,
                 core.buf_to_cstr(layer.layer_name),
                 core.buf_to_cstr(layer.description),

@@ -96,6 +96,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.install();
     exe.linkLibC();
     exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags);
+    exe.addCSourceFile("modules/graphics/lib/tinyobjloader/tinyobjloader.c", cflags);
     exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
@@ -141,4 +142,7 @@ pub fn build(b: *std.build.Builder) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&exe_tests.step);
+    std.debug.print("|---------------------|\n", .{});
+    std.debug.print("|Build complete       |\n", .{});
+    std.debug.print("|---------------------|\n", .{});
 }

@@ -9,17 +9,14 @@ pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });
 pub const Engine = engine.Engine;
-
 const std = @import("std");
 const tests = @import("tests.zig");
-
 const logging = @import("logging.zig");
+const vk = @import("vulkan");
+const c = @This();
 
 const logs = logging.engine_logs;
 const log = logging.engine_log;
-
-const vk = @import("vulkan");
-const c = @This();
 
 pub fn start_module() void {
     gEngine = gEngineAllocator.create(Engine) catch unreachable;
