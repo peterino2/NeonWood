@@ -528,27 +528,15 @@ pub const NeonVkContext = struct {
             2000,
         );
         projection[1][1] *= -1;
-        var translate = core.zm.translation(
-            //@floatCast(f32, std.math.sin((self.rendererTime)) * 0.5),
-            0.0,
-            0.0,
-            0.8,
-        );
+
         var model = core.zm.rotationY(
-            core.radians(900.0) * @floatCast(f32, self.rendererTime),
+            core.radians(180.0) * @floatCast(f32, self.rendererTime),
         );
 
         var final = mul(model, mul(view, projection));
-        _ = final;
-        var scale = core.zm.scaling(0.5, 0.5, 0.5);
-        _ = translate;
-        _ = scale;
 
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
-            //.render_matrix = mul(scale, mul(translate, model)),
-            //.render_matrix = mul(core.zm.identity(), mul(scale, mul(model, translate))),
-            //.render_matrix = mul(scale, mul(model2, core.zm.identity())),
             .render_matrix = final,
         };
 
