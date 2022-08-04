@@ -1,7 +1,6 @@
 pub usingnamespace @cImport({
     @cDefine("GLFW_INCLUDE_NONE", {});
     @cInclude("GLFW/glfw3.h");
-    @cInclude("tinyobjloader/tinyobj_loader_c.h");
     @cInclude("stdlib.h");
     @cInclude("string.h");
 });

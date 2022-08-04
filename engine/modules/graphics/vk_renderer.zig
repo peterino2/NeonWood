@@ -295,7 +295,8 @@ pub const NeonVkContext = struct {
         self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
 
         self.monkeyMesh = meshes.Mesh.init(self, self.allocator);
-        try meshes.tinyobj.load_obj_to_mesh("assets/monkey.obj");
+        try self.monkeyMesh.load_from_obj_file("modules/graphics/lib/objLoader/test/monkey.obj");
+        self.monkeyMesh.buffer = try self.upload_mesh(&self.monkeyMesh);
     }
 
     pub fn upload_mesh(self: *Self, mesh: *meshes.Mesh) !NeonVkBuffer {
@@ -489,7 +490,7 @@ pub const NeonVkContext = struct {
         var offset: vk.DeviceSize = 0;
 
         self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
-        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.testMesh.buffer.buffer), p2a(&offset));
+        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.monkeyMesh.buffer.buffer), p2a(&offset));
 
         var cameraPosition: Vectorf = .{
             .x = 0.0,
@@ -504,6 +505,7 @@ pub const NeonVkContext = struct {
             0.1,
             2000,
         );
+        projection[1][1] *= -1;
         var translate = core.zm.translation(
             //@floatCast(f32, std.math.sin((self.rendererTime)) * 0.5),
             0.0,
@@ -534,7 +536,7 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdPushConstants(cmd, self.mesh_pipeline_layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
-        self.vkd.cmdDraw(cmd, @intCast(u32, self.testMesh.vertices.items.len), 1, 0, 0);
+        self.vkd.cmdDraw(cmd, @intCast(u32, self.monkeyMesh.vertices.items.len), 1, 0, 0);
     }
 
     fn finish_frame(self: *Self) !void {
@@ -1298,6 +1300,7 @@ pub const NeonVkContext = struct {
 
     pub fn destroy_meshes(self: *Self) !void {
         self.testMesh.deinit(self.vmaAllocator);
+        self.monkeyMesh.deinit(self.vmaAllocator);
     }
 
     pub fn deinit(self: *Self) void {

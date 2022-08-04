@@ -2,6 +2,10 @@ const std = @import("std");
 
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+pub fn loadObj(filename: []const u8, allocator: std.mem.Allocator) !ObjContents {
+    return try ObjContents.load(filename, allocator);
+}
+
 // Higher level file functions.
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
@@ -11,25 +15,25 @@ pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator:
     return buffer;
 }
 
-const ObjVec = struct {
+pub const ObjVec = struct {
     x: f32,
     y: f32,
     z: f32,
 };
 
-const ObjVec2 = struct {
+pub const ObjVec2 = struct {
     x: f32,
     y: f32,
 };
 
-const ObjColor = struct {
+pub const ObjColor = struct {
     r: f32,
     g: f32,
     b: f32,
     a: f32,
 };
 
-const ObjMesh = struct {
+pub const ObjMesh = struct {
     object_name: []u8,
     v_positions: ArrayListUnmanaged(ObjVec) = .{},
     v_colors: ArrayListUnmanaged(ObjColor) = .{},
@@ -38,7 +42,22 @@ const ObjMesh = struct {
     v_faces: ArrayListUnmanaged(ObjFace) = .{},
     allocator: std.mem.Allocator,
 
-    pub fn print_stats(self: *ObjMesh) void {
+    pub fn validate_mesh(self: ObjMesh) !void {
+        for (self.v_faces.items) |face| {
+            var i: u32 = 0;
+            while (i < face.count) {
+                if (face.vertex[i] > self.v_positions.items.len)
+                    return error.FaceReferencesInvalidVertex;
+                if (face.normal[i] > self.v_normals.items.len)
+                    return error.FaceReferencesInvalidNormal;
+                if (face.texture[i] > self.v_textures.items.len)
+                    return error.FaceReferencesInvalidTexture;
+                i += 1;
+            }
+        }
+    }
+
+    pub fn print_stats(self: ObjMesh) void {
         std.debug.print("obj: {s}, Vertices count = {d} Normals count = {d}, faces = {d}\n", .{
             self.object_name,
             self.v_positions.items.len,
@@ -76,7 +95,7 @@ const ObjMesh = struct {
     }
 };
 
-const ObjFace = struct {
+pub const ObjFace = struct {
     vertex: [4]u32,
     texture: [4]u32,
     normal: [4]u32,
@@ -188,17 +207,6 @@ pub fn toksIntoFace(toks: anytype) !ObjFace {
 
     rv.count = count;
     return rv;
-}
-
-test "splitting" {
-    const wank = "47//1";
-
-    var iter = std.mem.tokenize(u8, wank, "/");
-
-    while (iter.next()) |x| {
-        std.debug.print("{s}, ", .{x});
-    }
-    std.debug.print("\n", .{});
 }
 
 fn parse_line(lineIn: []const u8, allocator: std.mem.Allocator) !LineParseResult {
@@ -357,14 +365,12 @@ const ObjContents = struct {
         var mesh = try ObjMesh.init("root", allocator);
         _ = mesh;
 
-        var file_contents = try loadFileAlloc(fileName, 1, std.testing.allocator);
-        defer std.testing.allocator.free(file_contents);
+        var file_contents = try loadFileAlloc(fileName, 1, allocator);
+        defer allocator.free(file_contents);
         var lines = fileIntoLines(file_contents);
 
         while (lines.next()) |line| {
-            var result = parse_line(line, std.testing.allocator) catch {
-                unreachable;
-            };
+            var result = try parse_line(line, allocator);
 
             if (result == .object) {
                 if (mesh.v_positions.items.len > 0) {
@@ -373,7 +379,6 @@ const ObjContents = struct {
                 } else {
                     try mesh.setName(result.object);
                 }
-                std.debug.print("new obj name detected: {s}\n", .{result.object});
             }
 
             if (result == .vertex) {

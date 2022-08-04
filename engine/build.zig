@@ -96,7 +96,6 @@ pub fn build(b: *std.build.Builder) void {
     exe.install();
     exe.linkLibC();
     exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags);
-    exe.addCSourceFile("modules/graphics/lib/tinyobjloader/tinyobjloader.c", cflags);
     exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
