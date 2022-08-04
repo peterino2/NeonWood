@@ -33,6 +33,23 @@ pub fn default_pipeline_layout() vk.PipelineLayoutCreateInfo {
     };
 }
 
+fn make_depth_stencil_create_info(depth_test: bool, depth_write: bool, compareOp: vk.CompareOp) vk.PipelineDepthStencilStateCreateInfo {
+    var pdsci = vk.PipelineDepthStencilStateCreateInfo{
+        .flags = .{},
+        .depth_test_enable = if (depth_test) vk.TRUE else vk.FALSE,
+        .depth_write_enable = if (depth_write) vk.TRUE else vk.FALSE,
+        .depth_compare_op = if (depth_test) compareOp else .never,
+        .depth_bounds_test_enable = vk.FALSE,
+        .min_depth_bounds = 0.0,
+        .max_depth_bounds = 1.0,
+        .stencil_test_enable = vk.FALSE,
+        .front = std.mem.zeroes(vk.StencilOpState),
+        .back = std.mem.zeroes(vk.StencilOpState),
+    };
+
+    return pdsci;
+}
+
 pub const NeonVkPipelineBuilder = struct {
     vkd: DeviceDispatch,
     allocator: Allocator,
@@ -46,6 +63,7 @@ pub const NeonVkPipelineBuilder = struct {
     prsci: vk.PipelineRasterizationStateCreateInfo,
     pmsci: vk.PipelineMultisampleStateCreateInfo,
     plci: ?vk.PipelineLayoutCreateInfo,
+    pdsci: ?vk.PipelineDepthStencilStateCreateInfo,
 
     pushConstantRange: ?vk.PushConstantRange,
 
@@ -97,6 +115,10 @@ pub const NeonVkPipelineBuilder = struct {
             .base_pipeline_index = 0,
         };
 
+        if (self.pdsci != null) {
+            core.graphics_logs("configuring with a valid set of stencil information");
+            gpci.p_depth_stencil_state = &(self.pdsci.?);
+        }
         //debug_struct("building with pvisci: ", self.pvisci);
 
         var pipeline: vk.Pipeline = undefined;
@@ -104,6 +126,10 @@ pub const NeonVkPipelineBuilder = struct {
         _ = self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline)) catch return null;
 
         return pipeline;
+    }
+
+    pub fn add_depth_stencil(self: *NeonVkPipelineBuilder) !void {
+        self.pdsci = make_depth_stencil_create_info(true, true, .less_or_equal);
     }
 
     // VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
@@ -125,6 +151,7 @@ pub const NeonVkPipelineBuilder = struct {
         self.sscis = ArrayList(vk.PipelineShaderStageCreateInfo).init(allocator);
         self.plci = null;
         self.pushConstantRange = null;
+        self.pdsci = null;
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
@@ -261,8 +288,6 @@ pub const NeonVkPipelineBuilder = struct {
     }
 
     pub fn deinit(self: *NeonVkPipelineBuilder) void {
-        core.graphics_logs("cleaning up pipeline builder");
-
         self.vkd.destroyShaderModule(self.dev, self.fragShaderModule, null);
         self.vkd.destroyShaderModule(self.dev, self.vertShaderModule, null);
         self.sscis.deinit();

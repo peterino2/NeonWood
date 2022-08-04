@@ -42,6 +42,15 @@ pub const NeonVkBuffer = struct {
     }
 };
 
+pub const NeonVkAllocImage = struct {
+    image: vk.Image,
+    allocation: vma.Allocation,
+
+    pub fn deinit(self: *NeonVkAllocImage, allocator: vma.Allocator) void {
+        allocator.destroyImage(self.image, self.allocation);
+    }
+};
+
 pub const NeonVkSwapImage = struct {
     image: vk.Image,
     view: vk.ImageView,
@@ -230,6 +239,8 @@ pub const NeonVkContext = struct {
     rendererTime: f64,
 
     depthFormat: vk.Format,
+    depthImage: NeonVkAllocImage,
+    depthImageView: vk.ImageView,
 
     static_triangle_pipeline: vk.Pipeline,
     static_colored_triangle_pipeline: vk.Pipeline,
@@ -265,12 +276,12 @@ pub const NeonVkContext = struct {
         try self.init_glfw();
         try self.init_api();
         try self.init_device();
+        try self.init_vma();
         try self.init_command_pools();
         try self.init_command_buffers();
         try self.init_syncs();
         try self.init_vk_allocator();
         try self.init_or_recycle_swapchain();
-        try self.init_vma();
         try self.init_rendertarget();
         try self.init_renderpasses();
         try self.init_framebuffers();
@@ -355,6 +366,7 @@ pub const NeonVkContext = struct {
         );
 
         try static_tri_builder.init_triangle_pipeline(self.actual_extent);
+        try static_tri_builder.add_depth_stencil();
         self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
         self.vkd.destroyPipelineLayout(self.dev, static_tri_builder.pipelineLayout, null);
         defer static_tri_builder.deinit();
@@ -369,6 +381,7 @@ pub const NeonVkContext = struct {
             @ptrCast([*]const u32, resources.triangle_frag_colored),
         );
         try colored_tri_b.init_triangle_pipeline(self.actual_extent);
+        try colored_tri_b.add_depth_stencil();
         self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
         self.vkd.destroyPipelineLayout(self.dev, colored_tri_b.pipelineLayout, null);
         defer colored_tri_b.deinit();
@@ -386,6 +399,7 @@ pub const NeonVkContext = struct {
             );
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.add_push_constant();
+            try mesh_pipeline_b.add_depth_stencil();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
             self.mesh_pipeline_layout = mesh_pipeline_b.pipelineLayout;
@@ -445,9 +459,17 @@ pub const NeonVkContext = struct {
         };
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
-        var clearValue = vk.ClearValue{ .color = .{
-            .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 },
-        } };
+        var clearValues = [2]vk.ClearValue{
+            .{
+                .color = .{ .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 } },
+            },
+            .{
+                .depth_stencil = .{
+                    .depth = 1.0,
+                    .stencil = 0.0,
+                },
+            },
+        };
 
         var rpbi = vk.RenderPassBeginInfo{
             .render_area = .{
@@ -456,8 +478,8 @@ pub const NeonVkContext = struct {
             },
             .framebuffer = self.framebuffers.items[self.nextFrameIndex],
             .render_pass = self.renderPass,
-            .clear_value_count = 1,
-            .p_clear_values = @ptrCast([*]const vk.ClearValue, &clearValue),
+            .clear_value_count = 2,
+            .p_clear_values = @ptrCast([*]const vk.ClearValue, &clearValues),
         };
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
@@ -513,13 +535,9 @@ pub const NeonVkContext = struct {
             0.8,
         );
         var model = core.zm.rotationY(
-            core.radians(90.0) * @floatCast(f32, self.rendererTime),
+            core.radians(900.0) * @floatCast(f32, self.rendererTime),
         );
 
-        var model2 = core.zm.rotationZ(
-            core.radians(180.0) * @floatCast(f32, self.rendererTime),
-        );
-        _ = model2;
         var final = mul(model, mul(view, projection));
         _ = final;
         var scale = core.zm.scaling(0.5, 0.5, 0.5);
@@ -595,6 +613,8 @@ pub const NeonVkContext = struct {
     }
 
     fn destroy_framebuffers(self: *Self) !void {
+        self.vkd.destroyImageView(self.dev, self.depthImageView, null);
+        self.depthImage.deinit(self.vmaAllocator);
         for (self.framebuffers.items) |framebuffer| {
             self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
         }
@@ -613,14 +633,14 @@ pub const NeonVkContext = struct {
         self.framebuffers = ArrayList(vk.Framebuffer).init(self.allocator);
         try self.framebuffers.resize(self.swapImages.items.len);
 
-        var attachments = try self.allocator.alloc(vk.ImageView, 1);
+        var attachments = try self.allocator.alloc(vk.ImageView, 2);
         defer self.allocator.free(attachments);
-        //attachments[1] = self.depthImage; // slot 0 is going to be the current image view, slot 1 is the depth image view
+        attachments[1] = self.depthImageView; // slot 0 is going to be the current image view, slot 1 is the depth image view
 
         var fbci = vk.FramebufferCreateInfo{
             .flags = .{},
             .render_pass = self.renderPass,
-            .attachment_count = 1,
+            .attachment_count = 2,
             .p_attachments = attachments.ptr,
             .width = self.actual_extent.width,
             .height = self.actual_extent.height,
@@ -631,7 +651,7 @@ pub const NeonVkContext = struct {
 
         for (self.swapImages.items) |image, i| {
             attachments[0] = image.view;
-            debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
+            //debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
             self.framebuffers.items[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
             core.graphics_logs("Created a framebuffer!");
         }
@@ -639,11 +659,15 @@ pub const NeonVkContext = struct {
 
     fn init_rendertarget(self: *Self) !void {
         var formats = [_]vk.Format{
-            .d32_sfloat_s8_uint,
+            .d32_sfloat,
             .d24_unorm_s8_uint,
         };
 
-        self.depthFormat = try self.find_supported_format(formats[0..], .optimal, .{ .depth_stencil_attachment_bit = true });
+        self.depthFormat = try self.find_supported_format(
+            formats[0..],
+            .optimal,
+            .{ .depth_stencil_attachment_bit = true },
+        );
         core.graphics_log("created depth format: {any}", .{self.depthFormat});
     }
 
@@ -675,9 +699,9 @@ pub const NeonVkContext = struct {
             .flags = .{},
             .format = self.depthFormat,
             .samples = .{ .@"1_bit" = true },
-            .load_op = .dont_care,
-            .store_op = .dont_care,
-            .stencil_load_op = .load, // equals to zero
+            .load_op = .clear,
+            .store_op = .store,
+            .stencil_load_op = .clear, // equals to zero
             .stencil_store_op = .store, // equals to zero but we don't care
             .initial_layout = .@"undefined",
             .final_layout = .depth_stencil_attachment_optimal,
@@ -696,16 +720,46 @@ pub const NeonVkContext = struct {
         subpass.input_attachment_count = 0;
         subpass.color_attachment_count = 1;
         subpass.p_color_attachments = @ptrCast([*]const vk.AttachmentReference, &colorAttachmentRef);
-        //subpass.p_depth_stencil_attachment = &depthAttachmentRef; // disable the depth attachment for now
-        subpass.p_depth_stencil_attachment = null;
+        subpass.p_depth_stencil_attachment = &depthAttachmentRef; // disable the depth attachment for now
+        //subpass.p_depth_stencil_attachment = null;
+
+        var dependency = vk.SubpassDependency{
+            .dependency_flags = .{},
+            .src_subpass = vk.SUBPASS_EXTERNAL,
+            .dst_subpass = 0,
+            .src_stage_mask = .{ .color_attachment_output_bit = true },
+            .src_access_mask = .{},
+            .dst_stage_mask = .{ .color_attachment_output_bit = true },
+            .dst_access_mask = .{ .color_attachment_write_bit = true },
+        };
+
+        var depthDependency = vk.SubpassDependency{
+            .dependency_flags = .{},
+            .src_subpass = vk.SUBPASS_EXTERNAL,
+            .dst_subpass = 0,
+            .src_stage_mask = .{
+                .early_fragment_tests_bit = true,
+                .late_fragment_tests_bit = true,
+            },
+            .src_access_mask = .{},
+            .dst_stage_mask = .{
+                .early_fragment_tests_bit = true,
+                .late_fragment_tests_bit = true,
+            },
+            .dst_access_mask = .{ .depth_stencil_attachment_write_bit = true },
+        };
+
+        var dependencies = [2]vk.SubpassDependency{ dependency, depthDependency };
 
         var rpci = std.mem.zeroes(vk.RenderPassCreateInfo);
         rpci.s_type = .render_pass_create_info;
         rpci.flags = .{};
-        rpci.attachment_count = @intCast(u32, attachments.items.len - 1);
+        rpci.attachment_count = @intCast(u32, attachments.items.len);
         rpci.p_attachments = attachments.items.ptr;
         rpci.subpass_count = 1;
         rpci.p_subpasses = @ptrCast([*]const vk.SubpassDescription, &subpass);
+        rpci.dependency_count = 2;
+        rpci.p_dependencies = &dependencies;
         // debug_struct("rpci", rpci);
 
         self.renderPass = try self.vkd.createRenderPass(self.dev, &rpci, null);
@@ -847,6 +901,67 @@ pub const NeonVkContext = struct {
 
             self.swapImages.items[i] = swapImage;
         }
+
+        var depthImageExtent = vk.Extent3D{
+            .width = self.actual_extent.width,
+            .height = self.actual_extent.height,
+            .depth = 1,
+        };
+
+        self.depthFormat = .d32_sfloat;
+
+        var dimg_create = vk.ImageCreateInfo{
+            .flags = .{},
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+            .initial_layout = .@"undefined",
+            .image_type = .@"2d",
+            .format = self.depthFormat,
+            .extent = depthImageExtent,
+            .mip_levels = 1,
+            .array_layers = 1,
+            .samples = .{
+                .@"1_bit" = true,
+            },
+            .tiling = .optimal,
+            .usage = .{ .depth_stencil_attachment_bit = true },
+        };
+        _ = dimg_create;
+
+        var dimg_vma_alloc_info = vma.AllocationCreateInfo{
+            .requiredFlags = .{
+                .device_local_bit = true,
+            },
+            .usage = .gpuOnly,
+        };
+
+        _ = dimg_vma_alloc_info;
+        var result = try self.vmaAllocator.createImage(dimg_create, dimg_vma_alloc_info);
+
+        self.depthImage = .{
+            .image = result.image,
+            .allocation = result.allocation,
+        };
+
+        var imageViewCreate = vk.ImageViewCreateInfo{
+            .flags = .{},
+            .image = self.depthImage.image,
+            .view_type = .@"2d",
+            .format = self.depthFormat,
+            .components = .{ .r = .identity, .g = .identity, .b = .identity, .a = .identity },
+            .subresource_range = .{
+                .aspect_mask = .{
+                    .depth_bit = true,
+                },
+                .base_mip_level = 0,
+                .level_count = 1,
+                .base_array_layer = 0,
+                .layer_count = 1,
+            },
+        };
+
+        self.depthImageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
     }
 
     pub fn init_syncs(self: *Self) !void {
