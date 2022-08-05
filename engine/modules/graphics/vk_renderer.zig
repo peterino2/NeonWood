@@ -7,7 +7,8 @@ const core = @import("../core/core.zig");
 const vk_constants = @import("vk_constants.zig");
 const vk_pipeline = @import("vk_pipeline.zig");
 const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
-const meshes = @import("meshes.zig");
+const mesh = @import("mesh.zig");
+const render_objects = @import("render_object.zig");
 
 // Aliases
 const p2a = core.p_to_a;
@@ -22,7 +23,12 @@ const DeviceDispatch = vk_constants.DeviceDispatch;
 const BaseDispatch = vk_constants.BaseDispatch;
 const InstanceDispatch = vk_constants.InstanceDispatch;
 
+const RenderObject = render_objects.RenderObject;
+const Material = render_objects.Material;
+const Mesh = mesh.Mesh;
+
 const ArrayList = std.ArrayList;
+const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
@@ -250,15 +256,20 @@ pub const NeonVkContext = struct {
     vmaFunctions: vma.VulkanFunctions,
     vmaAllocator: vma.Allocator,
 
-    testMesh: meshes.Mesh,
-    monkeyMesh: meshes.Mesh,
+    testMesh: mesh.Mesh,
+    monkeyMesh: mesh.Mesh,
 
     exitSignal: bool,
     mesh_pipeline_layout: vk.PipelineLayout,
     firstFrame: bool,
     shouldResize: bool,
 
+    renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
+    materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
+    meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
+
     pub fn init_zig_data(self: *Self) !void {
+        core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
         self.allocator = std.heap.c_allocator;
         self.swapchain = .null_handle;
@@ -267,6 +278,9 @@ pub const NeonVkContext = struct {
         self.exitSignal = false;
         self.mode = 0;
         self.firstFrame = true;
+        self.renderObjects = .{};
+        self.meshes = .{};
+        self.materials = .{};
     }
 
     pub fn create_object() !Self {
@@ -293,7 +307,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_meshes(self: *Self) !void {
-        self.testMesh = meshes.Mesh.init(self, self.allocator);
+        self.testMesh = mesh.Mesh.init(self, self.allocator);
         try self.testMesh.vertices.resize(3);
         self.testMesh.vertices.items[0].position = .{ .x = 1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
@@ -303,16 +317,42 @@ pub const NeonVkContext = struct {
         self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
         self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
 
-        self.testMesh.buffer = try self.upload_mesh(&self.testMesh);
+        try self.testMesh.upload(self);
 
-        self.monkeyMesh = meshes.Mesh.init(self, self.allocator);
+        self.monkeyMesh = mesh.Mesh.init(self, self.allocator);
         try self.monkeyMesh.load_from_obj_file("modules/graphics/lib/objLoader/test/monkey.obj");
-        self.monkeyMesh.buffer = try self.upload_mesh(&self.monkeyMesh);
+        try self.monkeyMesh.upload(self);
+
+        {
+            _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
+        }
+
+        {
+            var renderObject = RenderObject{
+                .mesh = null,
+                .material = null,
+                .transform = core.zm.identity(),
+            };
+
+            var entry = self.meshes.getEntry(core.MakeName("mesh_monkey").hash);
+            if (entry != null)
+                renderObject.mesh = entry.?.value_ptr;
+            try self.renderObjects.append(self.allocator, renderObject);
+        }
     }
 
-    pub fn upload_mesh(self: *Self, mesh: *meshes.Mesh) !NeonVkBuffer {
-        const size = mesh.vertices.items.len * @sizeOf(meshes.Vertex);
-        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, mesh.vertices.items.len });
+    // we need a content filing system
+    pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !mesh.Mesh {
+        var newMesh = mesh.Mesh.init(self, self.allocator);
+        try newMesh.load_from_obj_file(filename);
+        try newMesh.upload(self);
+        try self.meshes.put(self.allocator, meshName.hash, newMesh);
+        return newMesh;
+    }
+
+    pub fn upload_mesh(self: *Self, _mesh: *mesh.Mesh) !NeonVkBuffer {
+        const size = _mesh.vertices.items.len * @sizeOf(mesh.Vertex);
+        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, _mesh.vertices.items.len });
         var bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = size,
@@ -337,7 +377,7 @@ pub const NeonVkContext = struct {
         const data = try self.vmaAllocator.mapMemory(buffer.allocation, u8);
         defer self.vmaAllocator.unmapMemory(buffer.allocation);
 
-        @memcpy(data, @ptrCast([*]const u8, mesh.vertices.items.ptr), size);
+        @memcpy(data, @ptrCast([*]const u8, _mesh.vertices.items.ptr), size);
 
         return buffer;
     }
@@ -522,7 +562,7 @@ pub const NeonVkContext = struct {
 
         var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
         var projection: Mat = core.zm.perspectiveFovRh(
-            core.radians(70.0),
+            core.radians(90.0),
             16.0 / 9.0,
             0.1,
             2000,
@@ -1342,7 +1382,7 @@ pub const NeonVkContext = struct {
             return error.GlfwInitFailed;
         }
 
-        self.extent = .{ .width = 800, .height = 600 };
+        self.extent = .{ .width = 1600, .height = 900 };
         self.windowName = "NeonWood Sample Application";
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
@@ -1404,6 +1444,16 @@ pub const NeonVkContext = struct {
     pub fn destroy_meshes(self: *Self) !void {
         self.testMesh.deinit(self.vmaAllocator);
         self.monkeyMesh.deinit(self.vmaAllocator);
+
+        var iter = self.meshes.iterator();
+        while (iter.next()) |i| {
+            i.value_ptr.deinit(self.vmaAllocator);
+        }
+        self.meshes.deinit(self.allocator);
+    }
+
+    pub fn destroy_renderobjects(self: *Self) !void {
+        self.renderObjects.deinit(self.allocator);
     }
 
     pub fn deinit(self: *Self) void {
@@ -1412,6 +1462,7 @@ pub const NeonVkContext = struct {
         self.destroy_pipelines() catch unreachable;
         self.destroy_renderpass() catch unreachable;
         self.destroy_syncs() catch unreachable;
+        self.destroy_renderobjects() catch unreachable;
         self.destroy_meshes() catch unreachable;
         self.destroy_framebuffers() catch unreachable;
 

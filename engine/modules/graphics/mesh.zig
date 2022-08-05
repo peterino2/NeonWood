@@ -35,6 +35,10 @@ pub const Mesh = struct {
         return self;
     }
 
+    pub fn upload(self: *Mesh, ctx: *NeonVkContext) !void {
+        self.buffer = try ctx.upload_mesh(self);
+    }
+
     pub fn load_from_obj_file(self: *Mesh, filename: []const u8) !void {
         var fileContents = try obj_loader.loadObj(filename, self.allocator);
         defer fileContents.deinit();

@@ -8,6 +8,9 @@ usingnamespace @import("math.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });
+pub const names = @import("names.zig");
+pub const Name = names.Name;
+pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
 const std = @import("std");
 const tests = @import("tests.zig");

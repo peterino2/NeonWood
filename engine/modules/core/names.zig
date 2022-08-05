@@ -15,6 +15,6 @@ pub const Name = struct {
     }
 };
 
-pub fn MakeName(utf8: []const u8) Name {
-    return Name.fromUtf8(utf8);
+pub fn MakeName(comptime utf8: []const u8) Name {
+    return comptime Name.fromUtf8(utf8);
 }

@@ -4,7 +4,7 @@ const resources = @import("resources");
 const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const VkConstants = @import("vk_constants.zig");
-const meshes = @import("meshes.zig");
+const meshes = @import("mesh.zig");
 
 pub const NeonVkMeshPushConstant = struct {
     data: core.Vector4f,
