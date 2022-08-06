@@ -276,6 +276,7 @@ pub const NeonVkContext = struct {
     renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
+    bind: bool,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
@@ -290,6 +291,7 @@ pub const NeonVkContext = struct {
         self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
+        self.bind = false;
     }
 
     pub fn create_object() !Self {
@@ -329,6 +331,19 @@ pub const NeonVkContext = struct {
             .init_transform = mul(core.zm.scaling(0.5,0.5,0.5),core.zm.translation(-2.0, -2.0, -1.0))
         });
 
+        for(core.count(1000)) |_, i|
+        {
+            try self.add_renderobject(.{
+                .mesh_name = core.MakeName("mesh_monkey"),
+                .material_name = core.MakeName("mat_monkey"),
+                .init_transform = mul(core.zm.scaling(0.1,0.1,0.1),
+                    core.zm.translation( 
+                        @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
+                        @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
+                        @intToFloat(f32, ( (i % 100 ) / 10 )) * -4.0 * (0.1) + 2.0,
+                 ))
+            });
+        }
     }
 
     pub fn add_renderobject( self: *Self, params: CreateRenderObjectParams) !void
