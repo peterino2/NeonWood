@@ -27,7 +27,10 @@ pub fn run() !void {
 
     while (!try renderer.shouldExit()) {
         const newTime = core.getEngineTime();
-        try renderer.draw(newTime - lastTimeStamp);
+        var dt: f64 = newTime - lastTimeStamp;
+        renderer.pollRendererEvents();
+        try renderer.updateEvents(dt);
+        try renderer.draw(dt);
         lastTimeStamp = newTime;
     }
 }

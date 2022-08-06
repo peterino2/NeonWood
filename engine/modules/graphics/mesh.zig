@@ -1,6 +1,5 @@
 const std = @import("std");
 const core = @import("../core/core.zig");
-const vk_constants = @import("vk_constants.zig");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
@@ -75,8 +74,8 @@ pub const Mesh = struct {
         }
     }
 
-    pub fn deinit(self: *Mesh, vmaAllocator: vma.Allocator) void {
-        self.buffer.deinit(vmaAllocator);
+    pub fn deinit(self: *Mesh, ctx: *NeonVkContext) void {
+        self.buffer.deinit(ctx.vmaAllocator);
     }
 };
 

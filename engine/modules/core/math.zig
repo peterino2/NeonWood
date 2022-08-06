@@ -5,8 +5,73 @@ const algorithm = @import("algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
 const math = std.math;
 
+pub fn matFromEulerAngles(x: f32, y: f32, z: f32) Mat
+{
+    return zm.matFromRollPitchYaw(y, z, x);
+}
+
 pub fn radians(f: anytype) @TypeOf(f) {
     return f * math.pi / 180.0;
+}
+
+
+pub fn fabs(x: anytype) @TypeOf(x)
+{
+    if (x < 0)
+        return -x;
+    return x;
+}
+
+pub fn Vector2Type(comptime T: type) type {
+    return struct {
+        x: T,
+        y: T,
+
+        pub fn new(x: T, y: T) @This() {
+            return .{
+                .x = x,
+                .y = y,
+            };
+        }
+
+        pub fn add(self: @This(), other: @This()) @This() {
+            return .{
+                .x = self.x + other.x,
+                .y = self.y + other.y,
+            };
+        }
+
+        pub fn sub(self: @This(), other: @This()) @This() {
+            return .{
+                .x = self.x - other.x,
+                .y = self.y - other.y,
+            };
+        }
+
+        pub fn fmul(self: @This(), other: anytype) @This() {
+            return .{
+                .x = self.x * other,
+                .y = self.y * other,
+            };
+        }
+
+        pub fn normalize(self: @This()) @This()
+        {
+            if(fabs(self.x ) <= 0.0001 and fabs(self.y) <= 0.0001)
+            {
+                return .{ .x = 0, .y = 0};
+            }
+            var len = std.math.sqrt(self.x * self.x + self.y * self.y);
+
+            if(len < 0.00001)
+                return .{ .x = 0, .y = 0};
+            
+            return .{
+                .x = self.x / len,
+                .y = self.y / len,
+            };
+        }
+    };
 }
 
 pub fn Vector3Type(comptime T: type) type {
@@ -36,6 +101,32 @@ pub fn Vector3Type(comptime T: type) type {
                 .x = self.x - other.x,
                 .y = self.y - other.y,
                 .z = self.z - other.z,
+            };
+        }
+
+        pub fn fmul(self: @This(), other: anytype) @This() {
+            return .{
+                .x = self.x * other,
+                .y = self.y * other,
+                .z = self.z * other,
+            };
+        }
+
+        pub fn normalize(self: @This()) @This()
+        {
+            if(fabs(self.x ) <= 0.0001 and fabs(self.y) <= 0.0001 and fabs(self.z) <= 0.0001)
+            {
+                return .{ .x = 0, .y = 0, .z = 0 };
+            }
+            var len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+
+            if(len < 0.00001)
+                return .{ .x = 0, .y = 0, .z = 0 };
+            
+            return .{
+                .x = self.x / len,
+                .y = self.y / len,
+                .z = self.z / len,
             };
         }
     };
@@ -74,12 +165,26 @@ pub fn Vector4Type(comptime T: type) type {
                 .w = self.w - other.w,
             };
         }
+
+        pub fn normalize(self: @This()) @This()
+        {
+            var len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w);
+            
+            return .{
+                .x = self.x / len,
+                .y = self.y / len,
+                .z = self.z / len,
+                .w = self.w / len,
+            };
+        }
     };
 }
 
 pub const Vector = Vector3Type(f64);
 pub const Vector4 = Vector4Type(f64);
 pub const Vectorf = Vector3Type(f32);
+pub const Vector2f = Vector2Type(f32);
+pub const Vector2 = Vector2Type(f64);
 pub const EulerAngles = Vector3Type(f32);
 pub const Vector4f = Vector4Type(f32);
 pub const Quat = zm.Quat;
