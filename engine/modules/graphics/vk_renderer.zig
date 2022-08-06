@@ -18,6 +18,9 @@ const Vectorf = core.Vectorf;
 const Quat = core.Quat;
 const Mat = core.Mat;
 const mul = core.zm.mul;
+const Name = core.Name;
+const Transform = core.Transform;
+const EulerAngles = core.EulerAngles;
 
 const DeviceDispatch = vk_constants.DeviceDispatch;
 const BaseDispatch = vk_constants.BaseDispatch;
@@ -31,6 +34,12 @@ const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
+
+pub const CreateRenderObjectParams  = struct {
+    mesh_name: Name,
+    material_name: Name,
+    init_transform: Transform = core.zm.identity(),
+};
 
 const debug_struct = core.debug_struct;
 
@@ -302,8 +311,47 @@ pub const NeonVkContext = struct {
 
         try self.init_pipelines();
         try self.init_meshes();
+        try self.init_renderobjects();
 
         return self;
+    }
+
+    pub fn init_renderobjects( self: *Self) !void
+    {
+        try self.add_renderobject(.{
+            .mesh_name = core.MakeName("mesh_monkey"),
+            .material_name = core.MakeName("mat_monkey"),
+        });
+
+        try self.add_renderobject(.{
+            .mesh_name = core.MakeName("mesh_monkey"),
+            .material_name = core.MakeName("mat_monkey"),
+            .init_transform = mul(core.zm.scaling(0.5,0.5,0.5),core.zm.translation(-2.0, -2.0, -1.0))
+        });
+
+    }
+
+    pub fn add_renderobject( self: *Self, params: CreateRenderObjectParams) !void
+    {
+        var renderObject = RenderObject{
+            .mesh = null,
+            .material = null,
+            .transform = params.init_transform,
+        };
+
+        var findMesh = self.meshes.getEntry(params.mesh_name.hash);
+        var findMat = self.materials.getEntry(params.material_name.hash);
+
+        if (findMesh == null)
+            return error.NoMeshFound;
+
+        if (findMat == null)
+            return error.NoMaterialFound;
+
+        renderObject.material = findMat.?.value_ptr;
+        renderObject.mesh = findMesh.?.value_ptr;
+
+        try self.renderObjects.append(self.allocator, renderObject);
     }
 
     pub fn init_meshes(self: *Self) !void {
@@ -327,18 +375,6 @@ pub const NeonVkContext = struct {
             _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
         }
 
-        {
-            var renderObject = RenderObject{
-                .mesh = null,
-                .material = null,
-                .transform = core.zm.identity(),
-            };
-
-            var entry = self.meshes.getEntry(core.MakeName("mesh_monkey").hash);
-            if (entry != null)
-                renderObject.mesh = entry.?.value_ptr;
-            try self.renderObjects.append(self.allocator, renderObject);
-        }
     }
 
     // we need a content filing system
@@ -443,6 +479,11 @@ pub const NeonVkContext = struct {
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
             self.mesh_pipeline_layout = mesh_pipeline_b.pipelineLayout;
+            var material = render_objects.Material{
+                .pipeline = self.mesh_pipeline,
+                .layout = self.mesh_pipeline_layout,
+            };
+            try self.materials.put(self.allocator, core.MakeName("mat_monkey").hash, material);
             defer mesh_pipeline_b.deinit();
         }
         core.graphics_logs("Finishing up pipeline creation");
@@ -529,7 +570,7 @@ pub const NeonVkContext = struct {
         }
 
         if (self.mode == 0) {
-            self.render_mesh(deltaTime);
+            self.render_meshes(deltaTime);
         } else if (self.mode == 1) {
             self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
             self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
@@ -546,43 +587,80 @@ pub const NeonVkContext = struct {
         self.firstFrame = false;
     }
 
-    fn render_mesh(self: *Self, deltaTime: f64) void {
+    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, projection_matrix: Mat, deltaTime: f64) void 
+    {
         _ = deltaTime;
-        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+
+        if(render_object.mesh == null)
+            return;
+
+        if(render_object.material == null)
+            return;
+            
+        const pipeline = render_object.material.?.pipeline;
+        const layout = render_object.material.?.layout;
+        const object_mesh = render_object.mesh.?.*;
+        
         var offset: vk.DeviceSize = 0;
 
-        self.vkd.cmdBindPipeline(cmd, .graphics, self.mesh_pipeline);
-        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&self.monkeyMesh.buffer.buffer), p2a(&offset));
+        self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
 
-        var cameraPosition: Vectorf = .{
-            .x = 0.0,
-            .y = 0.0,
-            .z = -2.0,
-        };
-
-        var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        var projection: Mat = core.zm.perspectiveFovRh(
-            core.radians(90.0),
-            16.0 / 9.0,
-            0.1,
-            2000,
-        );
-        projection[1][1] *= -1;
-
-        var model = core.zm.rotationY(
-            core.radians(180.0) * @floatCast(f32, self.rendererTime),
-        );
-
-        var final = mul(model, mul(view, projection));
-
+        var final = mul(render_object.transform, projection_matrix);
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
             .render_matrix = final,
         };
 
-        self.vkd.cmdPushConstants(cmd, self.mesh_pipeline_layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
+        self.vkd.cmdPushConstants(cmd,
+            layout,
+            .{ .vertex_bit = true },
+            0,
+            @sizeOf(NeonVkMeshPushConstant),
+            &constants);
 
-        self.vkd.cmdDraw(cmd, @intCast(u32, self.monkeyMesh.vertices.items.len), 1, 0, 0);
+        self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, 0);
+    }
+
+    fn render_meshes(self: *Self, deltaTime: f64) void {
+        _ = deltaTime;
+        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+
+        // create the camera
+        var projection_matrix:Mat = core.zm.identity();
+        {
+            var cameraPosition: Vectorf = .{
+                .x = 0.0,
+                .y = 0.0,
+                .z = -2.0,
+            };
+
+            var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+            var projection: Mat = core.zm.perspectiveFovRh(
+                core.radians(90.0),
+                16.0 / 9.0,
+                0.1,
+                2000,
+            );
+            projection[1][1] *= -1;
+
+            // Resolve the camera for this frame
+            projection_matrix = mul(view, projection);
+        }
+
+        for(self.renderObjects.items) |_, i|
+        {
+            //self.renderObjects.items[i].applyRelativeRotationY(
+            //    core.zm.rotationY( core.radians(180.0) * @floatCast(f32, deltaTime)),
+            //);
+            var rate:f32 = if(i % 2 == 0) 180.0 else -180.0;
+            self.renderObjects.items[i].applyRelativeRotationY( core.radians(rate) * @floatCast(f32, deltaTime));
+        }
+
+        for(self.renderObjects.items) |object|
+        {
+            self.draw_render_object(object, cmd, projection_matrix, deltaTime);
+        }
     }
 
     fn finish_frame(self: *Self) !void {

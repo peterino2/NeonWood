@@ -80,9 +80,11 @@ pub fn Vector4Type(comptime T: type) type {
 pub const Vector = Vector3Type(f64);
 pub const Vector4 = Vector4Type(f64);
 pub const Vectorf = Vector3Type(f32);
+pub const EulerAngles = Vector3Type(f32);
 pub const Vector4f = Vector4Type(f32);
 pub const Quat = zm.Quat;
 pub const Mat = zm.Mat;
+pub const Transform = zm.Mat;
 
 pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
     return .{

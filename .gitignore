@@ -3,3 +3,4 @@ zig-out
 .vscode/
 *.rdbg
 __pycache__
+*.idea
