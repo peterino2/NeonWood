@@ -88,6 +88,16 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
+        pub fn toZm(self: @This()) zm.Vec {
+            
+            return .{
+                self.x, 
+                self.y,
+                self.z,
+                0.0
+            };
+        }
+
         pub fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,

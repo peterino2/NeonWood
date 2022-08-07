@@ -285,6 +285,11 @@ pub const NeonVkContext = struct {
     mousePosition: Vector2,
     mousePositionPanStart: Vector2,
     cameraRotationStart: core.Quat,
+    cameraHorizontalRotation: core.Quat,
+    cameraHorizontalRotationMat: core.Mat,
+    cameraHorizontalRotationStart: core.Quat,
+
+    sensitivity: f64,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
@@ -304,6 +309,10 @@ pub const NeonVkContext = struct {
         self.mousePosition = .{.x = 0, .y = 0};
         self.mousePositionPanStart = .{.x = 0, .y = 0};
         self.cameraRotationStart = core.zm.quatFromRollPitchYaw(0.0, 0.0, 0.0);
+        self.cameraHorizontalRotation = self.cameraRotationStart;
+        self.cameraHorizontalRotationStart = self.cameraRotationStart;
+        self.cameraHorizontalRotationMat = core.zm.identity();
+        self.sensitivity = 0.005;
     }
 
     pub fn create_object() !Self {
@@ -561,21 +570,31 @@ pub const NeonVkContext = struct {
             self.panCamera = false;
         }
 
-        self.handleCameraPan();
     }
 
-    fn handleCameraPan(self: *Self) void 
+    fn handleCameraPan(self: *Self, deltaTime: f64) void 
     {
+        _ = deltaTime;
         if(self.panCameraCache == false and self.panCamera)
         {
             self.mousePositionPanStart = self.mousePosition;
             self.cameraRotationStart = self.camera.rotation;
+            self.cameraHorizontalRotationStart = self.cameraHorizontalRotation;
         }
         if(self.panCamera)
         {
-            // calculate the new roatation for the camera
             var diff = self.mousePosition.sub(self.mousePositionPanStart) ;
-            var offset = core.zm.matFromRollPitchYaw(@floatCast(f32, diff.y) * 0.01, @floatCast(f32, diff.x) * 0.01, 0.0);
+
+            var horizontalRotation = core.zm.matFromRollPitchYaw(0.0, @floatCast(f32, diff.x * self.sensitivity), 0.0);
+            horizontalRotation = mul(
+                core.zm.matFromQuat(self.cameraHorizontalRotationStart),
+                horizontalRotation,
+                );
+            self.cameraHorizontalRotationMat = horizontalRotation;
+            self.cameraHorizontalRotation = core.zm.quatFromMat(horizontalRotation);
+
+            // calculate the new roatation for the camera
+            var offset = core.zm.matFromRollPitchYaw(@floatCast(f32, diff.y * self.sensitivity) , 0.0, 0.0);
             var final = mul(core.zm.matFromQuat(self.cameraRotationStart), offset);
             self.camera.rotation = core.zm.quatFromMat(final);
         }
@@ -590,7 +609,9 @@ pub const NeonVkContext = struct {
     pub fn updateEvents(self: *Self, deltaTime: f64) !void
     {
         var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
-        self.camera.translate(movement);
+        var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
+        self.camera.translate(.{.x = movement_v[0], .y = movement_v[1], .z = movement_v[2]});
+        self.handleCameraPan(deltaTime);
     }
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
@@ -696,33 +717,11 @@ pub const NeonVkContext = struct {
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         // create the camera
-        self.camera.resolve();
+        self.camera.resolve(self.cameraHorizontalRotationMat);
         var projection_matrix:Mat = self.camera.final;
-        //{
-        //    var cameraPosition: Vectorf = .{
-        //        .x = 0.0,
-        //        .y = 0.0,
-        //        .z = -2.0,
-        //    };
-
-        //    var view: Mat = core.zm.translation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        //    var projection: Mat = core.zm.perspectiveFovRh(
-        //        core.radians(90.0),
-        //        16.0 / 9.0,
-        //        0.1,
-        //        2000,
-        //    );
-        //    projection[1][1] *= -1;
-
-        //    // Resolve the camera for this frame
-        //    projection_matrix = mul(view, projection);
-        //}
 
         for(self.renderObjects.items) |_, i|
         {
-            //self.renderObjects.items[i].applyRelativeRotationY(
-            //    core.zm.rotationY( core.radians(180.0) * @floatCast(f32, deltaTime)),
-            //);
             var rate:f32 = if(i % 2 == 0) 180.0 else -180.0;
             self.renderObjects.items[i].applyRelativeRotationY( core.radians(rate) * @floatCast(f32, deltaTime));
         }
@@ -1507,7 +1506,7 @@ pub const NeonVkContext = struct {
             }
         }
 
-        self.presentMode = .fifo_khr;
+        //self.presentMode = .fifo_khr;
     }
 
     pub fn get_layer_extensions(self: *Self) ![]const vk.LayerProperties {

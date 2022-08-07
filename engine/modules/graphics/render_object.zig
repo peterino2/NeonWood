@@ -109,11 +109,12 @@ pub const Camera = struct {
         self.projection[1][1] *= -1;
     }
 
-    pub fn resolve(self: *Camera) void 
+    pub fn resolve(self: *Camera, base: Mat) void 
     {
-        self.transform = zm.identity();
-        self.transform = mul(self.transform, zm.translation(self.position.x, self.position.y, self.position.z));
+        self.transform = base;
+        self.transform = mul(zm.translation(self.position.x, self.position.y, self.position.z), self.transform);
         self.transform = mul(self.transform, zm.matFromQuat(self.rotation));
+        //self.final = mul(self.transform, base);
         self.final = mul(self.transform, self.projection);
     }
 };
