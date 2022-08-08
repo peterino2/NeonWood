@@ -25,13 +25,11 @@ pub const RenderObject = struct {
     material: ?*Material,
     transform: core.Mat,
 
-    pub fn applyTransform(self : *RenderObject, transform: core.Mat) void 
-    {
+    pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
     }
 
-    pub fn applyRelativeRotationY(self : *RenderObject, angle: f32) void 
-    {
+    pub fn applyRelativeRotationY(self: *RenderObject, angle: f32) void {
         var imat = core.zm.identity();
         imat[0][3] = -self.transform[0][3];
         imat[1][3] = -self.transform[1][3];
@@ -42,7 +40,6 @@ pub const RenderObject = struct {
         imat[1][3] = self.transform[1][3];
         imat[2][3] = self.transform[2][3];
 
-
         var newTransform = core.zm.mul(imat, self.transform);
         newTransform = core.zm.mul(core.zm.rotationY(angle), newTransform);
         newTransform = core.zm.mul(rmat, newTransform);
@@ -50,14 +47,13 @@ pub const RenderObject = struct {
     }
 };
 
-
-fn makePerspective(
-    fov:f32,
-    aspect: f32,
-    near: f32,
-    far: f32) Mat 
-{
-    var proj = core.zm.perspectiveFovRh(core.radians(fov),  aspect,  near, far,);
+fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
+    var proj = core.zm.perspectiveFovRh(
+        core.radians(fov),
+        aspect,
+        near,
+        far,
+    );
     proj[1][1] *= -1;
     return proj;
 }
@@ -67,54 +63,43 @@ pub const Camera = struct {
     aspect: f32 = 16.0 / 9.0,
     near_clipping: f32 = 0.1,
     far_clipping: f32 = 2000,
-    position: Vectorf = Vectorf{.x = 0.0, .y = 0.0, .z = 0.0},
+    position: Vectorf = Vectorf{ .x = 0.0, .y = 0.0, .z = 0.0 },
     rotation: Quat,
     transform: Mat = zm.identity(),
-    projection: Mat = makePerspective(core.radians(70.0), 16.0 / 9.0, 0.1, 2000,),
+    projection: Mat = makePerspective(
+        core.radians(70.0),
+        16.0 / 9.0,
+        0.1,
+        2000,
+    ),
     final: Mat = zm.identity(),
 
-    pub fn init () Camera
-    {
+    pub fn init() Camera {
         return .{
-            .rotation = zm.quatFromRollPitchYaw(0.0, 0.0, 0.0), 
+            .rotation = zm.quatFromRollPitchYaw(0.0, 0.0, 0.0),
         };
     }
 
-    pub fn translate(self: *Camera, offset: core.Vectorf) void
-    {
+    pub fn translate(self: *Camera, offset: core.Vectorf) void {
         self.position = self.position.add(offset);
     }
-    
-    pub fn setPositionAndRotationEuler(self: *Camera, position: Vectorf, eulerAngles: Vectorf) void 
-    {
-        self.transform = mul(
-            zm.translation(position.x, position.y, position.z), 
-            core.matFromEulerAngles(eulerAngles.x, eulerAngles.y, eulerAngles.z)
-        );
+
+    pub fn setPositionAndRotationEuler(self: *Camera, position: Vectorf, eulerAngles: Vectorf) void {
+        self.transform = mul(zm.translation(position.x, position.y, position.z), core.matFromEulerAngles(eulerAngles.x, eulerAngles.y, eulerAngles.z));
     }
 
-    pub fn getRotation(self: *Camera) Quat
-    {
+    pub fn getRotation(self: *Camera) Quat {
         return zm.quatFromMat(self.transform);
     }
 
-    pub fn updateCamera( self: *Camera ) void 
-    {
-        self.projection = zm.perspectiveFovRh(
-            core.radians(self.fov),
-            16.0 / 9.0,
-            0.1,
-            2000
-        );
+    pub fn updateCamera(self: *Camera) void {
+        self.projection = zm.perspectiveFovRh(core.radians(self.fov), 16.0 / 9.0, 0.1, 2000);
         self.projection[1][1] *= -1;
     }
 
-    pub fn resolve(self: *Camera, base: Mat) void 
-    {
-        self.transform = base;
-        self.transform = mul(zm.translation(self.position.x, self.position.y, self.position.z), self.transform);
+    pub fn resolve(self: *Camera, base: Mat) void {
+        self.transform = mul(zm.translation(self.position.x, self.position.y, self.position.z), base);
         self.transform = mul(self.transform, zm.matFromQuat(self.rotation));
-        //self.final = mul(self.transform, base);
         self.final = mul(self.transform, self.projection);
     }
 };

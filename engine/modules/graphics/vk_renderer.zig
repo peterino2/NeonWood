@@ -36,7 +36,7 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-pub const CreateRenderObjectParams  = struct {
+pub const CreateRenderObjectParams = struct {
     mesh_name: Name,
     material_name: Name,
     init_transform: Transform = core.zm.identity(),
@@ -306,8 +306,8 @@ pub const NeonVkContext = struct {
         self.materials = .{};
         self.panCamera = false;
         self.panCameraCache = false;
-        self.mousePosition = .{.x = 0, .y = 0};
-        self.mousePositionPanStart = .{.x = 0, .y = 0};
+        self.mousePosition = .{ .x = 0, .y = 0 };
+        self.mousePositionPanStart = .{ .x = 0, .y = 0 };
         self.cameraRotationStart = core.zm.quatFromRollPitchYaw(0.0, 0.0, 0.0);
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
@@ -339,40 +339,28 @@ pub const NeonVkContext = struct {
         return self;
     }
 
-    pub fn init_renderobjects( self: *Self) !void
-    {
+    pub fn init_renderobjects(self: *Self) !void {
         try self.add_renderobject(.{
             .mesh_name = core.MakeName("mesh_monkey"),
             .material_name = core.MakeName("mat_monkey"),
         });
 
-        try self.add_renderobject(.{
-            .mesh_name = core.MakeName("mesh_monkey"),
-            .material_name = core.MakeName("mat_monkey"),
-            .init_transform = mul(core.zm.scaling(0.5,0.5,0.5),core.zm.translation(-2.0, -2.0, -1.0))
-        });
+        try self.add_renderobject(.{ .mesh_name = core.MakeName("mesh_monkey"), .material_name = core.MakeName("mat_monkey"), .init_transform = mul(core.zm.scaling(0.5, 0.5, 0.5), core.zm.translation(-2.0, -2.0, -1.0)) });
 
-        for(core.count(1000)) |_, i|
-        {
-            try self.add_renderobject(.{
-                .mesh_name = core.MakeName("mesh_monkey"),
-                .material_name = core.MakeName("mat_monkey"),
-                .init_transform = mul(core.zm.scaling(0.1,0.1,0.1),
-                    core.zm.translation( 
-                        @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
-                        @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
-                        @intToFloat(f32, ( (i % 100 ) / 10 )) * -4.0 * (0.1) + 2.0,
-                 ))
-            });
+        for (core.count(1000)) |_, i| {
+            try self.add_renderobject(.{ .mesh_name = core.MakeName("mesh_monkey"), .material_name = core.MakeName("mat_monkey"), .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
+                @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
+                @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
+                @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
+            )) });
         }
 
         self.camera = render_objects.Camera.init();
-        self.camera.translate(.{.x = 0.0, .y = 0.0, .z = -2.0});
+        self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = -2.0 });
         self.camera.updateCamera();
     }
 
-    pub fn add_renderobject( self: *Self, params: CreateRenderObjectParams) !void
-    {
+    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !void {
         var renderObject = RenderObject{
             .mesh = null,
             .material = null,
@@ -414,7 +402,6 @@ pub const NeonVkContext = struct {
         {
             _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
         }
-
     }
 
     // we need a content filing system
@@ -557,44 +544,37 @@ pub const NeonVkContext = struct {
     }
 
     pub fn pollRendererEvents(self: *Self) void {
-
         c.glfwGetCursorPos(self.window, &self.mousePosition.x, &self.mousePosition.y);
 
         const state = c.glfwGetMouseButton(self.window, c.GLFW_MOUSE_BUTTON_RIGHT);
-        if(state == c.GLFW_PRESS)
-        {
+        if (state == c.GLFW_PRESS) {
             self.panCamera = true;
         }
-        if(state == c.GLFW_RELEASE)
-        {
+        if (state == c.GLFW_RELEASE) {
             self.panCamera = false;
         }
-
     }
 
-    fn handleCameraPan(self: *Self, deltaTime: f64) void 
-    {
+    fn handleCameraPan(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
-        if(self.panCameraCache == false and self.panCamera)
-        {
+        if (self.panCameraCache == false and self.panCamera) {
             self.mousePositionPanStart = self.mousePosition;
             self.cameraRotationStart = self.camera.rotation;
             self.cameraHorizontalRotationStart = self.cameraHorizontalRotation;
         }
-        if(self.panCamera)
-        {
-            var diff = self.mousePosition.sub(self.mousePositionPanStart) ;
+        if (self.panCamera) {
+            var diff = self.mousePosition.sub(self.mousePositionPanStart);
 
             var horizontalRotation = core.zm.matFromRollPitchYaw(0.0, @floatCast(f32, diff.x * self.sensitivity), 0.0);
             horizontalRotation = mul(
                 core.zm.matFromQuat(self.cameraHorizontalRotationStart),
                 horizontalRotation,
-                );
+            );
             self.cameraHorizontalRotationMat = horizontalRotation;
             self.cameraHorizontalRotation = core.zm.quatFromMat(horizontalRotation);
 
             // calculate the new roatation for the camera
-            var offset = core.zm.matFromRollPitchYaw(@floatCast(f32, diff.y * self.sensitivity) , 0.0, 0.0);
+            var offset = core.zm.matFromRollPitchYaw(core.clamp(@floatCast(f32, diff.y * self.sensitivity), core.radians(-90.0), core.radians(90.0)), 0.0, 0.0);
             var final = mul(core.zm.matFromQuat(self.cameraRotationStart), offset);
             self.camera.rotation = core.zm.quatFromMat(final);
         }
@@ -606,11 +586,10 @@ pub const NeonVkContext = struct {
         self.rendererTime += deltaTime;
     }
 
-    pub fn updateEvents(self: *Self, deltaTime: f64) !void
-    {
+    pub fn updateEvents(self: *Self, deltaTime: f64) !void {
         var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
-        self.camera.translate(.{.x = movement_v[0], .y = movement_v[1], .z = movement_v[2]});
+        self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
     }
 
@@ -677,20 +656,19 @@ pub const NeonVkContext = struct {
         self.firstFrame = false;
     }
 
-    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, projection_matrix: Mat, deltaTime: f64) void 
-    {
+    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, projection_matrix: Mat, deltaTime: f64) void {
         _ = deltaTime;
 
-        if(render_object.mesh == null)
+        if (render_object.mesh == null)
             return;
 
-        if(render_object.material == null)
+        if (render_object.material == null)
             return;
-            
+
         const pipeline = render_object.material.?.pipeline;
         const layout = render_object.material.?.layout;
         const object_mesh = render_object.mesh.?.*;
-        
+
         var offset: vk.DeviceSize = 0;
 
         self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
@@ -702,12 +680,7 @@ pub const NeonVkContext = struct {
             .render_matrix = final,
         };
 
-        self.vkd.cmdPushConstants(cmd,
-            layout,
-            .{ .vertex_bit = true },
-            0,
-            @sizeOf(NeonVkMeshPushConstant),
-            &constants);
+        self.vkd.cmdPushConstants(cmd, layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
         self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, 0);
     }
@@ -718,16 +691,14 @@ pub const NeonVkContext = struct {
 
         // create the camera
         self.camera.resolve(self.cameraHorizontalRotationMat);
-        var projection_matrix:Mat = self.camera.final;
+        var projection_matrix: Mat = self.camera.final;
 
-        for(self.renderObjects.items) |_, i|
-        {
-            var rate:f32 = if(i % 2 == 0) 180.0 else -180.0;
-            self.renderObjects.items[i].applyRelativeRotationY( core.radians(rate) * @floatCast(f32, deltaTime));
+        for (self.renderObjects.items) |_, i| {
+            var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
+            self.renderObjects.items[i].applyRelativeRotationY(core.radians(rate) * @floatCast(f32, deltaTime));
         }
 
-        for(self.renderObjects.items) |object|
-        {
+        for (self.renderObjects.items) |object| {
             self.draw_render_object(object, cmd, projection_matrix, deltaTime);
         }
     }
@@ -1603,21 +1574,17 @@ pub const NeonVkContext = struct {
         self.renderObjects.deinit(self.allocator);
     }
 
-    pub fn create_buffer(self: *Self, allocSize: usize, usage: vk.BufferUsageFlags, memoryUsageFlags: vma.MemoryUsage) !NeonVkBuffer
-    {
+    pub fn create_buffer(self: *Self, allocSize: usize, usage: vk.BufferUsageFlags, memoryUsageFlags: vma.MemoryUsage) !NeonVkBuffer {
         var cbi = vk.BufferCreateInfo{
             .size = allocSize,
             .usage = usage,
         };
-        
+
         var vma_alloc_info = vma.AllocationCreateInfo{
             .usage = memoryUsageFlags,
         };
 
-        var result = try self.vmaAllocator.createBuffer(
-            &cbi,
-            &vma_alloc_info
-        );
+        var result = try self.vmaAllocator.createBuffer(&cbi, &vma_alloc_info);
 
         var rv = NeonVkBuffer{
             .buffer = result.buffer,
@@ -1666,8 +1633,7 @@ pub fn neon_glfw_input_callback(
         gContext.exitSignal = true;
     }
 
-    if(action == c.GLFW_PRESS)
-    {
+    if (action == c.GLFW_PRESS) {
         if (key == c.GLFW_KEY_W) {
             gContext.cameraMovement.z += 1.0;
         }
@@ -1687,8 +1653,7 @@ pub fn neon_glfw_input_callback(
             gContext.cameraMovement.y += -1.0;
         }
     }
-    if(action == c.GLFW_RELEASE)
-    {
+    if (action == c.GLFW_RELEASE) {
         if (key == c.GLFW_KEY_W) {
             gContext.cameraMovement.z -= 1.0;
         }
