@@ -216,7 +216,7 @@ pub const NeonVkContext = struct {
         .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
     };
 
-    pub const maxNode = 2;
+    pub const maxMode = 3;
     mode: u32,
 
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
@@ -291,6 +291,9 @@ pub const NeonVkContext = struct {
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     camera: render_objects.Camera,
 
+    descriptorPool: vk.DescriptorPool,
+    globalDescriptorLayout: vk.DescriptorSetLayout,
+
     // camera controls
     panCamera: bool,
     panCameraCache: bool,
@@ -304,6 +307,7 @@ pub const NeonVkContext = struct {
     sensitivity: f64,
 
     frameData: [NumFrames]NeonVkFrameData,
+    lastMaterial: ?*Material,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
@@ -327,6 +331,7 @@ pub const NeonVkContext = struct {
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
         self.cameraHorizontalRotationMat = core.zm.identity();
         self.sensitivity = 0.005;
+        self.lastMaterial = null;
     }
 
     pub fn create_object() !Self {
@@ -355,10 +360,67 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_descriptors(self: *Self) !void {
-        _ = self;
+        const sizes = [1]vk.DescriptorPoolSize{
+            .{ .@"type" = .uniform_buffer, .descriptor_count = 10 },
+        };
+
+        var poolInfo = vk.DescriptorPoolCreateInfo{
+            .flags = .{},
+            .max_sets = 10,
+            .pool_size_count = @intCast(u32, sizes.len),
+            .p_pool_sizes = &sizes,
+        };
+
+        self.descriptorPool = try self.vkd.createDescriptorPool(self.dev, &poolInfo, null);
+
+        _ = poolInfo;
+        _ = sizes;
+
+        var cameraBufferBinding = vk.DescriptorSetLayoutBinding{
+            .binding = 0,
+            .descriptor_count = 1,
+            .descriptor_type = .uniform_buffer,
+            .stage_flags = .{ .vertex_bit = true },
+            .p_immutable_samplers = null,
+        };
+
+        var setInfo = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = 1,
+            .flags = .{},
+            .p_bindings = p2a(&cameraBufferBinding),
+        };
+
+        self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
+
         for (core.count(NumFrames)) |_, i| {
-            _ = i;
             self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraData), .{ .uniform_buffer_bit = true }, .cpuToGpu);
+
+            var allocInfo = vk.DescriptorSetAllocateInfo{
+                .descriptor_pool = self.descriptorPool,
+                .descriptor_set_count = 1,
+                .p_set_layouts = p2a(&self.globalDescriptorLayout),
+            };
+
+            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].globalDescriptor));
+
+            var bInfo = vk.DescriptorBufferInfo{
+                .buffer = self.frameData[i].cameraBuffer.buffer,
+                .offset = 0,
+                .range = @sizeOf(NeonVkCameraData),
+            };
+
+            var setWrite = vk.WriteDescriptorSet{
+                .dst_binding = 0,
+                .dst_set = self.frameData[i].globalDescriptor,
+                .descriptor_count = 1,
+                .descriptor_type = .uniform_buffer,
+                .p_buffer_info = p2a(&bInfo),
+                .dst_array_element = 0,
+                .p_image_info = undefined,
+                .p_texel_buffer_view = undefined,
+            };
+
+            self.vkd.updateDescriptorSets(self.dev, 1, p2a(&setWrite), 0, undefined);
         }
     }
 
@@ -368,14 +430,25 @@ pub const NeonVkContext = struct {
             .material_name = core.MakeName("mat_monkey"),
         });
 
-        try self.add_renderobject(.{ .mesh_name = core.MakeName("mesh_monkey"), .material_name = core.MakeName("mat_monkey"), .init_transform = mul(core.zm.scaling(0.5, 0.5, 0.5), core.zm.translation(-2.0, -2.0, -1.0)) });
+        try self.add_renderobject(
+            .{
+                .mesh_name = core.MakeName("mesh_monkey"),
+                .material_name = core.MakeName("mat_monkey"),
+                .init_transform = mul(core.zm.scaling(0.5, 0.5, 0.5), core.zm.translation(-2.0, -2.0, -1.0)),
+            },
+        );
 
-        for (core.count(1000)) |_, i| {
-            try self.add_renderobject(.{ .mesh_name = core.MakeName("mesh_monkey"), .material_name = core.MakeName("mat_monkey"), .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
-                @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
-                @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
-                @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
-            )) });
+        var i: u32 = 0;
+        while (i < 1000) : (i += 1) {
+            try self.add_renderobject(.{
+                .mesh_name = core.MakeName("mesh_monkey"),
+                .material_name = core.MakeName("mat_monkey"),
+                .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
+                    @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
+                    @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
+                    @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
+                )),
+            });
         }
 
         self.camera = render_objects.Camera.init();
@@ -525,6 +598,7 @@ pub const NeonVkContext = struct {
             );
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.add_push_constant();
+            try mesh_pipeline_b.add_global_layout(&self.globalDescriptorLayout);
             try mesh_pipeline_b.add_depth_stencil();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
@@ -694,8 +768,11 @@ pub const NeonVkContext = struct {
 
         var offset: vk.DeviceSize = 0;
 
-        self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-        self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+        if (self.lastMaterial != render_object.material) {
+            self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+            self.lastMaterial = render_object.material;
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+        }
 
         var final = mul(render_object.transform, projection_matrix);
         var constants = NeonVkMeshPushConstant{
@@ -712,7 +789,9 @@ pub const NeonVkContext = struct {
         _ = deltaTime;
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
-        // create the camera
+        self.lastMaterial = null;
+
+        // resolve the current state of the camera
         self.camera.resolve(self.cameraHorizontalRotationMat);
         var projection_matrix: Mat = self.camera.final;
 
@@ -1226,7 +1305,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = .{},
             .p_application_info = &appInfo,
-            .enabled_layer_count = 1,
+            .enabled_layer_count = 0,
             .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
             .enabled_extension_count = glfwExtensionsCount,
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
@@ -1621,10 +1700,12 @@ pub const NeonVkContext = struct {
         return rv;
     }
 
-    pub fn destroy_camera(self: *Self) void {
+    pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
         }
+
+        self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
     }
 
     pub fn deinit(self: *Self) void {
@@ -1637,7 +1718,7 @@ pub const NeonVkContext = struct {
         self.destroy_meshes() catch unreachable;
         self.destroy_framebuffers() catch unreachable;
 
-        self.destroy_camera();
+        self.destroy_descriptors();
 
         self.vmaAllocator.destroy();
 
@@ -1669,6 +1750,9 @@ pub fn neon_glfw_input_callback(
     }
 
     if (action == c.GLFW_PRESS) {
+        if (key == c.GLFW_KEY_SPACE) {
+            gContext.mode = (gContext.mode + 1) % NeonVkContext.maxMode;
+        }
         if (key == c.GLFW_KEY_W) {
             gContext.cameraMovement.z += 1.0;
         }

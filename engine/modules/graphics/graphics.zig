@@ -1,5 +1,6 @@
 // this will be replaced by build system symbols later.
 const core = @import("../core/core.zig");
+const std = @import("std");
 const vk_renderer = @import("vk_renderer.zig");
 const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 
@@ -31,6 +32,7 @@ pub fn run() !void {
         renderer.pollRendererEvents();
         try renderer.updateEvents(dt);
         try renderer.draw(dt);
+        std.debug.print("{d}\r", .{dt * 1000});
         lastTimeStamp = newTime;
     }
 }

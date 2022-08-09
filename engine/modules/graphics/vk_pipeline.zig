@@ -170,8 +170,18 @@ pub const NeonVkPipelineBuilder = struct {
         return self;
     }
 
+    pub fn add_global_layout(self: *NeonVkPipelineBuilder, globalSetLayout: *vk.DescriptorSetLayout) !void {
+        if (self.plci == null)
+            self.plci = default_pipeline_layout();
+
+        self.plci.?.set_layout_count = 1;
+        self.plci.?.p_set_layouts = p2a(globalSetLayout);
+    }
+
     pub fn add_push_constant(self: *NeonVkPipelineBuilder) !void {
-        self.plci = default_pipeline_layout();
+        if (self.plci == null)
+            self.plci = default_pipeline_layout();
+
         self.pushConstantRange = vk.PushConstantRange{
             .offset = 0,
             .size = @sizeOf(NeonVkMeshPushConstant),
