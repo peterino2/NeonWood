@@ -36,7 +36,7 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-pub const NeonVkCameraData = struct {
+pub const NeonVkCameraData = extern struct {
     view: Mat,
     proj: Mat,
     viewproj: Mat,
@@ -700,6 +700,25 @@ pub const NeonVkContext = struct {
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
         try self.vkd.resetCommandBuffer(cmd, .{});
 
+        // ---- bind global descriptors ----
+        //
+        const data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
+
+        // resolve the current state of the camera
+        self.camera.resolve(self.cameraHorizontalRotationMat);
+        var projection_matrix: Mat = self.camera.final;
+        _ = projection_matrix;
+
+        var cameraData = NeonVkCameraData{
+            .proj = core.zm.identity(),
+            .view = core.zm.identity(),
+            .viewproj = projection_matrix,
+        };
+
+        @memcpy(data, @ptrCast([*]const u8, &cameraData), @sizeOf(NeonVkCameraData));
+
+        self.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);
+
         var cbi = vk.CommandBufferBeginInfo{
             .p_inheritance_info = null,
             .flags = .{ .one_time_submit_bit = true },
@@ -753,7 +772,7 @@ pub const NeonVkContext = struct {
         self.firstFrame = false;
     }
 
-    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, projection_matrix: Mat, deltaTime: f64) void {
+    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, deltaTime: f64) void {
         _ = deltaTime;
 
         if (render_object.mesh == null)
@@ -772,9 +791,10 @@ pub const NeonVkContext = struct {
             self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptor), 0, undefined);
         }
 
-        var final = mul(render_object.transform, projection_matrix);
+        var final = render_object.transform;
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
             .render_matrix = final,
@@ -791,17 +811,14 @@ pub const NeonVkContext = struct {
 
         self.lastMaterial = null;
 
-        // resolve the current state of the camera
-        self.camera.resolve(self.cameraHorizontalRotationMat);
-        var projection_matrix: Mat = self.camera.final;
-
+        // todo this is game code;
         for (self.renderObjects.items) |_, i| {
             var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
             self.renderObjects.items[i].applyRelativeRotationY(core.radians(rate) * @floatCast(f32, deltaTime));
         }
 
         for (self.renderObjects.items) |object| {
-            self.draw_render_object(object, cmd, projection_matrix, deltaTime);
+            self.draw_render_object(object, cmd, deltaTime);
         }
     }
 
