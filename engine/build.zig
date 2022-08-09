@@ -6,6 +6,14 @@ const Builder = std.build.Builder;
 
 const shaders_folder = "modules/graphics/shaders/";
 
+pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
+    var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
+    const filesize = (try file.stat()).size;
+    var buffer: []u8 = try allocator.allocAdvanced(u8, @intCast(u29, alignment), filesize, .exact);
+    try file.reader().readNoEof(buffer);
+    return buffer;
+}
+
 pub const ResourceGenStep = struct {
     step: Step,
     shader_step: *vkgen.ShaderCompileStep,
@@ -59,12 +67,72 @@ pub const ResourceGenStep = struct {
     }
 
     pub fn addShader(self: *ResourceGenStep, name: []const u8, source: []const u8) void {
-        const shader_out_path = self.shader_step.add(source);
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        defer _ = gpa.deinit();
+
+        const allocator = gpa.allocator();
+
         var writer = self.resources.writer();
+        var should_generate: bool = false;
+        var should_free_file: bool = false;
+        var should_free_file1: bool = false;
+        const shader_out_path = self.shader_step.add(source);
+
+        const dir = std.fs.path.dirname(shader_out_path).?;
+        const ofile = std.fmt.allocPrint(allocator, "{s}/{s}.spv.cache", .{ dir, name }) catch unreachable;
+        defer allocator.free(ofile);
+        const F = struct {
+            pub fn f(b0: *bool, b1: *bool) []const u8 {
+                b0.* = true;
+                b1.* = true;
+                return "";
+            }
+        };
+
+        const fileContents = loadFileAlloc(shader_out_path, 1, allocator) catch F.f(&should_generate, &should_free_file);
+
+        defer if (!should_free_file) allocator.free(fileContents);
+
+        var hash: u32 = 0;
+
+        if (!should_generate) {
+            hash = std.hash.CityHash32.hash(fileContents);
+        }
+
+        if (!should_generate) {
+            const hashContents = loadFileAlloc(ofile, 1, allocator) catch F.f(&should_free_file1, &should_generate);
+            defer if (!should_free_file1) allocator.free(hashContents);
+
+            const F2 = struct {
+                pub fn f(b0: *bool) u32 {
+                    b0.* = true;
+                    return 0xAAAAAAAA;
+                }
+            };
+
+            const readHash = std.fmt.parseInt(u32, hashContents, 0) catch F2.f(&should_generate);
+
+            if (!should_generate) {
+                if (readHash != hash) {
+                    should_generate = true;
+                }
+            }
+        }
 
         writer.print("pub const {s} = @embedFile(\"", .{name}) catch unreachable;
         renderPath(shader_out_path, writer);
         writer.writeAll("\");\n") catch unreachable;
+
+        if (!should_generate) {
+            return;
+        }
+
+        const cwd = std.fs.cwd();
+        _ = cwd.makePath(dir) catch unreachable;
+        const hashAsString = std.fmt.allocPrint(allocator, "{d}", .{hash}) catch unreachable;
+        defer allocator.free(hashAsString);
+
+        cwd.writeFile(ofile, hashAsString) catch unreachable;
     }
 
     fn make(step: *Step) !void {
@@ -141,7 +209,6 @@ pub fn build(b: *std.build.Builder) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&exe_tests.step);
-    std.debug.print("|---------------------|\n", .{});
-    std.debug.print("|Build complete       |\n", .{});
-    std.debug.print("|---------------------|\n", .{});
+
+    std.debug.print("building\n", .{});
 }

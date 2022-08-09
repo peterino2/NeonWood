@@ -36,6 +36,17 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
+pub const NeonVkCameraData = struct {
+    view: Mat,
+    proj: Mat,
+    viewproj: Mat,
+};
+
+pub const NeonVkFrameData = struct {
+    cameraBuffer: NeonVkBuffer,
+    globalDescriptor: vk.DescriptorSet,
+};
+
 pub const CreateRenderObjectParams = struct {
     mesh_name: Name,
     material_name: Name,
@@ -280,6 +291,7 @@ pub const NeonVkContext = struct {
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     camera: render_objects.Camera,
 
+    // camera controls
     panCamera: bool,
     panCameraCache: bool,
     mousePosition: Vector2,
@@ -290,6 +302,8 @@ pub const NeonVkContext = struct {
     cameraHorizontalRotationStart: core.Quat,
 
     sensitivity: f64,
+
+    frameData: [NumFrames]NeonVkFrameData,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
@@ -332,11 +346,20 @@ pub const NeonVkContext = struct {
         try self.init_renderpasses();
         try self.init_framebuffers();
 
+        try self.init_descriptors();
         try self.init_pipelines();
         try self.init_meshes();
         try self.init_renderobjects();
 
         return self;
+    }
+
+    pub fn init_descriptors(self: *Self) !void {
+        _ = self;
+        for (core.count(NumFrames)) |_, i| {
+            _ = i;
+            self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraData), .{ .uniform_buffer_bit = true }, .cpuToGpu);
+        }
     }
 
     pub fn init_renderobjects(self: *Self) !void {
@@ -1578,13 +1601,17 @@ pub const NeonVkContext = struct {
         var cbi = vk.BufferCreateInfo{
             .size = allocSize,
             .usage = usage,
+            .flags = .{},
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
         };
 
         var vma_alloc_info = vma.AllocationCreateInfo{
             .usage = memoryUsageFlags,
         };
 
-        var result = try self.vmaAllocator.createBuffer(&cbi, &vma_alloc_info);
+        var result = try self.vmaAllocator.createBuffer(cbi, vma_alloc_info);
 
         var rv = NeonVkBuffer{
             .buffer = result.buffer,
@@ -1592,6 +1619,12 @@ pub const NeonVkContext = struct {
         };
 
         return rv;
+    }
+
+    pub fn destroy_camera(self: *Self) void {
+        for (self.frameData) |_, i| {
+            self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
+        }
     }
 
     pub fn deinit(self: *Self) void {
@@ -1603,6 +1636,8 @@ pub const NeonVkContext = struct {
         self.destroy_renderobjects() catch unreachable;
         self.destroy_meshes() catch unreachable;
         self.destroy_framebuffers() catch unreachable;
+
+        self.destroy_camera();
 
         self.vmaAllocator.destroy();
 
