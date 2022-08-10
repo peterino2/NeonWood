@@ -32,7 +32,7 @@ pub fn run() !void {
         renderer.pollRendererEvents();
         try renderer.updateEvents(dt);
         try renderer.draw(dt);
-        std.debug.print("{d}\r", .{dt * 1000});
+        std.debug.print("{d} {d}\r", .{ renderer.rendererTime, dt * 1000 });
         lastTimeStamp = newTime;
     }
 }

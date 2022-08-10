@@ -9,6 +9,7 @@ const vk_pipeline = @import("vk_pipeline.zig");
 const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
 const mesh = @import("mesh.zig");
 const render_objects = @import("render_object.zig");
+const vkinit = @import("vk_init.zig");
 
 // Aliases
 const p2a = core.p_to_a;
@@ -36,10 +37,18 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-pub const NeonVkCameraData = extern struct {
+pub const NeonVkCameraDataGpu = struct {
     view: Mat,
     proj: Mat,
     viewproj: Mat,
+};
+
+pub const NeonVkSceneDataGpu = struct {
+    fogColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    fogDistances: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    ambientColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    sunlightDirection: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    sunlightColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
 };
 
 pub const NeonVkFrameData = struct {
@@ -309,6 +318,9 @@ pub const NeonVkContext = struct {
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
 
+    sceneDataGpu: NeonVkSceneDataGpu,
+    sceneParameterBuffer: NeonVkBuffer,
+
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -332,6 +344,17 @@ pub const NeonVkContext = struct {
         self.cameraHorizontalRotationMat = core.zm.identity();
         self.sensitivity = 0.005;
         self.lastMaterial = null;
+    }
+
+    pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) !usize {
+        var alignment = self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment;
+
+        var alignedSize: usize = originalSize;
+        if (alignment > 0) {
+            alignedSize = (alignedSize + alignment - 1) & ~(alignment - 1);
+        }
+
+        return alignedSize;
     }
 
     pub fn create_object() !Self {
@@ -360,8 +383,9 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_descriptors(self: *Self) !void {
-        const sizes = [1]vk.DescriptorPoolSize{
+        const sizes = [2]vk.DescriptorPoolSize{
             .{ .@"type" = .uniform_buffer, .descriptor_count = 10 },
+            .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 10 },
         };
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
@@ -376,52 +400,69 @@ pub const NeonVkContext = struct {
         _ = poolInfo;
         _ = sizes;
 
-        var cameraBufferBinding = vk.DescriptorSetLayoutBinding{
-            .binding = 0,
-            .descriptor_count = 1,
-            .descriptor_type = .uniform_buffer,
-            .stage_flags = .{ .vertex_bit = true },
-            .p_immutable_samplers = null,
-        };
+        var cameraBufferBinding = vkinit.DescriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true }, 0);
+
+        var sceneBinding = vkinit.DescriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
+
+        var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
 
         var setInfo = vk.DescriptorSetLayoutCreateInfo{
-            .binding_count = 1,
+            .binding_count = 2,
             .flags = .{},
-            .p_bindings = p2a(&cameraBufferBinding),
+            .p_bindings = @ptrCast([*]const @TypeOf(sceneBinding), &bindings),
         };
 
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
 
+        const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
+        core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
+
+        const sceneParamBufferSize = NumFrames * paddedSceneSize;
+        core.graphics_log("NumFrames = {d}", .{NumFrames});
+
+        self.sceneParameterBuffer = try self.create_buffer(sceneParamBufferSize, .{ .uniform_buffer_bit = true }, .cpuToGpu);
+
         for (core.count(NumFrames)) |_, i| {
-            self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraData), .{ .uniform_buffer_bit = true }, .cpuToGpu);
+            self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraDataGpu), .{ .uniform_buffer_bit = true }, .cpuToGpu);
 
             var allocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
                 .p_set_layouts = p2a(&self.globalDescriptorLayout),
             };
-
             try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].globalDescriptor));
 
-            var bInfo = vk.DescriptorBufferInfo{
+            var cameraInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].cameraBuffer.buffer,
                 .offset = 0,
-                .range = @sizeOf(NeonVkCameraData),
+                .range = @sizeOf(NeonVkCameraDataGpu),
             };
 
-            var setWrite = vk.WriteDescriptorSet{
-                .dst_binding = 0,
-                .dst_set = self.frameData[i].globalDescriptor,
-                .descriptor_count = 1,
-                .descriptor_type = .uniform_buffer,
-                .p_buffer_info = p2a(&bInfo),
-                .dst_array_element = 0,
-                .p_image_info = undefined,
-                .p_texel_buffer_view = undefined,
+            var sceneInfo = vk.DescriptorBufferInfo{
+                .buffer = self.sceneParameterBuffer.buffer,
+                .offset = 0,
+                .range = @sizeOf(NeonVkSceneDataGpu),
             };
 
-            self.vkd.updateDescriptorSets(self.dev, 1, p2a(&setWrite), 0, undefined);
+            var cameraWrite = vkinit.WriteDescriptorSet(
+                .uniform_buffer,
+                self.frameData[i].globalDescriptor,
+                &cameraInfo,
+                0,
+            );
+            var sceneWrite = vkinit.WriteDescriptorSet(
+                .uniform_buffer_dynamic,
+                self.frameData[i].globalDescriptor,
+                &sceneInfo,
+                1,
+            );
+
+            var setWrites = [_]@TypeOf(sceneWrite){ cameraWrite, sceneWrite };
+
+            self.vkd.updateDescriptorSets(self.dev, 2, &setWrites, 0, undefined);
         }
+
+        {}
     }
 
     pub fn init_renderobjects(self: *Self) !void {
@@ -593,8 +634,10 @@ pub const NeonVkContext = struct {
                 self.allocator,
                 resources.triangle_mesh_vert.len,
                 @ptrCast([*]const u32, resources.triangle_mesh_vert),
-                resources.triangle_mesh_frag.len,
-                @ptrCast([*]const u32, resources.triangle_mesh_frag),
+                //resources.triangle_mesh_frag.len,
+                //@ptrCast([*]const u32, resources.triangle_mesh_frag),
+                resources.default_lit_frag.len,
+                @ptrCast([*]const u32, resources.default_lit_frag),
             );
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.add_push_constant();
@@ -640,8 +683,13 @@ pub const NeonVkContext = struct {
         return image_index;
     }
 
+    // todo:: gameplay code
     pub fn pollRendererEvents(self: *Self) void {
         c.glfwGetCursorPos(self.window, &self.mousePosition.x, &self.mousePosition.y);
+
+        if (self.camera.isDirty()) {
+            self.camera.updateCamera();
+        }
 
         const state = c.glfwGetMouseButton(self.window, c.GLFW_MOUSE_BUTTON_RIGHT);
         if (state == c.GLFW_PRESS) {
@@ -709,13 +757,13 @@ pub const NeonVkContext = struct {
         var projection_matrix: Mat = self.camera.final;
         _ = projection_matrix;
 
-        var cameraData = NeonVkCameraData{
+        var cameraData = NeonVkCameraDataGpu{
             .proj = core.zm.identity(),
             .view = core.zm.identity(),
             .viewproj = projection_matrix,
         };
 
-        @memcpy(data, @ptrCast([*]const u8, &cameraData), @sizeOf(NeonVkCameraData));
+        @memcpy(data, @ptrCast([*]const u8, &cameraData), @sizeOf(NeonVkCameraDataGpu));
 
         self.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);
 
@@ -755,7 +803,7 @@ pub const NeonVkContext = struct {
         }
 
         if (self.mode == 0) {
-            self.render_meshes(deltaTime);
+            try self.render_meshes(deltaTime);
         } else if (self.mode == 1) {
             self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
             self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
@@ -787,11 +835,14 @@ pub const NeonVkContext = struct {
 
         var offset: vk.DeviceSize = 0;
 
+        const paddedSceneSize = @intCast(u32, try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu)));
+        var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
+
         if (self.lastMaterial != render_object.material) {
             self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptor), 0, undefined);
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptor), 1, p2a(&startOffset));
         }
 
         var final = render_object.transform;
@@ -805,15 +856,27 @@ pub const NeonVkContext = struct {
         self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, 0);
     }
 
-    fn render_meshes(self: *Self, deltaTime: f64) void {
+    fn render_meshes(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         self.lastMaterial = null;
 
+        self.sceneDataGpu.ambientColor = .{ std.math.sin(core.radians(180.0 * @floatCast(f32, self.rendererTime))), 0.0, std.math.cos(180.0 * core.radians(@floatCast(f32, self.rendererTime))), 1.0 };
+
+        const data = try self.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
+
+        const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
+        const startOffset = paddedSceneSize * self.nextFrameIndex;
+
+        @memcpy(data + startOffset, @ptrCast([*]const u8, &self.sceneDataGpu), @sizeOf(@TypeOf(self.sceneDataGpu)));
+
+        self.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
+
         // todo this is game code;
         for (self.renderObjects.items) |_, i| {
             var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
+            _ = rate;
             self.renderObjects.items[i].applyRelativeRotationY(core.radians(rate) * @floatCast(f32, deltaTime));
         }
 
@@ -1322,7 +1385,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = .{},
             .p_application_info = &appInfo,
-            .enabled_layer_count = 0,
+            .enabled_layer_count = 1,
             .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
             .enabled_extension_count = glfwExtensionsCount,
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
@@ -1444,6 +1507,7 @@ pub const NeonVkContext = struct {
                 core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
                 debug_struct("selected physical device:", self.physicalDevice);
+                core.graphics_log("GPU minimum buffer alignment {d}", .{self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment});
                 return;
             }
         }
@@ -1721,8 +1785,10 @@ pub const NeonVkContext = struct {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
         }
+        self.sceneParameterBuffer.deinit(self.vmaAllocator);
 
         self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
+        self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
 
     pub fn deinit(self: *Self) void {

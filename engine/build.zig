@@ -201,6 +201,7 @@ pub fn build(b: *std.build.Builder) void {
     res.addShader("triangle_frag_static", shaders_folder ++ "triangle_static.frag");
     res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");
     res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
+    res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
     exe.addPackage(res.package);
 
     const exe_tests = b.addTest("modules/main.zig");
