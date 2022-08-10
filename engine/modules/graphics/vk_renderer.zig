@@ -321,6 +321,8 @@ pub const NeonVkContext = struct {
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
 
+    rotating: bool,
+
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -344,6 +346,7 @@ pub const NeonVkContext = struct {
         self.cameraHorizontalRotationMat = core.zm.identity();
         self.sensitivity = 0.005;
         self.lastMaterial = null;
+        self.rotating = true;
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) !usize {
@@ -400,9 +403,9 @@ pub const NeonVkContext = struct {
         _ = poolInfo;
         _ = sizes;
 
-        var cameraBufferBinding = vkinit.DescriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true }, 0);
+        var cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true }, 0);
 
-        var sceneBinding = vkinit.DescriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
+        var sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
 
         var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
 
@@ -444,13 +447,13 @@ pub const NeonVkContext = struct {
                 .range = @sizeOf(NeonVkSceneDataGpu),
             };
 
-            var cameraWrite = vkinit.WriteDescriptorSet(
+            var cameraWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer,
                 self.frameData[i].globalDescriptor,
                 &cameraInfo,
                 0,
             );
-            var sceneWrite = vkinit.WriteDescriptorSet(
+            var sceneWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer_dynamic,
                 self.frameData[i].globalDescriptor,
                 &sceneInfo,
@@ -461,8 +464,6 @@ pub const NeonVkContext = struct {
 
             self.vkd.updateDescriptorSets(self.dev, 2, &setWrites, 0, undefined);
         }
-
-        {}
     }
 
     pub fn init_renderobjects(self: *Self) !void {
@@ -877,7 +878,10 @@ pub const NeonVkContext = struct {
         for (self.renderObjects.items) |_, i| {
             var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
             _ = rate;
-            self.renderObjects.items[i].applyRelativeRotationY(core.radians(rate) * @floatCast(f32, deltaTime));
+            if (self.rotating)
+                self.renderObjects.items[i].applyRelativeRotationY(
+                    core.radians(rate) * @floatCast(f32, deltaTime),
+                );
         }
 
         for (self.renderObjects.items) |object| {
@@ -1835,6 +1839,9 @@ pub fn neon_glfw_input_callback(
     if (action == c.GLFW_PRESS) {
         if (key == c.GLFW_KEY_SPACE) {
             gContext.mode = (gContext.mode + 1) % NeonVkContext.maxMode;
+        }
+        if (key == c.GLFW_KEY_R) {
+            gContext.rotating = !gContext.rotating;
         }
         if (key == c.GLFW_KEY_W) {
             gContext.cameraMovement.z += 1.0;

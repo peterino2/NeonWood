@@ -3,7 +3,7 @@ const core = @import("../core/core.zig");
 
 const p2a = core.p_to_a;
 
-pub fn DescriptorSetLayoutBinding(
+pub fn descriptorSetLayoutBinding(
     descriptorType: vk.DescriptorType,
     stageFlags: vk.ShaderStageFlags,
     binding: u32,
@@ -17,7 +17,7 @@ pub fn DescriptorSetLayoutBinding(
     };
 }
 
-pub fn WriteDescriptorSet(
+pub fn writeDescriptorSet(
     descriptorType: vk.DescriptorType,
     dst_set: vk.DescriptorSet,
     bufferInfo: *vk.DescriptorBufferInfo,
