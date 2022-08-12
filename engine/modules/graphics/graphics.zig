@@ -30,7 +30,7 @@ pub fn run() !void {
         const newTime = core.getEngineTime();
         var dt: f64 = newTime - lastTimeStamp;
         renderer.pollRendererEvents();
-        try renderer.updateEvents(dt);
+        try renderer.updateGame(dt);
         try renderer.draw(dt);
         std.debug.print("{d} {d}\r", .{ renderer.rendererTime, dt * 1000 });
         lastTimeStamp = newTime;

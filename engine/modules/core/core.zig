@@ -38,3 +38,5 @@ pub fn shutdown_module() void {
 
 pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;
 pub var gEngine: *Engine = undefined;
+
+pub const assert = std.debug.assert;

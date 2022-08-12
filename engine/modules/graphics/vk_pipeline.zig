@@ -5,6 +5,7 @@ const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const VkConstants = @import("vk_constants.zig");
 const meshes = @import("mesh.zig");
+const assert = core.assert;
 
 pub const NeonVkMeshPushConstant = struct {
     data: core.Vector4f,
@@ -74,6 +75,8 @@ pub const NeonVkPipelineBuilder = struct {
 
     colorBlendAttachment: vk.PipelineColorBlendAttachmentState,
     pipelineLayout: vk.PipelineLayout,
+
+    descriptorLayouts: ArrayList(vk.DescriptorSetLayout),
 
     // call after all parameters are good to go.
     pub fn build(self: *NeonVkPipelineBuilder, renderPass: vk.RenderPass) !?vk.Pipeline {
@@ -152,6 +155,7 @@ pub const NeonVkPipelineBuilder = struct {
         self.plci = null;
         self.pushConstantRange = null;
         self.pdsci = null;
+        self.descriptorLayouts = ArrayList(vk.DescriptorSetLayout).init(allocator);
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
@@ -170,17 +174,21 @@ pub const NeonVkPipelineBuilder = struct {
         return self;
     }
 
-    pub fn add_global_layout(self: *NeonVkPipelineBuilder, globalSetLayout: *vk.DescriptorSetLayout) !void {
-        if (self.plci == null)
+    pub fn add_layout(self: *NeonVkPipelineBuilder, layout: vk.DescriptorSetLayout) !void {
+        if (self.plci == null) {
             self.plci = default_pipeline_layout();
+            assert(self.descriptorLayouts.items.len == 0);
+        }
 
-        self.plci.?.set_layout_count = 1;
-        self.plci.?.p_set_layouts = p2a(globalSetLayout);
+        try self.descriptorLayouts.append(layout);
+        self.plci.?.set_layout_count += 1;
+        self.plci.?.p_set_layouts = self.descriptorLayouts.items.ptr;
     }
 
     pub fn add_push_constant(self: *NeonVkPipelineBuilder) !void {
-        if (self.plci == null)
+        if (self.plci == null) {
             self.plci = default_pipeline_layout();
+        }
 
         self.pushConstantRange = vk.PushConstantRange{
             .offset = 0,
@@ -305,6 +313,6 @@ pub const NeonVkPipelineBuilder = struct {
         if (self.vertexInputDescription != null)
             self.vertexInputDescription.?.deinit();
 
-        //self.vkd.destroyPipelineLayout(self.dev, self.pipelineLayout, null);
+        self.descriptorLayouts.deinit();
     }
 };

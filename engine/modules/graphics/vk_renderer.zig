@@ -11,6 +11,8 @@ const mesh = @import("mesh.zig");
 const render_objects = @import("render_object.zig");
 const vkinit = @import("vk_init.zig");
 
+const MAX_OBJECTS = 100000;
+
 // Aliases
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
@@ -52,8 +54,17 @@ pub const NeonVkSceneDataGpu = struct {
 };
 
 pub const NeonVkFrameData = struct {
+    // descriptors
+    globalDescriptorSet: vk.DescriptorSet,
+    objectDescriptorSet: vk.DescriptorSet,
+
+    // buffers
+    objectBuffer: NeonVkBuffer,
     cameraBuffer: NeonVkBuffer,
-    globalDescriptor: vk.DescriptorSet,
+};
+
+pub const NeonVkObjectDataGpu = struct {
+    modelMatrix: Mat,
 };
 
 pub const CreateRenderObjectParams = struct {
@@ -302,6 +313,7 @@ pub const NeonVkContext = struct {
 
     descriptorPool: vk.DescriptorPool,
     globalDescriptorLayout: vk.DescriptorSetLayout,
+    objectDescriptorLayout: vk.DescriptorSetLayout,
 
     // camera controls
     panCamera: bool,
@@ -371,7 +383,6 @@ pub const NeonVkContext = struct {
         try self.init_command_pools();
         try self.init_command_buffers();
         try self.init_syncs();
-        try self.init_vk_allocator();
         try self.init_or_recycle_swapchain();
         try self.init_rendertarget();
         try self.init_renderpasses();
@@ -386,9 +397,10 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_descriptors(self: *Self) !void {
-        const sizes = [2]vk.DescriptorPoolSize{
+        const sizes = [_]vk.DescriptorPoolSize{
             .{ .@"type" = .uniform_buffer, .descriptor_count = 10 },
             .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 10 },
+            .{ .@"type" = .storage_buffer, .descriptor_count = 10 },
         };
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
@@ -404,9 +416,7 @@ pub const NeonVkContext = struct {
         _ = sizes;
 
         var cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true }, 0);
-
         var sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
-
         var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
 
         var setInfo = vk.DescriptorSetLayoutCreateInfo{
@@ -415,7 +425,17 @@ pub const NeonVkContext = struct {
             .p_bindings = @ptrCast([*]const @TypeOf(sceneBinding), &bindings),
         };
 
+        var objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
+        var objectBindings = [_]@TypeOf(objectBinding){objectBinding};
+
+        var objectSetInfo = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = 1,
+            .flags = .{},
+            .p_bindings = @ptrCast([*]const @TypeOf(objectBinding), &objectBindings),
+        };
+
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
+        self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
         const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
@@ -426,6 +446,34 @@ pub const NeonVkContext = struct {
         self.sceneParameterBuffer = try self.create_buffer(sceneParamBufferSize, .{ .uniform_buffer_bit = true }, .cpuToGpu);
 
         for (core.count(NumFrames)) |_, i| {
+            // detail the object descriptor set
+            self.frameData[i].objectBuffer = try self.create_buffer(@sizeOf(NeonVkObjectDataGpu) * MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu);
+
+            var objectDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
+                .descriptor_pool = self.descriptorPool,
+                .descriptor_set_count = 1,
+                .p_set_layouts = p2a(&self.objectDescriptorLayout),
+            };
+
+            try self.vkd.allocateDescriptorSets(self.dev, &objectDescriptorSetAllocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].objectDescriptorSet));
+
+            var objectInfo = vk.DescriptorBufferInfo{
+                .buffer = self.frameData[i].objectBuffer.buffer,
+                .offset = 0,
+                .range = @sizeOf(NeonVkObjectDataGpu) * MAX_OBJECTS,
+            };
+
+            var objectWrite = vkinit.writeDescriptorSet(
+                .storage_buffer,
+                self.frameData[i].objectDescriptorSet,
+                &objectInfo,
+                0,
+            );
+
+            var objectSetWrites = [_]@TypeOf(objectWrite){objectWrite};
+            self.vkd.updateDescriptorSets(self.dev, 1, &objectSetWrites, 0, undefined);
+
+            // detail the global descriptor set.
             self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraDataGpu), .{ .uniform_buffer_bit = true }, .cpuToGpu);
 
             var allocInfo = vk.DescriptorSetAllocateInfo{
@@ -433,7 +481,7 @@ pub const NeonVkContext = struct {
                 .descriptor_set_count = 1,
                 .p_set_layouts = p2a(&self.globalDescriptorLayout),
             };
-            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].globalDescriptor));
+            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].globalDescriptorSet));
 
             var cameraInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].cameraBuffer.buffer,
@@ -449,13 +497,13 @@ pub const NeonVkContext = struct {
 
             var cameraWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer,
-                self.frameData[i].globalDescriptor,
+                self.frameData[i].globalDescriptorSet,
                 &cameraInfo,
                 0,
             );
             var sceneWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer_dynamic,
-                self.frameData[i].globalDescriptor,
+                self.frameData[i].globalDescriptorSet,
                 &sceneInfo,
                 1,
             );
@@ -642,7 +690,8 @@ pub const NeonVkContext = struct {
             );
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.add_push_constant();
-            try mesh_pipeline_b.add_global_layout(&self.globalDescriptorLayout);
+            try mesh_pipeline_b.add_layout(self.globalDescriptorLayout);
+            try mesh_pipeline_b.add_layout(self.objectDescriptorLayout);
             try mesh_pipeline_b.add_depth_stencil();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
@@ -732,25 +781,22 @@ pub const NeonVkContext = struct {
         self.rendererTime += deltaTime;
     }
 
-    pub fn updateEvents(self: *Self, deltaTime: f64) !void {
+    // this is game code.
+    pub fn updateGame(self: *Self, deltaTime: f64) !void {
         var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
         self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
+        self.sceneDataGpu.ambientColor = .{
+            std.math.sin(core.radians(180.0 * @floatCast(f32, self.rendererTime))),
+            0.0,
+            std.math.cos(180.0 * core.radians(@floatCast(f32, self.rendererTime))),
+            1.0,
+        };
     }
 
-    pub fn draw(self: *Self, deltaTime: f64) !void {
-        self.updateTime(deltaTime);
-        self.nextFrameIndex = try self.getNextSwapImage();
-
-        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
-        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
-
-        var cmd = self.commandBuffers.items[self.nextFrameIndex];
-        try self.vkd.resetCommandBuffer(cmd, .{});
-
+    pub fn pre_frame_update(self: *Self) !void {
         // ---- bind global descriptors ----
-        //
         const data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
 
         // resolve the current state of the camera
@@ -767,6 +813,18 @@ pub const NeonVkContext = struct {
         @memcpy(data, @ptrCast([*]const u8, &cameraData), @sizeOf(NeonVkCameraDataGpu));
 
         self.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);
+    }
+
+    pub fn acquire_next_frame(self: *Self) !void {
+        self.nextFrameIndex = try self.getNextSwapImage();
+
+        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
+        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
+    }
+
+    pub fn start_frame_command_buffer(self: *Self) !vk.CommandBuffer {
+        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+        try self.vkd.resetCommandBuffer(cmd, .{});
 
         var cbi = vk.CommandBufferBeginInfo{
             .p_inheritance_info = null,
@@ -774,6 +832,10 @@ pub const NeonVkContext = struct {
         };
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
+        return cmd;
+    }
+
+    pub fn begin_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
         var clearValues = [2]vk.ClearValue{
             .{
                 .color = .{ .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 } },
@@ -798,10 +860,21 @@ pub const NeonVkContext = struct {
         };
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
+    }
 
-        if (self.shouldResize) {
-            self.shouldResize = false;
-        }
+    pub fn finish_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
+        self.vkd.cmdEndRenderPass(cmd);
+    }
+
+    pub fn draw(self: *Self, deltaTime: f64) !void {
+        self.updateTime(deltaTime);
+        try self.acquire_next_frame();
+        try self.pre_frame_update();
+
+        // start the party.
+        const cmd = try self.start_frame_command_buffer();
+
+        try self.begin_main_renderpass(cmd);
 
         if (self.mode == 0) {
             try self.render_meshes(deltaTime);
@@ -813,15 +886,12 @@ pub const NeonVkContext = struct {
             self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
         }
 
-        self.vkd.cmdEndRenderPass(cmd);
+        try self.finish_main_renderpass(cmd);
         try self.vkd.endCommandBuffer(cmd);
-
         try self.finish_frame();
-
-        self.firstFrame = false;
     }
 
-    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, deltaTime: f64) void {
+    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, index: u32, deltaTime: f64) void {
         _ = deltaTime;
 
         if (render_object.mesh == null)
@@ -843,7 +913,8 @@ pub const NeonVkContext = struct {
             self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptor), 1, p2a(&startOffset));
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
         }
 
         var final = render_object.transform;
@@ -854,25 +925,43 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdPushConstants(cmd, layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
-        self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, 0);
+        self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, index);
     }
 
-    fn render_meshes(self: *Self, deltaTime: f64) !void {
+    fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
-        var cmd = self.commandBuffers.items[self.nextFrameIndex];
-
-        self.lastMaterial = null;
-
-        self.sceneDataGpu.ambientColor = .{ std.math.sin(core.radians(180.0 * @floatCast(f32, self.rendererTime))), 0.0, std.math.cos(180.0 * core.radians(@floatCast(f32, self.rendererTime))), 1.0 };
-
         const data = try self.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
-
         const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
 
         @memcpy(data + startOffset, @ptrCast([*]const u8, &self.sceneDataGpu), @sizeOf(@TypeOf(self.sceneDataGpu)));
 
         self.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
+    }
+
+    fn upload_object_data(self: *Self) !void {
+        const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
+        const data = try self.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var ssbo: []NeonVkObjectDataGpu = undefined;
+        ssbo.ptr = @ptrCast([*]NeonVkObjectDataGpu, data);
+        ssbo.len = MAX_OBJECTS;
+
+        var i: usize = 0;
+        while (i < MAX_OBJECTS and i < self.renderObjects.items.len) : (i += 1) {
+            ssbo[i].modelMatrix = self.renderObjects.items[i].transform;
+        }
+
+        self.vmaAllocator.unmapMemory(allocation);
+    }
+
+    fn render_meshes(self: *Self, deltaTime: f64) !void {
+        _ = deltaTime;
+        try self.upload_scene_global_data(deltaTime);
+        try self.upload_object_data();
+
+        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+
+        self.lastMaterial = null;
 
         // todo this is game code;
         for (self.renderObjects.items) |_, i| {
@@ -884,8 +973,8 @@ pub const NeonVkContext = struct {
                 );
         }
 
-        for (self.renderObjects.items) |object| {
-            self.draw_render_object(object, cmd, deltaTime);
+        for (self.renderObjects.items) |object, i| {
+            self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
         }
     }
 
@@ -935,13 +1024,14 @@ pub const NeonVkContext = struct {
 
             try self.vkd.deviceWaitIdle(self.dev);
             try self.destroy_framebuffers();
-            self.shouldResize = true;
+            self.shouldResize = false;
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
         }
 
         c.glfwPollEvents();
+        self.firstFrame = false;
     }
 
     fn destroy_framebuffers(self: *Self) !void {
@@ -955,10 +1045,6 @@ pub const NeonVkContext = struct {
             self.swapImages.items[i].deinit(self);
         }
         self.swapImages.deinit();
-    }
-
-    fn init_vk_allocator(self: *Self) !void {
-        _ = self;
     }
 
     fn init_framebuffers(self: *Self) !void {
@@ -1348,7 +1434,7 @@ pub const NeonVkContext = struct {
         errdefer self.vkd.destroyCommandPool(self.dev, pool, null);
     }
 
-    pub fn init_api(self: *Self) !void {
+    fn init_api(self: *Self) !void {
         self.vkb = try BaseDispatch.load(c.glfwGetInstanceProcAddress);
 
         try self.create_vulkan_instance();
@@ -1431,8 +1517,13 @@ pub const NeonVkContext = struct {
         desiredFeatures.depth_bias_clamp = vk.TRUE;
         desiredFeatures.fill_mode_non_solid = vk.TRUE;
 
+        var shaderDrawFeatures = vk.PhysicalDeviceShaderDrawParametersFeatures{
+            .shader_draw_parameters = vk.TRUE,
+        };
+
         var dci = vk.DeviceCreateInfo{
             .flags = .{},
+            .p_next = &shaderDrawFeatures,
             .queue_create_info_count = @intCast(u32, createQueueInfoList.items.len),
             .p_queue_create_infos = createQueueInfoList.items.ptr,
             .enabled_layer_count = 0,
@@ -1664,7 +1755,7 @@ pub const NeonVkContext = struct {
             }
         }
 
-        //self.presentMode = .fifo_khr;
+        self.presentMode = .fifo_khr;
     }
 
     pub fn get_layer_extensions(self: *Self) ![]const vk.LayerProperties {
@@ -1691,7 +1782,6 @@ pub const NeonVkContext = struct {
         self.windowName = "NeonWood Sample Application";
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        //c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
 
         self.window = c.glfwCreateWindow(
             @intCast(c_int, self.extent.width),
@@ -1788,6 +1878,7 @@ pub const NeonVkContext = struct {
     pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
+            self.frameData[i].objectBuffer.deinit(self.vmaAllocator);
         }
         self.sceneParameterBuffer.deinit(self.vmaAllocator);
 
