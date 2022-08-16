@@ -1882,6 +1882,7 @@ pub const NeonVkContext = struct {
         }
         self.sceneParameterBuffer.deinit(self.vmaAllocator);
 
+        self.vkd.destroyDescriptorSetLayout(self.dev, self.objectDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
         self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
