@@ -734,7 +734,7 @@ pub const NeonVkContext = struct {
     }
 
     // todo:: gameplay code
-    pub fn pollRendererEvents(self: *Self) void {
+    pub fn pollInput(self: *Self) void {
         c.glfwGetCursorPos(self.window, &self.mousePosition.x, &self.mousePosition.y);
 
         if (self.camera.isDirty()) {
@@ -795,6 +795,7 @@ pub const NeonVkContext = struct {
         };
     }
 
+    // convert game state into some intermediate graphics data.
     pub fn pre_frame_update(self: *Self) !void {
         // ---- bind global descriptors ----
         const data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);

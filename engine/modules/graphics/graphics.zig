@@ -15,7 +15,7 @@ pub fn shutdown_module() void {
     engine_logs("graphics module shutting down...");
 }
 
-pub fn run() !void {
+pub fn run_graphics_test() !void {
     var renderer = try NeonVkContext.create_object();
     defer renderer.deinit();
 
@@ -29,7 +29,7 @@ pub fn run() !void {
     while (!try renderer.shouldExit()) {
         const newTime = core.getEngineTime();
         var dt: f64 = newTime - lastTimeStamp;
-        renderer.pollRendererEvents();
+        renderer.pollInput();
         try renderer.updateGame(dt);
         try renderer.draw(dt);
         std.debug.print("{d} {d}\r", .{ renderer.rendererTime, dt * 1000 });

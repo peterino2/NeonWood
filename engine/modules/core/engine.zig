@@ -84,3 +84,9 @@ test "basic type registration" {
 
     try std.testing.expect(&struct1_inst == engine.getSubsystem(struct1).?);
 }
+
+test "comptime registration implementation" {
+    // ok thought about this comptime shit
+    // 1. We create a registry object. RttiRegistry
+    // 2. RttiRegistry can then
+}
