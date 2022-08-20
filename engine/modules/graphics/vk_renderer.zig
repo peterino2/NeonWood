@@ -10,6 +10,7 @@ const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
 const mesh = @import("mesh.zig");
 const render_objects = @import("render_object.zig");
 const vkinit = @import("vk_init.zig");
+const vk_utils = @import("vk_utils.zig");
 
 const MAX_OBJECTS = 100000;
 
@@ -96,11 +97,11 @@ pub const NeonVkBuffer = struct {
     }
 };
 
-pub const NeonVkAllocImage = struct {
+pub const NeonVkImage = struct {
     image: vk.Image,
     allocation: vma.Allocation,
 
-    pub fn deinit(self: *NeonVkAllocImage, allocator: vma.Allocator) void {
+    pub fn deinit(self: *NeonVkImage, allocator: vma.Allocator) void {
         allocator.destroyImage(self.image, self.allocation);
     }
 };
@@ -293,7 +294,7 @@ pub const NeonVkContext = struct {
     rendererTime: f64,
 
     depthFormat: vk.Format,
-    depthImage: NeonVkAllocImage,
+    depthImage: NeonVkImage,
     depthImageView: vk.ImageView,
 
     static_triangle_pipeline: vk.Pipeline,
@@ -429,6 +430,8 @@ pub const NeonVkContext = struct {
         try self.init_pipelines();
         try self.init_meshes();
         try self.init_renderobjects();
+        var image = try vk_utils.load_image_from_file(self, "assets/icon.png");
+        image.deinit(self.vmaAllocator);
 
         return self;
     }
@@ -1992,7 +1995,12 @@ pub const NeonVkContext = struct {
         self.renderObjects.deinit(self.allocator);
     }
 
-    pub fn create_buffer(self: *Self, allocSize: usize, usage: vk.BufferUsageFlags, memoryUsageFlags: vma.MemoryUsage) !NeonVkBuffer {
+    pub fn create_buffer(
+        self: Self,
+        allocSize: usize,
+        usage: vk.BufferUsageFlags,
+        memoryUsageFlags: vma.MemoryUsage,
+    ) !NeonVkBuffer {
         var cbi = vk.BufferCreateInfo{
             .size = allocSize,
             .usage = usage,

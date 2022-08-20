@@ -72,3 +72,28 @@ pub fn commandBufferBeginInfo(flags: vk.CommandBufferUsageFlags) vk.CommandBuffe
     };
     return cbi;
 }
+
+pub fn imageCreateInfo(
+    format: vk.Format,
+    usageFlags: vk.ImageUsageFlags,
+    extent: vk.Extent3D,
+) vk.ImageCreateInfo {
+    var dimg_create = vk.ImageCreateInfo{
+        .flags = .{},
+        .sharing_mode = .exclusive,
+        .queue_family_index_count = 0,
+        .p_queue_family_indices = undefined,
+        .initial_layout = .@"undefined",
+        .image_type = .@"2d",
+        .format = format,
+        .extent = extent,
+        .mip_levels = 1,
+        .array_layers = 1,
+        .samples = .{
+            .@"1_bit" = true,
+        },
+        .tiling = .optimal,
+        .usage = usageFlags,
+    };
+    return dimg_create;
+}
