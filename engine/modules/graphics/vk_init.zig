@@ -36,3 +36,28 @@ pub fn writeDescriptorSet(
 
     return setWrite;
 }
+
+pub fn commandPoolCreateInfo(
+    queueFamilyIndex: u32,
+    flags: vk.CommandPoolCreateFlags,
+) vk.CommandPoolCreateInfo {
+    var self = vk.CommandPoolCreateInfo{
+        .queue_family_index = queueFamilyIndex,
+        .flags = flags,
+    };
+
+    return self;
+}
+
+pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
+    _ = cmd;
+
+    var info = vk.SubmitInfo{
+        .wait_semaphore_count = 0,
+        .signal_semaphore_count = 0,
+        .command_buffer_count = 1,
+        .p_command_buffers = @ptrCast([*]const vk.Commandbuffer, cmd),
+    };
+
+    return info;
+}

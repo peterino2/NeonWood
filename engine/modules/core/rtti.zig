@@ -108,22 +108,6 @@ test "test rtti data" {
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
 }
 
 pub const RttiWrapper = struct {

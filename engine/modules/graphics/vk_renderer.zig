@@ -39,6 +39,13 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
+pub const NeonVkUploadContext = struct {
+    uploadFence: vk.Fence,
+    commandPool: vk.CommandPool,
+    commandBuffer: vk.CommandBuffer,
+    active: bool,
+};
+
 pub const NeonVkCameraDataGpu = struct {
     view: Mat,
     proj: Mat,
@@ -335,6 +342,8 @@ pub const NeonVkContext = struct {
 
     rotating: bool,
 
+    uploadContext: NeonVkUploadContext,
+
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -359,6 +368,29 @@ pub const NeonVkContext = struct {
         self.sensitivity = 0.005;
         self.lastMaterial = null;
         self.rotating = true;
+    }
+
+    pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
+        var cmd = context.commandBuffer;
+        var cbi = vkinit.CommandBufferBeginInfo(.{ .one_time_submit_bit = true });
+        self.vkd.beginCommandBuffer(cmd, &cbi);
+        context.active = true;
+    }
+
+    pub fn finish_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
+        try self.vkd.endCommandBuffer(context.cmd);
+        var submit = vkinit.submitInfo(&context.cmd);
+        try self.vkd.queueSubmit(self.graphicsQueue, 1, &submit, context.uploadFence);
+
+        _ = try self.vkd.waitForFences(
+            self.dev,
+            1,
+            @ptrCast([*]const vk.Fence, &context.uploadFence),
+            1,
+            1000000000,
+        );
+        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &context.uploadFence));
+        context.active = false;
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) !usize {
@@ -599,9 +631,9 @@ pub const NeonVkContext = struct {
         return newMesh;
     }
 
-    pub fn upload_mesh(self: *Self, _mesh: *mesh.Mesh) !NeonVkBuffer {
-        const size = _mesh.vertices.items.len * @sizeOf(mesh.Vertex);
-        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, _mesh.vertices.items.len });
+    pub fn upload_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !NeonVkBuffer {
+        const size = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
+        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, uploadedMesh.vertices.items.len });
         var bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = size,
@@ -626,7 +658,7 @@ pub const NeonVkContext = struct {
         const data = try self.vmaAllocator.mapMemory(buffer.allocation, u8);
         defer self.vmaAllocator.unmapMemory(buffer.allocation);
 
-        @memcpy(data, @ptrCast([*]const u8, _mesh.vertices.items.ptr), size);
+        @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), size);
 
         return buffer;
     }
@@ -819,7 +851,13 @@ pub const NeonVkContext = struct {
     pub fn acquire_next_frame(self: *Self) !void {
         self.nextFrameIndex = try self.getNextSwapImage();
 
-        _ = try self.vkd.waitForFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]), 1, 1000000000);
+        _ = try self.vkd.waitForFences(
+            self.dev,
+            1,
+            @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]),
+            1,
+            1000000000,
+        );
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
     }
 
@@ -1424,6 +1462,22 @@ pub const NeonVkContext = struct {
         for (core.count(NumFrames)) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
+
+        var upload_fci = fci;
+        upload_fci.flags.signaled_bit = false;
+        self.uploadContext.uploadFence = try self.vkd.createFence(self.dev, &upload_fci, null);
+
+        var cbai2 = vk.CommandBufferAllocateInfo{
+            .command_pool = self.uploadContext.commandPool,
+            .level = vk.CommandBufferLevel.primary,
+            .command_buffer_count = 1,
+        };
+
+        try self.vkd.allocateCommandBuffers(
+            self.dev,
+            &cbai2,
+            @ptrCast([*]vk.CommandBuffer, &self.uploadContext.commandBuffer),
+        );
     }
 
     pub fn init_command_pools(self: *Self) !void {
@@ -1432,7 +1486,9 @@ pub const NeonVkContext = struct {
         cpci.queue_family_index = @intCast(u32, self.graphicsFamilyIndex);
 
         self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
-        errdefer self.vkd.destroyCommandPool(self.dev, pool, null);
+
+        var cpci2 = vkinit.commandPoolCreateInfo(@intCast(u32, self.graphicsFamilyIndex), .{});
+        self.uploadContext.commandPool = try self.vkd.createCommandPool(self.dev, &cpci2, null);
     }
 
     fn init_api(self: *Self) !void {
@@ -1808,6 +1864,11 @@ pub const NeonVkContext = struct {
         _ = c.glfwSetKeyCallback(self.window, neon_glfw_input_callback);
     }
 
+    pub fn destroy_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
+        self.vkd.destroyCommandPool(self.dev, context.commandPool, null);
+        self.vkd.destroyFence(self.dev, context.uploadFence, null);
+    }
+
     pub fn destroy_syncs(self: *Self) !void {
         for (self.acquireSemaphores.items) |x| {
             self.vkd.destroySemaphore(self.dev, x, null);
@@ -1897,6 +1958,7 @@ pub const NeonVkContext = struct {
         self.destroy_renderobjects() catch unreachable;
         self.destroy_meshes() catch unreachable;
         self.destroy_framebuffers() catch unreachable;
+        self.destroy_upload_context(&self.uploadContext) catch unreachable;
 
         self.destroy_descriptors();
 
