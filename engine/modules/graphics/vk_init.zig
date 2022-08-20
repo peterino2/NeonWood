@@ -56,8 +56,19 @@ pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
         .wait_semaphore_count = 0,
         .signal_semaphore_count = 0,
         .command_buffer_count = 1,
-        .p_command_buffers = @ptrCast([*]const vk.Commandbuffer, cmd),
+        .p_command_buffers = @ptrCast([*]const vk.CommandBuffer, cmd),
+        .p_wait_semaphores = undefined,
+        .p_wait_dst_stage_mask = undefined,
+        .p_signal_semaphores = undefined,
     };
 
     return info;
+}
+
+pub fn commandBufferBeginInfo(flags: vk.CommandBufferUsageFlags) vk.CommandBufferBeginInfo {
+    var cbi = vk.CommandBufferBeginInfo{
+        .p_inheritance_info = null,
+        .flags = flags,
+    };
+    return cbi;
 }

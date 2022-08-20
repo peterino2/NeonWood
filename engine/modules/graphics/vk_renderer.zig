@@ -372,15 +372,20 @@ pub const NeonVkContext = struct {
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
         var cmd = context.commandBuffer;
-        var cbi = vkinit.CommandBufferBeginInfo(.{ .one_time_submit_bit = true });
-        self.vkd.beginCommandBuffer(cmd, &cbi);
+        var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
+        try self.vkd.beginCommandBuffer(cmd, &cbi);
         context.active = true;
     }
 
     pub fn finish_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
-        try self.vkd.endCommandBuffer(context.cmd);
-        var submit = vkinit.submitInfo(&context.cmd);
-        try self.vkd.queueSubmit(self.graphicsQueue, 1, &submit, context.uploadFence);
+        try self.vkd.endCommandBuffer(context.commandBuffer);
+        var submit = vkinit.submitInfo(&context.commandBuffer);
+        try self.vkd.queueSubmit(
+            self.graphicsQueue.handle,
+            1,
+            @ptrCast([*]const vk.SubmitInfo, &submit),
+            context.uploadFence,
+        );
 
         _ = try self.vkd.waitForFences(
             self.dev,
@@ -629,6 +634,80 @@ pub const NeonVkContext = struct {
         try newMesh.upload(self);
         try self.meshes.put(self.allocator, meshName.hash, newMesh);
         return newMesh;
+    }
+
+    pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
+        const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
+        var bci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{ .transfer_src_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var vmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .cpuOnly,
+        };
+
+        const results = try self.vmaAllocator.createBuffer(bci, vmaCreateInfo);
+
+        var allocatedBuffer = NeonVkBuffer{
+            .buffer = results.buffer,
+            .allocation = results.allocation,
+        };
+        defer allocatedBuffer.deinit(self.vmaAllocator);
+
+        {
+            const data = try self.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
+            @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), bufferSize);
+            self.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
+        }
+
+        // Gpu sided buffer
+        var gpuBci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{ .transfer_dst_bit = true, .vertex_buffer_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var gpuVmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .gpuOnly,
+        };
+
+        const gpuBufferResults = try self.vmaAllocator.createBuffer(gpuBci, gpuVmaCreateInfo);
+
+        uploadedMesh.buffer = NeonVkBuffer{
+            .buffer = gpuBufferResults.buffer,
+            .allocation = gpuBufferResults.allocation,
+        };
+
+        core.graphics_log("Staring upload context", .{});
+        try self.start_upload_context(&self.uploadContext);
+        {
+            var copy = vk.BufferCopy{
+                .dst_offset = 0,
+                .src_offset = 0,
+                .size = bufferSize,
+            };
+            const cmd = self.uploadContext.commandBuffer;
+            core.graphics_log("Starting command copy buffer", .{});
+            self.vkd.cmdCopyBuffer(
+                cmd,
+                allocatedBuffer.buffer,
+                uploadedMesh.buffer.buffer,
+                1,
+                @ptrCast([*]const vk.BufferCopy, &copy),
+            );
+        }
+        core.graphics_log("Finishing upload context", .{});
+        try self.finish_upload_context(&self.uploadContext);
     }
 
     pub fn upload_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !NeonVkBuffer {
@@ -1487,7 +1566,7 @@ pub const NeonVkContext = struct {
 
         self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
 
-        var cpci2 = vkinit.commandPoolCreateInfo(@intCast(u32, self.graphicsFamilyIndex), .{});
+        var cpci2 = vkinit.commandPoolCreateInfo(@intCast(u32, self.graphicsFamilyIndex), .{ .reset_command_buffer_bit = true });
         self.uploadContext.commandPool = try self.vkd.createCommandPool(self.dev, &cpci2, null);
     }
 
