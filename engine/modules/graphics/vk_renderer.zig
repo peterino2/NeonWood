@@ -198,7 +198,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
         _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, null);
         core.graphics_log("  Found {d} extension properties", .{count});
         if (count > 0) {
-            try self.queueFamilyProperties.resize(@intCast(usize, count));
+            try self.supportedExtensions.resize(@intCast(usize, count));
             _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, self.supportedExtensions.items.ptr);
         }
 
