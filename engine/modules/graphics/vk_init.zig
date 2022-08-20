@@ -97,3 +97,26 @@ pub fn imageCreateInfo(
     };
     return dimg_create;
 }
+
+pub fn imageViewCreateInfo(
+    format: vk.Format,
+    image: vk.Image,
+    aspectFlags: vk.ImageAspectFlags,
+) vk.ImageViewCreateInfo {
+    var ivci = vk.ImageViewCreateInfo{
+        .flags = .{},
+        .image = image,
+        .view_type = .@"2d",
+        .format = format,
+        .components = .{ .r = .r, .g = .g, .b = .b, .a = .a },
+        .subresource_range = .{
+            .aspect_mask = aspectFlags,
+            .base_mip_level = 0,
+            .level_count = 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+    };
+
+    return ivci;
+}

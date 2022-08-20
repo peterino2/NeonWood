@@ -11,6 +11,7 @@ const mesh = @import("mesh.zig");
 const render_objects = @import("render_object.zig");
 const vkinit = @import("vk_init.zig");
 const vk_utils = @import("vk_utils.zig");
+const texture = @import("texture.zig");
 
 const MAX_OBJECTS = 100000;
 
@@ -34,6 +35,7 @@ const InstanceDispatch = vk_constants.InstanceDispatch;
 const RenderObject = render_objects.RenderObject;
 const Material = render_objects.Material;
 const Mesh = mesh.Mesh;
+const Texture = texture.Texture;
 
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
@@ -317,6 +319,7 @@ pub const NeonVkContext = struct {
     renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
+    textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
     camera: render_objects.Camera,
 
     descriptorPool: vk.DescriptorPool,
@@ -346,7 +349,7 @@ pub const NeonVkContext = struct {
     uploadContext: NeonVkUploadContext,
 
     pub fn init_zig_data(self: *Self) !void {
-        core.graphics_log("VkContextStaticSize = {d}", .{@sizeOf(Self)});
+        core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
         self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
         self.allocator = std.heap.c_allocator;
         self.swapchain = .null_handle;
@@ -355,6 +358,7 @@ pub const NeonVkContext = struct {
         self.exitSignal = false;
         self.mode = 0;
         self.firstFrame = true;
+        self.textures = .{};
         self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
@@ -428,12 +432,22 @@ pub const NeonVkContext = struct {
 
         try self.init_descriptors();
         try self.init_pipelines();
+        try self.init_textures();
         try self.init_meshes();
         try self.init_renderobjects();
-        var image = try vk_utils.load_image_from_file(&self, "assets/icon.png");
-        image.deinit(self.vmaAllocator);
 
         return self;
+    }
+
+    pub fn init_textures(self: *Self) !void {
+        var image = try vk_utils.load_image_from_file(self, "assets/icon.png");
+        var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
+        var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
+
+        try self.textures.put(self.allocator, core.MakeName("icon_texture").hash, Texture{
+            .image = image,
+            .imageView = imageView,
+        });
     }
 
     pub fn init_descriptors(self: *Self) !void {
@@ -2036,6 +2050,13 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
 
+    pub fn destroy_textures(self: *Self) !void {
+        var iter = self.textures.iterator();
+        while (iter.next()) |i| {
+            try i.value_ptr.deinit(self);
+        }
+    }
+
     pub fn deinit(self: *Self) void {
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
@@ -2043,6 +2064,7 @@ pub const NeonVkContext = struct {
         self.destroy_renderpass() catch unreachable;
         self.destroy_syncs() catch unreachable;
         self.destroy_renderobjects() catch unreachable;
+        self.destroy_textures() catch unreachable;
         self.destroy_meshes() catch unreachable;
         self.destroy_framebuffers() catch unreachable;
         self.destroy_upload_context(&self.uploadContext) catch unreachable;
