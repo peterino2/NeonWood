@@ -430,7 +430,7 @@ pub const NeonVkContext = struct {
         try self.init_pipelines();
         try self.init_meshes();
         try self.init_renderobjects();
-        var image = try vk_utils.load_image_from_file(self, "assets/icon.png");
+        var image = try vk_utils.load_image_from_file(&self, "assets/icon.png");
         image.deinit(self.vmaAllocator);
 
         return self;
