@@ -69,10 +69,31 @@ pub const Mesh = struct {
                     };
                     try self.vertices.append(v);
                 }
-            } else {
-                return error.OnlyTrianglesAreSupportedRightNow;
+            } else if (face.count == 4) {
+                const vertices = [_]Vertex{
+                    vertex_from_face_offset(mesh, face, 0),
+                    vertex_from_face_offset(mesh, face, 1),
+                    vertex_from_face_offset(mesh, face, 2),
+                    vertex_from_face_offset(mesh, face, 2),
+                    vertex_from_face_offset(mesh, face, 3),
+                    vertex_from_face_offset(mesh, face, 0),
+                };
+
+                try self.vertices.appendSlice(vertices[0..]);
             }
         }
+    }
+
+    fn vertex_from_face_offset(mesh: ObjMesh, face: obj_loader.ObjFace, i: u32) Vertex {
+        const p = mesh.v_positions.items[face.vertex[i] - 1];
+        const n = mesh.v_normals.items[face.normal[i] - 1];
+        const v = Vertex{
+            .position = .{ .x = p.x, .y = p.y, .z = p.z },
+            .normal = .{ .x = n.x, .y = n.y, .z = n.z },
+            .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
+        };
+
+        return v;
     }
 
     pub fn deinit(self: *Mesh, ctx: *NeonVkContext) void {

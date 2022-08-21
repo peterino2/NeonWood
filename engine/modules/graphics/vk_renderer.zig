@@ -335,6 +335,7 @@ pub const NeonVkContext = struct {
     cameraHorizontalRotation: core.Quat,
     cameraHorizontalRotationMat: core.Mat,
     cameraHorizontalRotationStart: core.Quat,
+    zoomies: bool,
 
     sensitivity: f64,
 
@@ -373,6 +374,7 @@ pub const NeonVkContext = struct {
         self.sensitivity = 0.005;
         self.lastMaterial = null;
         self.rotating = true;
+        self.zoomies = false;
     }
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
@@ -570,7 +572,7 @@ pub const NeonVkContext = struct {
 
     pub fn init_renderobjects(self: *Self) !void {
         try self.add_renderobject(.{
-            .mesh_name = core.MakeName("mesh_monkey"),
+            .mesh_name = core.MakeName("mesh_lost_empire"),
             .material_name = core.MakeName("mat_monkey"),
         });
 
@@ -638,10 +640,8 @@ pub const NeonVkContext = struct {
         self.monkeyMesh = mesh.Mesh.init(self, self.allocator);
         try self.monkeyMesh.load_from_obj_file("modules/graphics/lib/objLoader/test/monkey.obj");
         try self.monkeyMesh.upload(self);
-
-        {
-            _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
-        }
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "assets/lost_empire.obj");
     }
 
     // we need a content filing system
@@ -911,7 +911,19 @@ pub const NeonVkContext = struct {
 
     // this is game code.
     pub fn updateGame(self: *Self, deltaTime: f64) !void {
+        for (self.renderObjects.items) |_, i| {
+            var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
+            _ = rate;
+            if (self.rotating)
+                self.renderObjects.items[i].applyRelativeRotationY(
+                    core.radians(rate) * @floatCast(f32, deltaTime),
+                );
+        }
+
         var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
+        if (self.zoomies) {
+            movement = movement.fmul(10.0);
+        }
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
         self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
@@ -1097,16 +1109,6 @@ pub const NeonVkContext = struct {
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         self.lastMaterial = null;
-
-        // todo this is game code;
-        for (self.renderObjects.items) |_, i| {
-            var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
-            _ = rate;
-            if (self.rotating)
-                self.renderObjects.items[i].applyRelativeRotationY(
-                    core.radians(rate) * @floatCast(f32, deltaTime),
-                );
-        }
 
         for (self.renderObjects.items) |object, i| {
             self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
@@ -2106,6 +2108,9 @@ pub fn neon_glfw_input_callback(
         }
         if (key == c.GLFW_KEY_R) {
             gContext.rotating = !gContext.rotating;
+        }
+        if (key == c.GLFW_KEY_F) {
+            gContext.zoomies = !gContext.zoomies;
         }
         if (key == c.GLFW_KEY_W) {
             gContext.cameraMovement.z += 1.0;
