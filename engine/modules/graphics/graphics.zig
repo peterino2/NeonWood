@@ -9,11 +9,12 @@ const engine_log = core.engine_log;
 
 pub fn start_module() void {
     engine_logs("graphics module starting up...");
+
     var context: *NeonVkContext = core.gEngine.createObject(
         NeonVkContext,
         .{ .can_tick = true },
     ) catch unreachable;
-    _ = context;
+
     vk_renderer.gContext = context;
 }
 

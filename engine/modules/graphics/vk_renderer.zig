@@ -312,7 +312,7 @@ pub const NeonVkContext = struct {
     monkeyMesh: mesh.Mesh,
 
     exitSignal: bool,
-    mesh_pipeline_layout: vk.PipelineLayout,
+    meshPipelineLayout: vk.PipelineLayout,
     firstFrame: bool,
     shouldResize: bool,
 
@@ -350,6 +350,8 @@ pub const NeonVkContext = struct {
     rotating: bool,
 
     uploadContext: NeonVkUploadContext,
+
+    singleTextureSetLayout: vk.DescriptorSetLayout,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
@@ -498,8 +500,17 @@ pub const NeonVkContext = struct {
             .p_bindings = @ptrCast([*]const @TypeOf(objectBinding), &objectBindings),
         };
 
+        var textureBinding = vkinit.descriptorSetLayoutBinding(.combined_image_sampler, .{ .fragment_bit = true }, 0);
+
+        var singleTextureInfo = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = 1,
+            .flags = .{},
+            .p_bindings = p2a(&textureBinding),
+        };
+
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
+        self.singleTextureSetLayout = try self.vkd.createDescriptorSetLayout(self.dev, &singleTextureInfo, null);
 
         const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
@@ -828,13 +839,15 @@ pub const NeonVkContext = struct {
             try mesh_pipeline_b.add_push_constant();
             try mesh_pipeline_b.add_layout(self.globalDescriptorLayout);
             try mesh_pipeline_b.add_layout(self.objectDescriptorLayout);
+            try mesh_pipeline_b.add_layout(self.singleTextureSetLayout);
             try mesh_pipeline_b.add_depth_stencil();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
-            self.mesh_pipeline_layout = mesh_pipeline_b.pipelineLayout;
+            self.meshPipelineLayout = mesh_pipeline_b.pipelineLayout;
             var material = render_objects.Material{
                 .pipeline = self.mesh_pipeline,
-                .layout = self.mesh_pipeline_layout,
+                .layout = self.meshPipelineLayout,
+                .textureSet = self.singleTextureSetLayout,
             };
             try self.materials.put(self.allocator, core.MakeName("mat_monkey").hash, material);
             defer mesh_pipeline_b.deinit();
@@ -2008,7 +2021,7 @@ pub const NeonVkContext = struct {
         self.vkd.destroyPipeline(self.dev, self.static_triangle_pipeline, null);
         self.vkd.destroyPipeline(self.dev, self.static_colored_triangle_pipeline, null);
         self.vkd.destroyPipeline(self.dev, self.mesh_pipeline, null);
-        self.vkd.destroyPipelineLayout(self.dev, self.mesh_pipeline_layout, null);
+        self.vkd.destroyPipelineLayout(self.dev, self.meshPipelineLayout, null);
     }
 
     pub fn destroy_renderpass(self: *Self) !void {

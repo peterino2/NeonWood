@@ -91,7 +91,7 @@ pub const Engine = struct {
         if (params.can_tick) {
             comptime {
                 if (!@hasDecl(T, "tick")) {
-                    unreachable;
+                    unreachable; // tried to register a tickable for an object which does not implement tick
                 }
             }
             try self.tickables.append(self.allocator, newIndex);
