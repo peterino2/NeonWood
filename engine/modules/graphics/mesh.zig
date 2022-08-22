@@ -8,6 +8,8 @@ const obj_loader = @import("lib/objLoader/obj_loader.zig");
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
+const Vector2f = core.Vector2f;
+const LinearColor = core.LinearColor;
 const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
@@ -16,7 +18,8 @@ const debug_struct = core.debug_struct;
 pub const Vertex = struct {
     position: Vectorf,
     normal: Vectorf,
-    color: core.LinearColor,
+    color: LinearColor,
+    uv: Vector2f,
 };
 
 pub const Mesh = struct {
@@ -60,13 +63,7 @@ pub const Mesh = struct {
             if (face.count == 3) {
                 var i: u32 = 0;
                 while (i < 3) : (i += 1) {
-                    const p = mesh.v_positions.items[face.vertex[i] - 1];
-                    const n = mesh.v_normals.items[face.normal[i] - 1];
-                    const v = Vertex{
-                        .position = .{ .x = p.x, .y = p.y, .z = p.z },
-                        .normal = .{ .x = n.x, .y = n.y, .z = n.z },
-                        .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
-                    };
+                    const v = vertex_from_face_offset(mesh, face, i);
                     try self.vertices.append(v);
                 }
             } else if (face.count == 4) {
@@ -84,13 +81,15 @@ pub const Mesh = struct {
         }
     }
 
-    fn vertex_from_face_offset(mesh: ObjMesh, face: obj_loader.ObjFace, i: u32) Vertex {
-        const p = mesh.v_positions.items[face.vertex[i] - 1];
-        const n = mesh.v_normals.items[face.normal[i] - 1];
+    fn vertex_from_face_offset(mesh: ObjMesh, face: obj_loader.ObjFace, offset: u32) Vertex {
+        const p = mesh.v_positions.items[face.vertex[offset] - 1];
+        const n = mesh.v_normals.items[face.normal[offset] - 1];
+        const u = mesh.v_uvs.items[face.texture[offset] - 1];
         const v = Vertex{
             .position = .{ .x = p.x, .y = p.y, .z = p.z },
             .normal = .{ .x = n.x, .y = n.y, .z = n.z },
             .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
+            .uv = .{ .x = u.x, .y = u.y },
         };
 
         return v;
@@ -145,7 +144,14 @@ pub const VertexInputDescription = struct {
             .format = .r32g32b32a32_sfloat,
             .offset = @offsetOf(Vertex, "color"),
         });
+
         //debug_struct("attributes 0", self.attributes.items[2]);
+        try self.attributes.append(.{
+            .binding = 0,
+            .location = 3,
+            .format = .r32g32_sfloat,
+            .offset = @offsetOf(Vertex, "uv"),
+        });
 
         return self;
     }

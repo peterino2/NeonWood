@@ -120,3 +120,50 @@ pub fn imageViewCreateInfo(
 
     return ivci;
 }
+
+pub fn samplerCreateInfo(
+    filters: vk.Filters,
+    samplerAddressMode: ?vk.SamplerAddressMode,
+) vk.SamplerCreateInfo {
+    var addressMode = if (samplerAddressMode != null) samplerAddressMode.? else .repeat;
+
+    var self = vk.SamplerCreateInfo{
+        .magFilter = filters,
+        .minFilter = filters,
+        .address_mode_u = addressMode,
+        .address_mode_v = addressMode,
+        .address_mode_w = addressMode,
+        .mipmap_mode = .nearest,
+        .mip_lod_bias = 0.0,
+        .anisotropy_enable = vk.FALSE,
+        .max_anisotropy = 0.0,
+        .compare_enable = vk.FALSE,
+        .compare_op = .never,
+        .min_lod = 0.0,
+        .max_lod = 0.0,
+        .border_color = .float_transparent_black,
+        .unnormalized_coordinates = vk.FALSE,
+    };
+
+    return self;
+}
+
+pub fn writeDescriptorImage(
+    descriptorType: vk.DescriptorType,
+    dstSet: vk.DescriptorSet,
+    imageInfo: *vk.DescriptorImageInfo,
+    binding: u32,
+) vk.WriteDescriptorSet {
+    var setWrite = vk.WriteDescriptorSet{
+        .dst_binding = binding,
+        .dst_set = dstSet,
+        .descriptor_count = 1,
+        .descriptor_type = descriptorType,
+        .p_buffer_info = undefined,
+        .dst_array_element = 0,
+        .p_image_info = imageInfo,
+        .p_texel_buffer_view = undefined,
+    };
+
+    return setWrite;
+}

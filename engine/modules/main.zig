@@ -15,6 +15,7 @@ pub fn main() anyerror!void {
     graphics.start_module();
     defer graphics.shutdown_module();
 
+    core.gEngine.run();
     // try graphics.run_graphics_test();
     engine_log("executions complete", .{});
 }

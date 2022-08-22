@@ -16,6 +16,7 @@ const mul = zm.mul;
 const Mesh = meshes.Mesh;
 
 pub const Material = struct {
+    textureSet: vk.DescriptorSet = .null_handle,
     pipeline: vk.Pipeline,
     layout: vk.PipelineLayout,
 };
