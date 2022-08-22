@@ -23,6 +23,7 @@ pub const Engine = struct {
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
 
+    lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
@@ -31,6 +32,10 @@ pub const Engine = struct {
             .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
             .allocator = allocator,
             .exitSignal = false,
+            .rttiObjects = .{},
+            .tickables = .{},
+            .deltaTime = 0.0,
+            .lastEngineTime = 0.0,
         };
 
         return rv;
@@ -70,9 +75,9 @@ pub const Engine = struct {
     // creates a neon object using the engine's allocator.
     // todo.. maybe there needs to be a managed NeObjectRef that allows a custom allocator
     // todo: We need a sparse array implementation of this
-    pub fn create_object(self: *@This(), comptime T: type, params: NeonObjectParams) *T {
+    pub fn createObject(self: *@This(), comptime T: type, params: NeonObjectParams) !*T {
         const newIndex = self.rttiObjects.items.len;
-        var newObjectPtr = self.allocator.create(T);
+        var newObjectPtr = try self.allocator.create(T);
         const vtable = &@field(T, "NeonObjectTable");
         vtable.init_func(self.allocator, @ptrCast(*anyopaque, newObjectPtr));
 
@@ -84,6 +89,11 @@ pub const Engine = struct {
         try self.rttiObjects.append(self.allocator, newObjectRef);
 
         if (params.can_tick) {
+            comptime {
+                if (!@hasDecl(T, "tick")) {
+                    unreachable;
+                }
+            }
             try self.tickables.append(self.allocator, newIndex);
         }
 
@@ -95,13 +105,16 @@ pub const Engine = struct {
         self.deltaTime = newTime - self.lastEngineTime;
 
         for (self.tickables.items) |index| {
-            self.rttiObjects.items[index].vtable.tick_func(self.deltaTime);
+            const objectRef = self.rttiObjects.items[index];
+            objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
         }
         self.lastEngineTime = newTime;
     }
 
     pub fn run(self: *@This()) void {
-        _ = self;
+        while (!self.exitSignal) {
+            self.tick();
+        }
     }
 };
 

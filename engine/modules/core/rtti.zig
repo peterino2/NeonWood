@@ -66,7 +66,7 @@ pub const RttiData = struct {
 
 pub const NeonObjectRef = struct {
     ptr: *anyopaque,
-    vtable: *RttiData,
+    vtable: *const RttiData,
 };
 
 const TestStruct = struct {
@@ -77,7 +77,7 @@ const TestStruct = struct {
     wanker: u32,
     timeAccumulation: f64 = 0.0,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         _ = allocator;
         std.debug.print("this is some real dynamic dispatch\n", .{});
         return .{ .wanker = 42069 };
@@ -92,7 +92,7 @@ const TestStruct = struct {
 const TestStruct2 = struct {
     wanker: u32,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         _ = allocator;
         std.debug.print("test construction2\n", .{});
         return .{ .wanker = 69420 };

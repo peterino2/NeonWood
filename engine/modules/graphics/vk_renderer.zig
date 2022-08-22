@@ -239,6 +239,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
+    pub const NeonObjectTable = core.RttiData.from(Self);
 
     const vertices = [_]Vertex{
         .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
@@ -417,6 +418,12 @@ pub const NeonVkContext = struct {
         return alignedSize;
     }
 
+    pub fn init(allocator: std.mem.Allocator) Self {
+        _ = allocator;
+        return create_object() catch unreachable;
+    }
+
+    // this is the old version
     pub fn create_object() !Self {
         var self: Self = undefined;
 
@@ -908,6 +915,12 @@ pub const NeonVkContext = struct {
 
     fn updateTime(self: *Self, deltaTime: f64) void {
         self.rendererTime += deltaTime;
+    }
+
+    pub fn tick(self: *Self, dt: f64) void {
+        self.pollInput();
+        self.updateGame(dt) catch unreachable;
+        self.draw(dt) catch unreachable;
     }
 
     // this is game code.
@@ -2106,6 +2119,7 @@ pub fn neon_glfw_input_callback(
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, everything dies now");
         gContext.exitSignal = true;
+        core.gEngine.exitSignal = true;
     }
 
     if (action == c.GLFW_PRESS) {
