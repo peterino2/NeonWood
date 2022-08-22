@@ -377,6 +377,7 @@ pub const NeonVkContext = struct {
         self.cameraHorizontalRotationMat = core.zm.identity();
         self.sensitivity = 0.005;
         self.lastMaterial = null;
+        self.lastMesh = null;
         self.rotating = true;
         self.zoomies = false;
     }
@@ -1088,6 +1089,10 @@ pub const NeonVkContext = struct {
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+        }
+        if (self.lastMesh != render_object.mesh) {
+            self.lastMesh = render_object.mesh;
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
         }
 
         if (self.lastMesh != render_object.mesh) {
