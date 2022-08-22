@@ -1069,6 +1069,11 @@ pub const NeonVkContext = struct {
             self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
         }
 
+        if (self.lastMesh != render_object.mesh) {
+            self.lastMesh = render_object.mesh;
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+        }
+
         var final = render_object.transform;
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },

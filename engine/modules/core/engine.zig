@@ -2,10 +2,14 @@ const std = @import("std");
 const logging = @import("logging.zig");
 const names = @import("names.zig");
 const input = @import("input.zig");
+const rtti = @import("rtti.zig");
+const time = @import("engineTime.zig");
 const Name = names.Name;
 const MakeName = names.MakeName;
 
+const NeonObjectRef = rtti.NeonObjectRef;
 const ArrayList = std.ArrayList;
+const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
 
 const engine_log = logging.engine_log;
@@ -15,13 +19,17 @@ pub const Engine = struct {
 
     subsystems: ArrayList(*anyopaque),
     subsystemsByType: AutoHashMap(u32, usize),
-    alloc: std.mem.Allocator,
+    allocator: std.mem.Allocator,
+    rttiObjects: ArrayListUnmanaged(NeonObjectRef),
+    tickables: ArrayListUnmanaged(usize),
 
-    pub fn init(alloc: std.mem.Allocator) !@This() {
+    deltaTime: f64, // delta time for this frame from the previous frame
+
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         const rv = Engine{
-            .subsystems = ArrayList(*anyopaque).init(alloc),
-            .subsystemsByType = AutoHashMap(u32, usize).init(alloc),
-            .alloc = alloc,
+            .subsystems = ArrayList(*anyopaque).init(allocator),
+            .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
+            .allocator = allocator,
             .exitSignal = false,
         };
 
@@ -58,6 +66,47 @@ pub const Engine = struct {
         self.subsystems.deinit();
         self.subsystemsByType.deinit();
     }
+
+    // creates a neon object using the engine's allocator.
+    // todo.. maybe there needs to be a managed NeObjectRef that allows a custom allocator
+    // todo: We need a sparse array implementation of this
+    pub fn create_object(self: *@This(), comptime T: type, params: NeonObjectParams) *T {
+        const newIndex = self.rttiObjects.items.len;
+        var newObjectPtr = self.allocator.create(T);
+        const vtable = &@field(T, "NeonObjectTable");
+        vtable.init_func(self.allocator, @ptrCast(*anyopaque, newObjectPtr));
+
+        const newObjectRef = NeonObjectRef{
+            .ptr = @ptrCast(*anyopaque, newObjectPtr),
+            .vtable = vtable,
+        };
+
+        try self.rttiObjects.append(self.allocator, newObjectRef);
+
+        if (params.can_tick) {
+            try self.tickables.append(self.allocator, newIndex);
+        }
+
+        return newObjectPtr;
+    }
+
+    pub fn tick(self: *@This()) void {
+        const newTime = time.getEngineTime();
+        self.deltaTime = newTime - self.lastEngineTime;
+
+        for (self.tickables.items) |index| {
+            self.rttiObjects.items[index].vtable.tick_func(self.deltaTime);
+        }
+        self.lastEngineTime = newTime;
+    }
+
+    pub fn run(self: *@This()) void {
+        _ = self;
+    }
+};
+
+pub const NeonObjectParams = struct {
+    can_tick: bool = false,
 };
 
 test "basic type registration" {
@@ -85,8 +134,4 @@ test "basic type registration" {
     try std.testing.expect(&struct1_inst == engine.getSubsystem(struct1).?);
 }
 
-test "comptime registration implementation" {
-    // ok thought about this comptime shit
-    // 1. We create a registry object. RttiRegistry
-    // 2. RttiRegistry can then
-}
+test "comptime registration implementation" {}
