@@ -28,9 +28,10 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
 pub const RttiData = struct {
     typeName: Name,
     typeSize: usize,
+    typeAlign: usize,
 
-    init_func: fn (std.mem.Allocator, *anyopaque) void,
-    tick_func: ?fn (*anyopaque, f64) void = null,
+    init_func: *const fn (std.mem.Allocator, *anyopaque) void,
+    tick_func: ?*const fn (*anyopaque, f64) void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
@@ -44,6 +45,7 @@ pub const RttiData = struct {
         var self = RttiData{
             .typeName = MakeTypeName(TargetType),
             .typeSize = @sizeOf(TargetType),
+            .typeAlign = @alignOf(TargetType),
             .init_func = wrappedInit.func,
         };
 
@@ -62,7 +64,16 @@ pub const RttiData = struct {
     }
 };
 
-pub const TestStruct = struct {
+pub const NeonObjectRef = struct {
+    ptr: *anyopaque,
+    vtable: *RttiData,
+};
+
+const TestStruct = struct {
+
+    // Static interface to being a rttiObject
+    pub const NeonObjectTable = RttiData.from(TestStruct);
+
     wanker: u32,
     timeAccumulation: f64 = 0.0,
 
@@ -78,13 +89,13 @@ pub const TestStruct = struct {
     }
 };
 
-pub const TestStruct2 = struct {
+const TestStruct2 = struct {
     wanker: u32,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         _ = allocator;
         std.debug.print("test construction2\n", .{});
-        return .{ .wanker = 42069 };
+        return .{ .wanker = 69420 };
     }
 };
 
@@ -108,12 +119,10 @@ test "test rtti data" {
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
     RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
+    (&TestStruct.NeonObjectTable).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
+    try std.testing.expect(x.wanker == 42069);
+    try std.testing.expect(y.wanker == 69420);
 }
-
-pub const RttiWrapper = struct {
-    ptr: *anyopaque,
-    typeHash: u32,
-};
 
 pub const RttiRegistry = struct {
     entries: [RTTI_MAX_TYPES]RttiData,
@@ -125,7 +134,7 @@ pub const RttiRegistry = struct {
         return self;
     }
 
-    pub fn dynamic_cast_by_id(self: @This(), TargetType: type, source: RttiWrapper) ?TargetType {
+    pub fn dynamic_cast_by_id(self: @This(), TargetType: type, source: NeonObjectRef) ?TargetType {
         _ = self;
         _ = TargetType;
         _ = source;

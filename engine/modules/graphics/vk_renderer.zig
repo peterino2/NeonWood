@@ -341,6 +341,7 @@ pub const NeonVkContext = struct {
 
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
+    lastMesh: ?*Mesh,
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
@@ -1059,9 +1060,13 @@ pub const NeonVkContext = struct {
         if (self.lastMaterial != render_object.material) {
             self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
             self.lastMaterial = render_object.material;
-            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+        }
+
+        if (self.lastMesh != render_object.mesh) {
+            self.lastMesh = render_object.mesh;
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
         }
 
         var final = render_object.transform;
@@ -1109,6 +1114,7 @@ pub const NeonVkContext = struct {
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         self.lastMaterial = null;
+        self.lastMesh = null;
 
         for (self.renderObjects.items) |object, i| {
             self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
