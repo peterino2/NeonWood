@@ -36,3 +36,135 @@ pub fn writeDescriptorSet(
 
     return setWrite;
 }
+
+pub fn commandPoolCreateInfo(
+    queueFamilyIndex: u32,
+    flags: vk.CommandPoolCreateFlags,
+) vk.CommandPoolCreateInfo {
+    var self = vk.CommandPoolCreateInfo{
+        .queue_family_index = queueFamilyIndex,
+        .flags = flags,
+    };
+
+    return self;
+}
+
+pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
+    _ = cmd;
+
+    var info = vk.SubmitInfo{
+        .wait_semaphore_count = 0,
+        .signal_semaphore_count = 0,
+        .command_buffer_count = 1,
+        .p_command_buffers = @ptrCast([*]const vk.CommandBuffer, cmd),
+        .p_wait_semaphores = undefined,
+        .p_wait_dst_stage_mask = undefined,
+        .p_signal_semaphores = undefined,
+    };
+
+    return info;
+}
+
+pub fn commandBufferBeginInfo(flags: vk.CommandBufferUsageFlags) vk.CommandBufferBeginInfo {
+    var cbi = vk.CommandBufferBeginInfo{
+        .p_inheritance_info = null,
+        .flags = flags,
+    };
+    return cbi;
+}
+
+pub fn imageCreateInfo(
+    format: vk.Format,
+    usageFlags: vk.ImageUsageFlags,
+    extent: vk.Extent3D,
+) vk.ImageCreateInfo {
+    var dimg_create = vk.ImageCreateInfo{
+        .flags = .{},
+        .sharing_mode = .exclusive,
+        .queue_family_index_count = 0,
+        .p_queue_family_indices = undefined,
+        .initial_layout = .@"undefined",
+        .image_type = .@"2d",
+        .format = format,
+        .extent = extent,
+        .mip_levels = 1,
+        .array_layers = 1,
+        .samples = .{
+            .@"1_bit" = true,
+        },
+        .tiling = .optimal,
+        .usage = usageFlags,
+    };
+    return dimg_create;
+}
+
+pub fn imageViewCreateInfo(
+    format: vk.Format,
+    image: vk.Image,
+    aspectFlags: vk.ImageAspectFlags,
+) vk.ImageViewCreateInfo {
+    var ivci = vk.ImageViewCreateInfo{
+        .flags = .{},
+        .image = image,
+        .view_type = .@"2d",
+        .format = format,
+        .components = .{ .r = .r, .g = .g, .b = .b, .a = .a },
+        .subresource_range = .{
+            .aspect_mask = aspectFlags,
+            .base_mip_level = 0,
+            .level_count = 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+    };
+
+    return ivci;
+}
+
+pub fn samplerCreateInfo(
+    filters: vk.Filter,
+    samplerAddressMode: ?vk.SamplerAddressMode,
+) vk.SamplerCreateInfo {
+    var addressMode = if (samplerAddressMode != null) samplerAddressMode.? else .repeat;
+
+    var self = vk.SamplerCreateInfo{
+        .flags = .{},
+        .mag_filter = filters,
+        .min_filter = filters,
+        .address_mode_u = addressMode,
+        .address_mode_v = addressMode,
+        .address_mode_w = addressMode,
+        .mipmap_mode = .nearest,
+        .mip_lod_bias = 0.0,
+        .anisotropy_enable = vk.FALSE,
+        .max_anisotropy = 0.0,
+        .compare_enable = vk.FALSE,
+        .compare_op = .never,
+        .min_lod = 0.0,
+        .max_lod = 0.0,
+        .border_color = .float_transparent_black,
+        .unnormalized_coordinates = vk.FALSE,
+    };
+
+    return self;
+}
+
+pub fn writeDescriptorImage(
+    descriptorType: vk.DescriptorType,
+    dstSet: vk.DescriptorSet,
+    imageInfo: *vk.DescriptorImageInfo,
+    binding: u32,
+) vk.WriteDescriptorSet {
+    var setWrite = vk.WriteDescriptorSet{
+        .dst_binding = binding,
+        .dst_set = dstSet,
+        .descriptor_count = 1,
+        .descriptor_type = descriptorType,
+        .p_buffer_info = undefined,
+        .dst_array_element = 0,
+        .p_image_info = p2a(imageInfo),
+        .p_texel_buffer_view = undefined,
+    };
+
+    return setWrite;
+}

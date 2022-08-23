@@ -1,10 +1,11 @@
-usingnamespace @import("misc.zig");
-usingnamespace @import("logging.zig");
-usingnamespace @import("algorithm.zig");
-usingnamespace @import("engineTime.zig");
-const engine = @import("engine.zig");
+pub usingnamespace @import("misc.zig");
+pub usingnamespace @import("logging.zig");
+pub usingnamespace @import("algorithm.zig");
+pub usingnamespace @import("engineTime.zig");
+pub usingnamespace @import("rtti.zig");
+pub const engine = @import("engine.zig");
 pub const zm = @import("lib/zmath/zmath.zig");
-usingnamespace @import("math.zig");
+pub usingnamespace @import("math.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });
