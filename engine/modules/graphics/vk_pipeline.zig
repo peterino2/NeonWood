@@ -94,7 +94,7 @@ pub const NeonVkPipelineBuilder = struct {
             .attachment_count = 1,
             .p_attachments = p2a(&self.colorBlendAttachment),
             .logic_op = .copy,
-            .blend_constants = [4]f32{ 0, 0, 0, 0 },
+            .blend_constants = [4]f32{ 1.0, 1.0, 1.0, 1.0 },
         };
 
         // its here....
@@ -273,11 +273,11 @@ pub const NeonVkPipelineBuilder = struct {
         };
 
         self.colorBlendAttachment = .{
-            .blend_enable = vk.FALSE,
-            .src_color_blend_factor = .zero,
-            .dst_color_blend_factor = .zero,
-            .src_alpha_blend_factor = .zero,
-            .dst_alpha_blend_factor = .zero,
+            .blend_enable = vk.TRUE,
+            .src_color_blend_factor = .src_alpha,
+            .dst_color_blend_factor = .one_minus_src_alpha,
+            .src_alpha_blend_factor = .src_alpha,
+            .dst_alpha_blend_factor = .one_minus_src_alpha,
             .alpha_blend_op = .add,
             .color_write_mask = .{
                 .r_bit = true,

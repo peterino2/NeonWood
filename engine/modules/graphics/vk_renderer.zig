@@ -442,10 +442,10 @@ pub const NeonVkContext = struct {
         try self.init_rendertarget();
         try self.init_renderpasses();
         try self.init_framebuffers();
+        try self.init_textures();
 
         try self.init_descriptors();
         try self.init_pipelines();
-        try self.init_textures();
         try self.init_meshes();
         try self.init_renderobjects();
 
@@ -453,7 +453,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_textures(self: *Self) !void {
-        var image = try vk_utils.load_image_from_file(self, "assets/icon.png");
+        var image = try vk_utils.load_image_from_file(self, "assets/lost_empire-RGBA.png");
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
 
@@ -468,6 +468,7 @@ pub const NeonVkContext = struct {
             .{ .@"type" = .uniform_buffer, .descriptor_count = 10 },
             .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 10 },
             .{ .@"type" = .storage_buffer, .descriptor_count = 10 },
+            .{ .@"type" = .combined_image_sampler, .descriptor_count = 10 },
         };
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
@@ -831,11 +832,11 @@ pub const NeonVkContext = struct {
                 self.allocator,
                 resources.triangle_mesh_vert.len,
                 @ptrCast([*]const u32, resources.triangle_mesh_vert),
-                //resources.triangle_mesh_frag.len,
-                //@ptrCast([*]const u32, resources.triangle_mesh_frag),
                 resources.default_lit_frag.len,
                 @ptrCast([*]const u32, resources.default_lit_frag),
             );
+            defer mesh_pipeline_b.deinit();
+
             try mesh_pipeline_b.add_mesh_description();
             try mesh_pipeline_b.add_push_constant();
             try mesh_pipeline_b.add_layout(self.globalDescriptorLayout);
@@ -848,10 +849,35 @@ pub const NeonVkContext = struct {
             var material = render_objects.Material{
                 .pipeline = self.mesh_pipeline,
                 .layout = self.meshPipelineLayout,
-                .textureSet = self.singleTextureSetLayout,
+                // .textureSet = self.singleTextureSetLayout,
             };
+
+            var allocInfo = vk.DescriptorSetAllocateInfo{
+                .descriptor_pool = self.descriptorPool,
+                .descriptor_set_count = 1,
+                .p_set_layouts = p2a(&self.singleTextureSetLayout),
+            };
+            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
+
             try self.materials.put(self.allocator, core.MakeName("mat_monkey").hash, material);
-            defer mesh_pipeline_b.deinit();
+
+            var sampler = vkinit.samplerCreateInfo(.nearest, null);
+            var blockySampler = try self.vkd.createSampler(self.dev, &sampler, null);
+
+            var imageBufferInfo = vk.DescriptorImageInfo{
+                .sampler = blockySampler,
+                .image_view = (self.textures.get(core.MakeName("icon_texture").hash)).?.imageView,
+                .image_layout = .shader_read_only_optimal,
+            };
+
+            var descriptorSet = vkinit.writeDescriptorImage(
+                .combined_image_sampler,
+                self.materials.get(core.MakeName("mat_monkey").hash).?.textureSet,
+                &imageBufferInfo,
+                0,
+            );
+
+            self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
         }
         core.graphics_logs("Finishing up pipeline creation");
     }
@@ -1089,6 +1115,7 @@ pub const NeonVkContext = struct {
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(&render_object.material.?.textureSet), 0, undefined);
         }
         if (self.lastMesh != render_object.mesh) {
             self.lastMesh = render_object.mesh;

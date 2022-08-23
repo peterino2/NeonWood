@@ -122,14 +122,15 @@ pub fn imageViewCreateInfo(
 }
 
 pub fn samplerCreateInfo(
-    filters: vk.Filters,
+    filters: vk.Filter,
     samplerAddressMode: ?vk.SamplerAddressMode,
 ) vk.SamplerCreateInfo {
     var addressMode = if (samplerAddressMode != null) samplerAddressMode.? else .repeat;
 
     var self = vk.SamplerCreateInfo{
-        .magFilter = filters,
-        .minFilter = filters,
+        .flags = .{},
+        .mag_filter = filters,
+        .min_filter = filters,
         .address_mode_u = addressMode,
         .address_mode_v = addressMode,
         .address_mode_w = addressMode,
@@ -161,7 +162,7 @@ pub fn writeDescriptorImage(
         .descriptor_type = descriptorType,
         .p_buffer_info = undefined,
         .dst_array_element = 0,
-        .p_image_info = imageInfo,
+        .p_image_info = p2a(imageInfo),
         .p_texel_buffer_view = undefined,
     };
 

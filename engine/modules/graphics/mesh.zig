@@ -89,7 +89,7 @@ pub const Mesh = struct {
             .position = .{ .x = p.x, .y = p.y, .z = p.z },
             .normal = .{ .x = n.x, .y = n.y, .z = n.z },
             .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
-            .uv = .{ .x = u.x, .y = u.y },
+            .uv = .{ .x = u.x, .y = 1 - u.y },
         };
 
         return v;
