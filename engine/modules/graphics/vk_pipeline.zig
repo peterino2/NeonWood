@@ -34,7 +34,11 @@ pub fn default_pipeline_layout() vk.PipelineLayoutCreateInfo {
     };
 }
 
-fn make_depth_stencil_create_info(depth_test: bool, depth_write: bool, compareOp: vk.CompareOp) vk.PipelineDepthStencilStateCreateInfo {
+fn make_depth_stencil_create_info(
+    depth_test: bool,
+    depth_write: bool,
+    compareOp: vk.CompareOp,
+) vk.PipelineDepthStencilStateCreateInfo {
     var pdsci = vk.PipelineDepthStencilStateCreateInfo{
         .flags = .{},
         .depth_test_enable = if (depth_test) vk.TRUE else vk.FALSE,
@@ -294,7 +298,11 @@ pub const NeonVkPipelineBuilder = struct {
         self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &(self.plci.?), null);
     }
 
-    pub fn add_shader_stage(self: *NeonVkPipelineBuilder, stageFlags: vk.ShaderStageFlags, shaderModule: vk.ShaderModule) !void {
+    pub fn add_shader_stage(
+        self: *NeonVkPipelineBuilder,
+        stageFlags: vk.ShaderStageFlags,
+        shaderModule: vk.ShaderModule,
+    ) !void {
         var info = vk.PipelineShaderStageCreateInfo{
             .flags = .{},
             .stage = stageFlags,

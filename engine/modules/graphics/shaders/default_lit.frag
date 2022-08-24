@@ -22,7 +22,12 @@ void main()
 	//outFragColor = vec4(in_color + 0.25 * sceneData.ambientColor.xyz,1.0f);
 	// outFragColor = vec4(texCoord.x, texCoord.y, 0.5f, 1.0f);
 
-    //vec4 color = texture(tex1, texCoord).xyzw;
-    //outFragColor = vec4(color, 1.0f);
-    outFragColor = texture(tex1, texCoord);
+    vec4 color = texture(tex1, texCoord).xyzw;
+
+    if(color.w < 0.05)
+    {
+        discard;
+    }
+
+    outFragColor = vec4(color.xyz, 1.0f);
 }

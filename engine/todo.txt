@@ -1,0 +1,14 @@
+next things to do:
+
+- project splitup
+- imgui
+    - might even do the entire ui using this
+- audio engine
+
+--- post gamejam ---
+- tracy integration
+- OIT
+- PBR
+- opengl learning backend
+- painterly soft rendering
+- antialiasing 

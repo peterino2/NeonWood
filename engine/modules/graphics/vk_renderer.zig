@@ -352,6 +352,7 @@ pub const NeonVkContext = struct {
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
+    sampler: vk.Sampler,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
@@ -442,18 +443,20 @@ pub const NeonVkContext = struct {
         try self.init_rendertarget();
         try self.init_renderpasses();
         try self.init_framebuffers();
-        try self.init_textures();
-
         try self.init_descriptors();
+
+        // ---- game init code ----
+        try self.init_textures();
         try self.init_pipelines();
         try self.init_meshes();
         try self.init_renderobjects();
+        // ------------------------
 
         return self;
     }
 
     pub fn init_textures(self: *Self) !void {
-        var image = try vk_utils.load_image_from_file(self, "assets/lost_empire-RGBA.png");
+        var image = try vk_utils.load_image_from_file(self, "content/lost_empire-RGBA.png");
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
 
@@ -662,7 +665,7 @@ pub const NeonVkContext = struct {
         try self.monkeyMesh.load_from_obj_file("modules/graphics/lib/objLoader/test/monkey.obj");
         try self.monkeyMesh.upload(self);
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "assets/lost_empire.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/lost_empire.obj");
     }
 
     // we need a content filing system
@@ -861,8 +864,9 @@ pub const NeonVkContext = struct {
 
             try self.materials.put(self.allocator, core.MakeName("mat_monkey").hash, material);
 
-            var sampler = vkinit.samplerCreateInfo(.nearest, null);
+            var sampler = vkinit.samplerCreateInfo(.linear, null);
             var blockySampler = try self.vkd.createSampler(self.dev, &sampler, null);
+            self.sampler = blockySampler;
 
             var imageBufferInfo = vk.DescriptorImageInfo{
                 .sampler = blockySampler,
@@ -959,7 +963,9 @@ pub const NeonVkContext = struct {
 
     pub fn tick(self: *Self, dt: f64) void {
         self.pollInput();
+        // game code
         self.updateGame(dt) catch unreachable;
+        //
         self.draw(dt) catch unreachable;
     }
 
@@ -2113,6 +2119,8 @@ pub const NeonVkContext = struct {
 
         self.vkd.destroyDescriptorSetLayout(self.dev, self.objectDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
+        self.vkd.destroyDescriptorSetLayout(self.dev, self.singleTextureSetLayout, null);
+        self.vkd.destroySampler(self.dev, self.sampler, null);
         self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
 
