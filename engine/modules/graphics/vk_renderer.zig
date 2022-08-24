@@ -1688,7 +1688,7 @@ pub const NeonVkContext = struct {
 
         // Make a request for vulkan layers
         const ExtraLayers = [1]CStr{vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING};
-        try self.check_required_vulkan_layers(ExtraLayers[0..]);
+        // _ = try self.check_required_vulkan_layers(ExtraLayers[0..]);
 
         // setup vulkan application info
         const appInfo = vk.ApplicationInfo{
@@ -1703,7 +1703,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = .{},
             .p_application_info = &appInfo,
-            .enabled_layer_count = 1,
+            .enabled_layer_count = 0,
             .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
             .enabled_extension_count = glfwExtensionsCount,
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
@@ -1921,20 +1921,20 @@ pub const NeonVkContext = struct {
         _ = requiredNames;
         _ = layers;
 
-        // for (requiredNames) |requested| {
-        //     var layerFound: bool = false;
-        //     for (layers) |layer| {
-        //         var layerName = core.buf_to_cstr(layer.layer_name);
-        //         if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
-        //             layerFound = true;
-        //         }
-        //     }
+        for (requiredNames) |requested| {
+            var layerFound: bool = false;
+            for (layers) |layer| {
+                var layerName = core.buf_to_cstr(layer.layer_name);
+                if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
+                    layerFound = true;
+                }
+            }
 
-        //     if (!layerFound) {
-        //         core.graphics_log("Requested layer not supported: {s}", .{requested});
-        //         return error.ValidationLayerRequestedNotAvailable;
-        //     }
-        // }
+            if (!layerFound) {
+                core.graphics_log("Requested layer not supported: {s}", .{requested});
+                return error.ValidationLayerRequestedNotAvailable;
+            }
+        }
 
         core.graphics_logs("All requested layers are available :)");
     }
