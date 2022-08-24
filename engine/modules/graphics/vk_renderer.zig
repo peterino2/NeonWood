@@ -595,12 +595,14 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_renderobjects(self: *Self) !void {
-        try self.add_renderobject(.{
+        var newObj = try self.add_renderobject(.{
             .mesh_name = core.MakeName("mesh_lost_empire"),
             .material_name = core.MakeName("mat_monkey"),
         });
 
-        try self.add_renderobject(
+        newObj.applyTransform(core.zm.translation(0.0, 5.0, 0.0));
+
+        _ = try self.add_renderobject(
             .{
                 .mesh_name = core.MakeName("mesh_monkey"),
                 .material_name = core.MakeName("mat_monkey"),
@@ -610,7 +612,7 @@ pub const NeonVkContext = struct {
 
         var i: u32 = 0;
         while (i < 1000) : (i += 1) {
-            try self.add_renderobject(.{
+            _ = try self.add_renderobject(.{
                 .mesh_name = core.MakeName("mesh_monkey"),
                 .material_name = core.MakeName("mat_monkey"),
                 .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
@@ -626,7 +628,7 @@ pub const NeonVkContext = struct {
         self.camera.updateCamera();
     }
 
-    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !void {
+    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !*RenderObject {
         var renderObject = RenderObject{
             .mesh = null,
             .material = null,
@@ -646,6 +648,7 @@ pub const NeonVkContext = struct {
         renderObject.mesh = findMesh.?.value_ptr;
 
         try self.renderObjects.append(self.allocator, renderObject);
+        return &self.renderObjects.items[self.renderObjects.items.len - 1];
     }
 
     pub fn init_meshes(self: *Self) !void {
@@ -662,10 +665,10 @@ pub const NeonVkContext = struct {
         try self.testMesh.upload(self);
 
         self.monkeyMesh = mesh.Mesh.init(self, self.allocator);
-        try self.monkeyMesh.load_from_obj_file("modules/graphics/lib/objLoader/test/monkey.obj");
+        try self.monkeyMesh.load_from_obj_file("content/monkey.obj");
         try self.monkeyMesh.upload(self);
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "modules/graphics/lib/objLoader/test/monkey.obj");
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/lost_empire.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "content/monkey.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/SCUFFED_Room.obj");
     }
 
     // we need a content filing system
@@ -702,7 +705,7 @@ pub const NeonVkContext = struct {
         defer allocatedBuffer.deinit(self.vmaAllocator);
 
         {
-            const data = try self.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
+            var data = try self.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
             @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), bufferSize);
             self.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
         }
@@ -775,7 +778,7 @@ pub const NeonVkContext = struct {
             .allocation = results.allocation,
         };
 
-        const data = try self.vmaAllocator.mapMemory(buffer.allocation, u8);
+        var data = try self.vmaAllocator.mapMemory(buffer.allocation, u8);
         defer self.vmaAllocator.unmapMemory(buffer.allocation);
 
         @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), size);
@@ -998,7 +1001,7 @@ pub const NeonVkContext = struct {
     // convert game state into some intermediate graphics data.
     pub fn pre_frame_update(self: *Self) !void {
         // ---- bind global descriptors ----
-        const data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
+        var data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
 
         // resolve the current state of the camera
         self.camera.resolve(self.cameraHorizontalRotationMat);
@@ -1146,7 +1149,7 @@ pub const NeonVkContext = struct {
 
     fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
-        const data = try self.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
+        var data = try self.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
         const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
 
@@ -1157,7 +1160,7 @@ pub const NeonVkContext = struct {
 
     fn upload_object_data(self: *Self) !void {
         const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
-        const data = try self.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var data = try self.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
         var ssbo: []NeonVkObjectDataGpu = undefined;
         ssbo.ptr = @ptrCast([*]NeonVkObjectDataGpu, data);
         ssbo.len = MAX_OBJECTS;
@@ -1915,21 +1918,23 @@ pub const NeonVkContext = struct {
                 core.buf_to_cstr(layer.description),
             });
         }
+        _ = requiredNames;
+        _ = layers;
 
-        for (requiredNames) |requested| {
-            var layerFound: bool = false;
-            for (layers) |layer| {
-                var layerName = core.buf_to_cstr(layer.layer_name);
-                if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
-                    layerFound = true;
-                }
-            }
+        // for (requiredNames) |requested| {
+        //     var layerFound: bool = false;
+        //     for (layers) |layer| {
+        //         var layerName = core.buf_to_cstr(layer.layer_name);
+        //         if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
+        //             layerFound = true;
+        //         }
+        //     }
 
-            if (!layerFound) {
-                core.graphics_log("Requested layer not supported: {s}", .{requested});
-                return error.ValidationLayerRequestedNotAvailable;
-            }
-        }
+        //     if (!layerFound) {
+        //         core.graphics_log("Requested layer not supported: {s}", .{requested});
+        //         return error.ValidationLayerRequestedNotAvailable;
+        //     }
+        // }
 
         core.graphics_logs("All requested layers are available :)");
     }
@@ -1987,7 +1992,7 @@ pub const NeonVkContext = struct {
         var count: u32 = 0;
         _ = try self.vkb.enumerateInstanceLayerProperties(&count, null);
 
-        const data = try self.allocator.alloc(vk.LayerProperties, count);
+        var data = try self.allocator.alloc(vk.LayerProperties, count);
         core.graphics_log("layers found : {d}", .{count});
 
         _ = try self.vkb.enumerateInstanceLayerProperties(&count, data.ptr);
@@ -2018,7 +2023,7 @@ pub const NeonVkContext = struct {
         var h: c_int = -1;
         var w: c_int = -1;
         var comp: c_int = -1;
-        var pixels: ?*u8 = core.stbi_load("assets/icon.png", &w, &h, &comp, core.STBI_rgb_alpha);
+        var pixels: ?*u8 = core.stbi_load("content/icon.png", &w, &h, &comp, core.STBI_rgb_alpha);
         var iconImage = c.GLFWimage{
             .width = w,
             .height = h,
