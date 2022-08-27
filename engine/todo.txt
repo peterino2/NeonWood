@@ -4,6 +4,8 @@ next things to do:
 - imgui
     - might even do the entire ui using this
 - audio engine
+- 2d walking
+- flip books
 
 --- post gamejam ---
 - tracy integration
