@@ -316,8 +316,10 @@ pub const NeonVkContext = struct {
     firstFrame: bool,
     shouldResize: bool,
 
+    renderObjectsAreDirty: bool,
     cameraMovement: Vectorf,
     renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
+    renderObjectsByMaterial: ArrayListUnmanaged(u32),
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
@@ -381,6 +383,7 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.rotating = true;
         self.zoomies = false;
+        self.renderObjectsByMaterial = .{};
     }
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
@@ -646,6 +649,7 @@ pub const NeonVkContext = struct {
         renderObject.mesh = findMesh.?.value_ptr;
 
         try self.renderObjects.append(self.allocator, renderObject);
+        self.renderObjectsAreDirty = true;
     }
 
     pub fn init_meshes(self: *Self) !void {
@@ -963,9 +967,7 @@ pub const NeonVkContext = struct {
 
     pub fn tick(self: *Self, dt: f64) void {
         self.pollInput();
-        // game code
         self.updateGame(dt) catch unreachable;
-        //
         self.draw(dt) catch unreachable;
     }
 
@@ -997,6 +999,10 @@ pub const NeonVkContext = struct {
 
     // convert game state into some intermediate graphics data.
     pub fn pre_frame_update(self: *Self) !void {
+        if (self.renderObjectsAreDirty) {
+            try self.sortRenderObjects();
+        }
+
         // ---- bind global descriptors ----
         const data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
 
@@ -1775,6 +1781,31 @@ pub const NeonVkContext = struct {
     fn create_physical_devices(self: *Self) !void {
         try self.enumerate_physical_devices();
         try self.find_physical_device();
+    }
+
+    // sorts renderObjects by material
+    fn sortRenderObjects(self: *Self) !void {
+        self.renderObjectsByMaterial.clearRetainingCapacity();
+        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjects.items.len);
+        var i: u32 = 0;
+        while (i < self.renderObjects.items.len) : (i += 1) {
+            self.renderObjectsByMaterial.items[i] = i;
+        }
+
+        const X = struct {
+            pub fn lessThan(ctx: *NeonVkContext, lhs: u32, rhs: u32) bool {
+                return @ptrToInt(ctx.renderObjects.items[lhs].material) < @ptrToInt(ctx.renderObjects.items[rhs].material);
+            }
+        };
+
+        std.sort.sort(
+            u32,
+            self.renderObjectsByMaterial.items,
+            self,
+            X.lessThan,
+        );
+
+        _ = self;
     }
 
     fn find_physical_device(self: *Self) !void {
