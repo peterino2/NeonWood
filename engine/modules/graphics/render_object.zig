@@ -5,7 +5,10 @@ const c = @import("c.zig");
 const core = @import("../core/core.zig");
 const VkConstants = @import("vk_constants.zig");
 const meshes = @import("mesh.zig");
+const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
+const materials = @import("materials.zig");
 
+const Material = materials.Material;
 const EulerAngles = core.EulerAngles;
 const Mat = core.Mat;
 const Vectorf = core.Vectorf;
@@ -15,15 +18,10 @@ const mul = zm.mul;
 
 const Mesh = meshes.Mesh;
 
-pub const Material = struct {
-    textureSet: vk.DescriptorSet = .null_handle,
-    pipeline: vk.Pipeline,
-    layout: vk.PipelineLayout,
-};
-
 pub const RenderObject = struct {
     mesh: ?*Mesh,
     material: ?*Material,
+    texture: ?*vk.DescriptorSet = null,
     transform: core.Mat,
 
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {

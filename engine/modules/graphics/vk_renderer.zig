@@ -12,6 +12,7 @@ const render_objects = @import("render_object.zig");
 const vkinit = @import("vk_init.zig");
 const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
+const materials = @import("materials.zig");
 
 const MAX_OBJECTS = 100000;
 
@@ -33,7 +34,7 @@ const BaseDispatch = vk_constants.BaseDispatch;
 const InstanceDispatch = vk_constants.InstanceDispatch;
 
 const RenderObject = render_objects.RenderObject;
-const Material = render_objects.Material;
+const Material = materials.Material;
 const Mesh = mesh.Mesh;
 const Texture = texture.Texture;
 
@@ -320,10 +321,14 @@ pub const NeonVkContext = struct {
     cameraMovement: Vectorf,
     renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
     renderObjectsByMaterial: ArrayListUnmanaged(u32),
+    textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
     camera: render_objects.Camera,
+
+    blockySampler: vk.Sampler,
+    linearSampler: vk.Sampler,
 
     descriptorPool: vk.DescriptorPool,
     globalDescriptorLayout: vk.DescriptorSetLayout,
@@ -345,6 +350,7 @@ pub const NeonVkContext = struct {
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
     lastMesh: ?*Mesh,
+    lastTextureSet: ?*vk.DescriptorSet,
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
@@ -354,7 +360,6 @@ pub const NeonVkContext = struct {
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
-    sampler: vk.Sampler,
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
@@ -366,6 +371,7 @@ pub const NeonVkContext = struct {
         self.exitSignal = false;
         self.mode = 0;
         self.firstFrame = true;
+        self.textureSets = .{};
         self.textures = .{};
         self.renderObjects = .{};
         self.meshes = .{};
@@ -447,10 +453,12 @@ pub const NeonVkContext = struct {
         try self.init_renderpasses();
         try self.init_framebuffers();
         try self.init_descriptors();
+        try self.init_texture_descriptor();
 
         // ---- game init code ----
-        try self.init_textures();
+        try self.load_core_textures();
         try self.init_pipelines();
+        try self.init_textures();
         try self.init_meshes();
         try self.init_renderobjects();
         // ------------------------
@@ -458,15 +466,72 @@ pub const NeonVkContext = struct {
         return self;
     }
 
-    pub fn init_textures(self: *Self) !void {
-        var image = try vk_utils.load_image_from_file(self, "content/lost_empire-RGBA.png");
+    pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
+        var image = try vk_utils.load_image_from_file(self, texturePath);
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
 
-        try self.textures.put(self.allocator, core.MakeName("icon_texture").hash, Texture{
+        try self.textures.put(self.allocator, textureName.hash, Texture{
             .image = image,
             .imageView = imageView,
         });
+
+        return self.textures.getEntry(textureName.hash).?.value_ptr;
+    }
+
+    pub fn make_mesh_image_from_texture(self: *Self, name: core.Name) !void {
+        if (self.textureSets.contains(name.hash)) {
+            return;
+        }
+
+        var textureSet = try self.allocator.create(vk.DescriptorSet);
+
+        var allocInfo = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = self.descriptorPool,
+            .descriptor_set_count = 1,
+            .p_set_layouts = p2a(&self.singleTextureSetLayout),
+        };
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, textureSet));
+
+        var imageBufferInfo = vk.DescriptorImageInfo{
+            .sampler = self.blockySampler,
+            .image_view = (self.textures.get(name.hash)).?.imageView,
+            .image_layout = .shader_read_only_optimal,
+        };
+
+        var writeDescriptorSet = vkinit.writeDescriptorImage(
+            .combined_image_sampler,
+            textureSet.*,
+            &imageBufferInfo,
+            0,
+        );
+
+        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&writeDescriptorSet), 0, undefined);
+
+        try self.textureSets.put(self.allocator, name.hash, textureSet);
+    }
+
+    pub fn load_core_textures(self: *Self) !void {
+        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/missing_texture.png");
+    }
+
+    pub fn init_textures(self: *Self) !void {
+        // _ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
+        _ = try self.create_standard_texture_from_file(core.MakeName("test_sprite"), "content/singleSpriteTest.png");
+
+        try self.make_mesh_image_from_texture(core.MakeName("test_sprite"));
+        try self.make_mesh_image_from_texture(core.MakeName("missing_texture"));
+    }
+
+    pub fn init_texture_descriptor(self: *Self) !void {
+        var textureBinding = vkinit.descriptorSetLayoutBinding(.combined_image_sampler, .{ .fragment_bit = true }, 0);
+
+        var singleTextureInfo = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = 1,
+            .flags = .{},
+            .p_bindings = p2a(&textureBinding),
+        };
+        self.singleTextureSetLayout = try self.vkd.createDescriptorSetLayout(self.dev, &singleTextureInfo, null);
     }
 
     pub fn init_descriptors(self: *Self) !void {
@@ -508,17 +573,8 @@ pub const NeonVkContext = struct {
             .p_bindings = @ptrCast([*]const @TypeOf(objectBinding), &objectBindings),
         };
 
-        var textureBinding = vkinit.descriptorSetLayoutBinding(.combined_image_sampler, .{ .fragment_bit = true }, 0);
-
-        var singleTextureInfo = vk.DescriptorSetLayoutCreateInfo{
-            .binding_count = 1,
-            .flags = .{},
-            .p_bindings = p2a(&textureBinding),
-        };
-
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
-        self.singleTextureSetLayout = try self.vkd.createDescriptorSetLayout(self.dev, &singleTextureInfo, null);
 
         const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
@@ -600,7 +656,7 @@ pub const NeonVkContext = struct {
     pub fn init_renderobjects(self: *Self) !void {
         var newObj = try self.add_renderobject(.{
             .mesh_name = core.MakeName("mesh_lost_empire"),
-            .material_name = core.MakeName("mat_monkey"),
+            .material_name = core.MakeName("mat_mesh"),
         });
 
         newObj.applyTransform(core.zm.translation(0.0, 5.0, 0.0));
@@ -608,22 +664,23 @@ pub const NeonVkContext = struct {
         _ = try self.add_renderobject(
             .{
                 .mesh_name = core.MakeName("mesh_monkey"),
-                .material_name = core.MakeName("mat_monkey"),
-                .init_transform = mul(core.zm.scaling(0.5, 0.5, 0.5), core.zm.translation(-2.0, -2.0, -1.0)),
+                .material_name = core.MakeName("mat_mesh"),
+                .init_transform = mul(core.zm.scaling(1.0, 1.0, 1.0), core.zm.translation(-2.0, -2.0, -1.0)),
             },
         );
 
         var i: u32 = 0;
         while (i < 1000) : (i += 1) {
-            _ = try self.add_renderobject(.{
-                .mesh_name = core.MakeName("mesh_monkey"),
-                .material_name = core.MakeName("mat_monkey"),
+            var renderObject = try self.add_renderobject(.{
+                .mesh_name = core.MakeName("quad_primitive"),
+                .material_name = core.MakeName("mat_mesh"),
                 .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
                     @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
                     @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
                     @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
                 )),
             });
+            renderObject.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
         }
 
         self.camera = render_objects.Camera.init();
@@ -658,6 +715,7 @@ pub const NeonVkContext = struct {
     pub fn init_meshes(self: *Self) !void {
         self.testMesh = mesh.Mesh.init(self, self.allocator);
         try self.testMesh.vertices.resize(3);
+
         self.testMesh.vertices.items[0].position = .{ .x = 1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
         self.testMesh.vertices.items[2].position = .{ .x = 0.0, .y = -1.0, .z = 0.0 };
@@ -673,6 +731,28 @@ pub const NeonVkContext = struct {
         try self.monkeyMesh.upload(self);
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "content/monkey.obj");
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/SCUFFED_Room.obj");
+
+        var quadMesh = mesh.Mesh.init(self, self.allocator);
+
+        try quadMesh.vertices.resize(6);
+        quadMesh.vertices.items[0].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.vertices.items[2].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+
+        quadMesh.vertices.items[3].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.vertices.items[5].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+
+        quadMesh.vertices.items[0].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
+        quadMesh.vertices.items[2].uv = .{ .x = 1.0, .y = 0.0 };
+
+        quadMesh.vertices.items[3].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
+        quadMesh.vertices.items[5].uv = .{ .x = 0.0, .y = 1.0 };
+
+        try quadMesh.upload(self);
+        try self.meshes.put(self.allocator, core.MakeName("quad_primitive").hash, quadMesh);
     }
 
     // we need a content filing system
@@ -856,10 +936,13 @@ pub const NeonVkContext = struct {
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
             self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
             self.meshPipelineLayout = mesh_pipeline_b.pipelineLayout;
-            var material = render_objects.Material{
+            var samplerCreateInfo = vkinit.samplerCreateInfo(.nearest, null);
+            var blockySampler = try self.vkd.createSampler(self.dev, &samplerCreateInfo, null);
+            self.blockySampler = blockySampler;
+
+            var material = Material{
                 .pipeline = self.mesh_pipeline,
                 .layout = self.meshPipelineLayout,
-                // .textureSet = self.singleTextureSetLayout,
             };
 
             var allocInfo = vk.DescriptorSetAllocateInfo{
@@ -869,27 +952,24 @@ pub const NeonVkContext = struct {
             };
             try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
 
-            try self.materials.put(self.allocator, core.MakeName("mat_monkey").hash, material);
-
-            var sampler = vkinit.samplerCreateInfo(.linear, null);
-            var blockySampler = try self.vkd.createSampler(self.dev, &sampler, null);
-            self.sampler = blockySampler;
-
             var imageBufferInfo = vk.DescriptorImageInfo{
                 .sampler = blockySampler,
-                .image_view = (self.textures.get(core.MakeName("icon_texture").hash)).?.imageView,
+                .image_view = (self.textures.get(core.MakeName("missing_texture").hash)).?.imageView,
                 .image_layout = .shader_read_only_optimal,
             };
+            try self.materials.put(self.allocator, core.MakeName("mat_mesh").hash, material);
 
             var descriptorSet = vkinit.writeDescriptorImage(
                 .combined_image_sampler,
-                self.materials.get(core.MakeName("mat_monkey").hash).?.textureSet,
+                self.materials.get(core.MakeName("mat_mesh").hash).?.textureSet,
                 &imageBufferInfo,
                 0,
             );
 
             self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
         }
+
+        {}
         core.graphics_logs("Finishing up pipeline creation");
     }
 
@@ -1004,6 +1084,7 @@ pub const NeonVkContext = struct {
     pub fn pre_frame_update(self: *Self) !void {
         if (self.renderObjectsAreDirty) {
             try self.sortRenderObjects();
+            self.renderObjectsAreDirty = false;
         }
 
         // ---- bind global descriptors ----
@@ -1130,8 +1211,14 @@ pub const NeonVkContext = struct {
             self.lastMaterial = render_object.material;
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+        }
+
+        if (render_object.texture) |textureSet| {
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(textureSet), 0, undefined);
+        } else {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(&render_object.material.?.textureSet), 0, undefined);
         }
+
         if (self.lastMesh != render_object.mesh) {
             self.lastMesh = render_object.mesh;
             self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
@@ -2146,6 +2233,13 @@ pub const NeonVkContext = struct {
         return rv;
     }
 
+    pub fn destroy_materials(self: *Self) void {
+        var iter = self.materials.iterator();
+        while (iter.next()) |i| {
+            i.value_ptr.deinit(self);
+        }
+    }
+
     pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
@@ -2156,7 +2250,7 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDescriptorSetLayout(self.dev, self.objectDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.singleTextureSetLayout, null);
-        self.vkd.destroySampler(self.dev, self.sampler, null);
+        self.vkd.destroySampler(self.dev, self.blockySampler, null);
         self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
 
@@ -2179,6 +2273,7 @@ pub const NeonVkContext = struct {
         self.destroy_framebuffers() catch unreachable;
         self.destroy_upload_context(&self.uploadContext) catch unreachable;
 
+        self.destroy_materials();
         self.destroy_descriptors();
 
         self.vmaAllocator.destroy();
