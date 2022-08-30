@@ -1,21 +1,21 @@
-pub usingnamespace @import("misc.zig");
-pub usingnamespace @import("logging.zig");
-pub usingnamespace @import("algorithm.zig");
-pub usingnamespace @import("engineTime.zig");
-pub usingnamespace @import("rtti.zig");
-pub const engine = @import("engine.zig");
-pub const zm = @import("lib/zmath/zmath.zig");
-pub usingnamespace @import("math.zig");
+pub usingnamespace @import("core/misc.zig");
+pub usingnamespace @import("core/logging.zig");
+pub usingnamespace @import("core/algorithm.zig");
+pub usingnamespace @import("core/engineTime.zig");
+pub usingnamespace @import("core/rtti.zig");
+pub const engine = @import("core/engine.zig");
+pub const zm = @import("core/lib/zmath/zmath.zig");
+pub usingnamespace @import("core/math.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });
-pub const names = @import("names.zig");
+pub const names = @import("core/names.zig");
 pub const Name = names.Name;
 pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
 const std = @import("std");
-const tests = @import("tests.zig");
-const logging = @import("logging.zig");
+const tests = @import("core/tests.zig");
+const logging = @import("core/logging.zig");
 const vk = @import("vulkan");
 const c = @This();
 

@@ -1,8 +1,9 @@
 // this will be replaced by build system symbols later.
-const core = @import("../core/core.zig");
+//const core = @import("../core/core.zig");
+const core = @import("core.zig");
 const std = @import("std");
-const vk_renderer = @import("vk_renderer.zig");
-const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
+const vk_renderer = @import("graphics/vk_renderer.zig");
+const NeonVkContext = @import("graphics/vk_renderer.zig").NeonVkContext;
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;

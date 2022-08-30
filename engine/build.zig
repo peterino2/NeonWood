@@ -145,8 +145,17 @@ pub const ResourceGenStep = struct {
     }
 };
 
-pub fn createGameExecutable(b: *std.build.Builder) !void {
+pub fn createEnginePackage() void {}
+
+pub fn createGameExecutable(
+    target: std.zig.CrossTarget,
+    b: *std.build.Builder,
+    name: []const u8,
+    mainFile: []const u8,
+) !*std.build.LibExeObjStep {
     var allocator = b.allocator;
+
+    const mode = b.standardReleaseOptions();
 
     var maxPathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var basePath = try std.fs.realpath(b.build_root, &maxPathBuffer);
@@ -165,60 +174,35 @@ pub fn createGameExecutable(b: *std.build.Builder) !void {
         std.debug.print("cflag: {s}\n", .{s});
     }
 
-    // clean up
-    {
-        var i: usize = 0;
-        while (i < cflags.items.len) : (i += 1) {
-            allocator.free(cflags.items[i]);
-        }
-    }
-}
+    var thisBuildFile = @src().file;
+    var engineRoot = std.fs.path.dirname(thisBuildFile).?;
 
-pub fn build(b: *std.build.Builder) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
+    std.debug.print("root = `{s}`\n", .{engineRoot});
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
-    const cflags: []const []const u8 = &.{"-Imodules/core/lib/stb/"};
+    var mainFilePath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ engineRoot, mainFile });
+    defer allocator.free(mainFilePath);
 
-    const exe = b.addExecutable("NeonWood", "modules/main.zig");
+    const exe = b.addExecutable(name, mainFilePath);
+
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
-    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags);
+    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
     exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
+    exe.addPackagePath("core", "modules/core/core.zig");
+    exe.addPackagePath("graphics", "modules/graphics/graphics.zig");
+
+    const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
     if (target.getOs().tag == .windows) {
         exe.addObjectFile("modules/graphics/lib/zig-vma/test/vulkan-1.lib");
     } else {
         exe.linkSystemLibrary("vulkan");
     }
-
-    const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
-    //const vma = vma_build.link(exe.builder, "zig-cache/vk.zig");
-
-    vma_build.link(exe, "zig-cache/vk.zig", mode, target);
-
-    exe.addPackage(gen.package);
-    //exe.addPackage(vma);
-
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
 
     const res = ResourceGenStep.init(b, "resources.zig");
     res.addShader("triangle_vert", shaders_folder ++ "triangle.vert");
@@ -232,12 +216,52 @@ pub fn build(b: *std.build.Builder) void {
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
     exe.addPackage(res.package);
 
+    _ = exe;
+    _ = name;
+
+    vma_build.link(exe, "zig-cache/vk.zig", mode, target);
+    exe.addPackage(gen.package);
+
+    // clean up
+    {
+        var i: usize = 0;
+        while (i < cflags.items.len) : (i += 1) {
+            allocator.free(cflags.items[i]);
+        }
+    }
+
+    return exe;
+}
+
+pub fn build(b: *std.build.Builder) void {
+    // Standard target options allows the person running `zig build` to choose
+    // what target to build for. Here we do not override the defaults, which
+    // means any target is allowed, and the default is native. Other options
+    // for restricting supported target set are available.
+    const target = b.standardTargetOptions(.{});
+
+    // Standard release options allow the person running `zig build` to select
+    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
+    // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
+    const mode = b.standardReleaseOptions();
+    var objViewer = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
+        std.debug.print("wtf: {any}", .{e});
+        unreachable;
+    };
+
+    const objViewer_run_cmd = objViewer.run();
+    objViewer_run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        objViewer_run_cmd.addArgs(args);
+    }
+
+    const run_objViewer = b.step("run-objViewer", "Run the app");
+    run_objViewer.dependOn(&objViewer_run_cmd.step);
+
     const exe_tests = b.addTest("modules/main.zig");
     exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&exe_tests.step);
-
-    std.debug.print("building\n", .{});
 }

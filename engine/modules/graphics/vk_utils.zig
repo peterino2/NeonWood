@@ -1,5 +1,5 @@
 const std = @import("std");
-const core = @import("../core/core.zig");
+const core = @import("../core.zig");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");

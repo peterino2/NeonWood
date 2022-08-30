@@ -1,5 +1,5 @@
 const vk = @import("vulkan");
-const core = @import("../core/core.zig");
+const core = @import("../core.zig");
 
 const p2a = core.p_to_a;
 

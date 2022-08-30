@@ -18,7 +18,7 @@
 //
 //      const nwbuild = @import("../engine/build.zig");
 //
-//      // creates a nwgame object which contains a ..addExecutable in it's .exe field
+//      // creates a nwgame object which contains a .addExecutable in it's .exe field
 //      // pass the name of modules/<your game's main module here>
 //      const game = nwbuild.newGame(b, "sample_game"):
 //      // all module folders must contain a .zig file that matches the module folder's name.
