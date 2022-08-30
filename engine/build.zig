@@ -145,6 +145,35 @@ pub const ResourceGenStep = struct {
     }
 };
 
+pub fn createGameExecutable(b: *std.build.Builder) !void {
+    var allocator = b.allocator;
+
+    var maxPathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
+    var basePath = try std.fs.realpath(b.build_root, &maxPathBuffer);
+    _ = basePath;
+
+    var enginePathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
+    var enginePath = try std.fs.realpath(b.build_root, &enginePathBuffer);
+
+    std.debug.print("build_root: {s} \n", .{basePath});
+    var cflags = std.ArrayList([]const u8).init(allocator);
+    defer cflags.deinit();
+
+    try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
+
+    for (cflags.items) |s| {
+        std.debug.print("cflag: {s}\n", .{s});
+    }
+
+    // clean up
+    {
+        var i: usize = 0;
+        while (i < cflags.items.len) : (i += 1) {
+            allocator.free(cflags.items[i]);
+        }
+    }
+}
+
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
@@ -155,7 +184,6 @@ pub fn build(b: *std.build.Builder) void {
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
-
     const cflags: []const []const u8 = &.{"-Imodules/core/lib/stb/"};
 
     const exe = b.addExecutable("NeonWood", "modules/main.zig");

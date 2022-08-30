@@ -33,11 +33,15 @@
 //      game.addModule();
 
 const std = @import("std");
-const nwbuild = @import("../../engine/build.zig");
+const neonwood = @import("engine/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
+
+    const exe = neonwood.createGameExecutable(b) catch unreachable;
+    _ = exe;
+
     _ = target;
     _ = mode;
 }
