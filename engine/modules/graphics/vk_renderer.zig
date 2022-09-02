@@ -304,8 +304,6 @@ pub const NeonVkContext = struct {
     static_triangle_pipeline: vk.Pipeline,
     static_colored_triangle_pipeline: vk.Pipeline,
 
-    mesh_pipeline: vk.Pipeline,
-
     vmaFunctions: vma.VulkanFunctions,
     vmaAllocator: vma.Allocator,
 
@@ -313,7 +311,6 @@ pub const NeonVkContext = struct {
     monkeyMesh: mesh.Mesh,
 
     exitSignal: bool,
-    meshPipelineLayout: vk.PipelineLayout,
     firstFrame: bool,
     shouldResize: bool,
 
@@ -454,10 +451,10 @@ pub const NeonVkContext = struct {
         try self.init_framebuffers();
         try self.init_descriptors();
         try self.init_texture_descriptor();
-
-        // ---- game init code ----
         try self.load_core_textures();
         try self.init_pipelines();
+
+        // ---- game init code ----
         try self.init_textures();
         try self.init_meshes();
         try self.init_renderobjects();
@@ -516,11 +513,12 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_textures(self: *Self) !void {
-        // _ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
+        _ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
         _ = try self.create_standard_texture_from_file(core.MakeName("test_sprite"), "content/singleSpriteTest.png");
 
         try self.make_mesh_image_from_texture(core.MakeName("test_sprite"));
         try self.make_mesh_image_from_texture(core.MakeName("missing_texture"));
+        try self.make_mesh_image_from_texture(core.MakeName("lost_empire"));
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
@@ -536,10 +534,10 @@ pub const NeonVkContext = struct {
 
     pub fn init_descriptors(self: *Self) !void {
         const sizes = [_]vk.DescriptorPoolSize{
-            .{ .@"type" = .uniform_buffer, .descriptor_count = 10 },
-            .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 10 },
-            .{ .@"type" = .storage_buffer, .descriptor_count = 10 },
-            .{ .@"type" = .combined_image_sampler, .descriptor_count = 10 },
+            .{ .@"type" = .uniform_buffer, .descriptor_count = 100 },
+            .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 100 },
+            .{ .@"type" = .storage_buffer, .descriptor_count = 100 },
+            .{ .@"type" = .combined_image_sampler, .descriptor_count = 100 },
         };
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
@@ -658,6 +656,7 @@ pub const NeonVkContext = struct {
             .mesh_name = core.MakeName("mesh_lost_empire"),
             .material_name = core.MakeName("mat_mesh"),
         });
+        newObj.texture = self.textureSets.getEntry(core.MakeName("lost_empire").hash).?.value_ptr.*;
 
         newObj.applyTransform(core.zm.translation(0.0, 5.0, 0.0));
 
@@ -730,7 +729,7 @@ pub const NeonVkContext = struct {
         try self.monkeyMesh.load_from_obj_file("content/monkey.obj");
         try self.monkeyMesh.upload(self);
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "content/monkey.obj");
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/SCUFFED_Room.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/lost_empire.obj");
 
         var quadMesh = mesh.Mesh.init(self, self.allocator);
 
@@ -934,16 +933,18 @@ pub const NeonVkContext = struct {
             try mesh_pipeline_b.add_layout(self.singleTextureSetLayout);
             try mesh_pipeline_b.add_depth_stencil();
             try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
-            self.mesh_pipeline = (try mesh_pipeline_b.build(self.renderPass)).?;
-            self.meshPipelineLayout = mesh_pipeline_b.pipelineLayout;
+
+            var material = Material{
+                .pipeline = (try mesh_pipeline_b.build(self.renderPass)).?,
+                .layout = mesh_pipeline_b.pipelineLayout,
+            };
+
             var samplerCreateInfo = vkinit.samplerCreateInfo(.nearest, null);
             var blockySampler = try self.vkd.createSampler(self.dev, &samplerCreateInfo, null);
             self.blockySampler = blockySampler;
 
-            var material = Material{
-                .pipeline = self.mesh_pipeline,
-                .layout = self.meshPipelineLayout,
-            };
+            var linearCreateSample = vkinit.samplerCreateInfo(.linear, null);
+            self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
             var allocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
@@ -969,8 +970,29 @@ pub const NeonVkContext = struct {
             self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
         }
 
-        {}
+        {
+            //try self.create_sprite_material();
+        }
         core.graphics_logs("Finishing up pipeline creation");
+    }
+
+    pub fn create_sprite_material(self: *Self) !void {
+        core.graphics_log("creating sprite material");
+        var spritePipelineBuilder = try NeonVkPipelineBuilder.init(
+            self.dev,
+            self.vkd,
+            self.allocator,
+            resources.triangle_mesh_vert.len,
+            @ptrCast([*]const u32, resources.triangle_mesh_vert),
+            resources.default_lit_frag.len,
+            @ptrCast([*]const u32, resources.default_lit_frag),
+        );
+
+        defer spritePipelineBuilder.deinit();
+
+        // leverages the same mesh desription
+        try spritePipelineBuilder.add_mesh_description();
+        try spritePipelineBuilder.init_triangle_pipeline(self.actual_extent);
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -1002,6 +1024,10 @@ pub const NeonVkContext = struct {
 
     // todo:: gameplay code
     pub fn pollInput(self: *Self) void {
+        if (try self.shouldExit()) {
+            core.gEngine.exitSignal = true;
+        }
+
         c.glfwGetCursorPos(self.window, &self.mousePosition.x, &self.mousePosition.y);
 
         if (self.camera.isDirty()) {
@@ -1050,6 +1076,7 @@ pub const NeonVkContext = struct {
 
     pub fn tick(self: *Self, dt: f64) void {
         self.pollInput();
+
         self.updateGame(dt) catch unreachable;
         self.draw(dt) catch unreachable;
     }
@@ -2181,8 +2208,6 @@ pub const NeonVkContext = struct {
     pub fn destroy_pipelines(self: *Self) !void {
         self.vkd.destroyPipeline(self.dev, self.static_triangle_pipeline, null);
         self.vkd.destroyPipeline(self.dev, self.static_colored_triangle_pipeline, null);
-        self.vkd.destroyPipeline(self.dev, self.mesh_pipeline, null);
-        self.vkd.destroyPipelineLayout(self.dev, self.meshPipelineLayout, null);
     }
 
     pub fn destroy_renderpass(self: *Self) !void {

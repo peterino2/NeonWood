@@ -24,6 +24,8 @@ pub const Material = struct {
     pub fn deinit(self: *Material, ctx: *NeonVkContext) void {
         _ = self;
         _ = ctx;
+        ctx.vkd.destroyPipeline(ctx.dev, self.pipeline, null);
+        ctx.vkd.destroyPipelineLayout(ctx.dev, self.layout, null);
         // ctx.vkd.destroySampler(ctx.dev, self.sampler, null);
     }
 };

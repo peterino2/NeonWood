@@ -216,11 +216,20 @@ pub fn createGameExecutable(
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
     exe.addPackage(res.package);
 
-    _ = exe;
-    _ = name;
+    var runName = try std.fmt.allocPrint(allocator, "run-{s}", .{name});
+    defer allocator.free(mainFilePath);
 
     vma_build.link(exe, "zig-cache/vk.zig", mode, target);
     exe.addPackage(gen.package);
+
+    const objViewer_run_cmd = exe.run();
+    objViewer_run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        objViewer_run_cmd.addArgs(args);
+    }
+
+    const run_objViewer = b.step(runName, "Run the app");
+    run_objViewer.dependOn(&objViewer_run_cmd.step);
 
     // clean up
     {
@@ -243,25 +252,13 @@ pub fn build(b: *std.build.Builder) void {
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
-    const mode = b.standardReleaseOptions();
-    var objViewer = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
+    _ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
         std.debug.print("wtf: {any}", .{e});
         unreachable;
     };
 
-    const objViewer_run_cmd = objViewer.run();
-    objViewer_run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        objViewer_run_cmd.addArgs(args);
-    }
-
-    const run_objViewer = b.step("run-objViewer", "Run the app");
-    run_objViewer.dependOn(&objViewer_run_cmd.step);
-
-    const exe_tests = b.addTest("modules/main.zig");
-    exe_tests.setTarget(target);
-    exe_tests.setBuildMode(mode);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&exe_tests.step);
+    _ = createGameExecutable(target, b, "objViewer2", "objViewer2.zig") catch |e| {
+        std.debug.print("wtf: {any}", .{e});
+        unreachable;
+    };
 }

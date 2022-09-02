@@ -5,6 +5,7 @@ const c = @import("c.zig");
 const core = @import("../core.zig");
 const VkConstants = @import("vk_constants.zig");
 const meshes = @import("mesh.zig");
+const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 const assert = core.assert;
 
 pub const NeonVkMeshPushConstant = struct {
@@ -101,6 +102,18 @@ pub const NeonVkPipelineBuilder = struct {
             .blend_constants = [4]f32{ 1.0, 1.0, 1.0, 1.0 },
         };
 
+        var dynamicStates = [_]vk.DynamicState{
+            .viewport,
+        };
+
+        var dynamicStateCreateInfo = vk.PipelineDynamicStateCreateInfo{
+            .flags = .{},
+            .dynamic_state_count = 1,
+            .p_dynamic_states = &dynamicStates,
+        };
+        _ = dynamicStateCreateInfo;
+        _ = dynamicStates;
+
         // its here....
         var gpci = vk.GraphicsPipelineCreateInfo{
             .flags = .{},
@@ -114,6 +127,7 @@ pub const NeonVkPipelineBuilder = struct {
             .p_multisample_state = &self.pmsci, //: ?*const PipelineMultisampleStateCreateInfo,
             .p_depth_stencil_state = null, //: ?*const PipelineDepthStencilStateCreateInfo,
             .p_color_blend_state = &pcbsci, //: ?*const PipelineColorBlendStateCreateInfo,
+            //.p_dynamic_state = &dynamicStateCreateInfo, //: ?*const PipelineDynamicStateCreateInfo,
             .p_dynamic_state = null, //: ?*const PipelineDynamicStateCreateInfo,
             .layout = self.pipelineLayout,
             .render_pass = renderPass,
@@ -209,6 +223,12 @@ pub const NeonVkPipelineBuilder = struct {
         self.vertexInputDescription = try meshes.VertexInputDescription.init(self.allocator);
     }
 
+    pub fn init_billboard_sprite_pipeline(self: *NeonVkPipelineBuilder) !void {
+        try self.init_triangle_pipeline();
+    }
+
+    // the init _ functions are called last and perform cleanup. all the other add_ functions can be called
+    // before this
     pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
         try self.add_shader_stage(.{ .vertex_bit = true }, self.vertShaderModule);
         try self.add_shader_stage(.{ .fragment_bit = true }, self.fragShaderModule);

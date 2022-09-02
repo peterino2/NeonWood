@@ -32,6 +32,7 @@ pub const RttiData = struct {
 
     init_func: *const fn (std.mem.Allocator, *anyopaque) void,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
+    deinit_func: ?*const fn (*anyopaque) void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
@@ -58,6 +59,17 @@ pub const RttiData = struct {
             };
 
             self.tick_func = wrappedTick.func;
+        }
+
+        if (@hasDecl(TargetType, "deinit")) {
+            const wrappedDeinit = struct {
+                pub fn func(pointer: *anyopaque) void {
+                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    ptr.deinit();
+                }
+            };
+
+            self.deinit_func = wrappedDeinit.func;
         }
 
         return self;

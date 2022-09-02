@@ -15,7 +15,7 @@ layout (set = 0, binding = 0) uniform CameraBuffer{
 } cameraData;
 
 struct ObjectData {
-    mat4 model;
+    vec3 spritePosition;
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
@@ -30,7 +30,7 @@ layout (push_constant) uniform constants
 
 void main()
 {
-	mat4 modelMatrix = objectBuffer.objects[gl_BaseInstance].model;
+	vec3 spritePosition = objectBuffer.objects[gl_BaseInstance].spritePosition;
     mat4 final = (cameraData.viewproj * modelMatrix);
     vec4 position = final * vec4(vPosition, 1.0f);
 	gl_Position = position;
