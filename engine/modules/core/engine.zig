@@ -4,6 +4,7 @@ const names = @import("names.zig");
 const input = @import("input.zig");
 const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
+const core = @import("../core.zig");
 const Name = names.Name;
 const MakeName = names.MakeName;
 
@@ -13,6 +14,10 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
 
 const engine_log = logging.engine_log;
+
+pub fn createObject(comptime T: type, params: NeonObjectParams) !*T {
+    return core.gEngine.createObject(T, params);
+}
 
 pub const Engine = struct {
     exitSignal: bool,
@@ -94,6 +99,8 @@ pub const Engine = struct {
                     unreachable; // tried to register a tickable for an object which does not implement tick
                 }
             }
+
+            // register to tick table
             try self.tickables.append(self.allocator, newIndex);
         }
 
@@ -114,8 +121,11 @@ pub const Engine = struct {
     pub fn run(self: *@This()) void {
         while (!self.exitSignal) {
             self.tick();
-            // std.debug.print("\r frame time = {d} fps = {d}", .{ self.deltaTime, 1.0 / self.deltaTime });
         }
+    }
+
+    pub fn exit(self: @This()) void {
+        self.exitSignal = true;
     }
 };
 

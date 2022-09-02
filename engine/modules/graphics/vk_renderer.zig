@@ -474,9 +474,9 @@ pub const NeonVkContext = struct {
         try self.init_pipelines();
 
         // ---- game init code ----
-        try self.init_textures();
-        try self.init_meshes();
-        try self.init_renderobjects();
+        // try self.init_textures();
+        // try self.init_meshes();
+        // try self.init_renderobjects();
         // ------------------------
 
         return self;
@@ -536,7 +536,6 @@ pub const NeonVkContext = struct {
         _ = try self.create_standard_texture_from_file(core.MakeName("test_sprite"), "content/singleSpriteTest.png");
 
         try self.make_mesh_image_from_texture(core.MakeName("test_sprite"));
-        try self.make_mesh_image_from_texture(core.MakeName("missing_texture"));
         // try self.make_mesh_image_from_texture(core.MakeName("lost_empire"));
     }
 
@@ -679,7 +678,7 @@ pub const NeonVkContext = struct {
             },
         );
 
-        x.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
+        //x.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
         x.applyRelativeRotationX(core.radians(-15.0));
         x.applyRelativeRotationY(core.radians(00.0));
 
