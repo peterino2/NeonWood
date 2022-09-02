@@ -7,9 +7,13 @@ pub const NeonVkContext = @import("graphics/vk_renderer.zig").NeonVkContext;
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;
-pub const gContext = vk_renderer.gContext;
+
+pub fn getContext() *NeonVkContext {
+    return vk_renderer.gContext;
+}
 
 pub const render_object = @import("graphics/render_object.zig");
+pub const Camera = render_object.Camera;
 
 pub fn start_module() void {
     engine_logs("graphics module starting up...");

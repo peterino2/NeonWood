@@ -96,7 +96,7 @@ pub const Engine = struct {
         if (params.can_tick) {
             comptime {
                 if (!@hasDecl(T, "tick")) {
-                    unreachable; // tried to register a tickable for an object which does not implement tick
+                    return error.RequestedTickNotAvailable; // tried to register a tickable for an object which does not implement tick
                 }
             }
 
@@ -124,7 +124,7 @@ pub const Engine = struct {
         }
     }
 
-    pub fn exit(self: @This()) void {
+    pub fn exit(self: *@This()) void {
         self.exitSignal = true;
     }
 };

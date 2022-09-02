@@ -325,9 +325,6 @@ pub const NeonVkContext = struct {
     vmaFunctions: vma.VulkanFunctions,
     vmaAllocator: vma.Allocator,
 
-    testMesh: mesh.Mesh,
-    monkeyMesh: mesh.Mesh,
-
     exitSignal: bool,
     firstFrame: bool,
     shouldResize: bool,
@@ -472,6 +469,7 @@ pub const NeonVkContext = struct {
         try self.init_texture_descriptor();
         try self.load_core_textures();
         try self.init_pipelines();
+        try self.init_primitive_meshes();
 
         // ---- game init code ----
         // try self.init_textures();
@@ -672,7 +670,7 @@ pub const NeonVkContext = struct {
 
         var x = try self.add_renderobject(
             .{
-                .mesh_name = core.MakeName("quad_primitive"),
+                .mesh_name = core.MakeName("mesh_quad"),
                 .material_name = core.MakeName("mat_mesh"),
                 .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
             },
@@ -685,7 +683,7 @@ pub const NeonVkContext = struct {
         //var i: u32 = 0;
         //while (i < 1000) : (i += 1) {
         //    var renderObject = try self.add_renderobject(.{
-        //        .mesh_name = core.MakeName("quad_primitive"),
+        //        .mesh_name = core.MakeName("mesh_quad"),
         //        .material_name = core.MakeName("mat_mesh"),
         //        .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
         //            @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
@@ -726,29 +724,8 @@ pub const NeonVkContext = struct {
         return &self.renderObjects.items[self.renderObjects.items.len - 1];
     }
 
-    pub fn init_meshes(self: *Self) !void {
-        self.testMesh = mesh.Mesh.init(self, self.allocator);
-        try self.testMesh.vertices.resize(3);
-
-        self.testMesh.vertices.items[0].position = .{ .x = 1.0, .y = 1.0, .z = 0.0 };
-        self.testMesh.vertices.items[1].position = .{ .x = -1.0, .y = 1.0, .z = 0.0 };
-        self.testMesh.vertices.items[2].position = .{ .x = 0.0, .y = -1.0, .z = 0.0 };
-
-        self.testMesh.vertices.items[0].color = .{ .r = 1.0, .g = 0.0, .b = 0.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[1].color = .{ .r = 0.0, .g = 1.0, .b = 0.0, .a = 1.0 }; //pure green
-        self.testMesh.vertices.items[2].color = .{ .r = 0.0, .g = 0.0, .b = 1.0, .a = 1.0 }; //pure green
-
-        try self.testMesh.upload(self);
-
-        self.monkeyMesh = mesh.Mesh.init(self, self.allocator);
-        try self.monkeyMesh.load_from_obj_file("content/monkey.obj");
-        try self.monkeyMesh.upload(self);
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "content/monkey.obj");
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/lost_empire.obj");
-        _ = try self.new_mesh_from_obj(core.MakeName("mesh_scuffed_room"), "content/SCUFFED_Room.obj");
-
+    pub fn init_primitive_meshes(self: *Self) !void {
         var quadMesh = mesh.Mesh.init(self, self.allocator);
-
         try quadMesh.vertices.resize(6);
         quadMesh.vertices.items[0].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
         quadMesh.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
@@ -767,7 +744,7 @@ pub const NeonVkContext = struct {
         quadMesh.vertices.items[5].uv = .{ .x = 0.0, .y = 1.0 };
 
         try quadMesh.upload(self);
-        try self.meshes.put(self.allocator, core.MakeName("quad_primitive").hash, quadMesh);
+        try self.meshes.put(self.allocator, core.MakeName("mesh_quad").hash, quadMesh);
     }
 
     // we need a content filing system
@@ -1150,6 +1127,10 @@ pub const NeonVkContext = struct {
     }
 
     pub fn tick(self: *Self, dt: f64) void {
+        self.draw(dt) catch unreachable;
+    }
+
+    pub fn tick_old(self: *Self, dt: f64) void {
         self.pollInput();
         var axis: core.zm.Vec = undefined;
         var angle: f32 = undefined;
@@ -2335,9 +2316,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_meshes(self: *Self) !void {
-        self.testMesh.deinit(self);
-        self.monkeyMesh.deinit(self);
-
         var iter = self.meshes.iterator();
         while (iter.next()) |i| {
             i.value_ptr.deinit(self);
