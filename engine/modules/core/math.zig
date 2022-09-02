@@ -17,6 +17,16 @@ pub fn matFromEulerAngles(x: f32, y: f32, z: f32) Mat {
     return zm.matFromRollPitchYaw(y, z, x);
 }
 
+pub fn Radians(comptime T: type) type {
+    return struct {
+        value: T,
+
+        pub fn fromDegrees(f: anytype) @This() {
+            return .{ .value = f };
+        }
+    };
+}
+
 pub fn radians(f: anytype) @TypeOf(f) {
     return f * math.pi / 180.0;
 }
@@ -93,6 +103,10 @@ pub fn Vector3Type(comptime T: type) type {
 
         pub fn toZm(self: @This()) zm.Vec {
             return .{ self.x, self.y, self.z, 0.0 };
+        }
+
+        pub fn fromZm(vec: zm.Vec) @This() {
+            return @This().new(vec[0], vec[1], vec[2]);
         }
 
         pub fn add(self: @This(), other: @This()) @This() {

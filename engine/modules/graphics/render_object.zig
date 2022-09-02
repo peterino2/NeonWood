@@ -19,13 +19,71 @@ const mul = zm.mul;
 const Mesh = meshes.Mesh;
 
 pub const RenderObject = struct {
-    mesh: ?*Mesh,
-    material: ?*Material,
+    const Self = @This();
+    mesh: ?*Mesh = null,
+    material: ?*Material = null,
     texture: ?*vk.DescriptorSet = null,
     transform: core.Mat,
 
+    // new position and rotator based api
+    position: Vectorf,
+    rotation: Quat,
+
+    pub fn fromTransform(transform: core.Mat) Self {
+        var self = Self{
+            .mesh = null,
+            .material = null,
+            .texture = null,
+            .transform = transform,
+            .position = undefined,
+            .rotation = undefined,
+        };
+
+        self.updateScalars();
+
+        return self;
+    }
+
+    pub fn setMesh(self: *Self, mesh: Mesh) Self {
+        self.mesh = mesh;
+    }
+
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
+    }
+
+    pub fn applyRelativeRotationX(self: *RenderObject, angle: f32) void {
+        var imat = core.zm.identity();
+        imat[0][3] = -self.transform[0][3];
+        imat[1][3] = -self.transform[1][3];
+        imat[2][3] = -self.transform[2][3];
+
+        var rmat = core.zm.identity();
+        imat[0][3] = self.transform[0][3];
+        imat[1][3] = self.transform[1][3];
+        imat[2][3] = self.transform[2][3];
+
+        var newTransform = core.zm.mul(imat, self.transform);
+        newTransform = core.zm.mul(core.zm.rotationX(angle), newTransform);
+        newTransform = core.zm.mul(rmat, newTransform);
+        self.transform = newTransform;
+    }
+
+    pub fn applyRelativeRotationZ(self: *RenderObject, angle: f32) void {
+        var imat = core.zm.identity();
+        imat[0][3] = -self.transform[0][3];
+        imat[1][3] = -self.transform[1][3];
+        imat[2][3] = -self.transform[2][3];
+
+        var rmat = core.zm.identity();
+        imat[0][3] = self.transform[0][3];
+        imat[1][3] = self.transform[1][3];
+        imat[2][3] = self.transform[2][3];
+
+        var newTransform = core.zm.mul(imat, self.transform);
+        newTransform = core.zm.mul(core.zm.rotationZ(angle), newTransform);
+        newTransform = core.zm.mul(rmat, newTransform);
+        self.transform = newTransform;
     }
 
     pub fn applyRelativeRotationY(self: *RenderObject, angle: f32) void {
@@ -43,6 +101,11 @@ pub const RenderObject = struct {
         newTransform = core.zm.mul(core.zm.rotationY(angle), newTransform);
         newTransform = core.zm.mul(rmat, newTransform);
         self.transform = newTransform;
+    }
+
+    pub fn updateScalars(self: *RenderObject) void {
+        self.position = Vectorf.fromZm(mul(self.transform, Vectorf.new(0.0, 0.0, 0.0).toZm()));
+        self.rotation = zm.matToQuat(self.transform);
     }
 };
 

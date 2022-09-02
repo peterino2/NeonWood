@@ -114,7 +114,7 @@ pub const Engine = struct {
     pub fn run(self: *@This()) void {
         while (!self.exitSignal) {
             self.tick();
-            std.debug.print("\r frame time = {d} fps = {d}", .{ self.deltaTime, 1.0 / self.deltaTime });
+            // std.debug.print("\r frame time = {d} fps = {d}", .{ self.deltaTime, 1.0 / self.deltaTime });
         }
     }
 };

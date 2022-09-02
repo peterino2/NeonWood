@@ -1,5 +1,8 @@
 #version 460
 
+// an always-on-top 
+//
+
 layout (location = 0) in vec3 vPosition;
 layout (location = 1) in vec3 vNormal;
 layout (location = 2) in vec4 vColor;
@@ -15,7 +18,8 @@ layout (set = 0, binding = 0) uniform CameraBuffer{
 } cameraData;
 
 struct ObjectData {
-    vec3 spritePosition;
+    vec3 position;
+    vec2 boxSize;
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 

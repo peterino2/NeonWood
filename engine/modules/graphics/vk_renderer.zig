@@ -22,6 +22,7 @@ const p2av = core.p_to_av;
 const Vector4f = core.Vector4f;
 const Vectorf = core.Vectorf;
 const Vector2 = core.Vector2;
+const Vector2f = core.Vector2f;
 const Quat = core.Quat;
 const Mat = core.Mat;
 const mul = core.zm.mul;
@@ -42,6 +43,11 @@ const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
+
+const NeonVkSpriteDataGpu = struct {
+    position: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    size: Vector2f = .{ .x = 1.0, .y = 1.0 },
+};
 
 pub const NeonVkUploadContext = struct {
     uploadFence: vk.Fence,
@@ -68,9 +74,10 @@ pub const NeonVkFrameData = struct {
     // descriptors
     globalDescriptorSet: vk.DescriptorSet,
     objectDescriptorSet: vk.DescriptorSet,
+    spriteDescriptorSet: vk.DescriptorSet,
 
     // buffers
-    spritesBuffer: NeonVkBuffer,
+    spriteBuffer: NeonVkBuffer,
     objectBuffer: NeonVkBuffer,
     cameraBuffer: NeonVkBuffer,
 };
@@ -396,7 +403,7 @@ pub const NeonVkContext = struct {
         self.sensitivity = 0.005;
         self.lastMaterial = null;
         self.lastMesh = null;
-        self.rotating = true;
+        self.rotating = false;
         self.zoomies = false;
         self.renderObjectsByMaterial = .{};
     }
@@ -521,16 +528,16 @@ pub const NeonVkContext = struct {
     }
 
     pub fn load_core_textures(self: *Self) !void {
-        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/missing_texture.png");
+        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/texture_sample.png");
     }
 
     pub fn init_textures(self: *Self) !void {
-        _ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
+        //_ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
         _ = try self.create_standard_texture_from_file(core.MakeName("test_sprite"), "content/singleSpriteTest.png");
 
         try self.make_mesh_image_from_texture(core.MakeName("test_sprite"));
         try self.make_mesh_image_from_texture(core.MakeName("missing_texture"));
-        try self.make_mesh_image_from_texture(core.MakeName("lost_empire"));
+        // try self.make_mesh_image_from_texture(core.MakeName("lost_empire"));
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
@@ -657,34 +664,38 @@ pub const NeonVkContext = struct {
 
     pub fn init_renderobjects(self: *Self) !void {
         var newObj = try self.add_renderobject(.{
-            .mesh_name = core.MakeName("mesh_lost_empire"),
+            .mesh_name = core.MakeName("mesh_scuffed_room"),
             .material_name = core.MakeName("mat_mesh"),
         });
-        newObj.texture = self.textureSets.getEntry(core.MakeName("lost_empire").hash).?.value_ptr.*;
 
-        newObj.applyTransform(core.zm.translation(0.0, 5.0, 0.0));
+        //newObj.texture = self.textureSets.getEntry(core.MakeName("").hash).?.value_ptr.*;
+        newObj.applyTransform(core.zm.translation(0.0, 0.0, 0.0));
 
-        _ = try self.add_renderobject(
+        var x = try self.add_renderobject(
             .{
-                .mesh_name = core.MakeName("mesh_monkey"),
+                .mesh_name = core.MakeName("quad_primitive"),
                 .material_name = core.MakeName("mat_mesh"),
-                .init_transform = mul(core.zm.scaling(1.0, 1.0, 1.0), core.zm.translation(-2.0, -2.0, -1.0)),
+                .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
             },
         );
 
-        var i: u32 = 0;
-        while (i < 1000) : (i += 1) {
-            var renderObject = try self.add_renderobject(.{
-                .mesh_name = core.MakeName("quad_primitive"),
-                .material_name = core.MakeName("mat_mesh"),
-                .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
-                    @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
-                    @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
-                    @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
-                )),
-            });
-            renderObject.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
-        }
+        x.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
+        x.applyRelativeRotationX(core.radians(-15.0));
+        x.applyRelativeRotationY(core.radians(00.0));
+
+        //var i: u32 = 0;
+        //while (i < 1000) : (i += 1) {
+        //    var renderObject = try self.add_renderobject(.{
+        //        .mesh_name = core.MakeName("quad_primitive"),
+        //        .material_name = core.MakeName("mat_mesh"),
+        //        .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
+        //            @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
+        //            @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
+        //            @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
+        //        )),
+        //    });
+        //    renderObject.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
+        //}
 
         self.camera = render_objects.Camera.init();
         self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = -2.0 });
@@ -692,11 +703,12 @@ pub const NeonVkContext = struct {
     }
 
     pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !*RenderObject {
-        var renderObject = RenderObject{
-            .mesh = null,
-            .material = null,
-            .transform = params.init_transform,
-        };
+        var renderObject = RenderObject.fromTransform(params.init_transform);
+        // var renderObject = RenderObject{
+        //     .mesh = null,
+        //     .material = null,
+        //     .transform = params.init_transform,
+        // };
 
         var findMesh = self.meshes.getEntry(params.mesh_name.hash);
         var findMat = self.materials.getEntry(params.material_name.hash);
@@ -734,6 +746,7 @@ pub const NeonVkContext = struct {
         try self.monkeyMesh.upload(self);
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_monkey"), "content/monkey.obj");
         _ = try self.new_mesh_from_obj(core.MakeName("mesh_lost_empire"), "content/lost_empire.obj");
+        _ = try self.new_mesh_from_obj(core.MakeName("mesh_scuffed_room"), "content/SCUFFED_Room.obj");
 
         var quadMesh = mesh.Mesh.init(self, self.allocator);
 
@@ -980,8 +993,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn create_sprite_descriptors(self: *Self) !void {
-        _ = self;
-
         var bindings = [_]vk.DescriptorSetLayoutBinding{
             vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0),
         };
@@ -996,7 +1007,35 @@ pub const NeonVkContext = struct {
 
         var i: usize = 0;
         while (i < NumFrames) : (i += 1) {
-            // self.frameData[i].spritesBuffer;
+            self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu);
+
+            var spriteDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
+                .descriptor_pool = self.descriptorPool,
+                .descriptor_set_count = 1,
+                .p_set_layouts = p2a(&self.spriteDescriptorLayout),
+            };
+
+            try self.vkd.allocateDescriptorSets(
+                self.dev,
+                &spriteDescriptorSetAllocInfo,
+                @ptrCast([*]vk.DescriptorSet, &self.frameData[i].spriteDescriptorSet),
+            );
+
+            var spriteInfo = vk.DescriptorBufferInfo{
+                .buffer = self.frameData[i].spriteBuffer.buffer,
+                .offset = 0,
+                .range = @sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS,
+            };
+
+            var spriteWrite = vkinit.writeDescriptorSet(
+                .storage_buffer,
+                self.frameData[i].spriteDescriptorSet,
+                &spriteInfo,
+                0,
+            );
+
+            var spriteSetWrites = [_]@TypeOf(spriteWrite){spriteWrite};
+            self.vkd.updateDescriptorSets(self.dev, 1, &spriteSetWrites, 0, undefined);
         }
     }
 
@@ -1113,6 +1152,12 @@ pub const NeonVkContext = struct {
 
     pub fn tick(self: *Self, dt: f64) void {
         self.pollInput();
+        var axis: core.zm.Vec = undefined;
+        var angle: f32 = undefined;
+
+        core.zm.quatToAxisAngle(self.camera.rotation, &axis, &angle);
+        debug_struct("position", self.camera.position);
+        debug_struct("axis", axis);
 
         self.updateGame(dt) catch unreachable;
         self.draw(dt) catch unreachable;
@@ -1327,7 +1372,28 @@ pub const NeonVkContext = struct {
 
         var i: usize = 0;
         while (i < MAX_OBJECTS and i < self.renderObjects.items.len) : (i += 1) {
-            ssbo[i].modelMatrix = self.renderObjects.items[i].transform;
+            if (self.renderObjects.items[i].mesh != null) {
+                ssbo[i].modelMatrix = self.renderObjects.items[i].transform;
+            }
+        }
+
+        self.vmaAllocator.unmapMemory(allocation);
+    }
+
+    pub fn upload_sprite_data(self: *Self) !void {
+        const allocation = self.frameData[self.nextFrameIndex].spriteBuffer.allocation;
+        var data = try self.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var ssbo: []NeonVkSpriteDataGpu = undefined;
+        ssbo.ptr = @ptrCast([*]NeonVkSpriteDataGpu, data);
+        ssbo.len = MAX_OBJECTS;
+
+        var i: usize = 0;
+        while (i < MAX_OBJECTS and i < self.renderObjects.items.len) : (i += 1) {
+            ssbo[i].position = mul(
+                self.renderObjects.items[i].transform,
+                core.zm.Vec{ 0.0, 0.0, 0.0, 0.0 },
+            );
+            ssbo[i].size = .{ .x = 1.0, .y = 1.0 };
         }
 
         self.vmaAllocator.unmapMemory(allocation);
@@ -1337,6 +1403,7 @@ pub const NeonVkContext = struct {
         _ = deltaTime;
         try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
+        try self.upload_sprite_data();
 
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
@@ -2322,6 +2389,7 @@ pub const NeonVkContext = struct {
     pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
+            self.frameData[i].spriteBuffer.deinit(self.vmaAllocator);
             self.frameData[i].objectBuffer.deinit(self.vmaAllocator);
         }
         self.sceneParameterBuffer.deinit(self.vmaAllocator);
