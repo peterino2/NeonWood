@@ -278,6 +278,8 @@ pub const NeonVkContext = struct {
     windowName: [*c]const u8,
     extent: vk.Extent2D,
     actual_extent: vk.Extent2D,
+    scissor: vk.Rect2D,
+    viewport: vk.Viewport,
     caps: vk.SurfaceCapabilitiesKHR,
 
     acquireSemaphores: ArrayList(vk.Semaphore),
@@ -1184,6 +1186,9 @@ pub const NeonVkContext = struct {
         };
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
+
+        self.vkd.cmdSetViewport(cmd, 0, 1, p2a(&self.viewport));
+        self.vkd.cmdSetScissor(cmd, 0, 1, p2a(&self.scissor));
     }
 
     pub fn finish_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
@@ -1600,6 +1605,20 @@ pub const NeonVkContext = struct {
 
         self.swapchain = newSwapchain;
         try self.create_swapchain_images_and_views();
+
+        self.viewport = vk.Viewport{
+            .x = 0,
+            .y = 0,
+            .width = @intToFloat(f32, self.actual_extent.width),
+            .height = @intToFloat(f32, self.actual_extent.height),
+            .min_depth = 0.0,
+            .max_depth = 1.0,
+        };
+
+        self.scissor = .{
+            .offset = .{ .x = 0, .y = 0 },
+            .extent = self.actual_extent,
+        };
     }
 
     fn create_swapchain_images_and_views(self: *Self) !void {

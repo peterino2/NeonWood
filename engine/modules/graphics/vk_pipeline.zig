@@ -104,11 +104,12 @@ pub const NeonVkPipelineBuilder = struct {
 
         var dynamicStates = [_]vk.DynamicState{
             .viewport,
+            .scissor,
         };
 
         var dynamicStateCreateInfo = vk.PipelineDynamicStateCreateInfo{
             .flags = .{},
-            .dynamic_state_count = 1,
+            .dynamic_state_count = 2,
             .p_dynamic_states = &dynamicStates,
         };
         _ = dynamicStateCreateInfo;
@@ -127,8 +128,8 @@ pub const NeonVkPipelineBuilder = struct {
             .p_multisample_state = &self.pmsci, //: ?*const PipelineMultisampleStateCreateInfo,
             .p_depth_stencil_state = null, //: ?*const PipelineDepthStencilStateCreateInfo,
             .p_color_blend_state = &pcbsci, //: ?*const PipelineColorBlendStateCreateInfo,
-            //.p_dynamic_state = &dynamicStateCreateInfo, //: ?*const PipelineDynamicStateCreateInfo,
-            .p_dynamic_state = null, //: ?*const PipelineDynamicStateCreateInfo,
+            .p_dynamic_state = &dynamicStateCreateInfo, //: ?*const PipelineDynamicStateCreateInfo,
+            //.p_dynamic_state = null, //: ?*const PipelineDynamicStateCreateInfo,
             .layout = self.pipelineLayout,
             .render_pass = renderPass,
             .subpass = 0,
