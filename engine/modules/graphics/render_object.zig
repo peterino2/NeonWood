@@ -48,6 +48,10 @@ pub const RenderObject = struct {
         self.mesh = mesh;
     }
 
+    pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
+        self.texture = gc.textureSets.getEntry(name.hash).?.value_ptr.*;
+    }
+
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
     }

@@ -4,6 +4,7 @@ const core = @import("core.zig");
 const std = @import("std");
 const vk_renderer = @import("graphics/vk_renderer.zig");
 pub const NeonVkContext = @import("graphics/vk_renderer.zig").NeonVkContext;
+pub const c = vk_renderer.c;
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;

@@ -1,7 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const resources = @import("resources");
-const c = @import("c.zig");
+pub const c = @import("c.zig");
 const vma = @import("vma");
 const core = @import("../core.zig");
 const vk_constants = @import("vk_constants.zig");
@@ -339,6 +339,8 @@ pub const NeonVkContext = struct {
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
     camera: render_objects.Camera,
 
+    cameraRef: *render_objects.Camera,
+
     blockySampler: vk.Sampler,
     linearSampler: vk.Sampler,
 
@@ -373,6 +375,10 @@ pub const NeonVkContext = struct {
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
+
+    pub fn activateCamera(self: *Self, camera: *render_objects.Camera) void {
+        self.cameraRef = camera;
+    }
 
     pub fn init_zig_data(self: *Self) !void {
         core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
@@ -1180,8 +1186,7 @@ pub const NeonVkContext = struct {
         var data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
 
         // resolve the current state of the camera
-        self.camera.resolve(self.cameraHorizontalRotationMat);
-        var projection_matrix: Mat = self.camera.final;
+        var projection_matrix: Mat = self.cameraRef.final;
         _ = projection_matrix;
 
         var cameraData = NeonVkCameraDataGpu{
@@ -1264,16 +1269,7 @@ pub const NeonVkContext = struct {
         const cmd = try self.start_frame_command_buffer();
 
         try self.begin_main_renderpass(cmd);
-
-        if (self.mode == 0) {
-            try self.render_meshes(deltaTime);
-        } else if (self.mode == 1) {
-            self.vkd.cmdBindPipeline(cmd, .graphics, self.static_triangle_pipeline);
-            self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
-        } else if (self.mode == 2) {
-            self.vkd.cmdBindPipeline(cmd, .graphics, self.static_colored_triangle_pipeline);
-            self.vkd.cmdDraw(cmd, 3, 1, 0, 0);
-        }
+        try self.render_meshes(deltaTime);
 
         try self.finish_main_renderpass(cmd);
         try self.vkd.endCommandBuffer(cmd);
@@ -1390,6 +1386,7 @@ pub const NeonVkContext = struct {
         self.lastMaterial = null;
         self.lastMesh = null;
 
+        core.graphics_log("renderobject_count: {d}", .{self.renderObjects.items.len});
         for (self.renderObjects.items) |object, i| {
             self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
         }
@@ -2279,8 +2276,6 @@ pub const NeonVkContext = struct {
         _ = comp;
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         defer core.stbi_image_free(pixels);
-
-        _ = c.glfwSetKeyCallback(self.window, neon_glfw_input_callback);
     }
 
     pub fn destroy_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
