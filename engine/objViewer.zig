@@ -149,6 +149,7 @@ const GameContext = struct {
 
         _ = c.glfwSetKeyCallback(self.gc.window, input_callback);
         try self.init_objects();
+        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
     }
 

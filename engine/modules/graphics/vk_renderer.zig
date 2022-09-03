@@ -337,8 +337,6 @@ pub const NeonVkContext = struct {
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
-    camera: render_objects.Camera,
-
     cameraRef: *render_objects.Camera,
 
     blockySampler: vk.Sampler,
@@ -348,19 +346,6 @@ pub const NeonVkContext = struct {
     globalDescriptorLayout: vk.DescriptorSetLayout,
     objectDescriptorLayout: vk.DescriptorSetLayout,
     spriteDescriptorLayout: vk.DescriptorSetLayout,
-
-    // camera controls
-    panCamera: bool,
-    panCameraCache: bool,
-    mousePosition: Vector2,
-    mousePositionPanStart: Vector2,
-    cameraRotationStart: core.Quat,
-    cameraHorizontalRotation: core.Quat,
-    cameraHorizontalRotationMat: core.Mat,
-    cameraHorizontalRotationStart: core.Quat,
-    zoomies: bool,
-
-    sensitivity: f64,
 
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
@@ -395,19 +380,8 @@ pub const NeonVkContext = struct {
         self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
-        self.panCamera = false;
-        self.panCameraCache = false;
-        self.mousePosition = .{ .x = 0, .y = 0 };
-        self.mousePositionPanStart = .{ .x = 0, .y = 0 };
-        self.cameraRotationStart = core.zm.quatFromRollPitchYaw(0.0, 0.0, 0.0);
-        self.cameraHorizontalRotation = self.cameraRotationStart;
-        self.cameraHorizontalRotationStart = self.cameraRotationStart;
-        self.cameraHorizontalRotationMat = core.zm.identity();
-        self.sensitivity = 0.005;
         self.lastMaterial = null;
         self.lastMesh = null;
-        self.rotating = false;
-        self.zoomies = false;
         self.renderObjectsByMaterial = .{};
     }
 
@@ -477,12 +451,6 @@ pub const NeonVkContext = struct {
         try self.init_pipelines();
         try self.init_primitive_meshes();
 
-        // ---- game init code ----
-        // try self.init_textures();
-        // try self.init_meshes();
-        // try self.init_renderobjects();
-        // ------------------------
-
         return self;
     }
 
@@ -533,14 +501,6 @@ pub const NeonVkContext = struct {
 
     pub fn load_core_textures(self: *Self) !void {
         _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/texture_sample.png");
-    }
-
-    pub fn init_textures(self: *Self) !void {
-        //_ = try self.create_standard_texture_from_file(core.MakeName("lost_empire"), "content/lost_empire-RGBA.png");
-        _ = try self.create_standard_texture_from_file(core.MakeName("test_sprite"), "content/singleSpriteTest.png");
-
-        try self.make_mesh_image_from_texture(core.MakeName("test_sprite"));
-        // try self.make_mesh_image_from_texture(core.MakeName("lost_empire"));
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
@@ -665,53 +625,8 @@ pub const NeonVkContext = struct {
         try self.create_sprite_descriptors();
     }
 
-    pub fn init_renderobjects(self: *Self) !void {
-        var newObj = try self.add_renderobject(.{
-            .mesh_name = core.MakeName("mesh_scuffed_room"),
-            .material_name = core.MakeName("mat_mesh"),
-        });
-
-        //newObj.texture = self.textureSets.getEntry(core.MakeName("").hash).?.value_ptr.*;
-        newObj.applyTransform(core.zm.translation(0.0, 0.0, 0.0));
-
-        var x = try self.add_renderobject(
-            .{
-                .mesh_name = core.MakeName("mesh_quad"),
-                .material_name = core.MakeName("mat_mesh"),
-                .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
-            },
-        );
-
-        //x.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
-        x.applyRelativeRotationX(core.radians(-15.0));
-        x.applyRelativeRotationY(core.radians(00.0));
-
-        //var i: u32 = 0;
-        //while (i < 1000) : (i += 1) {
-        //    var renderObject = try self.add_renderobject(.{
-        //        .mesh_name = core.MakeName("mesh_quad"),
-        //        .material_name = core.MakeName("mat_mesh"),
-        //        .init_transform = mul(core.zm.scaling(0.1, 0.1, 0.1), core.zm.translation(
-        //            @intToFloat(f32, i % 10) * -4.0 * (0.1) + 2.0,
-        //            @intToFloat(f32, i / 100) * 4.0 * (0.1) - 1.0,
-        //            @intToFloat(f32, ((i % 100) / 10)) * -4.0 * (0.1) + 2.0,
-        //        )),
-        //    });
-        //    renderObject.texture = self.textureSets.getEntry(core.MakeName("test_sprite").hash).?.value_ptr.*;
-        //}
-
-        self.camera = render_objects.Camera.init();
-        self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = -2.0 });
-        self.camera.updateCamera();
-    }
-
     pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !*RenderObject {
         var renderObject = RenderObject.fromTransform(params.init_transform);
-        // var renderObject = RenderObject{
-        //     .mesh = null,
-        //     .material = null,
-        //     .transform = params.init_transform,
-        // };
 
         var findMesh = self.meshes.getEntry(params.mesh_name.hash);
         var findMat = self.materials.getEntry(params.material_name.hash);
@@ -1080,99 +995,15 @@ pub const NeonVkContext = struct {
         return image_index;
     }
 
-    // todo:: gameplay code
-    pub fn pollInput(self: *Self) void {
-        if (try self.shouldExit()) {
-            core.gEngine.exitSignal = true;
-        }
-
-        c.glfwGetCursorPos(self.window, &self.mousePosition.x, &self.mousePosition.y);
-
-        if (self.camera.isDirty()) {
-            self.camera.updateCamera();
-        }
-
-        const state = c.glfwGetMouseButton(self.window, c.GLFW_MOUSE_BUTTON_RIGHT);
-        if (state == c.GLFW_PRESS) {
-            self.panCamera = true;
-        }
-        if (state == c.GLFW_RELEASE) {
-            self.panCamera = false;
-        }
-    }
-
-    fn handleCameraPan(self: *Self, deltaTime: f64) void {
-        _ = deltaTime;
-        if (self.panCameraCache == false and self.panCamera) {
-            self.mousePositionPanStart = self.mousePosition;
-            self.cameraRotationStart = self.camera.rotation;
-            self.cameraHorizontalRotationStart = self.cameraHorizontalRotation;
-        }
-        if (self.panCamera) {
-            var diff = self.mousePosition.sub(self.mousePositionPanStart);
-
-            var horizontalRotation = core.zm.matFromRollPitchYaw(0.0, @floatCast(f32, diff.x * self.sensitivity), 0.0);
-            horizontalRotation = mul(
-                core.zm.matFromQuat(self.cameraHorizontalRotationStart),
-                horizontalRotation,
-            );
-            self.cameraHorizontalRotationMat = horizontalRotation;
-            self.cameraHorizontalRotation = core.zm.quatFromMat(horizontalRotation);
-
-            // calculate the new roatation for the camera
-            var offset = core.zm.matFromRollPitchYaw(core.clamp(@floatCast(f32, diff.y * self.sensitivity), core.radians(-90.0), core.radians(90.0)), 0.0, 0.0);
-            var final = mul(core.zm.matFromQuat(self.cameraRotationStart), offset);
-            self.camera.rotation = core.zm.quatFromMat(final);
-        }
-
-        self.panCameraCache = self.panCamera;
-    }
-
     fn updateTime(self: *Self, deltaTime: f64) void {
         self.rendererTime += deltaTime;
     }
 
     pub fn tick(self: *Self, dt: f64) void {
         self.draw(dt) catch unreachable;
-    }
-
-    pub fn tick_old(self: *Self, dt: f64) void {
-        self.pollInput();
-        var axis: core.zm.Vec = undefined;
-        var angle: f32 = undefined;
-
-        core.zm.quatToAxisAngle(self.camera.rotation, &axis, &angle);
-        debug_struct("position", self.camera.position);
-        debug_struct("axis", axis);
-
-        self.updateGame(dt) catch unreachable;
-        self.draw(dt) catch unreachable;
-    }
-
-    // this is game code.
-    pub fn updateGame(self: *Self, deltaTime: f64) !void {
-        for (self.renderObjects.items) |_, i| {
-            var rate: f32 = if (i % 2 == 0) 180.0 else -180.0;
-            _ = rate;
-            if (self.rotating)
-                self.renderObjects.items[i].applyRelativeRotationY(
-                    core.radians(rate) * @floatCast(f32, deltaTime),
-                );
+        if (self.shouldExit() catch unreachable) {
+            core.gEngine.exit();
         }
-
-        var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
-        if (self.zoomies) {
-            movement = movement.fmul(10.0);
-        }
-        var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
-        self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
-        self.handleCameraPan(deltaTime);
-        self.sceneDataGpu.ambientColor = .{
-            std.math.sin(core.radians(180.0 * @floatCast(f32, self.rendererTime))),
-            0.0,
-            std.math.cos(180.0 * core.radians(@floatCast(f32, self.rendererTime))),
-            1.0,
-        };
     }
 
     // convert game state into some intermediate graphics data.
@@ -1386,7 +1217,6 @@ pub const NeonVkContext = struct {
         self.lastMaterial = null;
         self.lastMesh = null;
 
-        core.graphics_log("renderobject_count: {d}", .{self.renderObjects.items.len});
         for (self.renderObjects.items) |object, i| {
             self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
         }
@@ -2407,73 +2237,3 @@ pub const NeonVkContext = struct {
 };
 
 pub var gContext: *NeonVkContext = undefined;
-
-pub fn neon_glfw_input_callback(
-    window: ?*c.GLFWwindow,
-    key: c_int,
-    scancode: c_int,
-    action: c_int,
-    mods: c_int,
-) callconv(.C) void {
-    _ = window;
-    _ = key;
-    _ = scancode;
-    _ = action;
-    _ = mods;
-
-    if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
-        core.engine_logs("Escape key pressed, everything dies now");
-        gContext.exitSignal = true;
-        core.gEngine.exitSignal = true;
-    }
-
-    if (action == c.GLFW_PRESS) {
-        if (key == c.GLFW_KEY_SPACE) {
-            gContext.mode = (gContext.mode + 1) % NeonVkContext.maxMode;
-        }
-        if (key == c.GLFW_KEY_R) {
-            gContext.rotating = !gContext.rotating;
-        }
-        if (key == c.GLFW_KEY_F) {
-            gContext.zoomies = !gContext.zoomies;
-        }
-        if (key == c.GLFW_KEY_W) {
-            gContext.cameraMovement.z += 1.0;
-        }
-        if (key == c.GLFW_KEY_S) {
-            gContext.cameraMovement.z += -1.0;
-        }
-        if (key == c.GLFW_KEY_D) {
-            gContext.cameraMovement.x += -1.0;
-        }
-        if (key == c.GLFW_KEY_A) {
-            gContext.cameraMovement.x += 1.0;
-        }
-        if (key == c.GLFW_KEY_Q) {
-            gContext.cameraMovement.y += 1.0;
-        }
-        if (key == c.GLFW_KEY_E) {
-            gContext.cameraMovement.y += -1.0;
-        }
-    }
-    if (action == c.GLFW_RELEASE) {
-        if (key == c.GLFW_KEY_W) {
-            gContext.cameraMovement.z -= 1.0;
-        }
-        if (key == c.GLFW_KEY_S) {
-            gContext.cameraMovement.z -= -1.0;
-        }
-        if (key == c.GLFW_KEY_D) {
-            gContext.cameraMovement.x -= -1.0;
-        }
-        if (key == c.GLFW_KEY_A) {
-            gContext.cameraMovement.x -= 1.0;
-        }
-        if (key == c.GLFW_KEY_Q) {
-            gContext.cameraMovement.y -= 1.0;
-        }
-        if (key == c.GLFW_KEY_E) {
-            gContext.cameraMovement.y -= -1.0;
-        }
-    }
-}
