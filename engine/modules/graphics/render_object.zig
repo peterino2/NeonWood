@@ -139,7 +139,7 @@ pub const Camera = struct {
     rotation: Quat,
     transform: Mat = zm.identity(),
     projection: Mat = makePerspective(
-        core.radians(70.0),
+        core.radians(70.0), // angle
         16.0 / 9.0,
         0.1,
         2000,
