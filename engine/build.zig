@@ -193,8 +193,6 @@ pub fn createGameExecutable(
     exe.addIncludeDir("modules/graphics/lib");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
-    exe.addPackagePath("core", "modules/core/core.zig");
-    exe.addPackagePath("graphics", "modules/graphics/graphics.zig");
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
@@ -253,12 +251,12 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
     _ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
-        std.debug.print("wtf: {any}", .{e});
+        std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "objViewer2", "objViewer2.zig") catch |e| {
-        std.debug.print("wtf: {any}", .{e});
+    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
+        std.debug.print("error: {any}", .{e});
         unreachable;
     };
 }

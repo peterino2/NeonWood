@@ -2,6 +2,10 @@ const std = @import("std");
 const Atomic = std.atomic.Atomic;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+// simple test, no manager needed.
+// var worker = JobWorker.init(std.mem.Allocator);
+// try worker.assignContext(); // errors if the worker is not read
+//
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
     jobs: ArrayListUnmanaged(*JobContext),
@@ -56,7 +60,48 @@ pub const JobWorker = struct {
 };
 
 pub const JobContext = struct {
+    const Self = @This();
+
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
-    thread: ?std.Thread, // a thread that is spawned and assigned when
-    func: ?*const fn (*anyopaque, *JobWorker) void = null,
+    //func: *const fn (*anyopaque, *JobContext) void,
+    func: *const fn (*anyopaque, *JobContext) void,
+    capture: []u8 = undefined,
+    hasCaptureAlloc: bool = false,
+
+    pub fn new(allocator: std.mem.Allocator, comptime CaptureType: type, capture: CaptureType) !JobContext {
+        _ = CaptureType;
+        _ = capture;
+        if (!@hasDecl(CaptureType, "func")) {
+            return error.NoValidLambda;
+        }
+
+        const Wrap = struct {
+            pub fn wrappedFunc(pointer: *anyopaque, context: *JobContext) void {
+                var ptr = @ptrCast(*CaptureType, @alignCast(@alignOf(CaptureType), pointer));
+                ptr.func(context);
+            }
+        };
+        _ = Wrap;
+
+        var self = Self{
+            .allocator = allocator,
+            .func = Wrap.wrappedFunc,
+        };
+
+        var ptr = try allocator.create(CaptureType);
+        self.capture.len = @sizeOf(CaptureType);
+        self.capture.ptr = @ptrCast([*]u8, ptr);
+        ptr.* = capture;
+        return self;
+    }
+
+    pub fn deinit(self: *Self) void {
+        if (self.hasCaptureAlloc) {
+            // need to use the size to do an anonymous destroy
+            //self.allocator.destroy(self.capture.ptr);
+            self.allocator.free(self.capture);
+        }
+    }
 };
+
+test "job context create" {}

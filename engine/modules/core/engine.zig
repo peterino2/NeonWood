@@ -5,6 +5,7 @@ const input = @import("input.zig");
 const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
 const core = @import("../core.zig");
+const jobs = @import("jobs.zig");
 const Name = names.Name;
 const MakeName = names.MakeName;
 
