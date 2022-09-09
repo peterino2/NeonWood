@@ -1,5 +1,6 @@
 const std = @import("std");
 const Atomic = std.atomic.Atomic;
+const core = @import("../core.zig");
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // simple test, no manager needed.
@@ -40,21 +41,28 @@ pub const JobWorker = struct {
     workerThread: std.Thread,
     futex: Atomic(u32) = Atomic(u32).init(0),
     current: u32 = 0,
+    allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        var self = .{
+    pub fn wake(self: *JobWorker) void {
+        std.Thread.Futex.wake(&self.futex, 1);
+    }
+
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(JobWorker);
+
+        self.* = .{
             .allocator = allocator,
-            .workerThread = undefined,
+            .workerThread = try std.Thread.spawn(.{}, @This().workerThreadFunc, .{self}),
         };
-
-        self.workerThread = std.Thread.spawn(.{}, @This().workerThreadFunc, .{self});
 
         return self;
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
+        core.engine_logs("worker ready");
         while (true) {
             std.Thread.Futex.wait(&self.futex, self.current);
+            core.engine_logs("we woke up");
         }
     }
 };

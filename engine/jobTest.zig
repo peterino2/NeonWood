@@ -14,6 +14,7 @@ const AssetReference = assets.AssetReference;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
 const JobContext = core.JobContext;
+const JobWorker = core.JobWorker;
 
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
@@ -35,10 +36,17 @@ const GameContext = struct {
     pub const NeonObjectTable = core.RttiData.from(Self);
 
     allocator: std.mem.Allocator,
+    wakeCount: u32 = 4,
+    timeTilWake: f64 = 2.0,
     jobComplete: bool = false,
+    jobWorker: *JobWorker,
 
     pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{ .jobComplete = false, .allocator = allocator };
+        var self = Self{
+            .jobComplete = false,
+            .allocator = allocator,
+            .jobWorker = JobWorker.init(allocator) catch unreachable,
+        };
 
         return self;
     }
@@ -82,8 +90,23 @@ const GameContext = struct {
     pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
-        if (self.jobComplete)
+        self.timeTilWake -= 0.1;
+        std.time.sleep(1000 * 1000 * 100);
+
+        if (self.timeTilWake <= 0) {
+            self.jobWorker.wake();
+            self.timeTilWake = 2.0;
+            self.wakeCount -= 1;
+        }
+
+        if (self.wakeCount <= 0) {
             core.gEngine.exit();
+        }
+    }
+
+    pub fn shutdown(self: *Self) void {
+        _ = self;
+        // self.jobWorker.deinit();
     }
 };
 
@@ -95,6 +118,7 @@ pub fn main() anyerror!void {
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });
     try game.prepare();
+    defer game.shutdown();
 
     // run the game
     core.gEngine.run();
