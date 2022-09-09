@@ -60,9 +60,15 @@ pub const JobWorker = struct {
 
     pub fn workerThreadFunc(self: *@This()) void {
         core.engine_logs("worker ready");
+
         while (true) {
             std.Thread.Futex.wait(&self.futex, self.current);
             core.engine_logs("we woke up");
+
+            if (self.currentJobContext != null) {
+                var ctx = self.currentJobContext.?;
+                ctx.func(ctx.capture.ptr, ctx);
+            }
         }
     }
 };
@@ -111,5 +117,3 @@ pub const JobContext = struct {
         }
     }
 };
-
-test "job context create" {}

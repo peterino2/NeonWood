@@ -37,6 +37,7 @@ const GameContext = struct {
 
     allocator: std.mem.Allocator,
     wakeCount: u32 = 4,
+    jobContext: JobContext,
     timeTilWake: f64 = 2.0,
     jobComplete: bool = false,
     jobWorker: *JobWorker,
@@ -46,6 +47,7 @@ const GameContext = struct {
             .jobComplete = false,
             .allocator = allocator,
             .jobWorker = JobWorker.init(allocator) catch unreachable,
+            .jobContext = undefined,
         };
 
         return self;
@@ -73,18 +75,16 @@ const GameContext = struct {
         };
         _ = Lambda;
 
-        var jobContext = try JobContext.new(
+        self.jobContext = try JobContext.new(
             std.heap.c_allocator,
             Lambda,
             .{
                 .wanker = &wanker,
             },
         );
-        _ = jobContext;
 
-        jobContext.func(jobContext.capture.ptr, &jobContext);
-
-        defer jobContext.deinit();
+        self.jobContext.func(self.jobContext.capture.ptr, &self.jobContext);
+        self.jobWorker.currentJobContext = &self.jobContext;
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
