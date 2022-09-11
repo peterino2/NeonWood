@@ -9,7 +9,7 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 //
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
-    jobs: ArrayListUnmanaged(*JobContext),
+    jobQueue: ArrayListUnmanaged(*JobContext),
     workers: []JobWorker,
     workersBusy: []bool,
     numCpus: usize,
@@ -32,6 +32,11 @@ pub const JobManager = struct {
         }
 
         return self;
+    }
+
+    pub fn newJob(comptime Lambda: type, capture: Lambda) void {
+        _ = Lambda;
+        _ = capture;
     }
 };
 
