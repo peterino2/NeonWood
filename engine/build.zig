@@ -164,20 +164,21 @@ pub fn createGameExecutable(
     var enginePathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var enginePath = try std.fs.realpath(b.build_root, &enginePathBuffer);
 
-    std.debug.print("build_root: {s} \n", .{basePath});
+    // std.debug.print("build_root: {s} \n", .{basePath});
     var cflags = std.ArrayList([]const u8).init(allocator);
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
 
     for (cflags.items) |s| {
-        std.debug.print("cflag: {s}\n", .{s});
+        _ = s;
+        // std.debug.print("cflag: {s}\n", .{s});
     }
 
     var thisBuildFile = @src().file;
     var engineRoot = std.fs.path.dirname(thisBuildFile).?;
 
-    std.debug.print("root = `{s}`\n", .{engineRoot});
+    // std.debug.print("root = `{s}`\n", .{engineRoot});
 
     var mainFilePath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ engineRoot, mainFile });
     defer allocator.free(mainFilePath);

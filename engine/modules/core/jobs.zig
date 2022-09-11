@@ -79,6 +79,8 @@ pub const JobWorker = struct {
                 ctx.func(ctx.capture.ptr, ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
+            } else {
+                core.engine_log("no job available, sleeping again", .{});
             }
         }
 
@@ -86,7 +88,9 @@ pub const JobWorker = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        core.engine_logs("deiniting worker");
         self.shouldDie.store(true, .SeqCst);
+        self.wake();
         self.workerThread.join();
     }
 };

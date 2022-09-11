@@ -64,16 +64,15 @@ const GameContext = struct {
         };
 
         var wanker = Wanker{};
-        std.debug.print("what the func\n", .{});
 
         _ = Wanker;
         _ = wanker;
         const Lambda = struct {
             capturedValue: u32 = 43,
-            wanker: *const Wanker,
+            wanker: Wanker,
 
             pub fn func(ctx: @This(), job: *JobContext) void {
-                std.debug.print("nice {any}\n", .{ctx});
+                std.debug.print("nice this is a job: {any}\n\n", .{ctx});
                 _ = job;
             }
         };
@@ -83,25 +82,25 @@ const GameContext = struct {
             std.heap.c_allocator,
             Lambda,
             .{
-                .wanker = &wanker,
+                .wanker = wanker,
             },
         );
 
-        self.jobContext.func(self.jobContext.capture.ptr, &self.jobContext);
+        // self.jobContext.func(self.jobContext.capture.ptr, &self.jobContext);
         self.jobWorker.currentJobContext = &self.jobContext;
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
-        self.timeTilWake -= 0.1;
-        std.time.sleep(1000 * 1000 * 100);
-
         if (self.timeTilWake <= 0) {
             self.jobWorker.wake();
             self.timeTilWake = 2.0;
             self.wakeCount -= 1;
         }
+
+        self.timeTilWake -= 0.1;
+        std.time.sleep(1000 * 1000 * 100);
 
         if (self.wakeCount <= 0) {
             core.gEngine.exit();
