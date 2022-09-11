@@ -73,6 +73,21 @@ const GameContext = struct {
 
             pub fn func(ctx: @This(), job: *JobContext) void {
                 std.debug.print("nice this is a job: {any}\n\n", .{ctx});
+                std.time.sleep(1000 * 1000 * 1000);
+                core.engine_logs("sleeping 1");
+                std.time.sleep(1000 * 1000 * 1000);
+                core.engine_logs("sleeping 2");
+                std.time.sleep(1000 * 1000 * 1000);
+                core.engine_logs("sleeping 3");
+                std.time.sleep(1000 * 1000 * 1000);
+                core.engine_logs("sleeping 4");
+
+                std.time.sleep(1000 * 1000 * 1000);
+                core.engine_logs("sleeping 5");
+                std.time.sleep(1000 * 1000 * 2000);
+                core.engine_logs("sleeping 6");
+                std.time.sleep(1000 * 1000 * 3000);
+                core.engine_logs("sleeping 7");
                 _ = job;
             }
         };
@@ -95,7 +110,7 @@ const GameContext = struct {
 
         if (self.timeTilWake <= 0) {
             self.jobWorker.wake();
-            self.timeTilWake = 2.0;
+            self.timeTilWake = 0.5;
             self.wakeCount -= 1;
         }
 

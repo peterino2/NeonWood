@@ -12,9 +12,9 @@ const MaxJobs = 1024; // I think we got serious problems if we have more than 10
 
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
+    // need a mutex for the jobQueue... todo later
     jobQueue: RingQueueU(*JobContext),
     workers: []JobWorker,
-    workersBusy: []bool,
     numCpus: usize,
 
     pub fn init(allocator: std.mem.Allocator) void {
@@ -26,12 +26,11 @@ pub const JobManager = struct {
         };
 
         self.workers = self.allocator.alloc(JobWorker, self.numCpus - 1);
-        self.workersBusy = self.allocator.alloc(bool, self.numCpus - 1);
 
         var i: usize = 0;
         while (i < self.workers.len) : (i += 1) {
-            self.workers[i] = .{JobWorker.init(self.allocator)};
-            self.workersBusy = false;
+            self.workers[i] = JobWorker.init(self.allocator);
+            self.workers[i].workerId = i;
         }
 
         return self;
@@ -40,6 +39,10 @@ pub const JobManager = struct {
     pub fn newJob(comptime Lambda: type, capture: Lambda) void {
         _ = Lambda;
         _ = capture;
+        // 1. create a job context;
+
+        // 2. find a worker and pass it the job context if available
+        // 3. otherwise it goes on the RingQueue
     }
 };
 
@@ -50,9 +53,13 @@ pub const JobWorker = struct {
     futex: Atomic(u32) = Atomic(u32).init(0),
     current: u32 = 0,
     shouldDie: Atomic(bool) = Atomic(bool).init(false),
+    busy: Atomic(bool) = Atomic(bool).init(false),
     allocator: std.mem.Allocator,
+    workerId: usize = 0,
+    manager: ?*JobManager = null,
 
     pub fn wake(self: *JobWorker) void {
+        core.engine_log("waking worker {d}", .{self.workerId});
         std.Thread.Futex.wake(&self.futex, 1);
     }
 
@@ -67,6 +74,10 @@ pub const JobWorker = struct {
         return self;
     }
 
+    pub fn isBusy(self: *@This()) void {
+        return self.busy.load(.Acquire);
+    }
+
     pub fn workerThreadFunc(self: *@This()) void {
         core.engine_logs("worker ready");
 
@@ -75,10 +86,12 @@ pub const JobWorker = struct {
             core.engine_logs("we woke up");
 
             if (self.currentJobContext != null) {
+                self.busy.store(true, .SeqCst);
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture.ptr, ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
+                self.busy.store(false, .SeqCst);
             } else {
                 core.engine_log("no job available, sleeping again", .{});
             }
