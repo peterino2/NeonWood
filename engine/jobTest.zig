@@ -15,6 +15,7 @@ const MakeName = core.MakeName;
 const mul = core.zm.mul;
 const JobContext = core.JobContext;
 const JobWorker = core.JobWorker;
+const JobManager = core.JobManager;
 
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
@@ -42,12 +43,15 @@ const GameContext = struct {
     jobComplete: bool = false,
     jobWorker: *JobWorker,
 
+    //jobManager: JobManager,
+
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
             .jobComplete = false,
             .allocator = allocator,
             .jobWorker = JobWorker.init(allocator) catch unreachable,
             .jobContext = undefined,
+            //.jobManager = JobManager.init(allocator) catch unreachable,
         };
 
         return self;
@@ -106,7 +110,8 @@ const GameContext = struct {
 
     pub fn shutdown(self: *Self) void {
         _ = self;
-        // self.jobWorker.deinit();
+        self.jobWorker.deinit();
+        // self.jobManager.deinit();
     }
 };
 

@@ -1,15 +1,18 @@
 const std = @import("std");
 const Atomic = std.atomic.Atomic;
 const core = @import("../core.zig");
+const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // simple test, no manager needed.
 // var worker = JobWorker.init(std.mem.Allocator);
 // try worker.assignContext(); // errors if the worker is not read
-//
+
+const MaxJobs = 1024; // I think we got serious problems if we have more than 1024
+
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
-    jobQueue: ArrayListUnmanaged(*JobContext),
+    jobQueue: RingQueueU(*JobContext),
     workers: []JobWorker,
     workersBusy: []bool,
     numCpus: usize,
@@ -46,6 +49,7 @@ pub const JobWorker = struct {
     workerThread: std.Thread,
     futex: Atomic(u32) = Atomic(u32).init(0),
     current: u32 = 0,
+    shouldDie: Atomic(bool) = Atomic(bool).init(false),
     allocator: std.mem.Allocator,
 
     pub fn wake(self: *JobWorker) void {
@@ -66,15 +70,24 @@ pub const JobWorker = struct {
     pub fn workerThreadFunc(self: *@This()) void {
         core.engine_logs("worker ready");
 
-        while (true) {
+        while (!self.shouldDie.load(.Acquire)) {
             std.Thread.Futex.wait(&self.futex, self.current);
             core.engine_logs("we woke up");
 
             if (self.currentJobContext != null) {
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture.ptr, ctx);
+                ctx.deinit();
+                self.currentJobContext = null;
             }
         }
+
+        core.engine_logs("We dying now boys");
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.shouldDie.store(true, .SeqCst);
+        self.workerThread.join();
     }
 };
 

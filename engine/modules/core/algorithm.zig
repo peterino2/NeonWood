@@ -47,6 +47,21 @@ pub fn RingQueueU(comptime T: type) type {
             self.tail = next;
         }
 
+        pub fn pushFront(self: *@This(), value: T) !void {
+            var iHead = @intCast(isize, self.head) - 1;
+
+            if (iHead < 0) {
+                iHead = @intCast(isize, self.buffer.len) + iHead;
+            }
+
+            if (iHead == @intCast(isize, self.tail)) {
+                return error.QueueIsFull;
+            }
+
+            self.head = @intCast(usize, iHead);
+            self.buffer[self.head] = value;
+        }
+
         pub fn count(self: @This()) usize {
             if (self.head == self.tail)
                 return 0;
@@ -74,6 +89,29 @@ pub fn RingQueueU(comptime T: type) type {
             return self.at(0);
         }
 
+        pub fn peekBack(self: @This()) ?*T {
+            return self.atBack(1);
+        }
+
+        // similar to python's negative number syntax.
+        // gets you an element at an offset from the tail.
+        // given the way the tail works, this will return null on zero
+        pub fn atBack(self: @This(), offset: usize) ?*T {
+            const c = self.count();
+
+            if (offset > c or offset == 0) {
+                return null;
+            }
+
+            var x: isize = @intCast(isize, self.tail) - @intCast(isize, offset);
+
+            if (x < 0) {
+                x = @intCast(isize, self.buffer.len) + x;
+            }
+
+            return &self.buffer[@intCast(usize, x)];
+        }
+
         pub fn at(self: *@This(), offset: usize) ?*T {
             _ = self;
             _ = offset;
@@ -91,6 +129,12 @@ pub fn RingQueueU(comptime T: type) type {
             var index = (self.head + offset) % self.buffer.len;
 
             return &self.buffer[index];
+        }
+
+        // returns the number of elements this buffer can hold.
+        // you should rarely ever need to use this.
+        pub fn capacity(self: *@This()) usize {
+            return self.buffer.len - 1;
         }
 
         pub fn resize(self: *@This(), allocator: std.mem.Allocator, size: usize) !void {
@@ -182,4 +226,28 @@ test "ringBuffer" {
     try expect(b.tail == ((b.head + 4) % b.buffer.len));
 
     try expect(b.at(0).? == b.peek().?);
+
+    const newSize = b.buffer.len * 4;
+    try b.resize(allocator, newSize); // grow that shit, expect the new size to be size + 1
+    try expect(b.capacity() == newSize);
+    try expect(b.buffer.len == newSize + 1);
+
+    var errorHit: bool = false;
+    b.resize(allocator, 2) catch |e| {
+        errorHit = true;
+        try expect(e == error.AllocSizeTooSmall);
+        std.debug.print("{any}\n", .{e});
+    };
+
+    try expect(errorHit);
+    try expect(b.peekBack().?.* == 14);
+    try expect(b.atBack(1).?.* == 14);
+    try expect(b.atBack(2).?.* == 13);
+    try expect(b.atBack(3).?.* == 12);
+    try expect(b.atBack(4).?.* == 11);
+
+    try b.pushFront(44);
+
+    try expect(b.count() == 5);
+    try expect(b.peek().?.* == 44);
 }
