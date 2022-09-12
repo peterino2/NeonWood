@@ -195,6 +195,7 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/imgui_draw.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/imgui_tables.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/backends/imgui_impl_vulkan.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/backends/imgui_impl_glfw.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
@@ -203,8 +204,8 @@ pub fn createGameExecutable(
     exe.addIncludeDir("modules/graphics/lib/vulkan_inc");
     exe.addIncludeDir("modules/graphics/lib/cimgui");
     exe.addIncludeDir("modules/graphics/lib/cimgui/imgui");
-    exe.addIncludeDir("modules/graphics/lib/cimgui/generator/output");
     exe.addIncludeDir("modules/graphics/lib");
+    exe.addIncludeDir("modules/graphics");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 

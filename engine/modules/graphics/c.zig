@@ -1,6 +1,7 @@
 pub usingnamespace @cImport({
     @cDefine("GLFW_INCLUDE_NONE", {});
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
+    @cDefine("CIMGUI_USE_GLFW", {});
     @cInclude("cimgui.h");
     @cInclude("cimgui_impl.h");
     @cInclude("GLFW/glfw3.h");
