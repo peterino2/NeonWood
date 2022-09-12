@@ -517,7 +517,7 @@ pub const NeonVkContext = struct {
     pub fn init_descriptors(self: *Self) !void {
         var poolInfo = vk.DescriptorPoolCreateInfo{
             .flags = .{},
-            .max_sets = 10,
+            .max_sets = 100,
             .pool_size_count = @intCast(u32, descriptorPoolSizes.len),
             .p_pool_sizes = &descriptorPoolSizes,
         };

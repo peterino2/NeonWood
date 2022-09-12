@@ -2,9 +2,14 @@ const std = @import("std");
 const vk = @import("vulkan");
 const vk_renderer = @import("vk_renderer.zig");
 const core = @import("../core.zig");
-pub const c = @import("c.zig");
+const vk_constants = @import("vk_constants.zig");
+const c = vk_renderer.c;
 
 const NeonVkContext = vk_renderer.NeonVkContext;
+
+fn vkCast(comptime T: type, handle: anytype) T {
+    return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
+}
 
 // this data structure is invalid until you call setup
 pub const NeonVkImGui = struct {
@@ -53,7 +58,35 @@ pub const NeonVkImGui = struct {
         _ = c.igCreateContext(null);
         var io: *c.ImGuiIO = c.igGetIO();
         io.*.ConfigFlags = c.ImGuiConfigFlags_NavEnableKeyboard;
+        io.*.ConfigFlags = c.ImGuiConfigFlags_DockingEnable;
+        io.*.ConfigFlags = c.ImGuiConfigFlags_ViewportsEnable;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
+
+        var style = c.igGetStyle();
+        c.igStyleColorsDark(style);
+        style.*.WindowRounding = 0.0;
+        style.*.Colors[c.ImGuiCol_WindowBg].w = 1.0;
+
+        var imguiInit = c.ImGui_ImplVulkan_InitInfo{
+            .Instance = vkCast(c.VkInstance, ctx.instance),
+            ////.Instance = @ptrCast(c.VkInstance, @intToPtr(*anyopaque, @enumToInt(ctx.instance))),
+            .PhysicalDevice = vkCast(c.VkPhysicalDevice, ctx.physicalDevice),
+            .Device = vkCast(c.VkDevice, ctx.dev),
+            .QueueFamily = ctx.graphicsQueue.family,
+            .Queue = vkCast(c.VkQueue, ctx.graphicsQueue.handle),
+            .PipelineCache = vkCast(c.VkPipelineCache, vk.PipelineCache.null_handle),
+            .DescriptorPool = vkCast(c.VkDescriptorPool, self.descriptorPool),
+            .Subpass = 0,
+            .MinImageCount = 2,
+            .ImageCount = vk_constants.NUM_FRAMES,
+            .MSAASamples = 0x1,
+            .Allocator = null,
+            .CheckVkResultFn = checkVkResult,
+        };
+        _ = imguiInit;
+        core.debug_struct("instance: ", ctx.instance);
+        core.debug_struct("huh: ", imguiInit);
+        _ = c.cImGui_vk_Init(&imguiInit, vkCast(c.VkRenderPass, ctx.renderPass));
     }
 
     pub fn deinit(self: *Self) void {
@@ -62,3 +95,12 @@ pub const NeonVkImGui = struct {
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
     }
 };
+
+export fn checkVkResult(result: c_int) void {
+    const r = @intToEnum(vk.Result, result);
+    if (r == vk.Result.success)
+        return;
+
+    core.graphics_log("This is a big problem imgui call result: {any}", .{r});
+    unreachable;
+}
