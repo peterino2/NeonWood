@@ -2212,6 +2212,10 @@ pub const NeonVkContext = struct {
         }
     }
 
+    pub fn shutdown_glfw(self: *Self) void {
+        _ = self;
+    }
+
     pub fn deinit(self: *Self) void {
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
@@ -2233,6 +2237,7 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
+        self.shutdown_glfw();
     }
 };
 

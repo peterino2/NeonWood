@@ -197,7 +197,7 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/backends/imgui_impl_vulkan.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
-    exe.addCSourceFile("modules/graphics/cimgui_impl.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
     exe.addIncludeDir("modules/core/lib");
     exe.addIncludeDir("modules/graphics/lib/vulkan_inc");
