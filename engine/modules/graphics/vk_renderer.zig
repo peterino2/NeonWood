@@ -1119,6 +1119,8 @@ pub const NeonVkContext = struct {
         try self.finish_main_renderpass(cmd);
         try self.vkd.endCommandBuffer(cmd);
         try self.finish_frame();
+        c.igUpdatePlatformWindows();
+        c.igRenderPlatformWindowsDefault(null, null);
     }
 
     fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, index: u32, deltaTime: f64) void {

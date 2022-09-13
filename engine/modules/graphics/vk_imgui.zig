@@ -56,9 +56,9 @@ pub const NeonVkImGui = struct {
         self.descriptorPool = try ctx.vkd.createDescriptorPool(ctx.dev, &poolInfo, null);
         _ = c.igCreateContext(null);
         var io: *c.ImGuiIO = c.igGetIO();
-        io.*.ConfigFlags = c.ImGuiConfigFlags_NavEnableKeyboard;
-        io.*.ConfigFlags = c.ImGuiConfigFlags_DockingEnable;
-        io.*.ConfigFlags = c.ImGuiConfigFlags_ViewportsEnable;
+        io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
+        io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
+        io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
 
         var style = c.igGetStyle();
