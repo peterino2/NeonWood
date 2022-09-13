@@ -30,9 +30,9 @@ pub const RttiData = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    init_func: *const fn (std.mem.Allocator, *anyopaque) void,
-    tick_func: ?*const fn (*anyopaque, f64) void = null,
-    deinit_func: ?*const fn (*anyopaque) void = null,
+    init_func: fn (std.mem.Allocator, *anyopaque) void,
+    tick_func: ?fn (*anyopaque, f64) void = null,
+    deinit_func: ?fn (*anyopaque) void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {

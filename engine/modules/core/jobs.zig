@@ -113,7 +113,7 @@ pub const JobContext = struct {
 
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
     //func: *const fn (*anyopaque, *JobContext) void,
-    func: *const fn (*anyopaque, *JobContext) void,
+    func: fn (*anyopaque, *JobContext) void,
     capture: []u8 = undefined,
     hasCaptureAlloc: bool = false,
 

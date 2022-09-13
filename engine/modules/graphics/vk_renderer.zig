@@ -16,6 +16,10 @@ const materials = @import("materials.zig");
 
 const MAX_OBJECTS = 100000;
 
+fn vkCast(comptime T: type, handle: anytype) T {
+    return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
+}
+
 // Aliases
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
@@ -279,6 +283,7 @@ pub const NeonVkContext = struct {
     physicalDeviceMemoryProperties: vk.PhysicalDeviceMemoryProperties,
 
     enumeratedPhysicalDevices: ArrayList(NeonVkPhysicalDeviceInfo),
+    showDemo: bool,
 
     graphicsFamilyIndex: u32,
     presentFamilyIndex: u32,
@@ -382,6 +387,7 @@ pub const NeonVkContext = struct {
         self.materials = .{};
         self.lastMaterial = null;
         self.lastMesh = null;
+        self.showDemo = true;
         self.renderObjectsByMaterial = .{};
     }
 
@@ -1093,14 +1099,22 @@ pub const NeonVkContext = struct {
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
         self.updateTime(deltaTime);
+
+        c.cImGui_vk_NewFrame();
+        c.ImGui_ImplGlfw_NewFrame();
+
+        c.igNewFrame();
+        c.igShowDemoWindow(&self.showDemo);
+        c.igRender();
+
         try self.acquire_next_frame();
         try self.pre_frame_update();
 
-        // start the party.
         const cmd = try self.start_frame_command_buffer();
 
         try self.begin_main_renderpass(cmd);
         try self.render_meshes(deltaTime);
+        c.cImGui_vk_RenderDrawData(c.igGetDrawData(), vkCast(c.VkCommandBuffer, cmd), vkCast(c.VkPipeline, vk.Pipeline.null_handle));
 
         try self.finish_main_renderpass(cmd);
         try self.vkd.endCommandBuffer(cmd);

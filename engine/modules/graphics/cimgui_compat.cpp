@@ -4,10 +4,12 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+#include <stdio.h>
 
 extern "C" bool cImGui_vk_Init(ImGui_ImplVulkan_InitInfo* info, VkRenderPass render_pass)
 {
     ImGui_ImplVulkan_Init(info, render_pass);
+    return false;
 }
 
 extern "C" void cImGui_vk_Shutdown()
@@ -28,6 +30,7 @@ extern "C" void cImGui_vk_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer 
 extern "C" bool cImGui_vk_CreateFontsTexture(VkCommandBuffer command_buffer)
 {
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+    return true;
 }
 
 extern "C" void cImGui_vk_DestroyFontUploadObjects()

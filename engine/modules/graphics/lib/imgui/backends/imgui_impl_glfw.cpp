@@ -773,7 +773,7 @@ static void ImGui_ImplGlfw_UpdateMonitors()
     bd->WantUpdateMonitors = false;
 }
 
-void ImGui_ImplGlfw_NewFrame()
+extern "C" void ImGui_ImplGlfw_NewFrame()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();

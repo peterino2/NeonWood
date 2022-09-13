@@ -7,7 +7,7 @@ struct GLFWmonitor;CIMGUI_API bool ImGui_ImplGlfw_InitForOpenGL(GLFWwindow* wind
 CIMGUI_API bool ImGui_ImplGlfw_InitForVulkan(GLFWwindow* window,bool install_callbacks);
 CIMGUI_API bool ImGui_ImplGlfw_InitForOther(GLFWwindow* window,bool install_callbacks);
 CIMGUI_API void ImGui_ImplGlfw_Shutdown(void);
-CIMGUI_API void ImGui_ImplGlfw_NewFrame(void);
+void ImGui_ImplGlfw_NewFrame(void);
 CIMGUI_API void ImGui_ImplGlfw_InstallCallbacks(GLFWwindow* window);
 CIMGUI_API void ImGui_ImplGlfw_RestoreCallbacks(GLFWwindow* window);
 CIMGUI_API void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window,int focused);

@@ -54,7 +54,6 @@ pub const NeonVkImGui = struct {
         };
 
         self.descriptorPool = try ctx.vkd.createDescriptorPool(ctx.dev, &poolInfo, null);
-
         _ = c.igCreateContext(null);
         var io: *c.ImGuiIO = c.igGetIO();
         io.*.ConfigFlags = c.ImGuiConfigFlags_NavEnableKeyboard;
@@ -87,6 +86,16 @@ pub const NeonVkImGui = struct {
         core.debug_struct("instance: ", ctx.instance);
         core.debug_struct("huh: ", imguiInit);
         _ = c.cImGui_vk_Init(&imguiInit, vkCast(c.VkRenderPass, ctx.renderPass));
+
+        try ctx.start_upload_context(&ctx.uploadContext);
+        _ = c.cImGui_vk_CreateFontsTexture(vkCast(c.VkCommandBuffer, ctx.uploadContext.commandBuffer));
+        try ctx.finish_upload_context(&ctx.uploadContext);
+        _ = c.cImGui_vk_DestroyFontUploadObjects();
+    }
+
+    pub fn setupVulkanWindow(self: *Self) void {
+        var ctx = self.ctx;
+        _ = ctx;
     }
 
     pub fn deinit(self: *Self) void {
