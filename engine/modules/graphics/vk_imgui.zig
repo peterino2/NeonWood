@@ -92,6 +92,7 @@ pub const NeonVkImGui = struct {
     pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
 
+        // ... fuck... do i have to revert it
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
     }
 };
