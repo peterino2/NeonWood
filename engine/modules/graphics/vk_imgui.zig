@@ -58,7 +58,7 @@ pub const NeonVkImGui = struct {
         var io: *c.ImGuiIO = c.igGetIO();
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
         io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
-        io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
+        // io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
 
         var style = c.igGetStyle();
@@ -100,7 +100,9 @@ pub const NeonVkImGui = struct {
 
     pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
+        ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
 
+        c.cImGui_vk_Shutdown();
         // ... fuck... do i have to revert it
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
     }
