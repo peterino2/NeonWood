@@ -16,13 +16,11 @@ const mul = core.zm.mul;
 
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
-    .{ .name = core.MakeName("t_lost_empire"), .path = "content/lost_empire-RGBA.png" },
 };
 
 const MeshAssets = [_]AssetReference{
     .{ .name = core.MakeName("m_monkey"), .path = "content/monkey.obj" },
     .{ .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
-    .{ .name = core.MakeName("m_empire"), .path = "content/lost_empire.obj" },
 };
 
 var gGame: *GameContext = undefined;
@@ -71,7 +69,7 @@ const GameContext = struct {
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
 
-        self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = -2.0 });
+        self.camera.translate(.{ .x = 0.0, .y = -6.0, .z = -6.0 });
         self.camera.updateCamera();
 
         self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
