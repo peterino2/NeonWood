@@ -8,40 +8,46 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 // var worker = JobWorker.init(std.mem.Allocator);
 // try worker.assignContext(); // errors if the worker is not read
 
-const MaxJobs = 1024; // I think we got serious problems if we have more than 1024
-
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
+
     // need a mutex for the jobQueue... todo later
     jobQueue: RingQueueU(*JobContext),
-    workers: []JobWorker,
+    workers: []*JobWorker,
     numCpus: usize,
 
-    pub fn init(allocator: std.mem.Allocator) void {
+    pub fn init(allocator: std.mem.Allocator) @This() {
         var self = JobManager{
             .allocator = allocator,
             .numCpus = std.Thread.getCpuCount() catch 4,
-            .jobs = .{},
+            .jobQueue = RingQueueU(*JobContext).init(allocator, 4096) catch unreachable,
             .workers = undefined,
         };
 
-        self.workers = self.allocator.alloc(JobWorker, self.numCpus - 1);
+        self.workers = self.allocator.alloc(*JobWorker, self.numCpus - 1) catch unreachable;
 
         var i: usize = 0;
         while (i < self.workers.len) : (i += 1) {
-            self.workers[i] = JobWorker.init(self.allocator);
+            self.workers[i] = JobWorker.init(self.allocator) catch unreachable;
             self.workers[i].workerId = i;
         }
 
         return self;
     }
 
-    pub fn newJob(comptime Lambda: type, capture: Lambda) void {
-        _ = Lambda;
-        _ = capture;
+    pub fn newJob(self: *@This(), capture: anytype) !void {
+        const Lambda = @TypeOf(capture);
         // 1. create a job context;
-
+        var ctx = try JobContext.new(std.heap.c_allocator, Lambda, capture);
         // 2. find a worker and pass it the job context if available
+        var found: ?*JobWorker = null;
+        for (self.workers) |*worker| {
+            if (!worker.isBusy()) {
+                found = worker;
+                try worker.assignContext(ctx);
+                return;
+            }
+        }
         // 3. otherwise it goes on the RingQueue
     }
 };
@@ -78,8 +84,14 @@ pub const JobWorker = struct {
         return self.busy.load(.Acquire);
     }
 
+    pub fn assignContext(self: *@This(), context: *JobContext) !void {
+        self.busy.store(true, .SeqCst);
+        self.currentJobContext = context;
+        try self.wake();
+    }
+
     pub fn workerThreadFunc(self: *@This()) void {
-        core.engine_logs("worker ready");
+        core.engine_log("worker ready {d}", .{self.workerId});
 
         while (!self.shouldDie.load(.Acquire)) {
             std.Thread.Futex.wait(&self.futex, self.current);

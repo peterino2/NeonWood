@@ -43,7 +43,7 @@ const GameContext = struct {
     jobComplete: bool = false,
     jobWorker: *JobWorker,
 
-    //jobManager: JobManager,
+    jobManager: JobManager,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -51,7 +51,7 @@ const GameContext = struct {
             .allocator = allocator,
             .jobWorker = JobWorker.init(allocator) catch unreachable,
             .jobContext = undefined,
-            //.jobManager = JobManager.init(allocator) catch unreachable,
+            .jobManager = JobManager.init(allocator),
         };
 
         return self;
@@ -67,6 +67,7 @@ const GameContext = struct {
 
         _ = Wanker;
         _ = wanker;
+
         const Lambda = struct {
             capturedValue: u32 = 43,
             wanker: Wanker,

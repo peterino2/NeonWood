@@ -1,5 +1,3 @@
-// this will be replaced by build system symbols later.
-//const core = @import("../core/core.zig");
 const core = @import("core.zig");
 const std = @import("std");
 const vk_renderer = @import("graphics/vk_renderer.zig");
