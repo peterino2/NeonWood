@@ -15,6 +15,7 @@ const NeonObjectRef = rtti.NeonObjectRef;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
+const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
 
@@ -31,6 +32,7 @@ pub const Engine = struct {
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
     traces: *TracesContext,
+    jobManager: JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
@@ -48,6 +50,7 @@ pub const Engine = struct {
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
             .traces = try allocator.create(TracesContext),
+            .jobManager = JobManager.init(allocator),
         };
 
         rv.traces.* = .{

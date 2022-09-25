@@ -43,6 +43,10 @@ pub fn shutdown_module() void {
     return;
 }
 
+pub fn dispatchJob(capture: anytype) !void {
+    try gEngine.jobManager.newJob(capture);
+}
+
 pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;
 pub var gEngine: *Engine = undefined;
 

@@ -74,8 +74,6 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn pop(self: *@This()) ?T {
-            _ = self;
-
             if (self.head == self.tail)
                 return null;
 
@@ -93,6 +91,7 @@ pub fn RingQueueU(comptime T: type) type {
             return self.atBack(1);
         }
 
+        // reference an element at an offset from the back of the queue
         // similar to python's negative number syntax.
         // gets you an element at an offset from the tail.
         // given the way the tail works, this will return null on zero

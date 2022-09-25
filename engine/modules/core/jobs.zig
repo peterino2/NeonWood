@@ -12,7 +12,8 @@ pub const JobManager = struct {
     allocator: std.mem.Allocator,
 
     // need a mutex for the jobQueue... todo later
-    jobQueue: RingQueueU(*JobContext),
+    jobQueue: RingQueueU(JobContext),
+    mutex: std.Thread.Mutex = .{},
     workers: []*JobWorker,
     numCpus: usize,
 
@@ -20,7 +21,7 @@ pub const JobManager = struct {
         var self = JobManager{
             .allocator = allocator,
             .numCpus = std.Thread.getCpuCount() catch 4,
-            .jobQueue = RingQueueU(*JobContext).init(allocator, 4096) catch unreachable,
+            .jobQueue = RingQueueU(JobContext).init(allocator, 4096) catch unreachable,
             .workers = undefined,
         };
 
@@ -39,22 +40,33 @@ pub const JobManager = struct {
         const Lambda = @TypeOf(capture);
         // 1. create a job context;
         var ctx = try JobContext.new(std.heap.c_allocator, Lambda, capture);
+        // core.engine_logs("trying to create job");
         // 2. find a worker and pass it the job context if available
-        var found: ?*JobWorker = null;
-        for (self.workers) |*worker| {
+        for (self.workers) |worker| {
             if (!worker.isBusy()) {
-                found = worker;
+                worker.manager = self;
                 try worker.assignContext(ctx);
                 return;
             }
         }
+
         // 3. otherwise it goes on the RingQueue
+        self.mutex.lock();
+        try self.jobQueue.push(ctx);
+        self.mutex.unlock();
+    }
+
+    pub fn deinit(self: *@This()) void {
+        for (self.workers) |worker| {
+            worker.deinit();
+        }
+        self.allocator.free(self.workers);
     }
 };
 
 pub const JobWorker = struct {
     detached: bool = true, // most threads are detached, completions are handled via callbacks.
-    currentJobContext: ?*JobContext = null,
+    currentJobContext: ?JobContext = null,
     workerThread: std.Thread,
     futex: Atomic(u32) = Atomic(u32).init(0),
     current: u32 = 0,
@@ -65,7 +77,7 @@ pub const JobWorker = struct {
     manager: ?*JobManager = null,
 
     pub fn wake(self: *JobWorker) void {
-        core.engine_log("waking worker {d}", .{self.workerId});
+        // core.engine_log("waking worker {d}", .{self.workerId});
         std.Thread.Futex.wake(&self.futex, 1);
     }
 
@@ -80,36 +92,46 @@ pub const JobWorker = struct {
         return self;
     }
 
-    pub fn isBusy(self: *@This()) void {
+    pub fn isBusy(self: *@This()) bool {
         return self.busy.load(.Acquire);
     }
 
-    pub fn assignContext(self: *@This(), context: *JobContext) !void {
+    pub fn assignContext(self: *@This(), context: JobContext) !void {
+        // core.engine_log("worker {d}: assigned job", .{self.workerId});
         self.busy.store(true, .SeqCst);
         self.currentJobContext = context;
-        try self.wake();
+        self.wake();
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
-        core.engine_log("worker ready {d}", .{self.workerId});
+        // core.engine_log("worker {d}: ready", .{self.workerId});
 
         while (!self.shouldDie.load(.Acquire)) {
-            std.Thread.Futex.wait(&self.futex, self.current);
-            core.engine_logs("we woke up");
+            // std.Thread.Futex.wait(&self.futex, self.current);
+            //core.engine_log("worker {d}: we woke up", .{self.workerId});
 
             if (self.currentJobContext != null) {
                 self.busy.store(true, .SeqCst);
                 var ctx = self.currentJobContext.?;
-                ctx.func(ctx.capture.ptr, ctx);
+                ctx.func(ctx.capture.ptr, &ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
                 self.busy.store(false, .SeqCst);
             } else {
-                core.engine_log("no job available, sleeping again", .{});
+                // core.engine_log("worker {d}: no job available, sleeping again", .{self.workerId});
+                std.time.sleep(1000 * 1000);
+            }
+
+            if (self.manager != null) {
+                self.manager.?.mutex.lock();
+                if (self.manager.?.jobQueue.count() > 0) {
+                    self.currentJobContext = self.manager.?.jobQueue.pop().?;
+                }
+                self.manager.?.mutex.unlock();
             }
         }
 
-        core.engine_logs("We dying now boys");
+        core.engine_log("worker {d}: dying now", .{self.workerId});
     }
 
     pub fn deinit(self: *@This()) void {
