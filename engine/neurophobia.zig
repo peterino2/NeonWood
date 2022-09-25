@@ -1,5 +1,7 @@
 const std = @import("std");
-const neonwood = @import("modules/neonwood.zig");
+pub const neonwood = @import("modules/neonwood.zig");
+const game = @import("projects/neurophobia/game.zig");
+
 const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
@@ -65,6 +67,7 @@ const GameContext = struct {
             .cameraHorizontalRotationStart = undefined,
             .cameraHorizontalRotationMat = core.zm.identity(),
         };
+
         self.camera.fov = 30.0;
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;

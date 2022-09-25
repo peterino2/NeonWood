@@ -6,6 +6,8 @@ const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
 const core = @import("../core.zig");
 const jobs = @import("jobs.zig");
+const trace = @import("trace.zig");
+const TracesContext = trace.TracesContext;
 const Name = names.Name;
 const MakeName = names.MakeName;
 
@@ -13,6 +15,7 @@ const NeonObjectRef = rtti.NeonObjectRef;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
+const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
 
@@ -28,12 +31,16 @@ pub const Engine = struct {
     allocator: std.mem.Allocator,
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
+    traces: *TracesContext,
+    jobManager: JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
-        const rv = Engine{
+        const defaultName = MakeName("default");
+
+        var rv = Engine{
             .subsystems = ArrayList(*anyopaque).init(allocator),
             .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
             .allocator = allocator,
@@ -42,7 +49,17 @@ pub const Engine = struct {
             .tickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
+            .traces = try allocator.create(TracesContext),
+            .jobManager = JobManager.init(allocator),
         };
+
+        rv.traces.* = .{
+            .allocator = allocator,
+            .defaultTrace = .{ .name = defaultName },
+            .traces = .{},
+        };
+
+        try rv.traces.traces.put(allocator, defaultName.hash, &rv.traces.defaultTrace);
 
         return rv;
     }
@@ -74,6 +91,7 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.traces.deinit();
         self.subsystems.deinit();
         self.subsystemsByType.deinit();
     }

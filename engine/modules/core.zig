@@ -14,6 +14,10 @@ pub const names = @import("core/names.zig");
 pub const Name = names.Name;
 pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
+
+const trace = @import("core/trace.zig");
+pub const TracesContext = trace.TracesContext;
+
 const std = @import("std");
 const tests = @import("core/tests.zig");
 const logging = @import("core/logging.zig");
@@ -26,6 +30,7 @@ const log = logging.engine_log;
 pub fn start_module() void {
     gEngine = gEngineAllocator.create(Engine) catch unreachable;
     gEngine.* = Engine.init(gEngineAllocator) catch unreachable;
+
     logs("core module starting up... ");
     return;
 }
@@ -36,6 +41,10 @@ pub fn shutdown_module() void {
     gEngineAllocator.destroy(gEngine);
     logs("core module shutting down...");
     return;
+}
+
+pub fn dispatchJob(capture: anytype) !void {
+    try gEngine.jobManager.newJob(capture);
 }
 
 pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;

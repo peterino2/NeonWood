@@ -37,13 +37,12 @@ const GameContext = struct {
     pub const NeonObjectTable = core.RttiData.from(Self);
 
     allocator: std.mem.Allocator,
-    wakeCount: u32 = 4,
+    wakeCount: u32 = 400,
     jobContext: JobContext,
     timeTilWake: f64 = 2.0,
     jobComplete: bool = false,
     jobWorker: *JobWorker,
-
-    //jobManager: JobManager,
+    count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -51,8 +50,9 @@ const GameContext = struct {
             .allocator = allocator,
             .jobWorker = JobWorker.init(allocator) catch unreachable,
             .jobContext = undefined,
-            //.jobManager = JobManager.init(allocator) catch unreachable,
         };
+
+        self.jobWorker.workerId = 0xffff;
 
         return self;
     }
@@ -67,27 +67,17 @@ const GameContext = struct {
 
         _ = Wanker;
         _ = wanker;
+
         const Lambda = struct {
             capturedValue: u32 = 43,
             wanker: Wanker,
+            game: *GameContext,
 
             pub fn func(ctx: @This(), job: *JobContext) void {
-                std.debug.print("nice this is a job: {any}\n\n", .{ctx});
+                std.debug.print("nice this is a job: {any}\n\n", .{ctx.wanker});
                 std.time.sleep(1000 * 1000 * 1000);
-                core.engine_logs("sleeping 1");
-                std.time.sleep(1000 * 1000 * 1000);
-                core.engine_logs("sleeping 2");
-                std.time.sleep(1000 * 1000 * 1000);
-                core.engine_logs("sleeping 3");
-                std.time.sleep(1000 * 1000 * 1000);
-                core.engine_logs("sleeping 4");
-
-                std.time.sleep(1000 * 1000 * 1000);
-                core.engine_logs("sleeping 5");
-                std.time.sleep(1000 * 1000 * 2000);
-                core.engine_logs("sleeping 6");
-                std.time.sleep(1000 * 1000 * 3000);
-                core.engine_logs("sleeping 7");
+                _ = ctx.game.count.fetchAdd(1, .SeqCst);
+                std.debug.print("job done!{d}\n", .{ctx.wanker.value});
                 _ = job;
             }
         };
@@ -98,24 +88,32 @@ const GameContext = struct {
             Lambda,
             .{
                 .wanker = wanker,
+                .game = self,
             },
         );
 
-        // self.jobContext.func(self.jobContext.capture.ptr, &self.jobContext);
-        self.jobWorker.currentJobContext = &self.jobContext;
+        var x: u32 = 0;
+        while (x < 100) : (x += 1) {
+            core.engine_log("creating job: {d}", .{x});
+            try core.dispatchJob(Lambda{ .wanker = .{ .value = x }, .game = self });
+        }
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
         if (self.timeTilWake <= 0) {
-            self.jobWorker.wake();
             self.timeTilWake = 0.5;
             self.wakeCount -= 1;
+            core.engine_logs("tick");
         }
 
         self.timeTilWake -= 0.1;
         std.time.sleep(1000 * 1000 * 100);
+
+        if (self.count.load(.SeqCst) >= 99) {
+            core.gEngine.exit();
+        }
 
         if (self.wakeCount <= 0) {
             core.gEngine.exit();
@@ -124,8 +122,6 @@ const GameContext = struct {
 
     pub fn shutdown(self: *Self) void {
         _ = self;
-        self.jobWorker.deinit();
-        // self.jobManager.deinit();
     }
 };
 

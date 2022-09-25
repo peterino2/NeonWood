@@ -4,3 +4,8 @@ const std = @import("std");
 pub fn getEngineTime() f64 {
     return @intToFloat(f64, std.time.milliTimestamp()) / 1000;
 }
+
+// return the current system timestamp in nanoseconds
+pub fn getEngineTimeStamp() i128 {
+    return std.time.nanoTimestamp();
+}
