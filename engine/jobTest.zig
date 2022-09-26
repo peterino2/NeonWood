@@ -29,6 +29,7 @@ const MeshAssets = [_]AssetReference{
 };
 
 var gGame: *GameContext = undefined;
+const jobTestCount = 1000;
 
 // primarily a test file that exists to create a simple application for
 // basic engine onboarding
@@ -43,6 +44,7 @@ const GameContext = struct {
     jobComplete: bool = false,
     jobWorker: *JobWorker,
     count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
+    complete: [jobTestCount]bool = std.mem.zeroes([jobTestCount]bool),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -78,6 +80,7 @@ const GameContext = struct {
                 std.time.sleep(1000 * 1000 * 1000);
                 var v = ctx.game.count.fetchAdd(1, .SeqCst);
                 std.debug.print("job done!{d} {d}\n", .{ ctx.wanker.value, v });
+                ctx.game.complete[@intCast(usize, ctx.wanker.value)] = true;
                 _ = job;
             }
         };
@@ -93,7 +96,7 @@ const GameContext = struct {
         );
 
         var x: u32 = 0;
-        while (x < 100) : (x += 1) {
+        while (x < jobTestCount) : (x += 1) {
             core.engine_log("creating job: {d}", .{x});
             try core.dispatchJob(Lambda{ .wanker = .{ .value = x }, .game = self });
         }
@@ -108,12 +111,27 @@ const GameContext = struct {
             self.timeTilWake = 0.5;
             self.wakeCount -= 1;
             core.engine_log("tick {d}", .{self.count.load(.SeqCst)});
+            var i: usize = 0;
+
+            while (i < jobTestCount) : (i += 1) {
+                var d = @bitCast(u1, self.complete[i]);
+                std.debug.print("{d}", .{d});
+            }
+            std.debug.print("\n", .{});
+            core.engine_logs("endTick");
         }
 
         self.timeTilWake -= 0.1;
         std.time.sleep(1000 * 1000 * 100);
 
-        if (self.count.load(.SeqCst) >= 99) {
+        if (self.count.load(.SeqCst) >= jobTestCount) {
+            var i: usize = 0;
+            while (i < jobTestCount) : (i += 1) {
+                var d = @bitCast(u1, self.complete[i]);
+                std.debug.print("{d}", .{d});
+            }
+            std.debug.print("\n", .{});
+
             core.gEngine.tracesContext.defaultTrace.printTraceStats(self.allocator);
             core.gEngine.exit();
         }
