@@ -1,3 +1,4 @@
+// ---- ----
 const std = @import("std");
 
 const ArrayList = std.ArrayList;
@@ -5,7 +6,6 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // As neonwood is primarily a playground for me to learn and practice programming,
 // There will be some implementations of basic data structures. For fun ofc
-
 pub fn AppendToArrayListUnique(list: anytype, value: anytype) !void {
     for (list.items) |v| {
         if (v == value)
@@ -15,11 +15,133 @@ pub fn AppendToArrayListUnique(list: anytype, value: anytype) !void {
     try list.append(value);
 }
 
+// can be index by an 18 bit value, and 262144 of anything ought to be enough... right?
+pub const DefaultSparseSize = 262144;
+
+pub fn SparseSet(comptime T: type) type {
+    return SparseSetAdvanced(T, DefaultSparseSize);
+}
+
+pub const SetHandle = packed struct {
+    alive: bool,
+    generation: u11,
+    index: u20,
+};
+
 // A quick little sparse set implementation
-// pub fn SparseSet(comptime T: type) type {
-//
-//
-// };
+pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
+    return struct {
+        prng: std.rand.DefaultPrng,
+        rand: std.rand.Random,
+        allocator: std.mem.Allocator,
+        dense: ArrayListUnmanaged(T),
+        sparse: [SparseSize]SetHandle,
+
+        pub fn init(allocator: std.mem.Allocator) @This() {
+            var self = @This(){
+                .allocator = allocator,
+                .dense = .{},
+                .sparse = undefined,
+                .prng = std.rand.DefaultPrng.init(0x1234),
+                .rand = undefined,
+            };
+
+            self.rand = self.prng.random();
+
+            for (self.sparse) |*s| {
+                s.* = .{ .generation = 0, .index = 0x0, .alive = false };
+            }
+
+            return self;
+        }
+
+        fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
+            const denseHandle = self.sparse[@intCast(usize, handle.index)];
+
+            if (denseHandle.generation != handle.generation) // tombstone value
+            {
+                // Generation mismatch, this handle is totally dead.
+                return null;
+            }
+
+            if (denseHandle.alive == false) {
+                return null;
+            }
+
+            const denseIndex = @intCast(usize, denseHandle.index);
+
+            if (denseIndex >= self.dense.items.len) {
+                return null;
+            }
+
+            return denseIndex;
+        }
+
+        pub fn get(self: *@This(), handle: SetHandle) ?*T {
+            const denseIndex = self.sparseToDense(handle) orelse return null;
+            return &self.dense.items[denseIndex];
+        }
+
+        pub fn destroyObject(self: *@This(), handle: SetHandle) void {
+            // to destroy an object
+            // get handle and get the dense position, swap and remove.
+            // Then insert the tombstone value into the sparse handle
+            const denseIndex = self.sparseToDense(handle) orelse return;
+            self.dense.swapRemove(denseIndex);
+            self.sparse.items[@intCast(usize, handle.index)].alive = false;
+        }
+
+        // the idea behind a sparse array is that the sethandle is
+        // highly stable.
+        // Basically infallable
+        pub fn createObject(self: *@This()) !SetHandle {
+            var randIndex = self.rand.int(u18);
+
+            var denseHandle = self.sparse[@intCast(usize, randIndex)];
+
+            while (denseHandle.alive == true) {
+                randIndex = self.rand.int(u18);
+                denseHandle = self.sparse[@intCast(usize, randIndex)];
+            }
+
+            var newDenseIndex = self.dense.items.len;
+            try self.dense.append(self.allocator);
+
+            const generation = denseHandle.generation + 1;
+
+            self.sparse[@intCast(usize, randIndex)] = SetHandle{
+                .alive = true,
+                .generation = @intCast(u11, generation),
+                .index = @intCast(u18, newDenseIndex),
+            };
+
+            var setHandle = SetHandle{
+                .alive = true,
+                .generation = generation,
+                .index = randIndex,
+            };
+
+            return setHandle;
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.dense.deinit(self.allocator);
+        }
+    };
+}
+
+test "sparse-set" {
+    const Payload = struct {
+        name: []const u8,
+    };
+
+    const PayloadSet = SparseSet(Payload);
+
+    var x = PayloadSet.init(std.testing.allocator);
+    defer x.deinit();
+
+    std.time.sleep(1000 * 1000 * 1000 * 1000);
+}
 
 // tail points to next free
 // head points to next one to read
