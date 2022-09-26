@@ -15,6 +15,8 @@ pub const Name = names.Name;
 pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
 
+pub const DefaultName = MakeName("default");
+
 const trace = @import("core/trace.zig");
 pub const TracesContext = trace.TracesContext;
 
@@ -53,3 +55,15 @@ pub var gEngine: *Engine = undefined;
 pub const assert = std.debug.assert;
 
 pub const createObject = engine.createObject;
+
+pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
+    try gEngine.tracesContext.traces.getEntry(name.hash).?.value_ptr.*.traceFmt(
+        gEngine.tracesContext.allocator,
+        fmt,
+        args,
+    );
+}
+
+pub fn traceFmtD(comptime fmt: []const u8, args: anytype) !void {
+    try traceFmt(DefaultName, fmt, args);
+}

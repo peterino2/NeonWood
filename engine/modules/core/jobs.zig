@@ -108,7 +108,7 @@ pub const JobWorker = struct {
 
         while (!self.shouldDie.load(.Acquire)) {
             // std.Thread.Futex.wait(&self.futex, self.current);
-            //core.engine_log("worker {d}: we woke up", .{self.workerId});
+            // core.engine_log("worker {d}: we woke up", .{self.workerId});
 
             if (self.currentJobContext != null) {
                 self.busy.store(true, .SeqCst);
@@ -119,7 +119,7 @@ pub const JobWorker = struct {
                 self.busy.store(false, .SeqCst);
             } else {
                 // core.engine_log("worker {d}: no job available, sleeping again", .{self.workerId});
-                std.time.sleep(1000 * 1000);
+                std.time.sleep(1000);
             }
 
             if (self.manager != null) {

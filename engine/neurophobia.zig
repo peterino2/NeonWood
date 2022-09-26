@@ -99,7 +99,7 @@ const GameContext = struct {
         });
 
         var x = try gc.add_renderobject(.{
-            .mesh_name = MakeName("mesh_quad"),
+            .mesh_name = MakeName("mesh_quad_nigga"),
             .material_name = MakeName("mat_mesh"),
             .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
         });

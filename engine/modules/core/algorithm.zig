@@ -3,6 +3,9 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+// As neonwood is primarily a playground for me to learn and practice programming,
+// There will be some implementations of basic data structures. For fun ofc
+
 pub fn AppendToArrayListUnique(list: anytype, value: anytype) !void {
     for (list.items) |v| {
         if (v == value)
@@ -11,6 +14,13 @@ pub fn AppendToArrayListUnique(list: anytype, value: anytype) !void {
 
     try list.append(value);
 }
+
+// A quick little sparse set implementation
+// pub fn SparseSet(comptime T: type) type {
+//
+//
+// };
+
 // tail points to next free
 // head points to next one to read
 

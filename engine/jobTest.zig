@@ -37,7 +37,7 @@ const GameContext = struct {
     pub const NeonObjectTable = core.RttiData.from(Self);
 
     allocator: std.mem.Allocator,
-    wakeCount: u32 = 400,
+    wakeCount: u32 = 100,
     jobContext: JobContext,
     timeTilWake: f64 = 2.0,
     jobComplete: bool = false,
@@ -74,10 +74,10 @@ const GameContext = struct {
             game: *GameContext,
 
             pub fn func(ctx: @This(), job: *JobContext) void {
-                std.debug.print("nice this is a job: {any}\n\n", .{ctx.wanker});
+                std.debug.print("nice this is a job: {any}\n", .{ctx.wanker});
                 std.time.sleep(1000 * 1000 * 1000);
-                _ = ctx.game.count.fetchAdd(1, .SeqCst);
-                std.debug.print("job done!{d}\n", .{ctx.wanker.value});
+                var v = ctx.game.count.fetchAdd(1, .SeqCst);
+                std.debug.print("job done!{d} {d}\n", .{ ctx.wanker.value, v });
                 _ = job;
             }
         };
@@ -102,16 +102,19 @@ const GameContext = struct {
     pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
+        core.traceFmtD("ticking!", .{}) catch unreachable;
+
         if (self.timeTilWake <= 0) {
             self.timeTilWake = 0.5;
             self.wakeCount -= 1;
-            core.engine_logs("tick");
+            core.engine_log("tick {d}", .{self.count.load(.SeqCst)});
         }
 
         self.timeTilWake -= 0.1;
         std.time.sleep(1000 * 1000 * 100);
 
         if (self.count.load(.SeqCst) >= 99) {
+            core.gEngine.tracesContext.defaultTrace.printTraceStats(self.allocator);
             core.gEngine.exit();
         }
 

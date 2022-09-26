@@ -31,15 +31,13 @@ pub const Engine = struct {
     allocator: std.mem.Allocator,
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
-    traces: *TracesContext,
+    tracesContext: *TracesContext,
     jobManager: JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
-        const defaultName = MakeName("default");
-
         var rv = Engine{
             .subsystems = ArrayList(*anyopaque).init(allocator),
             .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
@@ -49,17 +47,11 @@ pub const Engine = struct {
             .tickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
-            .traces = try allocator.create(TracesContext),
+            .tracesContext = try allocator.create(TracesContext),
             .jobManager = JobManager.init(allocator),
         };
 
-        rv.traces.* = .{
-            .allocator = allocator,
-            .defaultTrace = .{ .name = defaultName },
-            .traces = .{},
-        };
-
-        try rv.traces.traces.put(allocator, defaultName.hash, &rv.traces.defaultTrace);
+        rv.tracesContext.* = TracesContext.init(allocator);
 
         return rv;
     }
@@ -91,7 +83,7 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.traces.deinit();
+        self.tracesContext.deinit();
         self.subsystems.deinit();
         self.subsystemsByType.deinit();
     }
