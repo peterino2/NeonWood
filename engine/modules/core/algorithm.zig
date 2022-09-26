@@ -25,7 +25,8 @@ pub fn SparseSet(comptime T: type) type {
 pub const SetHandle = packed struct {
     alive: bool,
     generation: u11,
-    index: u20,
+    padding: u2 = 0,
+    index: u18,
 };
 
 // A quick little sparse set implementation
@@ -34,7 +35,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
         prng: std.rand.DefaultPrng,
         rand: std.rand.Random,
         allocator: std.mem.Allocator,
-        dense: ArrayListUnmanaged(T),
+        dense: ArrayListUnmanaged(struct {
+            value: T,
+            sparseIndex: u18,
+        }),
         sparse: [SparseSize]SetHandle,
 
         pub fn init(allocator: std.mem.Allocator) @This() {
@@ -60,17 +64,20 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
 
             if (denseHandle.generation != handle.generation) // tombstone value
             {
+                std.debug.print("ECS issue: generation mismatch sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 // Generation mismatch, this handle is totally dead.
                 return null;
             }
 
             if (denseHandle.alive == false) {
+                std.debug.print("ECS issue: dense is dead sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 return null;
             }
 
             const denseIndex = @intCast(usize, denseHandle.index);
 
             if (denseIndex >= self.dense.items.len) {
+                std.debug.print("ECS issue: dense index is invalid sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 return null;
             }
 
@@ -79,7 +86,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
 
         pub fn get(self: *@This(), handle: SetHandle) ?*T {
             const denseIndex = self.sparseToDense(handle) orelse return null;
-            return &self.dense.items[denseIndex];
+            return &self.dense.items[denseIndex].value;
         }
 
         pub fn destroyObject(self: *@This(), handle: SetHandle) void {
@@ -87,29 +94,36 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
             // get handle and get the dense position, swap and remove.
             // Then insert the tombstone value into the sparse handle
             const denseIndex = self.sparseToDense(handle) orelse return;
-            self.dense.swapRemove(denseIndex);
-            self.sparse.items[@intCast(usize, handle.index)].alive = false;
+            const tailDenseIndex = self.dense.items.len - 1;
+            const sparseIndexToSwap = self.dense.items[tailDenseIndex].sparseIndex;
+
+            self.sparse[@intCast(usize, sparseIndexToSwap)].index = @intCast(u18, denseIndex);
+
+            _ = self.dense.swapRemove(denseIndex);
+            self.sparse[@intCast(usize, handle.index)].alive = false;
         }
 
         // the idea behind a sparse array is that the sethandle is
         // highly stable.
-        // Basically infallable
-        pub fn createObject(self: *@This()) !SetHandle {
-            var randIndex = self.rand.int(u18);
+        pub fn createObject(self: *@This(), initValue: T) !SetHandle {
+            var newSparseIndex = self.rand.int(u18);
 
-            var denseHandle = self.sparse[@intCast(usize, randIndex)];
+            var denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
 
             while (denseHandle.alive == true) {
-                randIndex = self.rand.int(u18);
-                denseHandle = self.sparse[@intCast(usize, randIndex)];
+                newSparseIndex = self.rand.int(u18);
+                denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
             }
 
             var newDenseIndex = self.dense.items.len;
-            try self.dense.append(self.allocator);
+            try self.dense.append(self.allocator, .{
+                .value = initValue,
+                .sparseIndex = newSparseIndex,
+            });
 
             const generation = denseHandle.generation + 1;
 
-            self.sparse[@intCast(usize, randIndex)] = SetHandle{
+            self.sparse[@intCast(usize, newSparseIndex)] = SetHandle{
                 .alive = true,
                 .generation = @intCast(u11, generation),
                 .index = @intCast(u18, newDenseIndex),
@@ -118,7 +132,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
             var setHandle = SetHandle{
                 .alive = true,
                 .generation = generation,
-                .index = randIndex,
+                .index = newSparseIndex,
             };
 
             return setHandle;
@@ -130,17 +144,80 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: usize) type {
     };
 }
 
+fn printSetHandle(s: SetHandle) void {
+    std.debug.print("{any}\n", .{s});
+}
+
 test "sparse-set" {
+    std.debug.print("\n", .{});
     const Payload = struct {
         name: []const u8,
+        v: u32,
     };
 
     const PayloadSet = SparseSet(Payload);
+    const expect = std.testing.expect;
 
-    var x = PayloadSet.init(std.testing.allocator);
-    defer x.deinit();
+    var set = PayloadSet.init(std.testing.allocator);
+    defer set.deinit();
 
-    std.time.sleep(1000 * 1000 * 1000 * 1000);
+    var setHandle = try set.createObject(.{ .name = "object1", .v = 0 });
+    var setHandle1 = try set.createObject(.{ .name = "object2", .v = 1 });
+    var setHandle2 = try set.createObject(.{ .name = "object3", .v = 2 });
+    var setHandle3 = try set.createObject(.{ .name = "object4", .v = 3 });
+
+    printSetHandle(setHandle);
+    printSetHandle(setHandle1);
+    printSetHandle(setHandle2);
+    printSetHandle(setHandle3);
+
+    for (set.dense.items) |entry| {
+        std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
+    }
+
+    std.debug.print("\ndestroying handle\n", .{});
+    set.destroyObject(setHandle);
+    for (set.dense.items) |entry| {
+        std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
+    }
+    try expect(set.get(setHandle) == null);
+    try expect(set.get(setHandle1).?.v == 1);
+    try expect(set.get(setHandle2).?.v == 2);
+    try expect(set.get(setHandle3).?.v == 3);
+
+    std.debug.print("\ndestroying handle\n", .{});
+    set.destroyObject(setHandle1);
+    for (set.dense.items) |entry| {
+        std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
+    }
+    try expect(set.get(setHandle) == null);
+    try expect(set.get(setHandle1) == null);
+    try expect(set.get(setHandle2).?.v == 2);
+    try expect(set.get(setHandle3).?.v == 3);
+
+    std.debug.print("\ndestroying handle\n", .{});
+    set.destroyObject(setHandle2);
+    for (set.dense.items) |entry| {
+        std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
+    }
+
+    try expect(set.get(setHandle) == null);
+    try expect(set.get(setHandle1) == null);
+    try expect(set.get(setHandle3).?.v == 3);
+    try expect(set.get(setHandle2) == null);
+
+    std.debug.print("\ndestroying handle\n", .{});
+    set.destroyObject(setHandle3);
+    for (set.dense.items) |entry| {
+        std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
+    }
+
+    try expect(set.get(setHandle) == null);
+    try expect(set.get(setHandle1) == null);
+    try expect(set.get(setHandle2) == null);
+    try expect(set.get(setHandle3) == null);
+
+    try expect(set.dense.items.len == 0);
 }
 
 // tail points to next free
