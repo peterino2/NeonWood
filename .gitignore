@@ -9,3 +9,6 @@ __pycache__
 *_BASE_*
 *_LOCAL_*
 *_REMOTE_*
+
+.vs/
+CppProperties.json
