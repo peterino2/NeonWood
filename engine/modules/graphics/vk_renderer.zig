@@ -346,7 +346,7 @@ pub const NeonVkContext = struct {
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
-    cameraRef: *render_objects.Camera,
+    cameraRef: ?*render_objects.Camera,
 
     blockySampler: vk.Sampler,
     linearSampler: vk.Sampler,
@@ -363,6 +363,7 @@ pub const NeonVkContext = struct {
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
+    uiObjects: ArrayListUnmanaged(core.UiObjectRef),
 
     rotating: bool,
 
@@ -389,17 +390,24 @@ pub const NeonVkContext = struct {
         self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
+        self.uiObjects = .{};
         self.lastMaterial = null;
+        self.cameraRef = null;
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = SparseSet(RenderObject).init(self.allocator);
     }
 
+    pub fn add_ui_object(self: *Self, interface: core.UiObjectRef) !void {
+        try self.uiObjects.append(self.allocator, interface);
+    }
+
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
         var cmd = context.commandBuffer;
         var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
         try self.vkd.beginCommandBuffer(cmd, &cbi);
+
         context.active = true;
     }
 
@@ -667,13 +675,13 @@ pub const NeonVkContext = struct {
         quadMesh.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
         quadMesh.vertices.items[5].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
 
-        quadMesh.vertices.items[0].uv = .{ .x = 0.0, .y = 1.0 };
-        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
-        quadMesh.vertices.items[2].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.vertices.items[0].uv = .{ .x = 0.0, .y = 0.0 };
+        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.vertices.items[2].uv = .{ .x = 1.0, .y = 1.0 };
 
-        quadMesh.vertices.items[3].uv = .{ .x = 1.0, .y = 0.0 };
-        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
-        quadMesh.vertices.items[5].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.vertices.items[3].uv = .{ .x = 1.0, .y = 1.0 };
+        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.vertices.items[5].uv = .{ .x = 0.0, .y = 0.0 };
 
         try quadMesh.upload(self);
         try self.meshes.put(self.allocator, core.MakeName("mesh_quad").hash, quadMesh);
@@ -1028,8 +1036,10 @@ pub const NeonVkContext = struct {
         var data = try self.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
 
         // resolve the current state of the camera
-        var projection_matrix: Mat = self.cameraRef.final;
-        _ = projection_matrix;
+        var projection_matrix: Mat = core.zm.identity();
+        if (self.cameraRef != null) {
+            projection_matrix = self.cameraRef.?.final;
+        }
 
         var cameraData = NeonVkCameraDataGpu{
             .proj = core.zm.identity(),
@@ -1102,15 +1112,22 @@ pub const NeonVkContext = struct {
         self.vkd.cmdEndRenderPass(cmd);
     }
 
+    pub fn draw_ui(self: *Self, deltaTime: f64) !void {
+        c.cImGui_vk_NewFrame();
+        c.ImGui_ImplGlfw_NewFrame();
+        c.igNewFrame();
+
+        for (self.uiObjects.items) |*uiObject| {
+            uiObject.vtable.uiTick_func(uiObject.ptr, deltaTime);
+        }
+
+        c.igRender();
+    }
+
     pub fn draw(self: *Self, deltaTime: f64) !void {
         self.updateTime(deltaTime);
 
-        c.cImGui_vk_NewFrame();
-        c.ImGui_ImplGlfw_NewFrame();
-
-        c.igNewFrame();
-        c.igShowDemoWindow(&self.showDemo);
-        c.igRender();
+        try self.draw_ui(deltaTime);
 
         try self.acquire_next_frame();
         try self.pre_frame_update();
@@ -2103,7 +2120,7 @@ pub const NeonVkContext = struct {
         }
 
         self.extent = .{ .width = 1600, .height = 900 };
-        self.windowName = "NeonWood Sample Application";
+        self.windowName = @ptrCast([*c]const u8, gWindowName);
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
 
@@ -2252,6 +2269,8 @@ pub const NeonVkContext = struct {
         self.destroy_materials();
         self.destroy_descriptors();
 
+        self.uiObjects.deinit(self.allocator);
+
         self.vmaAllocator.destroy();
 
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
@@ -2261,5 +2280,12 @@ pub const NeonVkContext = struct {
         self.shutdown_glfw();
     }
 };
+
+pub var gWindowName: []const u8 = "NeonWood Sample Application";
+
+// must be called before graphics.start_module();
+pub fn setWindowName(newWindowName: []const u8) void {
+    gWindowName = newWindowName;
+}
 
 pub var gContext: *NeonVkContext = undefined;

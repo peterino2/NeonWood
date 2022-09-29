@@ -32,6 +32,7 @@ var gGame: *GameContext = undefined;
 const GameContext = struct {
     const Self = @This();
     pub const NeonObjectTable = core.RttiData.from(Self);
+    pub const InterfaceUiTable = core.InterfaceUiData.from(Self);
 
     allocator: std.mem.Allocator,
     camera: Camera,
@@ -68,17 +69,26 @@ const GameContext = struct {
             .cameraHorizontalRotationMat = core.zm.identity(),
         };
 
-        self.camera.fov = 30.0;
+        core.game_logs("Game starting");
+
+        self.camera.fov = 90.0;
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
 
-        self.camera.translate(.{ .x = 0.0, .y = -6.0, .z = -6.0 });
+        self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = 0.0 });
         self.camera.updateCamera();
 
         self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
         self.meshAssets.appendSlice(self.allocator, &MeshAssets) catch unreachable;
 
         return self;
+    }
+
+    pub fn uiTick(self: *Self, deltaTime: f64) void {
+        _ = self;
+        _ = deltaTime;
+        //c.igShowDemoWindow(&self.showDemo);
+        // core.ui_log("uiTick: {d}", .{deltaTime});
     }
 
     pub fn load_texture(self: *Self, assetRef: AssetReference) !void {
@@ -99,13 +109,13 @@ const GameContext = struct {
         });
 
         var x = try gc.add_renderobject(.{
-            .mesh_name = MakeName("mesh_quad_nigga"),
+            .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
+            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 0.0, 0.0)),
         });
 
         x.setTextureByName(self.gc, MakeName("t_sprite"));
-        x.applyRelativeRotationX(core.radians(-15.0));
+        x.applyRelativeRotationX(core.radians(0.0));
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {
@@ -147,6 +157,11 @@ const GameContext = struct {
         for (self.meshAssets.items) |asset| {
             try self.load_mesh(asset);
         }
+
+        try graphics.getContext().add_ui_object(.{
+            .ptr = self,
+            .vtable = &InterfaceUiTable,
+        });
 
         _ = c.glfwSetKeyCallback(self.gc.window, input_callback);
         try self.init_objects();
@@ -191,6 +206,7 @@ const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
+    graphics.setWindowName("Neurophobia - Rpg Horror Gamejam");
     engine_log("Starting up", .{});
     core.start_module();
     defer core.shutdown_module();
@@ -243,10 +259,10 @@ pub fn input_callback(
             gGame.cameraMovement.x += 1.0;
         }
         if (key == c.GLFW_KEY_Q) {
-            gGame.cameraMovement.y += 1.0;
+            gGame.cameraMovement.y += -1.0;
         }
         if (key == c.GLFW_KEY_E) {
-            gGame.cameraMovement.y += -1.0;
+            gGame.cameraMovement.y += 1.0;
         }
     }
     if (action == c.GLFW_RELEASE) {
@@ -263,10 +279,10 @@ pub fn input_callback(
             gGame.cameraMovement.x -= 1.0;
         }
         if (key == c.GLFW_KEY_Q) {
-            gGame.cameraMovement.y -= 1.0;
+            gGame.cameraMovement.y -= -1.0;
         }
         if (key == c.GLFW_KEY_E) {
-            gGame.cameraMovement.y -= -1.0;
+            gGame.cameraMovement.y -= 1.0;
         }
     }
 }

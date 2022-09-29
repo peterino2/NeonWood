@@ -8,6 +8,8 @@ pub const vk_ui = @import("graphics/vk_imgui.zig");
 
 pub const NeonVkImGui = vk_ui.NeonVkImGui;
 
+pub const setWindowName = vk_renderer.setWindowName;
+
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;
 

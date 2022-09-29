@@ -276,6 +276,11 @@ pub fn build(b: *std.build.Builder) void {
         unreachable;
     };
 
+    _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
+        std.debug.print("error: {any}", .{e});
+        unreachable;
+    };
+
     _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;

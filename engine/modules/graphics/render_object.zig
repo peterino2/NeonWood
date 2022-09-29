@@ -120,7 +120,7 @@ fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
         near,
         far,
     );
-    proj[1][1] *= -1;
+    // proj[1][1] *= -1;
     return proj;
 }
 
@@ -179,7 +179,7 @@ pub const Camera = struct {
 
     pub fn updateCamera(self: *Camera) void {
         self.projection = zm.perspectiveFovRh(core.radians(self.fov), 16.0 / 9.0, 0.1, 2000);
-        // self.projection[1][1] *= -1;
+        self.projection[1][1] *= -1;
     }
 
     pub fn resolve(self: *Camera, base: Mat) void {

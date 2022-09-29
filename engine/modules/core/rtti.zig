@@ -25,6 +25,42 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
     return MakeName(hashedName);
 }
 
+pub const UiObjectRef = struct {
+    ptr: *anyopaque,
+    vtable: *const InterfaceUiData,
+};
+
+pub const InterfaceUiData = struct {
+    typeName: Name,
+    typeSize: usize,
+    typeAlign: usize,
+
+    uiTick_func: fn (*anyopaque, f64) void,
+
+    pub fn from(comptime TargetType: type) @This() {
+        const wrappedUiTick = struct {
+            pub fn func(pointer: *anyopaque, deltaTime: f64) void {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                ptr.uiTick(deltaTime);
+            }
+        };
+
+        if (!@hasDecl(TargetType, "uiTick")) {
+            @compileLog("Tried to generate InterfaceUiData for type ", TargetType, "but it's missing uiTick");
+            unreachable;
+        }
+
+        var self = @This(){
+            .typeName = MakeTypeName(TargetType),
+            .typeSize = @sizeOf(TargetType),
+            .typeAlign = @alignOf(TargetType),
+            .uiTick_func = wrappedUiTick.func,
+        };
+
+        return self;
+    }
+};
+
 pub const RttiData = struct {
     typeName: Name,
     typeSize: usize,

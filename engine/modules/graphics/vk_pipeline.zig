@@ -264,7 +264,7 @@ pub const NeonVkPipelineBuilder = struct {
             .depth_clamp_enable = vk.FALSE,
             .rasterizer_discard_enable = vk.FALSE,
             .polygon_mode = .fill,
-            .cull_mode = .{},
+            .cull_mode = .{ .back_bit = true },
             .front_face = .clockwise,
             .depth_bias_enable = vk.FALSE,
             .depth_bias_constant_factor = 0.0,
