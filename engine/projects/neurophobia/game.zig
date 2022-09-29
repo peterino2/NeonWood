@@ -4,5 +4,4 @@ const root = @import("root");
 const nw = root.neonwood;
 
 const core = nw.core;
-
-pub const spriteAnim = 
+const graphics = nw.graphics;

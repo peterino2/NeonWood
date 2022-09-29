@@ -14,6 +14,8 @@ const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
 const materials = @import("materials.zig");
 
+const SparseSet = core.SparseSet;
+
 const MAX_OBJECTS = 100000;
 
 fn vkCast(comptime T: type, handle: anytype) T {
@@ -338,6 +340,8 @@ pub const NeonVkContext = struct {
     cameraMovement: Vectorf,
     renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
     renderObjectsByMaterial: ArrayListUnmanaged(u32),
+
+    renderObjectSet: SparseSet(RenderObject),
     textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
@@ -389,6 +393,7 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
+        self.renderObjectSet = SparseSet(RenderObject).init(self.allocator);
     }
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
