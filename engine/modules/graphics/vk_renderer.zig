@@ -667,21 +667,21 @@ pub const NeonVkContext = struct {
     pub fn init_primitive_meshes(self: *Self) !void {
         var quadMesh = mesh.Mesh.init(self, self.allocator);
         try quadMesh.vertices.resize(6);
-        quadMesh.vertices.items[0].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.vertices.items[0].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
         quadMesh.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
-        quadMesh.vertices.items[2].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.vertices.items[2].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
 
-        quadMesh.vertices.items[3].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.vertices.items[3].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
         quadMesh.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
-        quadMesh.vertices.items[5].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.vertices.items[5].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
 
-        quadMesh.vertices.items[0].uv = .{ .x = 0.0, .y = 0.0 };
-        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 0.0 };
-        quadMesh.vertices.items[2].uv = .{ .x = 1.0, .y = 1.0 };
+        quadMesh.vertices.items[0].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
+        quadMesh.vertices.items[2].uv = .{ .x = 0.0, .y = 1.0 };
 
-        quadMesh.vertices.items[3].uv = .{ .x = 1.0, .y = 1.0 };
-        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 1.0 };
-        quadMesh.vertices.items[5].uv = .{ .x = 0.0, .y = 0.0 };
+        quadMesh.vertices.items[3].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
+        quadMesh.vertices.items[5].uv = .{ .x = 1.0, .y = 0.0 };
 
         try quadMesh.upload(self);
         try self.meshes.put(self.allocator, core.MakeName("mesh_quad").hash, quadMesh);

@@ -42,6 +42,7 @@ const GameContext = struct {
     shouldExit: bool = false,
     fastMove: bool = true,
     panCamera: bool = false,
+    showDemo: bool = true,
     panCameraCache: bool = false,
     textureAssets: std.ArrayListUnmanaged(AssetReference) = .{},
     meshAssets: std.ArrayListUnmanaged(AssetReference) = .{},
@@ -87,7 +88,7 @@ const GameContext = struct {
     pub fn uiTick(self: *Self, deltaTime: f64) void {
         _ = self;
         _ = deltaTime;
-        //c.igShowDemoWindow(&self.showDemo);
+        c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
     }
 
