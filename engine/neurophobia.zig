@@ -115,8 +115,8 @@ const GameContext = struct {
             .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 0.0, 0.0)),
         });
 
-        x.setTextureByName(self.gc, MakeName("t_sprite"));
-        x.applyRelativeRotationX(core.radians(0.0));
+        x.ptr.setTextureByName(self.gc, MakeName("t_sprite"));
+        x.ptr.applyRelativeRotationX(core.radians(0.0));
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {

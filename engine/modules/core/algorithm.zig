@@ -54,6 +54,14 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return self;
         }
 
+        pub fn readDense(self: @This(), offset: usize) *const T {
+            return &self.dense.items[offset].value;
+        }
+
+        pub fn getDense(self: *@This(), offset: usize) *T {
+            return &self.dense.items[offset].value;
+        }
+
         fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
             const denseHandle = self.sparse[@intCast(usize, handle.index)];
 
@@ -144,12 +152,12 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return setHandle;
         }
 
-        pub const ConstructionResult = struct {
+        pub const ConstructResult = struct {
             ptr: *T,
             handle: SetHandle,
         };
 
-        pub fn createAndGet(self: *@This(), initValue: T) !ConstructionResult {
+        pub fn createAndGet(self: *@This(), initValue: T) !ConstructResult {
             var newSparseIndex = newRandomIndex();
 
             var denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
@@ -179,7 +187,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 .index = newSparseIndex,
             };
 
-            const rv = ConstructionResult{
+            const rv = ConstructResult{
                 .ptr = &self.dense.items[@intCast(usize, newDenseIndex)].value,
                 .handle = setHandle,
             };

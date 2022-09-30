@@ -50,6 +50,8 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
+const RenderObjectSet = SparseSet(RenderObject);
+
 const NeonVkSpriteDataGpu = struct {
     position: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
     size: Vector2f = .{ .x = 1.0, .y = 1.0 },
@@ -338,10 +340,11 @@ pub const NeonVkContext = struct {
 
     renderObjectsAreDirty: bool,
     cameraMovement: Vectorf,
-    renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
-    renderObjectsByMaterial: ArrayListUnmanaged(u32),
 
-    renderObjectSet: SparseSet(RenderObject),
+    // renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
+    renderObjectsByMaterial: ArrayListUnmanaged(u32),
+    renderObjectSet: RenderObjectSet,
+
     textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
     materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
@@ -387,7 +390,7 @@ pub const NeonVkContext = struct {
         self.firstFrame = true;
         self.textureSets = .{};
         self.textures = .{};
-        self.renderObjects = .{};
+        // self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
         self.uiObjects = .{};
@@ -396,7 +399,7 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
-        self.renderObjectSet = SparseSet(RenderObject).init(self.allocator);
+        self.renderObjectSet = RenderObjectSet.init(self.allocator);
     }
 
     pub fn add_ui_object(self: *Self, interface: core.UiObjectRef) !void {
@@ -644,7 +647,7 @@ pub const NeonVkContext = struct {
         try self.create_sprite_descriptors();
     }
 
-    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !*RenderObject {
+    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !RenderObjectSet.ConstructResult {
         var renderObject = RenderObject.fromTransform(params.init_transform);
 
         var findMesh = self.meshes.getEntry(params.mesh_name.hash);
@@ -659,9 +662,12 @@ pub const NeonVkContext = struct {
         renderObject.material = findMat.?.value_ptr;
         renderObject.mesh = findMesh.?.value_ptr;
 
-        try self.renderObjects.append(self.allocator, renderObject);
+        // try self.renderObjects.append(self.allocator, renderObject);
+
+        var rv = try self.renderObjectSet.createAndGet(renderObject);
         self.renderObjectsAreDirty = true;
-        return &self.renderObjects.items[self.renderObjects.items.len - 1];
+
+        return rv;
     }
 
     pub fn init_primitive_meshes(self: *Self) !void {
@@ -1216,9 +1222,9 @@ pub const NeonVkContext = struct {
         ssbo.len = MAX_OBJECTS;
 
         var i: usize = 0;
-        while (i < MAX_OBJECTS and i < self.renderObjects.items.len) : (i += 1) {
-            if (self.renderObjects.items[i].mesh != null) {
-                ssbo[i].modelMatrix = self.renderObjects.items[i].transform;
+        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.items.len) : (i += 1) {
+            if (self.renderObjectSet.dense.items[i].value.mesh != null) {
+                ssbo[i].modelMatrix = self.renderObjectSet.dense.items[i].value.transform;
             }
         }
 
@@ -1233,9 +1239,9 @@ pub const NeonVkContext = struct {
         ssbo.len = MAX_OBJECTS;
 
         var i: usize = 0;
-        while (i < MAX_OBJECTS and i < self.renderObjects.items.len) : (i += 1) {
+        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.items.len) : (i += 1) {
             ssbo[i].position = mul(
-                self.renderObjects.items[i].transform,
+                self.renderObjectSet.getDense(i).transform,
                 core.zm.Vec{ 0.0, 0.0, 0.0, 0.0 },
             );
             ssbo[i].size = .{ .x = 1.0, .y = 1.0 };
@@ -1255,8 +1261,8 @@ pub const NeonVkContext = struct {
         self.lastMaterial = null;
         self.lastMesh = null;
 
-        for (self.renderObjects.items) |object, i| {
-            self.draw_render_object(object, cmd, @intCast(u32, i), deltaTime);
+        for (self.renderObjectSet.dense.items) |dense, i| {
+            self.draw_render_object(dense.value, cmd, @intCast(u32, i), deltaTime);
         }
     }
 
@@ -1869,15 +1875,16 @@ pub const NeonVkContext = struct {
     // sorts renderObjects by material
     fn sortRenderObjects(self: *Self) !void {
         self.renderObjectsByMaterial.clearRetainingCapacity();
-        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjects.items.len);
+        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjectSet.dense.items.len);
+
         var i: u32 = 0;
-        while (i < self.renderObjects.items.len) : (i += 1) {
+        while (i < self.renderObjectSet.dense.items.len) : (i += 1) {
             self.renderObjectsByMaterial.items[i] = i;
         }
 
         const X = struct {
             pub fn lessThan(ctx: *NeonVkContext, lhs: u32, rhs: u32) bool {
-                return @ptrToInt(ctx.renderObjects.items[lhs].material) < @ptrToInt(ctx.renderObjects.items[rhs].material);
+                return @ptrToInt(ctx.renderObjectSet.getDense(lhs).material) < @ptrToInt(ctx.renderObjectSet.getDense(rhs).material);
             }
         };
 
@@ -2187,7 +2194,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_renderobjects(self: *Self) !void {
-        self.renderObjects.deinit(self.allocator);
+        self.renderObjectSet.deinit();
     }
 
     pub fn create_buffer(
