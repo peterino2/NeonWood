@@ -64,6 +64,6 @@ pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
     );
 }
 
-pub fn traceFmtD(comptime fmt: []const u8, args: anytype) !void {
+pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
 }

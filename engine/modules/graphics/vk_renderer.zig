@@ -6,7 +6,7 @@ const vma = @import("vma");
 const core = @import("../core.zig");
 const vk_constants = @import("vk_constants.zig");
 const vk_pipeline = @import("vk_pipeline.zig");
-const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
+pub const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
 const mesh = @import("mesh.zig");
 const render_objects = @import("render_object.zig");
 const vkinit = @import("vk_init.zig");
@@ -53,6 +53,7 @@ const CStr = core.CStr;
 const RenderObjectSet = SparseSet(RenderObject);
 
 const NeonVkSpriteDataGpu = struct {
+    // tl, tr, br, bl running clockwise
     position: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
     size: Vector2f = .{ .x = 1.0, .y = 1.0 },
 };
@@ -367,12 +368,12 @@ pub const NeonVkContext = struct {
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
     uiObjects: ArrayListUnmanaged(core.UiObjectRef),
-
-    rotating: bool,
-
+    rendererPlugins: ArrayListUnmanaged(core.RendererInterfaceRef),
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
+
+    shouldShowDebug: bool,
 
     pub fn activateCamera(self: *Self, camera: *render_objects.Camera) void {
         self.cameraRef = camera;
@@ -386,11 +387,12 @@ pub const NeonVkContext = struct {
         self.nextFrameIndex = 0;
         self.rendererTime = 0;
         self.exitSignal = false;
+        self.shouldShowDebug = false;
         self.mode = 0;
         self.firstFrame = true;
         self.textureSets = .{};
+        self.rendererPlugins = .{};
         self.textures = .{};
-        // self.renderObjects = .{};
         self.meshes = .{};
         self.materials = .{};
         self.uiObjects = .{};
@@ -400,6 +402,11 @@ pub const NeonVkContext = struct {
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
+    }
+
+    pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void
+    {
+        try self.rendererPlugins.append(interface);
     }
 
     pub fn add_ui_object(self: *Self, interface: core.UiObjectRef) !void {
@@ -644,7 +651,7 @@ pub const NeonVkContext = struct {
             self.vkd.updateDescriptorSets(self.dev, 2, &setWrites, 0, undefined);
         }
 
-        try self.create_sprite_descriptors();
+        // try self.create_sprite_descriptors();
     }
 
     pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !RenderObjectSet.ConstructResult {
@@ -820,6 +827,72 @@ pub const NeonVkContext = struct {
         });
     }
 
+    fn create_mesh_material(self: *Self) !void 
+    {
+        // Creates teh standard mesh pipeline, this pipeline is statically stored as
+        // mat_mesh
+        core.graphics_logs("Creating mesh pipeline");
+
+        // Initialize the pipeline with the default triangle mesh shader
+        // and the default lighting shader
+        var pipeline_builder = try NeonVkPipelineBuilder.init(
+            self.dev,
+            self.vkd,
+            self.allocator,
+            resources.triangle_mesh_vert.len,
+            @ptrCast([*]const u32, resources.triangle_mesh_vert),
+            resources.default_lit_frag.len,
+            @ptrCast([*]const u32, resources.default_lit_frag),
+        );
+        defer pipeline_builder.deinit();
+
+        try pipeline_builder.add_mesh_description();
+        try pipeline_builder.add_push_constant();
+        try pipeline_builder.add_layout(self.globalDescriptorLayout);
+        try pipeline_builder.add_layout(self.objectDescriptorLayout);
+        try pipeline_builder.add_layout(self.singleTextureSetLayout);
+        try pipeline_builder.add_depth_stencil();
+        try pipeline_builder.init_triangle_pipeline(self.actual_extent);
+
+        const materialName = core.MakeName("mat_mesh");
+
+        var material = Material{
+            .materialName = materialName,
+            .pipeline = (try pipeline_builder.build(self.renderPass)).?,
+            .layout = pipeline_builder.pipelineLayout,
+        };
+
+        var allocInfo = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = self.descriptorPool,
+            .descriptor_set_count = 1,
+            .p_set_layouts = p2a(&self.singleTextureSetLayout),
+        };
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
+
+        // --------- set up the image 
+        var imageBufferInfo = vk.DescriptorImageInfo{
+            .sampler = self.blockySampler,
+            .image_view = (self.textures.get(core.MakeName("missing_texture").hash)).?.imageView,
+            .image_layout = .shader_read_only_optimal,
+        };
+        try self.materials.put(self.allocator, materialName.hash, material);
+
+        var descriptorSet = vkinit.writeDescriptorImage(
+            .combined_image_sampler,
+            self.materials.get(materialName.hash).?.textureSet,
+            &imageBufferInfo,
+            0,
+        );
+
+        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
+        // ---------------
+    }
+
+    pub fn add_material(self: *@This(), material: Material) !void 
+    {
+        try self.materials.put(self.allocator, material.materialName.hash, material);
+    }
+
     pub fn init_pipelines(self: *Self) !void {
         var static_tri_builder = try NeonVkPipelineBuilder.init(
             self.dev,
@@ -858,111 +931,65 @@ pub const NeonVkContext = struct {
         var linearCreateSample = vkinit.samplerCreateInfo(.linear, null);
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
-        {
-            core.graphics_logs("Creating mesh pipeline");
-            var mesh_pipeline_b = try NeonVkPipelineBuilder.init(
-                self.dev,
-                self.vkd,
-                self.allocator,
-                resources.triangle_mesh_vert.len,
-                @ptrCast([*]const u32, resources.triangle_mesh_vert),
-                resources.default_lit_frag.len,
-                @ptrCast([*]const u32, resources.default_lit_frag),
-            );
-            defer mesh_pipeline_b.deinit();
 
-            try mesh_pipeline_b.add_mesh_description();
-            try mesh_pipeline_b.add_push_constant();
-            try mesh_pipeline_b.add_layout(self.globalDescriptorLayout);
-            try mesh_pipeline_b.add_layout(self.objectDescriptorLayout);
-            try mesh_pipeline_b.add_layout(self.singleTextureSetLayout);
-            try mesh_pipeline_b.add_depth_stencil();
-            try mesh_pipeline_b.init_triangle_pipeline(self.actual_extent);
+        try self.create_mesh_material();
+        // try self.create_sprite_material();
 
-            var material = Material{
-                .pipeline = (try mesh_pipeline_b.build(self.renderPass)).?,
-                .layout = mesh_pipeline_b.pipelineLayout,
-            };
-
-            var allocInfo = vk.DescriptorSetAllocateInfo{
-                .descriptor_pool = self.descriptorPool,
-                .descriptor_set_count = 1,
-                .p_set_layouts = p2a(&self.singleTextureSetLayout),
-            };
-            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
-
-            var imageBufferInfo = vk.DescriptorImageInfo{
-                .sampler = self.blockySampler,
-                .image_view = (self.textures.get(core.MakeName("missing_texture").hash)).?.imageView,
-                .image_layout = .shader_read_only_optimal,
-            };
-            try self.materials.put(self.allocator, core.MakeName("mat_mesh").hash, material);
-
-            var descriptorSet = vkinit.writeDescriptorImage(
-                .combined_image_sampler,
-                self.materials.get(core.MakeName("mat_mesh").hash).?.textureSet,
-                &imageBufferInfo,
-                0,
-            );
-
-            self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
-        }
-
-        {
-            //try self.create_sprite_material();
-        }
         core.graphics_logs("Finishing up pipeline creation");
     }
 
+    // this creates decriptors for sprites
     pub fn create_sprite_descriptors(self: *Self) !void {
         var bindings = [_]vk.DescriptorSetLayoutBinding{
             vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0),
         };
-
+    
         var setLayoutCreateInfo = vk.DescriptorSetLayoutCreateInfo{
             .flags = .{},
             .binding_count = bindings.len,
             .p_bindings = @ptrCast([*]const vk.DescriptorSetLayoutBinding, &bindings),
         };
-
+    
         self.spriteDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setLayoutCreateInfo, null);
-
+    
         var i: usize = 0;
         while (i < NumFrames) : (i += 1) {
             self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu);
-
+    
             var spriteDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
                 .p_set_layouts = p2a(&self.spriteDescriptorLayout),
             };
-
+    
             try self.vkd.allocateDescriptorSets(
                 self.dev,
                 &spriteDescriptorSetAllocInfo,
                 @ptrCast([*]vk.DescriptorSet, &self.frameData[i].spriteDescriptorSet),
             );
-
+    
             var spriteInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].spriteBuffer.buffer,
                 .offset = 0,
                 .range = @sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS,
             };
-
+    
             var spriteWrite = vkinit.writeDescriptorSet(
                 .storage_buffer,
                 self.frameData[i].spriteDescriptorSet,
                 &spriteInfo,
                 0,
             );
-
+    
             var spriteSetWrites = [_]@TypeOf(spriteWrite){spriteWrite};
             self.vkd.updateDescriptorSets(self.dev, 1, &spriteSetWrites, 0, undefined);
         }
     }
 
     pub fn create_sprite_material(self: *Self) !void {
-        core.graphics_log("creating sprite material");
+
+        // Create basically the same material as the mesh pipeline
+        core.graphics_logs("creating sprite material");
         var spritePipelineBuilder = try NeonVkPipelineBuilder.init(
             self.dev,
             self.vkd,
@@ -972,7 +999,6 @@ pub const NeonVkContext = struct {
             resources.default_lit_frag.len,
             @ptrCast([*]const u32, resources.default_lit_frag),
         );
-
         defer spritePipelineBuilder.deinit();
 
         // leverages the same mesh desription
@@ -983,7 +1009,7 @@ pub const NeonVkContext = struct {
         try spritePipelineBuilder.add_layout(self.spriteObjectDescriptorLayout);
         try spritePipelineBuilder.add_layout(self.singleTextureSetLayout);
         try spritePipelineBuilder.add_depth_stencil();
-        try spritePipelineBuilder.init_billboard_sprite_pipeline(self.actual_extent);
+        try spritePipelineBuilder.init_triangle_pipeline(self.actual_extent);
 
         var material = Material{
             .pipeline = (try spritePipelineBuilder.build(self.renderPass)).?,
@@ -1118,10 +1144,33 @@ pub const NeonVkContext = struct {
         self.vkd.cmdEndRenderPass(cmd);
     }
 
+    pub fn drawDebugUi(self: *Self) void 
+    {
+        var windowVal = c.igBegin("Graphics Debug Ui", &self.shouldShowDebug, 0);
+        defer c.igEnd();
+
+        if(!windowVal)
+        {
+            self.shouldShowDebug = false;
+            return;
+        }
+
+        c.igText("Materials List:");
+        var iter = self.materials.iterator();
+        while (iter.next()) |i| {
+            c.igText(i.value_ptr.materialName.utf8.ptr);
+        }
+    }
+
     pub fn draw_ui(self: *Self, deltaTime: f64) !void {
         c.cImGui_vk_NewFrame();
         c.ImGui_ImplGlfw_NewFrame();
         c.igNewFrame();
+
+        if(self.shouldShowDebug)
+        {
+            self.drawDebugUi();
+        }
 
         for (self.uiObjects.items) |*uiObject| {
             uiObject.vtable.uiTick_func(uiObject.ptr, deltaTime);
@@ -1176,6 +1225,7 @@ pub const NeonVkContext = struct {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
         }
 
+        // if the renderobject has a textureset as an override use that instead of the default one on the material.
         if (render_object.texture) |textureSet| {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(textureSet), 0, undefined);
         } else {
@@ -1228,6 +1278,7 @@ pub const NeonVkContext = struct {
             }
         }
 
+        // unmapping every frame might actually be quite unessecary.
         self.vmaAllocator.unmapMemory(allocation);
     }
 
@@ -1254,7 +1305,14 @@ pub const NeonVkContext = struct {
         _ = deltaTime;
         try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
-        try self.upload_sprite_data();
+        // try self.upload_sprite_data();
+
+        // activate predraw plugins here.
+        
+        for(self.rendererPlugins.items)|*interface|
+        {
+            interface.vtable.preDraw(interface.ptr);
+        }
 
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
 
@@ -2236,14 +2294,13 @@ pub const NeonVkContext = struct {
     pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
-            self.frameData[i].spriteBuffer.deinit(self.vmaAllocator);
+            // self.frameData[i].spriteBuffer.deinit(self.vmaAllocator);
             self.frameData[i].objectBuffer.deinit(self.vmaAllocator);
         }
         self.sceneParameterBuffer.deinit(self.vmaAllocator);
 
         self.vkd.destroyDescriptorSetLayout(self.dev, self.objectDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.globalDescriptorLayout, null);
-        self.vkd.destroyDescriptorSetLayout(self.dev, self.spriteDescriptorLayout, null);
         self.vkd.destroyDescriptorSetLayout(self.dev, self.singleTextureSetLayout, null);
         self.vkd.destroySampler(self.dev, self.blockySampler, null);
         self.vkd.destroySampler(self.dev, self.linearSampler, null);

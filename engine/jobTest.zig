@@ -105,7 +105,7 @@ const GameContext = struct {
     pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
-        core.traceFmtD("ticking!", .{}) catch unreachable;
+        core.traceFmtDefault("ticking!", .{}) catch unreachable;
 
         if (self.timeTilWake <= 0) {
             self.timeTilWake = 0.5;

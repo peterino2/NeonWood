@@ -122,8 +122,9 @@ pub const Engine = struct {
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
 
-        for (self.tickables.items) |index| {
-            const objectRef = self.rttiObjects.items[index];
+        var index: isize = @intCast(isize, self.tickables.items.len) - 1;
+        while (index >= 0) : (index -= 1) {
+            const objectRef = self.rttiObjects.items[self.tickables.items[@intCast(usize, index)]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
         }
         self.lastEngineTime = newTime;

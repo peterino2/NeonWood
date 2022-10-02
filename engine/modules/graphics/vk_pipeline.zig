@@ -224,10 +224,6 @@ pub const NeonVkPipelineBuilder = struct {
         self.vertexInputDescription = try meshes.VertexInputDescription.init(self.allocator);
     }
 
-    pub fn init_billboard_sprite_pipeline(self: *NeonVkPipelineBuilder) !void {
-        try self.init_triangle_pipeline();
-    }
-
     // the init _ functions are called last and perform cleanup. all the other add_ functions can be called
     // before this
     pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {

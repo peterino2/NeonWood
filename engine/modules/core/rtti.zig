@@ -12,6 +12,14 @@ const AutoHashMap = std.AutoHashMap;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMapUnmanaged = std.AutoHashMapUnmanaged;
 
+pub fn InterfaceRef(comptime Vtable: type) type
+{
+    return struct {
+        ptr: *anyopaque,
+        vtable: *const Vtable,
+    };
+}
+
 // We actually don't need that many polymorphic types.
 // this will primarily be an ecs focused engine.
 // current goal: remove the graphics_test_run and move the renderer into the
@@ -19,16 +27,47 @@ const AutoHashMapUnmanaged = std.AutoHashMapUnmanaged;
 
 pub const RTTI_MAX_TYPES = 1024;
 
+pub const RendererInterfaceRef = InterfaceRef(RendererInterface);
+
+pub const RendererInterface = struct {
+    typeName: Name,
+    typeSize: usize,
+    typeAlign: usize,
+
+    preDraw: fn (*anyopaque) void,
+
+    pub fn from(comptime TargetType: type) @This() {
+        const wrappedPreDraw = struct {
+            pub fn func(pointer: *anyopaque) void {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                ptr.preDraw();
+            }
+        };
+
+        if (!@hasDecl(TargetType, "preDraw")) {
+            @compileLog("Tried to generate RendererInterfaceData for type ", TargetType, "but it's missing preDraw");
+            unreachable;
+        }
+
+        var self = @This(){
+            .typeName = MakeTypeName(TargetType),
+            .typeSize = @sizeOf(TargetType),
+            .typeAlign = @alignOf(TargetType),
+            .preDraw = wrappedPreDraw.func,
+        };
+
+        return self;
+    }
+};
+
 pub fn MakeTypeName(comptime TargetType: type) Name {
     const hashedName = comptime std.fmt.comptimePrint("{s}_{d}", .{ @typeName(TargetType), @sizeOf(TargetType) });
 
     return MakeName(hashedName);
 }
 
-pub const UiObjectRef = struct {
-    ptr: *anyopaque,
-    vtable: *const InterfaceUiData,
-};
+
+pub const UiObjectRef = InterfaceRef(InterfaceUiData);
 
 pub const InterfaceUiData = struct {
     typeName: Name,
@@ -112,10 +151,7 @@ pub const RttiData = struct {
     }
 };
 
-pub const NeonObjectRef = struct {
-    ptr: *anyopaque,
-    vtable: *const RttiData,
-};
+pub const NeonObjectRef = InterfaceRef(RttiData);
 
 const TestStruct = struct {
 
