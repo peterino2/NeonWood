@@ -22,6 +22,8 @@ pub fn SparseSet(comptime T: type) type {
     return SparseSetAdvanced(T, DefaultSparseSize);
 }
 
+pub const ObjectHandle = SetHandle;
+
 pub const SetHandle = packed struct {
     alive: bool,
     generation: u11,
@@ -157,6 +159,54 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             handle: SetHandle,
         };
 
+        // Will fail if the handle already exists.
+        pub fn createWithHandle(self: *@This(), handle:SetHandle, initValue: T) !ConstructResult
+        {
+            var currentDenseHandle = self.sparse[handle.index];
+            if(currentDenseHandle.alive)
+            {
+                return error.ObjectAlreadyExists;
+            }
+            
+            return try self.createAndGetInteral(currentDenseHandle, handle.index, initValue, false);
+        }
+
+        fn createAndGetInteral(self: *@This(), denseHandle: SetHandle, sparseIndex: u18, initValue: T, comptime bumpGeneration: bool) !ConstructResult
+        {
+            var newDenseIndex = self.dense.items.len;
+            try self.dense.append(self.allocator, .{
+                .value = initValue,
+                .sparseIndex = sparseIndex,
+            });
+
+
+            var generation = denseHandle.generation;
+
+            if(bumpGeneration)
+            {
+                generation = (generation + 1) % (0xff);
+            }
+
+            self.sparse[@intCast(usize, sparseIndex)] = SetHandle{
+                .alive = true,
+                .generation = @intCast(u11, generation),
+                .index = @intCast(u18, newDenseIndex),
+            };
+
+            var setHandle = SetHandle{
+                .alive = true,
+                .generation = generation,
+                .index = sparseIndex,
+            };
+
+            const rv = ConstructResult{
+                .ptr = &self.dense.items[@intCast(usize, newDenseIndex)].value,
+                .handle = setHandle,
+            };
+
+            return rv;
+        }
+
         pub fn createAndGet(self: *@This(), initValue: T) !ConstructResult {
             var newSparseIndex = newRandomIndex();
 
@@ -167,32 +217,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
             }
 
-            var newDenseIndex = self.dense.items.len;
-            try self.dense.append(self.allocator, .{
-                .value = initValue,
-                .sparseIndex = newSparseIndex,
-            });
-
-            const generation = (denseHandle.generation + 1) % (0xff);
-
-            self.sparse[@intCast(usize, newSparseIndex)] = SetHandle{
-                .alive = true,
-                .generation = @intCast(u11, generation),
-                .index = @intCast(u18, newDenseIndex),
-            };
-
-            var setHandle = SetHandle{
-                .alive = true,
-                .generation = generation,
-                .index = newSparseIndex,
-            };
-
-            const rv = ConstructResult{
-                .ptr = &self.dense.items[@intCast(usize, newDenseIndex)].value,
-                .handle = setHandle,
-            };
-
-            return rv;
+            return try self.createAndGetInteral(denseHandle, newSparseIndex, initValue, true);
         }
 
         pub fn deinit(self: *@This()) void {
