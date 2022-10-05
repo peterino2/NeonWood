@@ -58,17 +58,12 @@ pub const GpuMappingRaw = struct {
 
 pub const GpuPipeDataBinding = struct {
     // one slot per frame
-    descriptorSets: []vk.DescriptorSet,
     buffers: []NeonVkBuffer,
     objectCount: usize,
     objectSize: usize,
     frameCount: usize,
     isFrameBuffer: bool = true,
 
-    pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet
-    {
-        return @ptrCast([*]const vk.DescriptorSet, &self.descriptorSets[frameIndex]);
-    }
 
     pub fn mapBuffers(self: *@This(), gc: *NeonVkContext, comptime MappingType: type) ![]GpuMappingData(MappingType) {
         var frameIndex: usize = 0;
@@ -100,17 +95,23 @@ pub const GpuPipeData = struct {
     allocator: std.mem.Allocator,
     descriptorSetLayout: vk.DescriptorSetLayout,
     bindings: []GpuPipeDataBinding,
+    descriptorSets: []vk.DescriptorSet, // one per frame
+
+    pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet
+    {
+        return @ptrCast([*]const vk.DescriptorSet, &self.descriptorSets[frameIndex]);
+    }
 
     pub fn init(allocator: std.mem.Allocator, bindingCount: usize, frameCount: usize) !@This() {
         var self = GpuPipeData{
             .descriptorSetLayout = undefined,
             .bindings = try allocator.alloc(GpuPipeDataBinding, bindingCount),
+            .descriptorSets = try allocator.alloc(vk.DescriptorSet, frameCount),
             .allocator = allocator,
         };
 
         for (self.bindings) |*binding| {
             binding.buffers = try allocator.alloc(NeonVkBuffer, frameCount);
-            binding.descriptorSets = try allocator.alloc(vk.DescriptorSet, frameCount);
         }
 
         return self;
@@ -202,6 +203,16 @@ pub const GpuPipeDataBuilder = struct {
         rv.descriptorSetLayout = try gc.vkd.createDescriptorSetLayout(gc.dev, &setInfo, null);
         core.graphics_log("finalizing build", .{});
 
+        for (rv.descriptorSets) |_, frameId| {
+            var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
+                .descriptor_pool = gc.descriptorPool,
+                .descriptor_set_count = 1,
+                .p_set_layouts = p2a(&rv.descriptorSetLayout),
+            };
+
+            try gc.vkd.allocateDescriptorSets(gc.dev, &descriptorAllocInfo, @ptrCast([*]vk.DescriptorSet, &rv.descriptorSets[frameId]));
+        }
+
         var bindingId: usize = 0;
         while (bindingId < self.bindings.items.len) : (bindingId += 1) {
             var binding = &rv.bindings[bindingId];
@@ -234,13 +245,6 @@ pub const GpuPipeDataBuilder = struct {
                     memoryFlags,
                 );
 
-                var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
-                    .descriptor_pool = gc.descriptorPool,
-                    .descriptor_set_count = 1,
-                    .p_set_layouts = p2a(&rv.descriptorSetLayout),
-                };
-
-                try gc.vkd.allocateDescriptorSets(gc.dev, &descriptorAllocInfo, @ptrCast([*]vk.DescriptorSet, &binding.descriptorSets[frameId]));
 
                 var bufferInfo = vk.DescriptorBufferInfo {
                     .buffer = buffer.buffer,
@@ -250,7 +254,7 @@ pub const GpuPipeDataBuilder = struct {
 
                 var descriptorWrite = vkinit.writeDescriptorSet(
                     descriptorType,
-                    binding.descriptorSets[frameId],
+                    rv.descriptorSets[frameId],
                     &bufferInfo,
                     @intCast(u32, bindingId),
                 );

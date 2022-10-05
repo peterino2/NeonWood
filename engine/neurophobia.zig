@@ -296,7 +296,7 @@ const PapyrusSubsystem = struct {
                 renderObject.material.?.layout,  // layout
                 3, // set id
                 1, // binding id
-                self.pipeData.bindings[0].getDescriptorSet(frameIndex), // descriptorSet
+                self.pipeData.getDescriptorSet(frameIndex), // descriptorSet
                 0, undefined,
             );
             // core.graphics_log("Papyrus: binding object {any}:{any} draw index {d}", .{objectHandle, object, objectIndex });
