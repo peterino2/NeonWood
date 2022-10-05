@@ -1,0 +1,23 @@
+I started with functions_like_this 
+
+primarily because the vulkan book I was reading 
+used that style for all of their code 
+
+However now that i'm starting to move away form 
+that book i find that this naming scheme feels weaker
+I'll continue to employ it while im under vk_renderer 
+
+but going forward into the future i'm going to be 
+
+using funcLikeThis 
+
+for member functions  
+
+and values_like_this for text values 
+
+Comptime values such as types are always capital
+
+
+Also I think from now on I will prefer @This() to Self. 
+
+Less error prone and it gets more value from linting.

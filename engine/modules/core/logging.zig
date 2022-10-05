@@ -1,5 +1,21 @@
 const std = @import("std");
 
+pub fn game_log(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("[GAME     ]: " ++ fmt ++ "\n", args);
+}
+
+pub fn game_logs(comptime fmt: []const u8) void {
+    std.debug.print("[GAME     ]: " ++ fmt ++ "\n", .{});
+}
+
+pub fn ui_log(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("[UI       ]: " ++ fmt ++ "\n", args);
+}
+
+pub fn ui_logs(comptime fmt: []const u8) void {
+    std.debug.print("[UI       ]: " ++ fmt ++ "\n", .{});
+}
+
 pub fn engine_log(comptime fmt: []const u8, args: anytype) void {
     std.debug.print("[ENGINE   ]: " ++ fmt ++ "\n", args);
 }

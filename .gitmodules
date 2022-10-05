@@ -4,3 +4,6 @@
 [submodule "engine/modules\\graphics\\lib\\objLoader"]
 	path = engine/modules/graphics/lib/objLoader
 	url = https://github.com/peterino2/zig_obj_loader.git
+[submodule "engine/modules\\graphics\\lib\\cimgui"]
+	path = engine/modules/graphics/lib/cimgui
+	url = https://github.com/peterino2/cimgui.git

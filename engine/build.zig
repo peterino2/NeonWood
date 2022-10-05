@@ -164,20 +164,21 @@ pub fn createGameExecutable(
     var enginePathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var enginePath = try std.fs.realpath(b.build_root, &enginePathBuffer);
 
-    std.debug.print("build_root: {s} \n", .{basePath});
+    // std.debug.print("build_root: {s} \n", .{basePath});
     var cflags = std.ArrayList([]const u8).init(allocator);
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
 
     for (cflags.items) |s| {
-        std.debug.print("cflag: {s}\n", .{s});
+        _ = s;
+        // std.debug.print("cflag: {s}\n", .{s});
     }
 
     var thisBuildFile = @src().file;
     var engineRoot = std.fs.path.dirname(thisBuildFile).?;
 
-    std.debug.print("root = `{s}`\n", .{engineRoot});
+    // std.debug.print("root = `{s}`\n", .{engineRoot});
 
     var mainFilePath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ engineRoot, mainFile });
     defer allocator.free(mainFilePath);
@@ -189,12 +190,25 @@ pub fn createGameExecutable(
     exe.install();
     exe.linkLibC();
     exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/imgui.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/imgui_demo.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/imgui_draw.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/imgui_tables.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_vulkan.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_glfw.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
+    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
     exe.addIncludeDir("modules/core/lib");
+    exe.addIncludeDir("modules/graphics/lib/vulkan_inc");
+    exe.addIncludeDir("modules/graphics/lib/cimgui");
+    exe.addIncludeDir("modules/graphics/lib/imgui");
+    exe.addIncludeDir("modules/graphics/lib/imgui/backends");
     exe.addIncludeDir("modules/graphics/lib");
+    exe.addIncludeDir("modules/graphics");
     exe.addLibPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
-    exe.addPackagePath("core", "modules/core/core.zig");
-    exe.addPackagePath("graphics", "modules/graphics/graphics.zig");
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
@@ -213,6 +227,7 @@ pub fn createGameExecutable(
     res.addShader("triangle_frag_static", shaders_folder ++ "triangle_static.frag");
     res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");
     res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
+    res.addShader("sprite_mesh_vert", shaders_folder ++ "sprite_mesh.vert");
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
     exe.addPackage(res.package);
 
@@ -253,12 +268,22 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
     _ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
-        std.debug.print("wtf: {any}", .{e});
+        std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "objViewer2", "objViewer2.zig") catch |e| {
-        std.debug.print("wtf: {any}", .{e});
+    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
+        std.debug.print("error: {any}", .{e});
+        unreachable;
+    };
+
+    _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
+        std.debug.print("error: {any}", .{e});
+        unreachable;
+    };
+
+    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
+        std.debug.print("error: {any}", .{e});
         unreachable;
     };
 }

@@ -49,6 +49,13 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
+        pub fn zero() @This() {
+            return .{
+                .x = 0.0,
+                .y = 0.0,
+            };
+        }
+
         pub fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,

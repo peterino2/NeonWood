@@ -5,6 +5,9 @@ const input = @import("input.zig");
 const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
 const core = @import("../core.zig");
+const jobs = @import("jobs.zig");
+const trace = @import("trace.zig");
+const TracesContext = trace.TracesContext;
 const Name = names.Name;
 const MakeName = names.MakeName;
 
@@ -12,6 +15,7 @@ const NeonObjectRef = rtti.NeonObjectRef;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
+const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
 
@@ -27,12 +31,14 @@ pub const Engine = struct {
     allocator: std.mem.Allocator,
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
+    tracesContext: *TracesContext,
+    jobManager: JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
-        const rv = Engine{
+        var rv = Engine{
             .subsystems = ArrayList(*anyopaque).init(allocator),
             .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
             .allocator = allocator,
@@ -41,7 +47,11 @@ pub const Engine = struct {
             .tickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
+            .tracesContext = try allocator.create(TracesContext),
+            .jobManager = JobManager.init(allocator),
         };
+
+        rv.tracesContext.* = TracesContext.init(allocator);
 
         return rv;
     }
@@ -73,6 +83,7 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.tracesContext.deinit();
         self.subsystems.deinit();
         self.subsystemsByType.deinit();
     }
@@ -111,8 +122,9 @@ pub const Engine = struct {
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
 
-        for (self.tickables.items) |index| {
-            const objectRef = self.rttiObjects.items[index];
+        var index: isize = @intCast(isize, self.tickables.items.len) - 1;
+        while (index >= 0) : (index -= 1) {
+            const objectRef = self.rttiObjects.items[self.tickables.items[@intCast(usize, index)]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
         }
         self.lastEngineTime = newTime;

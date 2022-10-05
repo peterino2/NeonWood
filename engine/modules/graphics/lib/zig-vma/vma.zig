@@ -1072,7 +1072,7 @@ pub const VulkanFunctions = extern struct {
 
     fn isDeviceFunc(comptime FuncType: type) bool {
         comptime {
-            const info = @typeInfo(@typeInfo(FuncType).Pointer.child).Fn;
+            const info = @typeInfo(FuncType).Fn;
             if (info.args.len == 0) return false;
             const arg0 = info.args[0].arg_type;
             return arg0 == vk.Device or arg0 == vk.Queue or arg0 == vk.CommandBuffer;
@@ -1083,8 +1083,8 @@ pub const VulkanFunctions = extern struct {
         comptime T: type,
         inst: vk.Instance,
         device: vk.Device,
-        vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vk.vulkan_call_conv) vk.PfnVoidFunction,
-        vkGetDeviceProcAddr: *const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetInstanceProcAddr: fn (vk.Instance, [*:0]const u8) callconv(vk.vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetDeviceProcAddr: fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) T {
         if (@typeInfo(T) != .Struct) return undefined;
         var value: T = undefined;
@@ -1109,10 +1109,10 @@ pub const VulkanFunctions = extern struct {
     pub fn init(
         inst: vk.Instance,
         device: vk.Device,
-        vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetInstanceProcAddr: fn (vk.Instance, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) VulkanFunctions {
         const vkGetDeviceProcAddrPtr = vkGetInstanceProcAddr(inst, "vkGetDeviceProcAddr") orelse @panic("Couldn't fetch vkGetDeviceProcAddr: vkGetInstanceProcAddr returned null.");
-        const vkGetDeviceProcAddr = @ptrCast(*const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, vkGetDeviceProcAddrPtr);
+        const vkGetDeviceProcAddr = @ptrCast(fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, vkGetDeviceProcAddrPtr);
         return loadRecursive(VulkanFunctions, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
     }
 };

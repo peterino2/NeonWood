@@ -48,6 +48,10 @@ pub const RenderObject = struct {
         self.mesh = mesh;
     }
 
+    pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
+        self.texture = gc.textureSets.getEntry(name.hash).?.value_ptr.*;
+    }
+
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
     }
@@ -116,7 +120,7 @@ fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
         near,
         far,
     );
-    proj[1][1] *= -1;
+    // proj[1][1] *= -1;
     return proj;
 }
 
@@ -135,7 +139,7 @@ pub const Camera = struct {
     rotation: Quat,
     transform: Mat = zm.identity(),
     projection: Mat = makePerspective(
-        core.radians(70.0),
+        core.radians(70.0), // angle
         16.0 / 9.0,
         0.1,
         2000,
