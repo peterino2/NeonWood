@@ -1,6 +1,5 @@
 const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
-const game = @import("projects/neurophobia/game.zig");
 const resources = @import("resources");
 const vk = @import("vulkan");
 const core = neonwood.core;
@@ -10,6 +9,7 @@ const engine_log = core.engine_log;
 const c = graphics.c;
 const p2a = core.p_to_a;
 
+const gpd = graphics.gpu_pipe_data;
 const Vectorf = core.Vectorf;
 const Vector2 = core.Vector2;
 const Camera = graphics.render_object.Camera;
@@ -60,6 +60,10 @@ const GameContext = struct {
     cameraHorizontalRotationMat: core.Mat,
     cameraHorizontalRotationStart: core.Quat,
 
+    testSpriteHandle: core.ObjectHandle = undefined,
+    testSpriteData: SpriteDataGpu = .{.topLeft = .{.x = 0, .y = 0}, .size = .{.x = 1.0, .y = 1.0}},
+    testWindow: bool =true,
+
     sensitivity: f64 = 0.005,
 
     pub fn init(allocator: std.mem.Allocator) Self {
@@ -96,6 +100,12 @@ const GameContext = struct {
         _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
+        _ = c.igBegin("testWindow", &self.testWindow, 0);
+        _ = c.igSliderFloat("texCoordx", &self.testSpriteData.topLeft.x, 0.0, 1.0, "", 0);
+        _ = c.igSliderFloat("texCoordy", &self.testSpriteData.topLeft.y, 0.0, 1.0, "", 0);
+        _ = c.igSliderFloat("texsizex", &self.testSpriteData.size.x, 0.0, 1.0, "", 0);
+        _ = c.igSliderFloat("texsizey", &self.testSpriteData.size.y, 0.0, 1.0, "", 0);
+        c.igEnd();
     }
 
     pub fn load_texture(self: *Self, assetRef: AssetReference) !void {
@@ -123,7 +133,6 @@ const GameContext = struct {
 
         x.ptr.setTextureByName(self.gc, MakeName("t_sprite"));
         x.ptr.applyRelativeRotationX(core.radians(0.0));
-
         try self.papyrus.addSprite(x.handle);
     }
 
@@ -208,6 +217,8 @@ const GameContext = struct {
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
         self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
+
+        self.papyrus.mappedBuffers[self.gc.nextFrameIndex].objects[1] = self.testSpriteData;
     }
 
     pub fn deinit(self: *Self) void {
@@ -221,7 +232,6 @@ const GameContext = struct {
 const SpriteDataGpu = struct {
     topLeft: core.Vector2f, // texture atlas topLeft coordinate
     size: core.Vector2f, // texture atlas size
-    color: core.zm.Vec = .{ 0.0, 1.0, 0.0, 0.0 },
 };
 
 const PapyrusSprite = struct {
@@ -245,8 +255,8 @@ const PapyrusSubsystem = struct {
     spriteObjects: core.SparseSet(PapyrusSprite),
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
-    pipeData: game.GpuPipeData,
-    mappedBuffers: []game.GpuMappingData(SpriteDataGpu) = undefined,
+    pipeData: gpd.GpuPipeData,
+    mappedBuffers: []gpd.GpuMappingData(SpriteDataGpu) = undefined,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         var self = @This(){
@@ -260,7 +270,7 @@ const PapyrusSubsystem = struct {
     }
 
     pub fn prepareSubsystem(self: *@This()) !void {
-        var spriteDataBuilder = game.GpuPipeDataBuilder.init(self.allocator, self.gc);
+        var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
         try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
         self.pipeData = try spriteDataBuilder.build();
 

@@ -3,10 +3,10 @@ const std = @import("std");
 const vk_renderer = @import("graphics/vk_renderer.zig");
 const materials = @import("graphics/materials.zig");
 
+pub const gpu_pipe_data = @import("graphics/gpu_pipe_data.zig");
 pub const vkinit = @import("graphics/vk_init.zig");
 pub const c = vk_renderer.c;
 pub const NeonVkPipelineBuilder = vk_renderer.NeonVkPipelineBuilder;
-
 pub const NeonVkContext = vk_renderer.NeonVkContext;
 pub const vk_ui = @import("graphics/vk_imgui.zig");
 pub const constants = @import("graphics/vk_constants.zig");

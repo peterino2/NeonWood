@@ -21,7 +21,6 @@ struct ObjectData {
 struct SpriteData {
     vec2 texCoord;
     vec2 texSize;
-    vec4 testColor;
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
