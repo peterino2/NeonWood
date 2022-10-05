@@ -13,6 +13,8 @@ pub const constants = @import("graphics/vk_constants.zig");
 pub const NeonVkImGui = vk_ui.NeonVkImGui;
 pub const Material = materials.Material;
 
+pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
+
 pub const setWindowName = vk_renderer.setWindowName;
 pub const NumFrames = constants.NUM_FRAMES;
 

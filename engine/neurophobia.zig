@@ -242,6 +242,7 @@ const PapyrusSubsystem = struct {
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
     frameData: [graphics.NumFrames]PapyrusPerFrameData = undefined,
+    pipeData: game.GpuPipeData,
 
     pub fn init(allocator: std.mem.Allocator) @This()
     {
@@ -249,14 +250,21 @@ const PapyrusSubsystem = struct {
         {
             .allocator = allocator, 
             .gc = graphics.getContext(),
+            .pipeData = undefined,
         };
 
         return self;
     }
+
     
     pub fn prepareSubsystem(self: *@This()) !void 
     {
         try self.createSpriteMaterials();
+        var spriteDataBuilder = game.GpuPipeDataBuilder.init(self.allocator, self.gc);
+        defer spriteDataBuilder.deinit();
+
+        try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{.vertex_bit = true}, .storageBuffer);
+        self.pipeData = try spriteDataBuilder.build();
     }
 
     pub fn createSpriteMaterials(self: *@This()) !void 

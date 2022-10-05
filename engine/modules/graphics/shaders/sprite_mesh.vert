@@ -18,9 +18,18 @@ struct ObjectData {
     mat4 model;
 };
 
+struct SpriteData {
+    vec2 texCoord;
+    vec2 texSize;
+};
+
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
     ObjectData objects[];
 } objectBuffer;
+
+layout(std140, set = 3, binding = 0) readonly buffer SpriteBuffer{ 
+    SpriteData spriteData[];
+} spriteBuffer;
 
 layout (push_constant) uniform constants 
 {

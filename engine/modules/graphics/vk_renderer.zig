@@ -16,7 +16,7 @@ const materials = @import("materials.zig");
 
 const SparseSet = core.SparseSet;
 
-const MAX_OBJECTS = 100000;
+const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 fn vkCast(comptime T: type, handle: anytype) T {
     return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
@@ -442,7 +442,7 @@ pub const NeonVkContext = struct {
         context.active = false;
     }
 
-    pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) !usize {
+    pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
         var alignment = self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment;
 
         var alignedSize: usize = originalSize;
@@ -575,7 +575,7 @@ pub const NeonVkContext = struct {
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
-        const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
+        const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
 
         const sceneParamBufferSize = NumFrames * paddedSceneSize;
@@ -1215,7 +1215,7 @@ pub const NeonVkContext = struct {
 
         var offset: vk.DeviceSize = 0;
 
-        const paddedSceneSize = @intCast(u32, try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu)));
+        const paddedSceneSize = @intCast(u32, self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu)));
         var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
 
         if (self.lastMaterial != render_object.material) {
@@ -1256,7 +1256,7 @@ pub const NeonVkContext = struct {
     fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
         var data = try self.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
-        const paddedSceneSize = try self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
+        const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
 
         @memcpy(data + startOffset, @ptrCast([*]const u8, &self.sceneDataGpu), @sizeOf(@TypeOf(self.sceneDataGpu)));
