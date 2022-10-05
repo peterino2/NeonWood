@@ -23,7 +23,7 @@ fn vkCast(comptime T: type, handle: anytype) T {
 }
 
 const ObjectHandle = core.ObjectHandle;
-const MakeTypeName =  core.MakeTypeName;
+const MakeTypeName = core.MakeTypeName;
 
 pub const RendererInterfaceRef = core.InterfaceRef(RendererInterface);
 
@@ -33,7 +33,7 @@ pub const RendererInterface = struct {
     typeAlign: usize,
 
     preDraw: fn (*anyopaque) void,
-    onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer) void,
+    onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -42,10 +42,9 @@ pub const RendererInterface = struct {
                 ptr.preDraw();
             }
 
-            pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer) void 
-            {
+            pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
                 var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
-                ptr.onBindObject(objectHandle, objectIndex, cmd);
+                ptr.onBindObject(objectHandle, objectIndex, cmd, frameIndex);
             }
         };
 
@@ -397,7 +396,7 @@ pub const NeonVkContext = struct {
 
     textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
 
-    // .... oh thats bad .. need to arrange these guys. refactor materials meshes and textures into 
+    // .... oh thats bad .. need to arrange these guys. refactor materials meshes and textures into
     // pointers
     materials: std.AutoHashMapUnmanaged(u32, *Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
@@ -1287,7 +1286,7 @@ pub const NeonVkContext = struct {
 
         // let plugins bind the render object.
         for (self.rendererPlugins.items) |*plugin| {
-            plugin.vtable.onBindObject(plugin.ptr, objectHandle, index, cmd);
+            plugin.vtable.onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
         }
 
         if (self.lastMesh != render_object.mesh) {

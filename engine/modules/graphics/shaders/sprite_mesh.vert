@@ -21,6 +21,7 @@ struct ObjectData {
 struct SpriteData {
     vec2 texCoord;
     vec2 texSize;
+    vec4 testColor;
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
@@ -42,7 +43,8 @@ void main()
 	mat4 modelMatrix = objectBuffer.objects[gl_BaseInstance].model;
     mat4 final = (cameraData.viewproj * modelMatrix);
     vec4 position = final * vec4(vPosition, 1.0f);
+    SpriteData sd = spriteBuffer.spriteData[gl_BaseInstance];
 	gl_Position = position;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
-    texCoord = vTexCoord;
+    texCoord = (vTexCoord * sd.texSize + sd.texCoord);
 }

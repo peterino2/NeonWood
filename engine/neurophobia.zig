@@ -219,8 +219,9 @@ const GameContext = struct {
 // gpu data to be sent to sprite shaders.
 // texture coordinates are set in sprite_mesh.vert
 const SpriteDataGpu = struct {
-    topLeft: Vector2, // texture atlas topLeft coordinate
-    size: Vector2, // texture atlas size
+    topLeft: core.Vector2f, // texture atlas topLeft coordinate
+    size: core.Vector2f, // texture atlas size
+    color: core.zm.Vec = .{ 0.0, 1.0, 0.0, 0.0 },
 };
 
 const PapyrusSprite = struct {
@@ -245,6 +246,7 @@ const PapyrusSubsystem = struct {
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
     pipeData: game.GpuPipeData,
+    mappedBuffers: []game.GpuMappingData(SpriteDataGpu) = undefined,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         var self = @This(){
@@ -258,32 +260,45 @@ const PapyrusSubsystem = struct {
     }
 
     pub fn prepareSubsystem(self: *@This()) !void {
-        try self.createSpriteMaterials();
         var spriteDataBuilder = game.GpuPipeDataBuilder.init(self.allocator, self.gc);
-        defer spriteDataBuilder.deinit();
-
         try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
         self.pipeData = try spriteDataBuilder.build();
+
+        try self.createSpriteMaterials();
+        defer spriteDataBuilder.deinit();
+
+        self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, SpriteDataGpu, 0);
+        for (self.mappedBuffers) |_, i| {
+            self.mappedBuffers[i].objects[0].topLeft = .{ .x = 0.0, .y = 0.0 };
+            self.mappedBuffers[i].objects[0].size = .{ .x = 0.5, .y = 0.5 };
+            self.mappedBuffers[i].objects[1].topLeft = .{ .x = 0.0, .y = 0.0 };
+            self.mappedBuffers[i].objects[1].size = .{ .x = 0.5, .y = 0.5 };
+        }
     }
 
     pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle) !void {
-        var result = try self.spriteObjects.createWithHandle(objectHandle, .{.spriteFrameIndex = 420});
-        if(self.gc.renderObjectSet.get(objectHandle)) |renderObject|
-        {
+        var result = try self.spriteObjects.createWithHandle(objectHandle, .{ .spriteFrameIndex = 420 });
+        if (self.gc.renderObjectSet.get(objectHandle)) |renderObject| {
             renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
         }
         _ = result;
     }
 
-    pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer) void {
-        _ = self;
-        _ = objectHandle;
+    pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
         _ = objectIndex;
-        _ = cmd;
 
-        if(self.spriteObjects.get(objectHandle)) |object|
-        {
+        if (self.spriteObjects.get(objectHandle)) |object| {
+            var renderObject = self.gc.renderObjectSet.get(objectHandle).?;
             _ = object;
+            self.gc.vkd.cmdBindDescriptorSets(
+                cmd, // command buffer
+                .graphics, // bind point
+                renderObject.material.?.layout,  // layout
+                3, // set id
+                1, // binding id
+                self.pipeData.bindings[0].getDescriptorSet(frameIndex), // descriptorSet
+                0, undefined,
+            );
             // core.graphics_log("Papyrus: binding object {any}:{any} draw index {d}", .{objectHandle, object, objectIndex });
         }
     }
@@ -310,6 +325,7 @@ const PapyrusSubsystem = struct {
         try pipelineBuilder.add_layout(gc.globalDescriptorLayout);
         try pipelineBuilder.add_layout(gc.objectDescriptorLayout);
         try pipelineBuilder.add_layout(gc.singleTextureSetLayout);
+        try pipelineBuilder.add_layout(self.pipeData.descriptorSetLayout);
         try pipelineBuilder.add_depth_stencil();
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 
