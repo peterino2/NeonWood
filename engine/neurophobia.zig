@@ -77,7 +77,6 @@ const GameContext = struct {
         };
 
         core.game_logs("Game starting");
-        graphics.registerRendererPlugin(&self.papyrus) catch unreachable;
 
         self.camera.fov = 90.0;
         self.cameraHorizontalRotation = self.cameraRotationStart;
@@ -124,6 +123,8 @@ const GameContext = struct {
 
         x.ptr.setTextureByName(self.gc, MakeName("t_sprite"));
         x.ptr.applyRelativeRotationX(core.radians(0.0));
+
+        try self.papyrus.addSprite(x.handle);
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {
@@ -158,6 +159,7 @@ const GameContext = struct {
     pub fn prepareGame(self: *Self) !void {
         gGame = self;
         try self.papyrus.prepareSubsystem();
+        graphics.registerRendererPlugin(&self.papyrus) catch unreachable;
 
         for (self.textureAssets.items) |asset| {
             try self.load_texture(asset);
@@ -216,16 +218,16 @@ const GameContext = struct {
 
 // gpu data to be sent to sprite shaders.
 // texture coordinates are set in sprite_mesh.vert
-const SpriteDataGpu = struct{
+const SpriteDataGpu = struct {
     topLeft: Vector2, // texture atlas topLeft coordinate
     size: Vector2, // texture atlas size
 };
 
-const PapyrusPerFrameData = struct {
-    spriteDataBuffer: vk.Buffer,
+const PapyrusSprite = struct {
+    spriteFrameIndex: u32 = 0,
 };
 
-// Wait.. i just had a huge breakthrough.. 
+// Wait.. i just had a huge breakthrough..
 // I can directly access everything vk_renderer.
 
 // This means that I can literally set up the entire sprite pipeline
@@ -234,46 +236,64 @@ const PapyrusPerFrameData = struct {
 // subsystem that implements a 2d sprite system that allows you to put animated
 // 2d sprites onto quads.
 
-const PapyrusSubsystem = struct { 
+const PapyrusSubsystem = struct {
 
     // Interfaces and tables
-    pub const RendererInterfaceVTable = core.RendererInterface.from(@This());
+    pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
+    spriteObjects: core.SparseSet(PapyrusSprite),
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
-    frameData: [graphics.NumFrames]PapyrusPerFrameData = undefined,
     pipeData: game.GpuPipeData,
 
-    pub fn init(allocator: std.mem.Allocator) @This()
-    {
-        var self = @This()
-        {
-            .allocator = allocator, 
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        var self = @This(){
+            .allocator = allocator,
             .gc = graphics.getContext(),
             .pipeData = undefined,
+            .spriteObjects = core.SparseSet(PapyrusSprite).init(allocator),
         };
 
         return self;
     }
 
-    
-    pub fn prepareSubsystem(self: *@This()) !void 
-    {
+    pub fn prepareSubsystem(self: *@This()) !void {
         try self.createSpriteMaterials();
         var spriteDataBuilder = game.GpuPipeDataBuilder.init(self.allocator, self.gc);
         defer spriteDataBuilder.deinit();
 
-        try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{.vertex_bit = true}, .storageBuffer);
+        try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
         self.pipeData = try spriteDataBuilder.build();
     }
 
-    pub fn createSpriteMaterials(self: *@This()) !void 
-    {
+    pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle) !void {
+        var result = try self.spriteObjects.createWithHandle(objectHandle, .{.spriteFrameIndex = 420});
+        if(self.gc.renderObjectSet.get(objectHandle)) |renderObject|
+        {
+            renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
+        }
+        _ = result;
+    }
+
+    pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer) void {
+        _ = self;
+        _ = objectHandle;
+        _ = objectIndex;
+        _ = cmd;
+
+        if(self.spriteObjects.get(objectHandle)) |object|
+        {
+            _ = object;
+            // core.graphics_log("Papyrus: binding object {any}:{any} draw index {d}", .{objectHandle, object, objectIndex });
+        }
+    }
+
+    pub fn createSpriteMaterials(self: *@This()) !void {
         // use default lit and sprite_mesh.vert
-        // this will install several pipelines and materials into the 
+        // this will install several pipelines and materials into the
 
         core.graphics_logs("creating sprite material");
-        var gc:*graphics.NeonVkContext = self.gc;
+        var gc: *graphics.NeonVkContext = self.gc;
         var pipelineBuilder = try NeonVkPipelineBuilder.init(
             gc.dev,
             gc.vkd,
@@ -294,7 +314,8 @@ const PapyrusSubsystem = struct {
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 
         var materialName = core.MakeName("mat_sprite");
-        var material = graphics.Material{
+        var material = try gc.allocator.create(graphics.Material);
+        material.* = graphics.Material{
             .materialName = materialName,
             .pipeline = (try pipelineBuilder.build(gc.renderPass)).?,
             .layout = pipelineBuilder.pipelineLayout,
@@ -323,8 +344,7 @@ const PapyrusSubsystem = struct {
         // gc.vkd.updateDescriptorSets(gc.dev, 1, p2a(&descriptorSet), 0, undefined);
     }
 
-    pub fn preDraw(self: *@This()) void
-    {
+    pub fn preDraw(self: *@This()) void {
         // 1. update animation data in the PapyrusPerFrameData
         _ = self;
         // core.graphics_logs("calling papyrus subsystem predraw");

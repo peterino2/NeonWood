@@ -22,6 +22,55 @@ fn vkCast(comptime T: type, handle: anytype) T {
     return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
 }
 
+const ObjectHandle = core.ObjectHandle;
+const MakeTypeName =  core.MakeTypeName;
+
+pub const RendererInterfaceRef = core.InterfaceRef(RendererInterface);
+
+pub const RendererInterface = struct {
+    typeName: Name,
+    typeSize: usize,
+    typeAlign: usize,
+
+    preDraw: fn (*anyopaque) void,
+    onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer) void,
+
+    pub fn from(comptime TargetType: type) @This() {
+        const wrappedFuncs = struct {
+            pub fn preDraw(pointer: *anyopaque) void {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                ptr.preDraw();
+            }
+
+            pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer) void 
+            {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                ptr.onBindObject(objectHandle, objectIndex, cmd);
+            }
+        };
+
+        if (!@hasDecl(TargetType, "preDraw")) {
+            @compileLog("Tried to generate RendererInterfaceData for type ", TargetType, "but it's missing func reDraw");
+            unreachable;
+        }
+
+        if (!@hasDecl(TargetType, "onBindObject")) {
+            @compileLog("Tried to generate RendererInterfaceData for type ", TargetType, "but it's missing func onBindObject");
+            unreachable;
+        }
+
+        var self = @This(){
+            .typeName = MakeTypeName(TargetType),
+            .typeSize = @sizeOf(TargetType),
+            .typeAlign = @alignOf(TargetType),
+            .preDraw = wrappedFuncs.preDraw,
+            .onBindObject = wrappedFuncs.onBindObject,
+        };
+
+        return self;
+    }
+};
+
 // Aliases
 const p2a = core.p_to_a;
 const p2av = core.p_to_av;
@@ -347,7 +396,10 @@ pub const NeonVkContext = struct {
     renderObjectSet: RenderObjectSet,
 
     textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
-    materials: std.AutoHashMapUnmanaged(u32, Material), // all future arraylists should be unmanaged
+
+    // .... oh thats bad .. need to arrange these guys. refactor materials meshes and textures into 
+    // pointers
+    materials: std.AutoHashMapUnmanaged(u32, *Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
     cameraRef: ?*render_objects.Camera,
@@ -368,7 +420,7 @@ pub const NeonVkContext = struct {
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
     uiObjects: ArrayListUnmanaged(core.UiObjectRef),
-    rendererPlugins: ArrayListUnmanaged(core.RendererInterfaceRef),
+    rendererPlugins: ArrayListUnmanaged(RendererInterfaceRef),
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
@@ -404,8 +456,7 @@ pub const NeonVkContext = struct {
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
     }
 
-    pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void
-    {
+    pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void {
         try self.rendererPlugins.append(interface);
     }
 
@@ -666,7 +717,7 @@ pub const NeonVkContext = struct {
         if (findMat == null)
             return error.NoMaterialFound;
 
-        renderObject.material = findMat.?.value_ptr;
+        renderObject.material = findMat.?.value_ptr.*;
         renderObject.mesh = findMesh.?.value_ptr;
 
         // try self.renderObjects.append(self.allocator, renderObject);
@@ -827,8 +878,7 @@ pub const NeonVkContext = struct {
         });
     }
 
-    fn create_mesh_material(self: *Self) !void 
-    {
+    fn create_mesh_material(self: *Self) !void {
         // Creates teh standard mesh pipeline, this pipeline is statically stored as
         // mat_mesh
         core.graphics_logs("Creating mesh pipeline");
@@ -856,7 +906,8 @@ pub const NeonVkContext = struct {
 
         const materialName = core.MakeName("mat_mesh");
 
-        var material = Material{
+        var material = try self.allocator.create(Material);
+        material.* = Material{
             .materialName = materialName,
             .pipeline = (try pipeline_builder.build(self.renderPass)).?,
             .layout = pipeline_builder.pipelineLayout,
@@ -869,7 +920,7 @@ pub const NeonVkContext = struct {
         };
         try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
 
-        // --------- set up the image 
+        // --------- set up the image
         var imageBufferInfo = vk.DescriptorImageInfo{
             .sampler = self.blockySampler,
             .image_view = (self.textures.get(core.MakeName("missing_texture").hash)).?.imageView,
@@ -888,8 +939,7 @@ pub const NeonVkContext = struct {
         // ---------------
     }
 
-    pub fn add_material(self: *@This(), material: Material) !void 
-    {
+    pub fn add_material(self: *@This(), material: *Material) !void {
         try self.materials.put(self.allocator, material.materialName.hash, material);
     }
 
@@ -931,7 +981,6 @@ pub const NeonVkContext = struct {
         var linearCreateSample = vkinit.samplerCreateInfo(.linear, null);
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
-
         try self.create_mesh_material();
         // try self.create_sprite_material();
 
@@ -943,44 +992,44 @@ pub const NeonVkContext = struct {
         var bindings = [_]vk.DescriptorSetLayoutBinding{
             vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0),
         };
-    
+
         var setLayoutCreateInfo = vk.DescriptorSetLayoutCreateInfo{
             .flags = .{},
             .binding_count = bindings.len,
             .p_bindings = @ptrCast([*]const vk.DescriptorSetLayoutBinding, &bindings),
         };
-    
+
         self.spriteDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setLayoutCreateInfo, null);
-    
+
         var i: usize = 0;
         while (i < NumFrames) : (i += 1) {
             self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu);
-    
+
             var spriteDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
                 .p_set_layouts = p2a(&self.spriteDescriptorLayout),
             };
-    
+
             try self.vkd.allocateDescriptorSets(
                 self.dev,
                 &spriteDescriptorSetAllocInfo,
                 @ptrCast([*]vk.DescriptorSet, &self.frameData[i].spriteDescriptorSet),
             );
-    
+
             var spriteInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].spriteBuffer.buffer,
                 .offset = 0,
                 .range = @sizeOf(NeonVkSpriteDataGpu) * MAX_OBJECTS,
             };
-    
+
             var spriteWrite = vkinit.writeDescriptorSet(
                 .storage_buffer,
                 self.frameData[i].spriteDescriptorSet,
                 &spriteInfo,
                 0,
             );
-    
+
             var spriteSetWrites = [_]@TypeOf(spriteWrite){spriteWrite};
             self.vkd.updateDescriptorSets(self.dev, 1, &spriteSetWrites, 0, undefined);
         }
@@ -1144,13 +1193,11 @@ pub const NeonVkContext = struct {
         self.vkd.cmdEndRenderPass(cmd);
     }
 
-    pub fn drawDebugUi(self: *Self) void 
-    {
+    pub fn drawDebugUi(self: *Self) void {
         var windowVal = c.igBegin("Graphics Debug Ui", &self.shouldShowDebug, 0);
         defer c.igEnd();
 
-        if(!windowVal)
-        {
+        if (!windowVal) {
             self.shouldShowDebug = false;
             return;
         }
@@ -1158,7 +1205,7 @@ pub const NeonVkContext = struct {
         c.igText("Materials List:");
         var iter = self.materials.iterator();
         while (iter.next()) |i| {
-            c.igText(i.value_ptr.materialName.utf8.ptr);
+            c.igText(i.value_ptr.*.materialName.utf8.ptr);
         }
     }
 
@@ -1167,8 +1214,7 @@ pub const NeonVkContext = struct {
         c.ImGui_ImplGlfw_NewFrame();
         c.igNewFrame();
 
-        if(self.shouldShowDebug)
-        {
+        if (self.shouldShowDebug) {
             self.drawDebugUi();
         }
 
@@ -1200,7 +1246,14 @@ pub const NeonVkContext = struct {
         c.igRenderPlatformWindowsDefault(null, null);
     }
 
-    fn draw_render_object(self: *Self, render_object: RenderObject, cmd: vk.CommandBuffer, index: u32, deltaTime: f64) void {
+    fn draw_render_object(
+        self: *Self,
+        render_object: RenderObject,
+        cmd: vk.CommandBuffer,
+        index: u32,
+        deltaTime: f64,
+        objectHandle: core.ObjectHandle,
+    ) void {
         _ = deltaTime;
 
         if (render_object.mesh == null)
@@ -1230,6 +1283,11 @@ pub const NeonVkContext = struct {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(textureSet), 0, undefined);
         } else {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(&render_object.material.?.textureSet), 0, undefined);
+        }
+
+        // let plugins bind the render object.
+        for (self.rendererPlugins.items) |*plugin| {
+            plugin.vtable.onBindObject(plugin.ptr, objectHandle, index, cmd);
         }
 
         if (self.lastMesh != render_object.mesh) {
@@ -1308,9 +1366,8 @@ pub const NeonVkContext = struct {
         // try self.upload_sprite_data();
 
         // activate predraw plugins here.
-        
-        for(self.rendererPlugins.items)|*interface|
-        {
+
+        for (self.rendererPlugins.items) |*interface| {
             interface.vtable.preDraw(interface.ptr);
         }
 
@@ -1320,7 +1377,9 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
 
         for (self.renderObjectSet.dense.items) |dense, i| {
-            self.draw_render_object(dense.value, cmd, @intCast(u32, i), deltaTime);
+            var sparseHandle = self.renderObjectSet.sparse[dense.sparseIndex];
+            sparseHandle.index = dense.sparseIndex;
+            self.draw_render_object(dense.value, cmd, @intCast(u32, i), deltaTime, sparseHandle);
         }
     }
 
@@ -2287,7 +2346,8 @@ pub const NeonVkContext = struct {
     pub fn destroy_materials(self: *Self) void {
         var iter = self.materials.iterator();
         while (iter.next()) |i| {
-            i.value_ptr.deinit(self);
+            i.value_ptr.*.deinit(self);
+            self.allocator.destroy(i.value_ptr);
         }
     }
 

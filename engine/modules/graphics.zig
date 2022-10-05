@@ -12,6 +12,8 @@ pub const vk_ui = @import("graphics/vk_imgui.zig");
 pub const constants = @import("graphics/vk_constants.zig");
 pub const NeonVkImGui = vk_ui.NeonVkImGui;
 pub const Material = materials.Material;
+pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
+pub const RendererInterface = vk_renderer.RendererInterface;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
@@ -30,8 +32,6 @@ pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
 
 pub var gImgui: *NeonVkImGui = undefined;
-
-const RendererInterfaceRef = core.RendererInterfaceRef;
 
 pub fn registerRendererPlugin(value: anytype) !void
 {

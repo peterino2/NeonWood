@@ -24,7 +24,7 @@ pub fn SparseSet(comptime T: type) type {
 
 pub const ObjectHandle = SetHandle;
 
-pub const SetHandle = packed struct {
+pub const SetHandle = struct {
     alive: bool,
     generation: u11,
     padding: u2 = 0,
@@ -74,22 +74,20 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
             const denseHandle = self.sparse[@intCast(usize, handle.index)];
 
+            // todo: need to update generation
             if (denseHandle.generation != handle.generation) // tombstone value
             {
-                std.debug.print("ECS issue: generation mismatch, sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 // Generation mismatch, this handle is totally dead.
                 return null;
             }
 
             if (denseHandle.alive == false) {
-                std.debug.print("ECS issue: dense handle is dead, sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 return null;
             }
 
             const denseIndex = @intCast(usize, denseHandle.index);
 
             if (denseIndex >= self.dense.items.len) {
-                std.debug.print("ECS issue: dense index is invalid, sparse: {any} dense: {any}\n", .{ handle, denseHandle });
                 return null;
             }
 
@@ -169,11 +167,14 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         // Will fail if the handle already exists.
         pub fn createWithHandle(self: *@This(), handle:SetHandle, initValue: T) !ConstructResult
         {
+            std.debug.print("creating set with handle: {any}\n", .{handle});
             var currentDenseHandle = self.sparse[handle.index];
             if(currentDenseHandle.alive)
             {
                 return error.ObjectAlreadyExists;
             }
+            currentDenseHandle.generation = handle.generation;
+            currentDenseHandle.alive = true;
             
             return try self.createAndGetInteral(currentDenseHandle, handle.index, initValue, false);
         }
@@ -185,7 +186,6 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 .value = initValue,
                 .sparseIndex = sparseIndex,
             });
-
 
             var generation = denseHandle.generation;
 
