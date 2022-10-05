@@ -29,9 +29,16 @@ pub const SetHandle = packed struct {
     generation: u11,
     padding: u2 = 0,
     index: u18,
+
+    pub fn hash(self: @This()) u32
+    {
+        return @bitCast(u32, self);
+    }
 };
 
-// A quick little sparse set implementation
+// A quick little sparse set implementation, this feeds the core of the 
+// ECS. A sparse set provides Constant time random access to a range of objects through stable handles
+// While providing dense memory locality for iterating.
 pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -245,15 +252,21 @@ test "sparse-set" {
     var set = PayloadSet.init(std.testing.allocator);
     defer set.deinit();
 
+    var set2 = PayloadSet.init(std.testing.allocator);
+    defer set2.deinit();
+
     var setHandle = (try set.createAndGet(.{ .name = "object1", .v = 0 })).handle;
     printSetHandle(setHandle);
-    var setHandle1 = try set.createObject(.{ .name = "object2", .v = 1 });
+    var setHandle1 = (try set.createObject(.{ .name = "object2", .v = 1 }));
     printSetHandle(setHandle1);
-    var setHandle2 = try set.createObject(.{ .name = "object3", .v = 2 });
+    var setHandle2 = (try set.createObject(.{ .name = "object3", .v = 2 }));
     printSetHandle(setHandle2);
-    var setHandle3 = try set.createObject(.{ .name = "object4", .v = 3 });
-
+    var setHandle3 = (try set.createObject(.{ .name = "object4", .v = 3 }));
     printSetHandle(setHandle3);
+
+    var set2Handle1 = (try set2.createWithHandle(setHandle3, set.get(setHandle2).?.*)).handle;
+    std.debug.print("set2 handle: \n", .{});
+    printSetHandle(set2Handle1);
 
     for (set.dense.items) |entry| {
         std.debug.print("{any}: {s}\n", .{ entry.value, entry.value.name });
@@ -304,15 +317,14 @@ test "sparse-set" {
     try expect(set.dense.items.len == 0);
 }
 
-// tail points to next free
-// head points to next one to read
-
 const RingQueueError = error{
     QueueIsFull,
     QueueIsEmpty,
     AllocSizeTooSmall,
 };
 
+// tail points to next free
+// head points to next one to read
 pub fn RingQueueU(comptime T: type) type {
     return struct {
         buffer: []T = undefined,
