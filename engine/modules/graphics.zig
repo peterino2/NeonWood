@@ -11,9 +11,12 @@ pub const NeonVkContext = vk_renderer.NeonVkContext;
 pub const vk_ui = @import("graphics/vk_imgui.zig");
 pub const constants = @import("graphics/vk_constants.zig");
 pub const NeonVkImGui = vk_ui.NeonVkImGui;
+pub const NeonVkImage = vk_renderer.NeonVkImage;
 pub const Material = materials.Material;
 pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
 pub const RendererInterface = vk_renderer.RendererInterface;
+
+pub const PixelPos = vk_renderer.PixelPos;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 

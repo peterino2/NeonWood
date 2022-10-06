@@ -47,6 +47,13 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             sparseIndex: u18,
         }),
         sparse: []SetHandle,
+        
+        pub fn handleFromSparseIndex(self: @This(), sparseIndex: u18) SetHandle 
+        {
+            var handle: SetHandle = self.sparse[@intCast(usize, sparseIndex)];
+            handle.index = sparseIndex;
+            return handle;
+        }
 
         pub fn init(allocator: std.mem.Allocator) @This() {
             var self = @This(){
@@ -71,7 +78,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return &self.dense.items[offset].value;
         }
 
-        fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
+        pub fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
             const denseHandle = self.sparse[@intCast(usize, handle.index)];
 
             // todo: need to update generation

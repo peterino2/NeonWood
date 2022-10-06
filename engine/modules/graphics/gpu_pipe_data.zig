@@ -89,6 +89,14 @@ pub const GpuPipeDataBinding = struct {
 
         return rv;
     }
+
+    pub fn deinit(self: *@This(), vmaAllocator: vma.Allocator) void
+    {
+        for(self.buffers) |*buffers|
+        {
+            buffers.deinit(vmaAllocator);
+        }
+    }
 };
 
 pub const GpuPipeData = struct {
@@ -128,8 +136,12 @@ pub const GpuPipeData = struct {
     }
 
     // pub fn unmapAll(self: *@This(), mappings: anytype);
-    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-        allocator.free(self.buffers);
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator, gc: *NeonVkContext) void {
+        for(self.bindings) |*binding|
+        {
+            binding.deinit(gc.vmaAllocator);
+        }
+        allocator.free(self.bindings);
     }
 };
 

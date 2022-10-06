@@ -49,7 +49,7 @@ pub const RenderObject = struct {
     }
 
     pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.texture = gc.textureSets.getEntry(name.hash).?.value_ptr.*;
+        self.texture = gc.textureSets.get(name.hash).?;
     }
 
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {

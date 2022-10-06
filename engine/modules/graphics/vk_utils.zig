@@ -62,6 +62,8 @@ pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkIm
     var newImage = NeonVkImage{
         .image = result.image,
         .allocation = result.allocation,
+        .pixelWidth = imageExtent.width,
+        .pixelHeight = imageExtent.height,
     };
 
     try ctx.start_upload_context(&ctx.uploadContext);

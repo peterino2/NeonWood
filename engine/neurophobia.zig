@@ -1,5 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
+
+const animations = @import("projects/neurophobia/animations.zig");
 const resources = @import("resources");
 const vk = @import("vulkan");
 const core = neonwood.core;
@@ -14,6 +16,7 @@ const Vectorf = core.Vectorf;
 const Vector2 = core.Vector2;
 const Camera = graphics.render_object.Camera;
 const RenderObject = graphics.render_objects.RenderObject;
+const PixelPos = graphics.PixelPos;
 const AssetReference = assets.AssetReference;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
@@ -21,6 +24,7 @@ const NeonVkPipelineBuilder = graphics.NeonVkPipelineBuilder;
 
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
+    .{ .name = core.MakeName("t_denverWalk"), .path = "projects/neurophobia/DenverWalksAll.png" },
 };
 
 const MeshAssets = [_]AssetReference{
@@ -61,8 +65,9 @@ const GameContext = struct {
     cameraHorizontalRotationStart: core.Quat,
 
     testSpriteHandle: core.ObjectHandle = undefined,
-    testSpriteData: SpriteDataGpu = .{.topLeft = .{.x = 0, .y = 0}, .size = .{.x = 1.0, .y = 1.0}},
-    testWindow: bool =true,
+    testSpriteData: SpriteDataGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
+    testWindow: bool = true,
+    frameIndex: c_int = 0,
 
     sensitivity: f64 = 0.005,
 
@@ -100,12 +105,19 @@ const GameContext = struct {
         _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
-        _ = c.igBegin("testWindow", &self.testWindow, 0);
-        _ = c.igSliderFloat("texCoordx", &self.testSpriteData.topLeft.x, 0.0, 1.0, "", 0);
-        _ = c.igSliderFloat("texCoordy", &self.testSpriteData.topLeft.y, 0.0, 1.0, "", 0);
-        _ = c.igSliderFloat("texsizex", &self.testSpriteData.size.x, 0.0, 1.0, "", 0);
-        _ = c.igSliderFloat("texsizey", &self.testSpriteData.size.y, 0.0, 1.0, "", 0);
-        c.igEnd();
+        if(self.papyrus.spriteSheets.get(core.MakeName("t_denverWalk").hash)) |spriteObject|
+        {
+            _ = c.igBegin("testWindow", &self.testWindow, 0);
+            _ = c.igSliderInt(
+                "frameIndex",
+                &self.frameIndex,
+                0,
+                @intCast(c_int, spriteObject.frames.items.len - 1),
+                "%d",
+                0,
+            );
+            c.igEnd();
+        }
     }
 
     pub fn load_texture(self: *Self, assetRef: AssetReference) !void {
@@ -128,12 +140,16 @@ const GameContext = struct {
         var x = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 0.0, 0.0)),
+            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 5.0, 0.0)),
         });
 
-        x.ptr.setTextureByName(self.gc, MakeName("t_sprite"));
-        x.ptr.applyRelativeRotationX(core.radians(0.0));
-        try self.papyrus.addSprite(x.handle);
+        //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
+        x.ptr.applyRelativeRotationX(core.radians(-5.0));
+        var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
+        try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
+        x.ptr.applyTransform(spriteSheet.getXFrameScaling());
+        try self.papyrus.addSprite(x.handle, MakeName("t_denverWalk"));
+        self.testSpriteHandle = x.handle;
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {
@@ -217,13 +233,14 @@ const GameContext = struct {
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
         self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
-
-        self.papyrus.mappedBuffers[self.gc.nextFrameIndex].objects[1] = self.testSpriteData;
+        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.frameIndex));
+        // self.papyrus.mappedBuffers[self.gc.nextFrameIndex].objects[1] = self.testSpriteData;
     }
 
     pub fn deinit(self: *Self) void {
         self.textureAssets.deinit(self.allocator);
         self.meshAssets.deinit(self.allocator);
+        self.papyrus.deinit();
     }
 };
 
@@ -235,7 +252,13 @@ const SpriteDataGpu = struct {
 };
 
 const PapyrusSprite = struct {
-    spriteFrameIndex: u32 = 0,
+    spriteFrameIndex: usize = 0,
+
+    // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
+    // far later when we eventually move onto doing a proper asset system.
+    // there's a reason why papyrus and the animation stuff are all under game code not engine
+    // code
+    spriteSheet: *animations.SpriteSheet,
 };
 
 // Wait.. i just had a huge breakthrough..
@@ -252,21 +275,54 @@ const PapyrusSubsystem = struct {
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
-    spriteObjects: core.SparseSet(PapyrusSprite),
+    spriteObjects: core.SparseSet(*PapyrusSprite),
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
     pipeData: gpd.GpuPipeData,
     mappedBuffers: []gpd.GpuMappingData(SpriteDataGpu) = undefined,
+    spriteSheets: std.AutoHashMapUnmanaged(u32, *animations.SpriteSheet),
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         var self = @This(){
             .allocator = allocator,
             .gc = graphics.getContext(),
             .pipeData = undefined,
-            .spriteObjects = core.SparseSet(PapyrusSprite).init(allocator),
+            .spriteObjects = core.SparseSet(*PapyrusSprite).init(allocator),
+            .spriteSheets = .{},
         };
 
         return self;
+    }
+
+    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize) void
+    {
+        self.spriteObjects.get(objectHandle).?.*.spriteFrameIndex = frameIndex;
+    }
+
+    pub fn addSpriteSheetByName(self: *@This(), baseTextureName: core.Name) !*animations.SpriteSheet {
+        var texture = self.gc.textures.get(baseTextureName.hash).?;
+        var spriteSheet = try self.allocator.create(animations.SpriteSheet);
+        spriteSheet.* = animations.SpriteSheet.init(&texture.image);
+
+        try self.spriteSheets.put(self.allocator, baseTextureName.hash, spriteSheet);
+
+        return spriteSheet;
+    }
+
+    fn destroy_spritesheets(self: *@This()) void {
+        var iter = self.spriteSheets.iterator();
+        while (iter.next()) |i| {
+            try i.value_ptr.*.deinit(self);
+            self.allocator.destroy(i.value_ptr.*);
+        }
+    }
+
+    pub fn deinit(self: *@This()) void {
+        for (self.mappedBuffers) |*mapped| {
+            mapped.unmap(self.gc);
+        }
+        self.spriteObjects.deinit();
+        self.pipeData.deinit(self.allocator, self.gc);
     }
 
     pub fn prepareSubsystem(self: *@This()) !void {
@@ -286,11 +342,23 @@ const PapyrusSubsystem = struct {
         }
     }
 
-    pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle) !void {
-        var result = try self.spriteObjects.createWithHandle(objectHandle, .{ .spriteFrameIndex = 420 });
+    pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
+        var newSpriteObject = try self.allocator.create(PapyrusSprite);
+        newSpriteObject.* = .{ .spriteFrameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
+
+        var result = try self.spriteObjects.createWithHandle(
+            objectHandle,
+            newSpriteObject,
+        );
         if (self.gc.renderObjectSet.get(objectHandle)) |renderObject| {
+            // set the material to mat_sprite
             renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
+
+            // assign the texture to the spritesheet and register the spriteObject as using
+            // this spritesheet
+            renderObject.setTextureByName(self.gc, sheetName);
         }
+
         _ = result;
     }
 
@@ -303,11 +371,12 @@ const PapyrusSubsystem = struct {
             self.gc.vkd.cmdBindDescriptorSets(
                 cmd, // command buffer
                 .graphics, // bind point
-                renderObject.material.?.layout,  // layout
+                renderObject.material.?.layout, // layout
                 3, // set id
                 1, // binding id
                 self.pipeData.getDescriptorSet(frameIndex), // descriptorSet
-                0, undefined,
+                0,
+                undefined,
             );
             // core.graphics_log("Papyrus: binding object {any}:{any} draw index {d}", .{objectHandle, object, objectIndex });
         }
@@ -347,32 +416,34 @@ const PapyrusSubsystem = struct {
             .layout = pipelineBuilder.pipelineLayout,
         };
 
-        // gc.vkd.destroyPipelineLayout(gc.dev, pipelineBuilder.pipelineLayout, null);
         try gc.add_material(material);
-
-        // I don't think these are actually nessecary
-
-        // var imageBufferInfo = vk.DescriptorImageInfo{
-        //     .sampler = gc.blockySampler,
-        //     .image_view = gc.textures.get(core.MakeName("missing_texture").hash).?.imageView,
-        //     .image_layout = .shader_read_only_optimal,
-        // };
-
-        // var descriptorSet = graphics.vkinit.writeDescriptorImage(
-        //     .combined_image_sampler,
-        //     gc.materials.get(materialName.hash).?.textureSet,
-        //     &imageBufferInfo,
-        //     0,
-        // );
-
-        // _ = descriptorSet;
-
-        // gc.vkd.updateDescriptorSets(gc.dev, 1, p2a(&descriptorSet), 0, undefined);
     }
 
-    pub fn preDraw(self: *@This()) void {
+    pub fn preDraw(self: *@This(), frameId: usize) void {
         // 1. update animation data in the PapyrusPerFrameData
         _ = self;
+        for (self.spriteObjects.dense.items) |*dense| {
+            var spriteObject: PapyrusSprite = dense.value.*;
+            // hacky.. but we can get the true renderer index from the gc
+            // by using the sparse index here.
+            var objectHandle = self.spriteObjects.handleFromSparseIndex(dense.sparseIndex);
+            var renderIndex = self.gc.renderObjectSet.sparseToDense(objectHandle).?;
+
+            var sheetSize = spriteObject.spriteSheet.getDimensions();
+            var frameInfo = spriteObject.spriteSheet.frames.items[spriteObject.spriteFrameIndex];
+            var topLeft = core.Vector2f{
+                .x = @intToFloat(f32, frameInfo.topLeft.x) / @intToFloat(f32, sheetSize.x),
+                .y = @intToFloat(f32, frameInfo.topLeft.y) / @intToFloat(f32, sheetSize.y),
+            };
+
+            var size = core.Vector2f{
+                .x = @intToFloat(f32, frameInfo.size.x) / @intToFloat(f32, sheetSize.x),
+                .y = @intToFloat(f32, frameInfo.size.y) / @intToFloat(f32, sheetSize.y),
+            };
+
+            self.mappedBuffers[frameId].objects[renderIndex].topLeft = topLeft;
+            self.mappedBuffers[frameId].objects[renderIndex].size = size;
+        }
         // core.graphics_logs("calling papyrus subsystem predraw");
     }
 };

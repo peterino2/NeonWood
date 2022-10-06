@@ -11,6 +11,8 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
 
+pub const PixelPos = vk_renderer.PixelPos;
+
 pub const Texture = struct {
     image: NeonVkImage,
     imageView: vk.ImageView,
@@ -18,5 +20,12 @@ pub const Texture = struct {
     pub fn deinit(self: *@This(), ctx: *NeonVkContext) !void {
         ctx.vkd.destroyImageView(ctx.dev, self.imageView, null);
         self.image.deinit(ctx.vmaAllocator);
+    }
+
+    pub fn getDimensions(self: @This()) PixelPos {
+        return .{
+            .x = self.image.pixelWidth,
+            .y = self.image.pixelHeight,
+        };
     }
 };

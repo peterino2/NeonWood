@@ -16,6 +16,17 @@ const materials = @import("materials.zig");
 
 const SparseSet = core.SparseSet;
 
+pub const PixelPos = struct {
+    x: u32,
+    y: u32,
+
+    /// returns y/x of the pixel position
+    pub fn ratio(self: @This()) f32
+    {
+        return @intToFloat(f32, self.y) / @intToFloat(f32, self.x);
+    }
+};
+
 const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 fn vkCast(comptime T: type, handle: anytype) T {
@@ -32,14 +43,14 @@ pub const RendererInterface = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    preDraw: fn (*anyopaque) void,
+    preDraw: fn (*anyopaque, frameId: usize) void,
     onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
-            pub fn preDraw(pointer: *anyopaque) void {
+            pub fn preDraw(pointer: *anyopaque, frameId: usize) void {
                 var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
-                ptr.preDraw();
+                ptr.preDraw(frameId);
             }
 
             pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
@@ -168,6 +179,8 @@ pub const NeonVkBuffer = struct {
 pub const NeonVkImage = struct {
     image: vk.Image,
     allocation: vma.Allocation,
+    pixelWidth: u32,
+    pixelHeight: u32,
 
     pub fn deinit(self: *NeonVkImage, allocator: vma.Allocator) void {
         allocator.destroyImage(self.image, self.allocation);
@@ -400,7 +413,7 @@ pub const NeonVkContext = struct {
     // pointers
     materials: std.AutoHashMapUnmanaged(u32, *Material), // all future arraylists should be unmanaged
     meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
-    textures: std.AutoHashMapUnmanaged(u32, Texture), // all future arraylists should be unmanaged
+    textures: std.AutoHashMapUnmanaged(u32, *Texture), // all future arraylists should be unmanaged
     cameraRef: ?*render_objects.Camera,
 
     blockySampler: vk.Sampler,
@@ -538,12 +551,15 @@ pub const NeonVkContext = struct {
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
 
-        try self.textures.put(self.allocator, textureName.hash, Texture{
+        var newTexture = try self.allocator.create(Texture);
+        newTexture.* = Texture{
             .image = image,
             .imageView = imageView,
-        });
+        };
 
-        return self.textures.getEntry(textureName.hash).?.value_ptr;
+        try self.textures.put(self.allocator, textureName.hash, newTexture);
+
+        return self.textures.getEntry(textureName.hash).?.value_ptr.*;
     }
 
     pub fn make_mesh_image_from_texture(self: *Self, name: core.Name) !void {
@@ -1367,7 +1383,7 @@ pub const NeonVkContext = struct {
         // activate predraw plugins here.
 
         for (self.rendererPlugins.items) |*interface| {
-            interface.vtable.preDraw(interface.ptr);
+            interface.vtable.preDraw(interface.ptr, self.nextFrameIndex);
         }
 
         var cmd = self.commandBuffers.items[self.nextFrameIndex];
@@ -1778,6 +1794,8 @@ pub const NeonVkContext = struct {
         self.depthImage = .{
             .image = result.image,
             .allocation = result.allocation,
+            .pixelWidth = self.actual_extent.width,
+            .pixelHeight = self.actual_extent.height,
         };
 
         var imageViewCreate = vk.ImageViewCreateInfo{
@@ -2346,7 +2364,7 @@ pub const NeonVkContext = struct {
         var iter = self.materials.iterator();
         while (iter.next()) |i| {
             i.value_ptr.*.deinit(self);
-            self.allocator.destroy(i.value_ptr);
+            self.allocator.destroy(i.value_ptr.*);
         }
     }
 
@@ -2369,7 +2387,8 @@ pub const NeonVkContext = struct {
     pub fn destroy_textures(self: *Self) !void {
         var iter = self.textures.iterator();
         while (iter.next()) |i| {
-            try i.value_ptr.deinit(self);
+            try i.value_ptr.*.deinit(self);
+            self.allocator.destroy(i.value_ptr.*);
         }
     }
 
