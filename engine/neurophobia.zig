@@ -68,6 +68,9 @@ const GameContext = struct {
     testSpriteData: SpriteDataGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
     testWindow: bool = true,
     frameIndex: c_int = 0,
+    tickTime: f64 = 0.2, 
+    frameTime: f64 = 0.1,
+    flipped: bool = false,
 
     sensitivity: f64 = 0.005,
 
@@ -116,6 +119,7 @@ const GameContext = struct {
                 "%d",
                 0,
             );
+            _ = c.igCheckbox("flip sprite", &self.flipped);
             c.igEnd();
         }
     }
@@ -140,11 +144,11 @@ const GameContext = struct {
         var x = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 5.0, 0.0)),
+            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 0.0)),
         });
 
         //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
-        x.ptr.applyRelativeRotationX(core.radians(-5.0));
+        x.ptr.applyRelativeRotationX(core.radians(-15.0));
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
         x.ptr.applyTransform(spriteSheet.getXFrameScaling());
@@ -233,8 +237,36 @@ const GameContext = struct {
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
         self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
         self.handleCameraPan(deltaTime);
-        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.frameIndex));
-        // self.papyrus.mappedBuffers[self.gc.nextFrameIndex].objects[1] = self.testSpriteData;
+
+        self.tickTime -= deltaTime;
+
+        if(self.frameIndex < 8)
+        {
+            if(self.tickTime <= 0)
+            {
+                self.frameIndex += 1;
+                self.frameIndex = @mod(self.frameIndex, 8);
+                self.tickTime = self.frameTime;
+            }
+        }
+        else if(self.frameIndex >= 8 and self.frameIndex < 16){
+            if(self.tickTime <= 0)
+            {
+                self.frameIndex += 1;
+                self.frameIndex = @mod(self.frameIndex - 8, 8) + 8;
+                self.tickTime = self.frameTime;
+            }
+        }
+        else if(self.frameIndex >= 16 and self.frameIndex < 24){
+            if(self.tickTime <= 0)
+            {
+                self.frameIndex += 1;
+                self.frameIndex = @mod(self.frameIndex - 16, 8) + 16;
+                self.tickTime = self.frameTime;
+            }
+        }
+
+        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.frameIndex), self.flipped);
     }
 
     pub fn deinit(self: *Self) void {
@@ -253,6 +285,7 @@ const SpriteDataGpu = struct {
 
 const PapyrusSprite = struct {
     spriteFrameIndex: usize = 0,
+    flipped:bool = false,
 
     // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
     // far later when we eventually move onto doing a proper asset system.
@@ -269,7 +302,6 @@ const PapyrusSprite = struct {
 
 // subsystem that implements a 2d sprite system that allows you to put animated
 // 2d sprites onto quads.
-
 const PapyrusSubsystem = struct {
 
     // Interfaces and tables
@@ -294,9 +326,12 @@ const PapyrusSubsystem = struct {
         return self;
     }
 
-    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize) void
+    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, flipped: bool) void
     {
-        self.spriteObjects.get(objectHandle).?.*.spriteFrameIndex = frameIndex;
+        var spriteObject = self.spriteObjects.get(objectHandle).?;
+
+        spriteObject.*.spriteFrameIndex = frameIndex;
+        spriteObject.*.flipped = flipped;
     }
 
     pub fn addSpriteSheetByName(self: *@This(), baseTextureName: core.Name) !*animations.SpriteSheet {
@@ -440,6 +475,12 @@ const PapyrusSubsystem = struct {
                 .x = @intToFloat(f32, frameInfo.size.x) / @intToFloat(f32, sheetSize.x),
                 .y = @intToFloat(f32, frameInfo.size.y) / @intToFloat(f32, sheetSize.y),
             };
+
+            if (spriteObject.flipped)
+            {
+                topLeft.x += size.x;
+                size.x = -size.x;
+            }
 
             self.mappedBuffers[frameId].objects[renderIndex].topLeft = topLeft;
             self.mappedBuffers[frameId].objects[renderIndex].size = size;
