@@ -68,33 +68,40 @@ const GameContext = struct {
     testSpriteData: SpriteDataGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
     testWindow: bool = true,
     frameIndex: c_int = 0,
-    tickTime: f64 = 0.2, 
+    tickTime: f64 = 0.2,
     frameTime: f64 = 0.1,
     flipped: bool = false,
-
+    animations: std.ArrayListUnmanaged([*c]const u8),
+    selectedAnim: [3]bool,
+    currentAnim: core.Name = core.MakeName("walkUp"),
+    currentAnimCache: core.Name = core.MakeName("None"),
     sensitivity: f64 = 0.005,
+    activeAnimInstance: animations.SpriteAnimationInstance=.{},
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
             .allocator = allocator,
             .camera = Camera.init(),
             .textureAssets = .{},
+            .animations = .{},
             .meshAssets = .{},
             .gc = graphics.getContext(),
-            .cameraRotationStart = core.zm.quatFromRollPitchYaw(0.0, 0.0, 0.0),
+            .selectedAnim = .{false, false, false},
+            .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(60.0), 0.0, 0.0),
             .cameraHorizontalRotation = undefined,
             .cameraHorizontalRotationStart = undefined,
             .cameraHorizontalRotationMat = core.zm.identity(),
             .papyrus = PapyrusSubsystem.init(allocator),
         };
+        self.camera.rotation = self.cameraRotationStart;
 
         core.game_logs("Game starting");
 
-        self.camera.fov = 90.0;
+        self.camera.fov = 60.0;
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
 
-        self.camera.translate(.{ .x = 0.0, .y = 0.0, .z = 0.0 });
+        self.camera.translate(.{ .x = 0.0, .y = 10.0, .z = -2.0 });
         self.camera.updateCamera();
 
         self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
@@ -108,8 +115,7 @@ const GameContext = struct {
         _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
-        if(self.papyrus.spriteSheets.get(core.MakeName("t_denverWalk").hash)) |spriteObject|
-        {
+        if (self.papyrus.spriteSheets.get(core.MakeName("t_denverWalk").hash)) |spriteObject| {
             _ = c.igBegin("testWindow", &self.testWindow, 0);
             _ = c.igSliderInt(
                 "frameIndex",
@@ -120,6 +126,29 @@ const GameContext = struct {
                 0,
             );
             _ = c.igCheckbox("flip sprite", &self.flipped);
+            if(c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0))
+            {
+
+                var iter = spriteObject.animations.iterator();
+                var i: usize = 0;
+                while (iter.next()) |animation| 
+                {
+                    const anim:animations.SpriteAnimation = animation.value_ptr.*;
+                    const name = anim.name;
+                    if(c.igSelectable_Bool(name.utf8.ptr, self.selectedAnim[i], 0, c.ImVec2{.x = 0, .y = 0}))
+                    {
+                        self.currentAnim = name;
+                        for(self.selectedAnim)|*flag|
+                        {
+                            flag.* = false;
+                        }
+                        self.selectedAnim[i] = true;
+                        core.engine_logs("you selected me");
+                    }
+                    i += 1;
+                }
+                c.igEndCombo();
+            }
             c.igEnd();
         }
     }
@@ -149,8 +178,21 @@ const GameContext = struct {
 
         //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
         x.ptr.applyRelativeRotationX(core.radians(-15.0));
+
+        // convert t_denverwalk into an spritesheet with animations
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
+
+        // zig fmt: off
+        //                                                     Animation name              frame start   frame count   FrameRate
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),    0,            8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),  8,            8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"), 16,           8,            10);
+        // zig fmt: on
+        try self.animations.append(self.allocator, "walkUp");
+        try self.animations.append(self.allocator, "walkDown");
+        try self.animations.append(self.allocator, "walkRight");
+
         x.ptr.applyTransform(spriteSheet.getXFrameScaling());
         try self.papyrus.addSprite(x.handle, MakeName("t_denverWalk"));
         self.testSpriteHandle = x.handle;
@@ -235,38 +277,22 @@ const GameContext = struct {
         }
 
         var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
-        self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
-        self.handleCameraPan(deltaTime);
+        _ = movement_v;
+        // self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
+        // self.handleCameraPan(deltaTime);
 
         self.tickTime -= deltaTime;
 
-        if(self.frameIndex < 8)
+        if(self.currentAnimCache.hash != self.currentAnim.hash)
         {
-            if(self.tickTime <= 0)
-            {
-                self.frameIndex += 1;
-                self.frameIndex = @mod(self.frameIndex, 8);
-                self.tickTime = self.frameTime;
-            }
-        }
-        else if(self.frameIndex >= 8 and self.frameIndex < 16){
-            if(self.tickTime <= 0)
-            {
-                self.frameIndex += 1;
-                self.frameIndex = @mod(self.frameIndex - 8, 8) + 8;
-                self.tickTime = self.frameTime;
-            }
-        }
-        else if(self.frameIndex >= 16 and self.frameIndex < 24){
-            if(self.tickTime <= 0)
-            {
-                self.frameIndex += 1;
-                self.frameIndex = @mod(self.frameIndex - 16, 8) + 16;
-                self.tickTime = self.frameTime;
-            }
+            self.currentAnimCache = self.currentAnim;
+            self.activeAnimInstance = self.papyrus.createAnimInstance(self.testSpriteHandle, self.currentAnim).?;
+            self.activeAnimInstance.looping = true;
         }
 
-        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.frameIndex), self.flipped);
+        self.activeAnimInstance.advance(deltaTime);
+        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.activeAnimInstance.getCurrentFrame()), self.flipped);
+
     }
 
     pub fn deinit(self: *Self) void {
@@ -285,7 +311,7 @@ const SpriteDataGpu = struct {
 
 const PapyrusSprite = struct {
     spriteFrameIndex: usize = 0,
-    flipped:bool = false,
+    flipped: bool = false,
 
     // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
     // far later when we eventually move onto doing a proper asset system.
@@ -326,8 +352,13 @@ const PapyrusSubsystem = struct {
         return self;
     }
 
-    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, flipped: bool) void
+    pub fn createAnimInstance(self: *@This(), objectHandle: core.ObjectHandle, animationName: core.Name) ?animations.SpriteAnimationInstance
     {
+        var spriteObject = self.spriteObjects.get(objectHandle).?;
+        return spriteObject.*.spriteSheet.createAnimationInstance(animationName);
+    }
+
+    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, flipped: bool) void {
         var spriteObject = self.spriteObjects.get(objectHandle).?;
 
         spriteObject.*.spriteFrameIndex = frameIndex;
@@ -397,6 +428,7 @@ const PapyrusSubsystem = struct {
         _ = result;
     }
 
+    // Part of the renderer plugin interface
     pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
         _ = objectIndex;
 
@@ -476,8 +508,7 @@ const PapyrusSubsystem = struct {
                 .y = @intToFloat(f32, frameInfo.size.y) / @intToFloat(f32, sheetSize.y),
             };
 
-            if (spriteObject.flipped)
-            {
+            if (spriteObject.flipped) {
                 topLeft.x += size.x;
                 size.x = -size.x;
             }

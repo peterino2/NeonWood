@@ -4,6 +4,198 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+// a replacement for SparseSet, that's more cache efficent. ( and in many cases results in
+// memory savings as well)
+
+pub fn SparseMultiSet(comptime T: type) type {
+    return SparseMultiSetAdvanced(T, DefaultSparseSize);
+}
+
+// works by converting a datastructure into an AOS type.
+pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
+    return struct {
+        pub const SetType = std.MultiArrayList(T);
+
+        allocator: std.mem.Allocator,
+        denseIndices: ArrayListUnmanaged(SetHandle),
+        dense: SetType, // this is an unmanaged collection
+        sparse: []SetHandle,
+
+        pub const Field = SetType.Field;
+        pub const Slice = SetType.Slice;
+
+        pub fn init(allocator: std.mem.Allocator) @This() {
+            var self = @This(){
+                .allocator = allocator,
+                .denseIndices = .{},
+                .dense = .{},
+                .sparse = allocator.alloc(SetHandle, SparseSize) catch unreachable,
+            };
+
+            for (self.sparse) |_, i| {
+                self.sparse[i] = .{ .generation = 0, .index = 0x0, .alive = false };
+            }
+
+            return self;
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.dense.deinit(self.allocator);
+            self.denseIndices.deinit(self.allocator);
+            self.allocator.free(self.sparse);
+        }
+
+        pub fn readDense(self: @This(), offset: usize, comptime field: Field) *const T {
+            return &self.dense.items(field)[offset].value;
+        }
+
+        pub fn getDense(self: *@This(), offset: usize, comptime field: Field) *T {
+            return &self.dense.items(field)[offset].value;
+        }
+
+        // ----- sparse set features -----
+
+        pub fn handleFromSparseIndex(self: @This(), sparseIndex: u18) SetHandle {
+            var handle: SetHandle = self.sparse[@intCast(usize, sparseIndex)];
+            handle.index = sparseIndex;
+            return handle;
+        }
+
+        pub fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
+            const denseHandle = self.sparse[@intCast(usize, handle.index)];
+
+            // todo: need to update generation
+            if (denseHandle.generation != handle.generation) // tombstone value
+            {
+                // Generation mismatch, this handle is totally dead.
+                return null;
+            }
+
+            if (denseHandle.alive == false) {
+                return null;
+            }
+
+            const denseIndex = @intCast(usize, denseHandle.index);
+
+            if (denseIndex >= self.denseIndices.items.len) {
+                return null;
+            }
+
+            return denseIndex;
+        }
+
+        pub fn FieldType(field: Field) type 
+        {
+            return std.meta.fieldInfo(T, field).field_type;
+        }
+
+        pub fn get(self: *@This(), handle: SetHandle, comptime field: Field) ?*FieldType(field) {
+            const denseIndex = self.sparseToDense(handle) orelse return null;
+            return &self.dense.items(field)[denseIndex];
+        }
+
+        // the idea behind a sparse array is that the sethandle is
+        // highly stable.
+        pub fn createObject(self: *@This(), initValue: T) !SetHandle {
+            var newSparseIndex = newRandomIndex();
+
+            var denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
+
+            while (denseHandle.alive == true) {
+                newSparseIndex = newRandomIndex();
+                denseHandle = self.sparse[@intCast(usize, newSparseIndex)];
+            }
+            const generation = (denseHandle.generation + 1) % (0xff);
+
+            var newDenseIndex = self.denseIndices.items.len;
+            self.sparse[@intCast(usize, newSparseIndex)] = SetHandle{
+                .alive = true,
+                .generation = @intCast(u11, generation),
+                .index = @intCast(u18, newDenseIndex),
+            };
+
+            var setHandle = SetHandle{
+                .alive = true,
+                .generation = generation,
+                .index = newSparseIndex,
+            };
+
+            try self.denseIndices.append(self.allocator, setHandle);
+            try self.dense.append(self.allocator, initValue);
+
+            return setHandle;
+        }
+
+        pub const ConstructResult = struct {
+            index: Slice,
+            handle: SetHandle,
+        };
+
+        pub fn destroyObject(self: *@This(), handle: SetHandle) bool {
+            // to destroy an object
+            // get handle and get the dense position, swap and remove.
+            // Then insert the tombstone value into the sparse handle
+
+            // if this fails it means the object is already destroyed
+            const denseIndex = self.sparseToDense(handle) orelse return false;
+
+            // get the indec of the last object in the dense set
+            const tailDenseIndex = self.dense.len - 1;
+
+            // get the sparse index of the last object
+            const sparseIndexToSwap = self.denseIndices.items[tailDenseIndex];
+
+            // redirect the sparse index to the new position of the swapped object.
+            self.sparse[@intCast(usize, sparseIndexToSwap.index)].index = @intCast(u18, denseIndex);
+
+            // perform the swap and remove, mark the tombstone as well.
+            _ = self.dense.swapRemove(denseIndex);
+            self.sparse[@intCast(usize, handle.index)].alive = false;
+
+            return true;
+        }
+
+        var prng = std.rand.DefaultPrng.init(0x1234);
+        var rand = prng.random();
+
+        pub fn newRandomIndex() u18 {
+            if (SparseSize == DefaultSparseSize) {
+                return rand.int(u18);
+            }
+
+            return rand.int(u18) % @intCast(u18, SparseSize);
+        }
+    };
+}
+
+test "multi-sparse-basic" {
+    var allocator = std.testing.allocator;
+    const TestStructField = struct {
+        x: u32,
+    };
+
+    const TestStruct = struct {
+        field1: usize,
+        structField: TestStructField,
+    };
+
+    var testSet = SparseMultiSet(TestStruct).init(allocator);
+    _ = testSet;
+    defer testSet.deinit();
+    var sparseHandle = try testSet.createObject(.{ .field1 = 1, .structField = .{.x = 12} });
+    var sparseHandle1 = try testSet.createObject(.{ .field1 = 2, .structField = .{.x = 34} });
+    var sparseHandle2 = try testSet.createObject(.{ .field1 = 3, .structField = .{.x = 56} });
+    _ = sparseHandle1;
+    _ = sparseHandle2;
+    _ = sparseHandle;
+    std.debug.print("handle: {any}\n", .{testSet.get(sparseHandle, .field1).?.*});
+    std.debug.print("handle1: {any}\n", .{testSet.get(sparseHandle1, .field1).?.*});
+    std.debug.print("handle2: {any}\n", .{testSet.get(sparseHandle2, .field1).?.*});
+    _ = testSet.destroyObject(sparseHandle);
+    std.debug.print("handle1: {any}\n", .{testSet.get(sparseHandle1, .field1).?.*});
+    std.debug.print("handle2: {any}\n", .{testSet.get(sparseHandle2, .field1).?.*});
+}
+
 // As neonwood is primarily a playground for me to learn and practice programming,
 // There will be some implementations of basic data structures. For fun ofc
 pub fn AppendToArrayListUnique(list: anytype, value: anytype) !void {
@@ -24,19 +216,18 @@ pub fn SparseSet(comptime T: type) type {
 
 pub const ObjectHandle = SetHandle;
 
-pub const SetHandle = struct {
+pub const SetHandle = packed struct {
     alive: bool,
     generation: u11,
     padding: u2 = 0,
     index: u18,
 
-    pub fn hash(self: @This()) u32
-    {
+    pub fn hash(self: @This()) u32 {
         return @bitCast(u32, self);
     }
 };
 
-// A quick little sparse set implementation, this feeds the core of the 
+// A quick little sparse set implementation, this feeds the core of the
 // ECS. A sparse set provides Constant time random access to a range of objects through stable handles
 // While providing dense memory locality for iterating.
 pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
@@ -47,9 +238,8 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             sparseIndex: u18,
         }),
         sparse: []SetHandle,
-        
-        pub fn handleFromSparseIndex(self: @This(), sparseIndex: u18) SetHandle 
-        {
+
+        pub fn handleFromSparseIndex(self: @This(), sparseIndex: u18) SetHandle {
             var handle: SetHandle = self.sparse[@intCast(usize, sparseIndex)];
             handle.index = sparseIndex;
             return handle;
@@ -172,22 +362,19 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         };
 
         // Will fail if the handle already exists.
-        pub fn createWithHandle(self: *@This(), handle:SetHandle, initValue: T) !ConstructResult
-        {
+        pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !ConstructResult {
             std.debug.print("creating set with handle: {any}\n", .{handle});
             var currentDenseHandle = self.sparse[handle.index];
-            if(currentDenseHandle.alive)
-            {
+            if (currentDenseHandle.alive) {
                 return error.ObjectAlreadyExists;
             }
             currentDenseHandle.generation = handle.generation;
             currentDenseHandle.alive = true;
-            
+
             return try self.createAndGetInteral(currentDenseHandle, handle.index, initValue, false);
         }
 
-        fn createAndGetInteral(self: *@This(), denseHandle: SetHandle, sparseIndex: u18, initValue: T, comptime bumpGeneration: bool) !ConstructResult
-        {
+        fn createAndGetInteral(self: *@This(), denseHandle: SetHandle, sparseIndex: u18, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
             var newDenseIndex = self.dense.items.len;
             try self.dense.append(self.allocator, .{
                 .value = initValue,
@@ -196,8 +383,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
             var generation = denseHandle.generation;
 
-            if(bumpGeneration)
-            {
+            if (bumpGeneration) {
                 generation = (generation + 1) % (0xff);
             }
 

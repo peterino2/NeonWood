@@ -166,7 +166,9 @@ pub const Camera = struct {
     }
 
     pub fn translate(self: *Camera, offset: core.Vectorf) void {
-        self.position = self.position.add(offset);
+        var off: core.Vectorf = offset;
+        off.y = -offset.y;
+        self.position = self.position.add(off);
     }
 
     pub fn setPositionAndRotationEuler(self: *Camera, position: Vectorf, eulerAngles: Vectorf) void {
