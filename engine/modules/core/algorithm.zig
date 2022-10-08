@@ -107,6 +107,11 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             }
             const generation = (denseHandle.generation + 1) % (0xff);
 
+            return self.createObjectInternal(initValue, newSparseIndex, generation);
+        }
+
+        pub fn createObjectInternal(self: *@This(), initValue: T, newSparseIndex: u18, generation: u11) !SetHandle 
+        {
             var newDenseIndex = self.denseIndices.items.len;
             self.sparse[@intCast(usize, newSparseIndex)] = SetHandle{
                 .alive = true,
@@ -124,6 +129,17 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             try self.dense.append(self.allocator, initValue);
 
             return setHandle;
+        }
+
+        pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !SetHandle
+        {
+            std.debug.print("creating set with handle: {any}\n", .{handle});
+            var currentDenseHandle = self.sparse[handle.index];
+            if (currentDenseHandle.alive) {
+                return error.ObjectAlreadyExists;
+            }
+
+            return self.createObjectInternal(initValue, handle.index, handle.generation);
         }
 
         pub fn destroyObject(self: *@This(), handle: SetHandle) bool {

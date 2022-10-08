@@ -335,7 +335,13 @@ const PapyrusSubsystem = struct {
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
-    spriteObjects: core.SparseSet(*PapyrusSprite),
+    const SpriteObjectSet = core.SparseMultiSet(struct{
+        sprite: PapyrusSprite,
+        activeAnims: animations.SpriteAnimationInstance = .{},
+    });
+
+    //spriteObjects: core.SparseSet(*PapyrusSprite),
+    spriteObjects: SpriteObjectSet,
     allocator: std.mem.Allocator,
     gc: *graphics.NeonVkContext,
     pipeData: gpd.GpuPipeData,
@@ -347,7 +353,8 @@ const PapyrusSubsystem = struct {
             .allocator = allocator,
             .gc = graphics.getContext(),
             .pipeData = undefined,
-            .spriteObjects = core.SparseSet(*PapyrusSprite).init(allocator),
+            //.spriteObjects = core.SparseSet(*PapyrusSprite).init(allocator),
+            .spriteObjects = SpriteObjectSet.init(allocator),
             .spriteSheets = .{},
         };
 
@@ -356,12 +363,12 @@ const PapyrusSubsystem = struct {
 
     pub fn createAnimInstance(self: *@This(), objectHandle: core.ObjectHandle, animationName: core.Name) ?animations.SpriteAnimationInstance
     {
-        var spriteObject = self.spriteObjects.get(objectHandle).?;
-        return spriteObject.*.spriteSheet.createAnimationInstance(animationName);
+        var sprite = self.spriteObjects.get(objectHandle, .sprite).?;
+        return sprite.*.spriteSheet.createAnimationInstance(animationName);
     }
 
     pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, flipped: bool) void {
-        var spriteObject = self.spriteObjects.get(objectHandle).?;
+        var spriteObject = self.spriteObjects.get(objectHandle, .sprite).?;
 
         spriteObject.*.spriteFrameIndex = frameIndex;
         spriteObject.*.flipped = flipped;
@@ -411,13 +418,16 @@ const PapyrusSubsystem = struct {
     }
 
     pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
-        var newSpriteObject = try self.allocator.create(PapyrusSprite);
-        newSpriteObject.* = .{ .spriteFrameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
+        //var newSpriteObject = try self.allocator.create(PapyrusSprite);
+        var newSpriteObject = PapyrusSprite{ .spriteFrameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
 
         var result = try self.spriteObjects.createWithHandle(
             objectHandle,
-            newSpriteObject,
+            .{ 
+                .sprite = newSpriteObject,
+            },
         );
+
         if (self.gc.renderObjectSet.get(objectHandle, .renderObject)) |renderObject| {
             // set the material to mat_sprite
             renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
@@ -434,7 +444,7 @@ const PapyrusSubsystem = struct {
     pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
         _ = objectIndex;
 
-        if (self.spriteObjects.get(objectHandle)) |object| {
+        if (self.spriteObjects.get(objectHandle, .sprite)) |object| {
             var renderObject = self.gc.renderObjectSet.get(objectHandle, .renderObject).?;
             _ = object;
             self.gc.vkd.cmdBindDescriptorSets(
@@ -491,11 +501,12 @@ const PapyrusSubsystem = struct {
     pub fn preDraw(self: *@This(), frameId: usize) void {
         // 1. update animation data in the PapyrusPerFrameData
         _ = self;
-        for (self.spriteObjects.dense.items) |*dense| {
-            var spriteObject: PapyrusSprite = dense.value.*;
+        for (self.spriteObjects.dense.items(.sprite)) |dense, i| {
+            const spriteObject: PapyrusSprite = dense;
+
             // hacky.. but we can get the true renderer index from the gc
             // by using the sparse index here.
-            var objectHandle = self.spriteObjects.handleFromSparseIndex(dense.sparseIndex);
+            var objectHandle = self.spriteObjects.denseIndices.items[i];
             var renderIndex = self.gc.renderObjectSet.sparseToDense(objectHandle).?;
 
             var sheetSize = spriteObject.spriteSheet.getDimensions();
