@@ -126,11 +126,6 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return setHandle;
         }
 
-        pub const ConstructResult = struct {
-            index: Slice,
-            handle: SetHandle,
-        };
-
         pub fn destroyObject(self: *@This(), handle: SetHandle) bool {
             // to destroy an object
             // get handle and get the dense position, swap and remove.

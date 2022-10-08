@@ -102,9 +102,9 @@ const GameContext = struct {
             .material_name = MakeName("mat_mesh"),
             .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.0, 1.5, 1.0)),
         });
-
-        x.ptr.setTextureByName(self.gc, MakeName("t_sprite"));
-        x.ptr.applyRelativeRotationX(core.radians(-15.0));
+        var ptr = gc.renderObjectSet.get(x, .renderObject).?;
+        ptr.setTextureByName(self.gc, MakeName("t_sprite"));
+        ptr.applyRelativeRotationX(core.radians(-15.0));
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {

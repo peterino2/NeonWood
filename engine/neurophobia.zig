@@ -176,8 +176,10 @@ const GameContext = struct {
             .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 0.0)),
         });
 
+        var ptr = gc.renderObjectSet.get(x, .renderObject).?;
+
         //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
-        x.ptr.applyRelativeRotationX(core.radians(-15.0));
+        ptr.applyRelativeRotationX(core.radians(-15.0));
 
         // convert t_denverwalk into an spritesheet with animations
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
@@ -193,9 +195,9 @@ const GameContext = struct {
         try self.animations.append(self.allocator, "walkDown");
         try self.animations.append(self.allocator, "walkRight");
 
-        x.ptr.applyTransform(spriteSheet.getXFrameScaling());
-        try self.papyrus.addSprite(x.handle, MakeName("t_denverWalk"));
-        self.testSpriteHandle = x.handle;
+        ptr.applyTransform(spriteSheet.getXFrameScaling());
+        try self.papyrus.addSprite(x, MakeName("t_denverWalk"));
+        self.testSpriteHandle = x;
     }
 
     fn handleCameraPan(self: *Self, deltaTime: f64) void {
@@ -416,7 +418,7 @@ const PapyrusSubsystem = struct {
             objectHandle,
             newSpriteObject,
         );
-        if (self.gc.renderObjectSet.get(objectHandle)) |renderObject| {
+        if (self.gc.renderObjectSet.get(objectHandle, .renderObject)) |renderObject| {
             // set the material to mat_sprite
             renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
 
@@ -433,7 +435,7 @@ const PapyrusSubsystem = struct {
         _ = objectIndex;
 
         if (self.spriteObjects.get(objectHandle)) |object| {
-            var renderObject = self.gc.renderObjectSet.get(objectHandle).?;
+            var renderObject = self.gc.renderObjectSet.get(objectHandle, .renderObject).?;
             _ = object;
             self.gc.vkd.cmdBindDescriptorSets(
                 cmd, // command buffer

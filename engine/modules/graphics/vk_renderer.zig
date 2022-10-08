@@ -1,4 +1,4 @@
-const std = @import("std");
+const std = @import("std"); 
 const vk = @import("vulkan");
 const resources = @import("resources");
 pub const c = @import("c.zig");
@@ -21,8 +21,7 @@ pub const PixelPos = struct {
     y: u32,
 
     /// returns y/x of the pixel position
-    pub fn ratio(self: @This()) f32
-    {
+    pub fn ratio(self: @This()) f32 {
         return @intToFloat(f32, self.y) / @intToFloat(f32, self.x);
     }
 };
@@ -109,7 +108,9 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-const RenderObjectSet = SparseSet(RenderObject);
+const RenderObjectSet = core.SparseMultiSet(
+    struct { renderObject: RenderObject },
+);
 
 const NeonVkSpriteDataGpu = struct {
     // tl, tr, br, bl running clockwise
@@ -720,28 +721,6 @@ pub const NeonVkContext = struct {
         // try self.create_sprite_descriptors();
     }
 
-    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !RenderObjectSet.ConstructResult {
-        var renderObject = RenderObject.fromTransform(params.init_transform);
-
-        var findMesh = self.meshes.getEntry(params.mesh_name.hash);
-        var findMat = self.materials.getEntry(params.material_name.hash);
-
-        if (findMesh == null)
-            return error.NoMeshFound;
-
-        if (findMat == null)
-            return error.NoMaterialFound;
-
-        renderObject.material = findMat.?.value_ptr.*;
-        renderObject.mesh = findMesh.?.value_ptr;
-
-        // try self.renderObjects.append(self.allocator, renderObject);
-
-        var rv = try self.renderObjectSet.createAndGet(renderObject);
-        self.renderObjectsAreDirty = true;
-
-        return rv;
-    }
 
     pub fn init_primitive_meshes(self: *Self) !void {
         var quadMesh = mesh.Mesh.init(self, self.allocator);
@@ -1345,9 +1324,9 @@ pub const NeonVkContext = struct {
         ssbo.len = MAX_OBJECTS;
 
         var i: usize = 0;
-        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.items.len) : (i += 1) {
-            if (self.renderObjectSet.dense.items[i].value.mesh != null) {
-                ssbo[i].modelMatrix = self.renderObjectSet.dense.items[i].value.transform;
+        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.len) : (i += 1) {
+            if (self.renderObjectSet.dense.items(.renderObject)[i].mesh != null) {
+                ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
             }
         }
 
@@ -1363,9 +1342,9 @@ pub const NeonVkContext = struct {
         ssbo.len = MAX_OBJECTS;
 
         var i: usize = 0;
-        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.items.len) : (i += 1) {
+        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.len) : (i += 1) {
             ssbo[i].position = mul(
-                self.renderObjectSet.getDense(i).transform,
+                self.renderObjectSet.items(.renderObject)[i].transform,
                 core.zm.Vec{ 0.0, 0.0, 0.0, 0.0 },
             );
             ssbo[i].size = .{ .x = 1.0, .y = 1.0 };
@@ -1391,10 +1370,11 @@ pub const NeonVkContext = struct {
         self.lastMaterial = null;
         self.lastMesh = null;
 
-        for (self.renderObjectSet.dense.items) |dense, i| {
-            var sparseHandle = self.renderObjectSet.sparse[dense.sparseIndex];
-            sparseHandle.index = dense.sparseIndex;
-            self.draw_render_object(dense.value, cmd, @intCast(u32, i), deltaTime, sparseHandle);
+        for (self.renderObjectSet.dense.items(.renderObject)) |dense, i| {
+            // holy moly i really should make a convenience function for this.
+            var sparseHandle = self.renderObjectSet.sparse[self.renderObjectSet.denseIndices.items[i].index];
+            sparseHandle.index = self.renderObjectSet.denseIndices.items[i].index;
+            self.draw_render_object(dense, cmd, @intCast(u32, i), deltaTime, sparseHandle);
         }
     }
 
@@ -2009,16 +1989,16 @@ pub const NeonVkContext = struct {
     // sorts renderObjects by material
     fn sortRenderObjects(self: *Self) !void {
         self.renderObjectsByMaterial.clearRetainingCapacity();
-        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjectSet.dense.items.len);
+        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjectSet.dense.len);
 
         var i: u32 = 0;
-        while (i < self.renderObjectSet.dense.items.len) : (i += 1) {
+        while (i < self.renderObjectSet.dense.len) : (i += 1) {
             self.renderObjectsByMaterial.items[i] = i;
         }
 
         const X = struct {
             pub fn lessThan(ctx: *NeonVkContext, lhs: u32, rhs: u32) bool {
-                return @ptrToInt(ctx.renderObjectSet.getDense(lhs).material) < @ptrToInt(ctx.renderObjectSet.getDense(rhs).material);
+                return @ptrToInt(ctx.renderObjectSet.dense.items(.renderObject)[lhs].material) < @ptrToInt(ctx.renderObjectSet.dense.items(.renderObject)[rhs].material);
             }
         };
 
@@ -2420,6 +2400,30 @@ pub const NeonVkContext = struct {
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
         self.shutdown_glfw();
+    }
+
+    /// ---------- renderObject functions
+    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
+        var renderObject = RenderObject.fromTransform(params.init_transform);
+
+        var findMesh = self.meshes.getEntry(params.mesh_name.hash);
+        var findMat = self.materials.getEntry(params.material_name.hash);
+
+        if (findMesh == null)
+            return error.NoMeshFound;
+
+        if (findMat == null)
+            return error.NoMaterialFound;
+
+        renderObject.material = findMat.?.value_ptr.*;
+        renderObject.mesh = findMesh.?.value_ptr;
+
+        // try self.renderObjects.append(self.allocator, renderObject);
+
+        var rv = try self.renderObjectSet.createObject(.{.renderObject = renderObject});
+        self.renderObjectsAreDirty = true;
+
+        return rv;
     }
 };
 
