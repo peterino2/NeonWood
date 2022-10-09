@@ -155,13 +155,13 @@ const GameContext = struct {
         _ = try gc.add_renderobject(.{
             .mesh_name = MakeName("m_room"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = core.zm.scaling(0.8, 0.8, 0.8),
+            .init_transform = core.zm.scaling(0.8, 0.8, 0.8)
         });
 
         self.denver = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 2.0)),
+            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.6, 2.0)),
         });
 
         var ptr = gc.renderObjectSet.get(self.denver, .renderObject).?;

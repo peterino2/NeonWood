@@ -93,6 +93,8 @@ pub const NeonVkImGui = struct {
         _ = c.cImGui_vk_CreateFontsTexture(vkCast(c.VkCommandBuffer, ctx.uploadContext.commandBuffer));
         try ctx.finish_upload_context(&ctx.uploadContext);
         _ = c.cImGui_vk_DestroyFontUploadObjects();
+
+        _ = c.SetupImguiColors();
     }
 
     pub fn setupVulkanWindow(self: *Self) void {
