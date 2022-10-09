@@ -120,6 +120,8 @@ const Trace = struct {
 
 const DefaultContextName = MakeName("default");
 
+pub var defaultTrace: *Trace;
+
 pub const TracesContext = struct {
     allocator: std.mem.Allocator,
     defaultTrace: *Trace,

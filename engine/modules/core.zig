@@ -73,6 +73,11 @@ pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
     );
 }
 
+pub fn traceFast(name: Name, comptime fmt: )
+{
+    trace.DefaultTrace.trace
+}
+
 pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
 }
