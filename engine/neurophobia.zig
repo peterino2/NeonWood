@@ -45,7 +45,7 @@ const GameContext = struct {
     camera: Camera,
     gc: *graphics.NeonVkContext,
 
-    papyrus: PapyrusSubsystem,
+    papyrus: *PapyrusSubsystem,
 
     isRotating: bool = false,
     shouldExit: bool = false,
@@ -55,7 +55,7 @@ const GameContext = struct {
     panCameraCache: bool = false,
     textureAssets: std.ArrayListUnmanaged(AssetReference) = .{},
     meshAssets: std.ArrayListUnmanaged(AssetReference) = .{},
-    cameraMovement: Vectorf = Vectorf.new(0.0, 0.0, 0.0),
+    movementInput: Vectorf = Vectorf.new(0.0, 0.0, 0.0),
 
     mousePosition: Vector2 = Vector2.zero(),
     mousePositionPanStart: Vector2 = Vector2.zero(),
@@ -64,19 +64,15 @@ const GameContext = struct {
     cameraHorizontalRotationMat: core.Mat,
     cameraHorizontalRotationStart: core.Quat,
 
-    testSpriteHandle: core.ObjectHandle = undefined,
+    denver: core.ObjectHandle = undefined,
     testSpriteData: SpriteDataGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
     testWindow: bool = true,
-    frameIndex: c_int = 0,
-    tickTime: f64 = 0.2,
-    frameTime: f64 = 0.1,
     flipped: bool = false,
     animations: std.ArrayListUnmanaged([*c]const u8),
     selectedAnim: [3]bool,
     currentAnim: core.Name = core.MakeName("walkUp"),
     currentAnimCache: core.Name = core.MakeName("None"),
     sensitivity: f64 = 0.005,
-    activeAnimInstance: animations.SpriteAnimationInstance=.{},
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -86,13 +82,17 @@ const GameContext = struct {
             .animations = .{},
             .meshAssets = .{},
             .gc = graphics.getContext(),
-            .selectedAnim = .{false, false, false},
+            .selectedAnim = .{ false, false, false },
             .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(60.0), 0.0, 0.0),
             .cameraHorizontalRotation = undefined,
             .cameraHorizontalRotationStart = undefined,
             .cameraHorizontalRotationMat = core.zm.identity(),
-            .papyrus = PapyrusSubsystem.init(allocator),
+            // for some reason core.createObject fails here... not sure why.
+            //core.createObject(PapyrusSubsystem, .{.can_tick = false}) catch unreachable,
+            .papyrus = allocator.create(PapyrusSubsystem) catch unreachable,
         };
+
+        self.papyrus.* = PapyrusSubsystem.init(allocator);
         self.camera.rotation = self.cameraRotationStart;
 
         core.game_logs("Game starting");
@@ -117,29 +117,16 @@ const GameContext = struct {
         // core.ui_log("uiTick: {d}", .{deltaTime});
         if (self.papyrus.spriteSheets.get(core.MakeName("t_denverWalk").hash)) |spriteObject| {
             _ = c.igBegin("testWindow", &self.testWindow, 0);
-            _ = c.igSliderInt(
-                "frameIndex",
-                &self.frameIndex,
-                0,
-                @intCast(c_int, spriteObject.frames.items.len - 1),
-                "%d",
-                0,
-            );
             _ = c.igCheckbox("flip sprite", &self.flipped);
-            if(c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0))
-            {
-
+            if (c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0)) {
                 var iter = spriteObject.animations.iterator();
                 var i: usize = 0;
-                while (iter.next()) |animation| 
-                {
-                    const anim:animations.SpriteAnimation = animation.value_ptr.*;
+                while (iter.next()) |animation| {
+                    const anim: animations.SpriteAnimation = animation.value_ptr.*;
                     const name = anim.name;
-                    if(c.igSelectable_Bool(name.utf8.ptr, self.selectedAnim[i], 0, c.ImVec2{.x = 0, .y = 0}))
-                    {
+                    if (c.igSelectable_Bool(name.utf8.ptr, self.selectedAnim[i], 0, c.ImVec2{ .x = 0, .y = 0 })) {
                         self.currentAnim = name;
-                        for(self.selectedAnim)|*flag|
-                        {
+                        for (self.selectedAnim) |*flag| {
                             flag.* = false;
                         }
                         self.selectedAnim[i] = true;
@@ -170,13 +157,13 @@ const GameContext = struct {
             .material_name = MakeName("mat_mesh"),
         });
 
-        var x = try gc.add_renderobject(.{
+        self.denver = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
             .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 0.0)),
         });
 
-        var ptr = gc.renderObjectSet.get(x, .renderObject).?;
+        var ptr = gc.renderObjectSet.get(self.denver, .renderObject).?;
 
         //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
         ptr.applyRelativeRotationX(core.radians(-15.0));
@@ -186,53 +173,23 @@ const GameContext = struct {
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
 
         // zig fmt: off
+        // creating frame references for denver
         //                                                     Animation name              frame start   frame count   FrameRate
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),    0,            8,            10);
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),  8,            8,            10);
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"), 16,           8,            10);
+
         // zig fmt: on
-        try self.animations.append(self.allocator, "walkUp");
-        try self.animations.append(self.allocator, "walkDown");
-        try self.animations.append(self.allocator, "walkRight");
+
 
         ptr.applyTransform(spriteSheet.getXFrameScaling());
-        try self.papyrus.addSprite(x, MakeName("t_denverWalk"));
-        self.testSpriteHandle = x;
-    }
-
-    fn handleCameraPan(self: *Self, deltaTime: f64) void {
-        _ = deltaTime;
-        if (self.panCameraCache == false and self.panCamera) {
-            core.graphics_logs("Camera button down");
-            self.mousePositionPanStart = self.mousePosition;
-            self.cameraRotationStart = self.camera.rotation;
-            self.cameraHorizontalRotationStart = self.cameraHorizontalRotation;
-        }
-
-        if (self.panCamera) {
-            var diff = self.mousePosition.sub(self.mousePositionPanStart);
-
-            var horizontalRotation = core.zm.matFromRollPitchYaw(0.0, @floatCast(f32, diff.x * self.sensitivity), 0.0);
-            horizontalRotation = mul(
-                core.zm.matFromQuat(self.cameraHorizontalRotationStart),
-                horizontalRotation,
-            );
-            self.cameraHorizontalRotationMat = horizontalRotation;
-            self.cameraHorizontalRotation = core.zm.quatFromMat(horizontalRotation);
-
-            // calculate the new roatation for the camera
-            var offset = core.zm.matFromRollPitchYaw(core.clamp(@floatCast(f32, diff.y * self.sensitivity), core.radians(-90.0), core.radians(90.0)), 0.0, 0.0);
-            var final = mul(core.zm.matFromQuat(self.cameraRotationStart), offset);
-            self.camera.rotation = core.zm.quatFromMat(final);
-        }
-
-        self.panCameraCache = self.panCamera;
+        try self.papyrus.addSprite(self.denver, MakeName("t_denverWalk"));
     }
 
     pub fn prepareGame(self: *Self) !void {
         gGame = self;
         try self.papyrus.prepareSubsystem();
-        graphics.registerRendererPlugin(&self.papyrus) catch unreachable;
+        graphics.registerRendererPlugin(self.papyrus) catch unreachable;
 
         for (self.textureAssets.items) |asset| {
             try self.load_texture(asset);
@@ -242,6 +199,7 @@ const GameContext = struct {
             try self.load_mesh(asset);
         }
 
+        // todo: this needs a nicer interface.
         try graphics.getContext().add_ui_object(.{
             .ptr = self,
             .vtable = &InterfaceUiTable,
@@ -258,43 +216,25 @@ const GameContext = struct {
         // ---- poll camera stuff ----
         c.glfwGetCursorPos(self.gc.window, &self.mousePosition.x, &self.mousePosition.y);
 
+        // was there why isn't this automatic?.. think about it later
         if (self.camera.isDirty()) {
             self.camera.updateCamera();
-        }
-
-        const state = c.glfwGetMouseButton(self.gc.window, c.GLFW_MOUSE_BUTTON_RIGHT);
-        if (state == c.GLFW_PRESS) {
-            self.panCamera = true;
-        }
-        if (state == c.GLFW_RELEASE) {
-            self.panCamera = false;
         }
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
         // --------------------------
 
-        var movement = self.cameraMovement.normalize().fmul(@floatCast(f32, deltaTime));
-        if (self.fastMove) {
-            movement = movement.fmul(10.0);
-        }
+        var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
+        _ = movement;
 
-        var movement_v = mul(core.zm.matFromQuat(self.cameraHorizontalRotation), movement.toZm());
-        _ = movement_v;
-        // self.camera.translate(.{ .x = movement_v[0], .y = movement_v[1], .z = movement_v[2] });
-        // self.handleCameraPan(deltaTime);
 
-        self.tickTime -= deltaTime;
-
-        if(self.currentAnimCache.hash != self.currentAnim.hash)
-        {
+        if (self.currentAnimCache.hash != self.currentAnim.hash) {
             self.currentAnimCache = self.currentAnim;
-            self.activeAnimInstance = self.papyrus.createAnimInstance(self.testSpriteHandle, self.currentAnim).?;
-            self.activeAnimInstance.looping = true;
+            self.papyrus.playSpriteAnimation(self.denver, self.currentAnim, .{}) catch unreachable;
         }
 
-        self.activeAnimInstance.advance(deltaTime);
-        self.papyrus.setSpriteFrame(self.testSpriteHandle, @intCast(usize, self.activeAnimInstance.getCurrentFrame()), self.flipped);
-
+        self.papyrus.setSpriteFlipped(self.denver, self.flipped);
+        self.papyrus.tick(deltaTime);
     }
 
     pub fn deinit(self: *Self) void {
@@ -312,7 +252,7 @@ const SpriteDataGpu = struct {
 };
 
 const PapyrusSprite = struct {
-    spriteFrameIndex: usize = 0,
+    frameIndex: usize = 0,
     flipped: bool = false,
 
     // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
@@ -334,8 +274,9 @@ const PapyrusSubsystem = struct {
 
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
+    pub const NeonObjectTable = core.RttiData.from(@This());
 
-    const SpriteObjectSet = core.SparseMultiSet(struct{
+    const SpriteObjectSet = core.SparseMultiSet(struct {
         sprite: PapyrusSprite,
         activeAnims: animations.SpriteAnimationInstance = .{},
     });
@@ -361,17 +302,35 @@ const PapyrusSubsystem = struct {
         return self;
     }
 
-    pub fn createAnimInstance(self: *@This(), objectHandle: core.ObjectHandle, animationName: core.Name) ?animations.SpriteAnimationInstance
-    {
-        var sprite = self.spriteObjects.get(objectHandle, .sprite).?;
-        return sprite.*.spriteSheet.createAnimationInstance(animationName);
-    }
-
-    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, flipped: bool) void {
+    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, reversed: bool) void {
         var spriteObject = self.spriteObjects.get(objectHandle, .sprite).?;
 
-        spriteObject.*.spriteFrameIndex = frameIndex;
-        spriteObject.*.flipped = flipped;
+        spriteObject.*.frameIndex = frameIndex;
+        spriteObject.*.reversed = reversed;
+    }
+
+    pub fn playSpriteAnimation(
+        self: *@This(),
+        objectHandle: core.ObjectHandle,
+        animationName: core.Name,
+        params: struct {
+            reverse: bool = false,
+            looping: bool = true,
+        },
+    ) !void {
+        var sprite = self.spriteObjects.get(objectHandle, .sprite).?;
+        var animationInstance = sprite.*.spriteSheet.createAnimationInstance(animationName) orelse return error.MissingAnimation;
+        animationInstance.reverse = params.reverse;
+        animationInstance.looping = params.looping;
+        animationInstance.playing = true;
+        if(self.spriteObjects.get(objectHandle, .activeAnims)) |instance|
+        {
+           instance.* = animationInstance;
+        }
+        else
+        {
+            return error.UnableToRegisterInstance;
+        }
     }
 
     pub fn addSpriteSheetByName(self: *@This(), baseTextureName: core.Name) !*animations.SpriteSheet {
@@ -419,11 +378,11 @@ const PapyrusSubsystem = struct {
 
     pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
         //var newSpriteObject = try self.allocator.create(PapyrusSprite);
-        var newSpriteObject = PapyrusSprite{ .spriteFrameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
+        var newSpriteObject = PapyrusSprite{ .frameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
 
         var result = try self.spriteObjects.createWithHandle(
             objectHandle,
-            .{ 
+            .{
                 .sprite = newSpriteObject,
             },
         );
@@ -438,6 +397,14 @@ const PapyrusSubsystem = struct {
         }
 
         _ = result;
+    }
+
+    pub fn setSpriteFlipped(self: *@This(), objectHandle: core.ObjectHandle, flipped: bool ) void
+    {
+        if(self.spriteObjects.get(objectHandle, .sprite))|*object|
+        {
+            object.*.flipped = flipped;
+        }
     }
 
     // Part of the renderer plugin interface
@@ -498,6 +465,23 @@ const PapyrusSubsystem = struct {
         try gc.add_material(material);
     }
 
+    fn handleAnimations(self: *@This(), deltaTime: f64) void 
+    {
+        for(self.spriteObjects.dense.items(.activeAnims)) |*anim, i| 
+        {
+            if(anim.playing)
+            {
+                anim.advance(deltaTime);
+                self.spriteObjects.dense.items(.sprite)[i].frameIndex = anim.getCurrentFrame();
+            }
+        }
+    }
+
+    pub fn tick(self: *@This(), deltaTime: f64) void
+    {
+        self.handleAnimations(deltaTime);
+    }
+
     pub fn preDraw(self: *@This(), frameId: usize) void {
         // 1. update animation data in the PapyrusPerFrameData
         _ = self;
@@ -510,7 +494,7 @@ const PapyrusSubsystem = struct {
             var renderIndex = self.gc.renderObjectSet.sparseToDense(objectHandle).?;
 
             var sheetSize = spriteObject.spriteSheet.getDimensions();
-            var frameInfo = spriteObject.spriteSheet.frames.items[spriteObject.spriteFrameIndex];
+            var frameInfo = spriteObject.spriteSheet.frames.items[spriteObject.frameIndex];
             var topLeft = core.Vector2f{
                 .x = @intToFloat(f32, frameInfo.topLeft.x) / @intToFloat(f32, sheetSize.x),
                 .y = @intToFloat(f32, frameInfo.topLeft.y) / @intToFloat(f32, sheetSize.y),
@@ -580,42 +564,42 @@ pub fn inputCallback(
             gGame.fastMove = !gGame.fastMove;
         }
         if (key == c.GLFW_KEY_W) {
-            gGame.cameraMovement.z += 1.0;
+            gGame.movementInput.z += 1.0;
         }
         if (key == c.GLFW_KEY_S) {
-            gGame.cameraMovement.z += -1.0;
+            gGame.movementInput.z += -1.0;
         }
         if (key == c.GLFW_KEY_D) {
-            gGame.cameraMovement.x += -1.0;
+            gGame.movementInput.x += -1.0;
         }
         if (key == c.GLFW_KEY_A) {
-            gGame.cameraMovement.x += 1.0;
+            gGame.movementInput.x += 1.0;
         }
         if (key == c.GLFW_KEY_Q) {
-            gGame.cameraMovement.y += -1.0;
+            gGame.movementInput.y += -1.0;
         }
         if (key == c.GLFW_KEY_E) {
-            gGame.cameraMovement.y += 1.0;
+            gGame.movementInput.y += 1.0;
         }
     }
     if (action == c.GLFW_RELEASE) {
         if (key == c.GLFW_KEY_W) {
-            gGame.cameraMovement.z -= 1.0;
+            gGame.movementInput.z -= 1.0;
         }
         if (key == c.GLFW_KEY_S) {
-            gGame.cameraMovement.z -= -1.0;
+            gGame.movementInput.z -= -1.0;
         }
         if (key == c.GLFW_KEY_D) {
-            gGame.cameraMovement.x -= -1.0;
+            gGame.movementInput.x -= -1.0;
         }
         if (key == c.GLFW_KEY_A) {
-            gGame.cameraMovement.x -= 1.0;
+            gGame.movementInput.x -= 1.0;
         }
         if (key == c.GLFW_KEY_Q) {
-            gGame.cameraMovement.y -= -1.0;
+            gGame.movementInput.y -= -1.0;
         }
         if (key == c.GLFW_KEY_E) {
-            gGame.cameraMovement.y -= 1.0;
+            gGame.movementInput.y -= 1.0;
         }
     }
 }

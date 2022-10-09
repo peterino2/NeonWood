@@ -44,7 +44,7 @@ pub const SpriteAnimationInstance = struct {
 
     pub fn advance(self: *@This(), deltaTime: f64) void {
         const animation: SpriteAnimation = self.animation;
-        self.currentFrameTime += deltaTime;
+        self.currentFrameTime += deltaTime * self.playSpeed;
 
         if (self.currentFrameTime > animation.frameTime) {
             self.currentFrameTime = 0.0;
