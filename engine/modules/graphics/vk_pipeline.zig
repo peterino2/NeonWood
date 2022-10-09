@@ -112,8 +112,6 @@ pub const NeonVkPipelineBuilder = struct {
             .dynamic_state_count = 2,
             .p_dynamic_states = &dynamicStates,
         };
-        _ = dynamicStateCreateInfo;
-        _ = dynamicStates;
 
         // its here....
         var gpci = vk.GraphicsPipelineCreateInfo{

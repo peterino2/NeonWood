@@ -200,14 +200,14 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
-    exe.addIncludeDir("modules/core/lib");
-    exe.addIncludeDir("modules/graphics/lib/vulkan_inc");
-    exe.addIncludeDir("modules/graphics/lib/cimgui");
-    exe.addIncludeDir("modules/graphics/lib/imgui");
-    exe.addIncludeDir("modules/graphics/lib/imgui/backends");
-    exe.addIncludeDir("modules/graphics/lib");
-    exe.addIncludeDir("modules/graphics");
-    exe.addLibPath("modules/graphics/lib");
+    exe.addIncludePath("modules/core/lib");
+    exe.addIncludePath("modules/graphics/lib/vulkan_inc");
+    exe.addIncludePath("modules/graphics/lib/cimgui");
+    exe.addIncludePath("modules/graphics/lib/imgui");
+    exe.addIncludePath("modules/graphics/lib/imgui/backends");
+    exe.addIncludePath("modules/graphics/lib");
+    exe.addIncludePath("modules/graphics");
+    exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");

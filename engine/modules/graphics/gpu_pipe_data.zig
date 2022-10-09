@@ -64,12 +64,11 @@ pub const GpuPipeDataBinding = struct {
     frameCount: usize,
     isFrameBuffer: bool = true,
 
-
     pub fn mapBuffers(self: *@This(), gc: *NeonVkContext, comptime MappingType: type) ![]GpuMappingData(MappingType) {
         var frameIndex: usize = 0;
         if(self.isFrameBuffer)
         {
-            try core.assertf(self.frameCount == self.buffers.len, "mismatched frameBuffer", .{});
+            try core.assertf(self.frameCount == self.buffers.len, "mismatched frameBuffer {d} != {d}", .{self.frameCount, self.buffers.len});
         }
         // maps buffers for these bindings, one for each frame
         var rv = try gc.allocator.alloc(GpuMappingData(MappingType), self.buffers.len);
@@ -120,6 +119,7 @@ pub const GpuPipeData = struct {
 
         for (self.bindings) |*binding| {
             binding.buffers = try allocator.alloc(NeonVkBuffer, frameCount);
+            binding.frameCount = frameCount;
         }
 
         return self;
@@ -127,9 +127,6 @@ pub const GpuPipeData = struct {
 
     // Maps each buffer per frame
     pub fn mapBuffers(self: *@This(), gc: *NeonVkContext, comptime ObjectType: type, binding: usize) ![]GpuMappingData(ObjectType) {
-        _ = self;
-        _ = ObjectType;
-        _ = binding;
         var pipeDataBuffer = self.bindings[binding];
 
         return pipeDataBuffer.mapBuffers(gc, ObjectType);

@@ -90,7 +90,6 @@ const GameContext = struct {
     }
 
     pub fn init_objects(self: *Self) !void {
-        _ = self;
         var gc = self.gc;
         _ = try gc.add_renderobject(.{
             .mesh_name = MakeName("m_room"),
@@ -211,11 +210,9 @@ pub fn input_callback(
     action: c_int,
     mods: c_int,
 ) callconv(.C) void {
-    _ = window;
-    _ = key;
-    _ = scancode;
-    _ = action;
     _ = mods;
+    _ = window;
+    _ = scancode;
 
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, game ends now");

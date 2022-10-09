@@ -314,7 +314,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
         self.deviceProperties = vki.getPhysicalDeviceProperties(pdevice);
         // load memory properties
         self.memoryProperties = vki.getPhysicalDeviceMemoryProperties(pdevice);
-        // get surface capabilities
+        // get surface capabilit00eies
         self.surfaceCapabilites = try vki.getPhysicalDeviceSurfaceCapabilitiesKHR(pdevice, surface);
 
         return self;
@@ -1366,7 +1366,6 @@ pub const NeonVkContext = struct {
     }
 
     fn render_meshes(self: *Self, deltaTime: f64) !void {
-        _ = deltaTime;
         try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
         // try self.upload_sprite_data();
@@ -1548,7 +1547,6 @@ pub const NeonVkContext = struct {
             .attachment = @intCast(u32, attachments.items.len),
             .layout = .depth_stencil_attachment_optimal,
         };
-        _ = depthAttachmentRef;
         try attachments.append(depthAttachment);
 
         var subpass = std.mem.zeroes(vk.SubpassDescription);
@@ -1778,7 +1776,6 @@ pub const NeonVkContext = struct {
             .tiling = .optimal,
             .usage = .{ .depth_stencil_attachment_bit = true },
         };
-        _ = dimg_create;
 
         var dimg_vma_alloc_info = vma.AllocationCreateInfo{
             .requiredFlags = .{
@@ -1787,7 +1784,6 @@ pub const NeonVkContext = struct {
             .usage = .gpuOnly,
         };
 
-        _ = dimg_vma_alloc_info;
         var result = try self.vmaAllocator.createImage(dimg_create, dimg_vma_alloc_info);
 
         self.depthImage = .{
@@ -1928,7 +1924,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = .{},
             .p_application_info = &appInfo,
-            .enabled_layer_count = 1,
+            .enabled_layer_count = 0,
             .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
             .enabled_extension_count = glfwExtensionsCount,
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
@@ -2028,7 +2024,6 @@ pub const NeonVkContext = struct {
             X.lessThan,
         );
 
-        _ = self;
     }
 
     fn find_physical_device(self: *Self) !void {
@@ -2169,8 +2164,6 @@ pub const NeonVkContext = struct {
                 core.buf_to_cstr(layer.description),
             });
         }
-        _ = requiredNames;
-        _ = layers;
 
         for (requiredNames) |requested| {
             var layerFound: bool = false;
@@ -2281,7 +2274,6 @@ pub const NeonVkContext = struct {
             .pixels = pixels,
         };
         debug_struct("loaded image: ", iconImage);
-        _ = comp;
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         defer core.stbi_image_free(pixels);
     }

@@ -153,8 +153,6 @@ pub const JobContext = struct {
     hasCaptureAlloc: bool = false,
 
     pub fn new(allocator: std.mem.Allocator, comptime CaptureType: type, capture: CaptureType) !JobContext {
-        _ = CaptureType;
-        _ = capture;
         if (!@hasDecl(CaptureType, "func")) {
             return error.NoValidLambda;
         }
@@ -165,7 +163,6 @@ pub const JobContext = struct {
                 ptr.func(context);
             }
         };
-        _ = Wrap;
 
         var self = Self{
             .allocator = allocator,

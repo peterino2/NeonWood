@@ -134,6 +134,7 @@ pub const PapyrusSubsystem = struct {
         try self.createSpriteMaterials();
         defer spriteDataBuilder.deinit();
 
+        core.graphics_logs("mapping sprite buffers");
         self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, PapyrusSpriteGpu, 0);
     }
 
@@ -247,7 +248,6 @@ pub const PapyrusSubsystem = struct {
 
     pub fn preDraw(self: *@This(), frameId: usize) void {
         // 1. update animation data in the PapyrusPerFrameData
-        _ = self;
         for (self.spriteObjects.dense.items(.sprite)) |*dense, i| {
             const spriteObject: *PapyrusSprite = dense;
 
@@ -350,12 +350,13 @@ pub const PapyrusImageSubsystem = struct {
 
         defer spriteDataBuilder.deinit();
 
+        core.graphics_logs("mapping image materials buffers");
         self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, PapyrusImageGpu, 0);
     }
 
     pub fn createMaterials(self: *@This()) !void
     {
-        core.graphics_logs("creating sprite material");
+        core.graphics_logs("creating image material");
         var gc: *graphics.NeonVkContext = self.gc;
         var pipelineBuilder = try NeonVkPipelineBuilder.init(
             gc.dev,

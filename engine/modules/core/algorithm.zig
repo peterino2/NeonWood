@@ -191,14 +191,10 @@ test "multi-sparse-basic" {
     };
 
     var testSet = SparseMultiSet(TestStruct).init(allocator);
-    _ = testSet;
     defer testSet.deinit();
     var sparseHandle = try testSet.createObject(.{ .field1 = 1, .structField = .{.x = 12} });
     var sparseHandle1 = try testSet.createObject(.{ .field1 = 2, .structField = .{.x = 34} });
     var sparseHandle2 = try testSet.createObject(.{ .field1 = 3, .structField = .{.x = 56} });
-    _ = sparseHandle1;
-    _ = sparseHandle2;
-    _ = sparseHandle;
     std.debug.print("handle: {any}\n", .{testSet.get(sparseHandle, .field1).?.*});
     std.debug.print("handle1: {any}\n", .{testSet.get(sparseHandle1, .field1).?.*});
     std.debug.print("handle2: {any}\n", .{testSet.get(sparseHandle2, .field1).?.*});
@@ -451,7 +447,6 @@ test "sparse-set" {
 
     const PayloadSet = SparseSet(Payload);
     const expect = std.testing.expect;
-    _ = expect;
 
     var set = PayloadSet.init(std.testing.allocator);
     defer set.deinit();
@@ -544,8 +539,6 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn push(self: *@This(), value: T) RingQueueError!void {
-            _ = self;
-            _ = value;
 
             const next = (self.tail + 1) % self.buffer.len;
 
@@ -621,8 +614,6 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn at(self: *@This(), offset: usize) ?*T {
-            _ = self;
-            _ = offset;
 
             const c = self.count();
 
@@ -646,9 +637,6 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn resize(self: *@This(), allocator: std.mem.Allocator, size: usize) !void {
-            _ = self;
-            _ = allocator;
-            _ = size;
 
             const c = self.count();
 

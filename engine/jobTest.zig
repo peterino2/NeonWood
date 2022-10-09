@@ -67,9 +67,6 @@ const GameContext = struct {
 
         var wanker = Wanker{};
 
-        _ = Wanker;
-        _ = wanker;
-
         const Lambda = struct {
             capturedValue: u32 = 43,
             wanker: Wanker,
@@ -84,7 +81,6 @@ const GameContext = struct {
                 _ = job;
             }
         };
-        _ = Lambda;
 
         self.jobContext = try JobContext.new(
             std.heap.c_allocator,

@@ -29,7 +29,6 @@ const GameContext = struct {
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
-        _ = self;
         _ = deltaTime;
 
         if (self.showDemo) {
@@ -95,9 +94,7 @@ pub fn main() anyerror!void {
 
 pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     _ = window;
-    _ = key;
     _ = scancode;
-    _ = action;
     _ = mods;
 
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {

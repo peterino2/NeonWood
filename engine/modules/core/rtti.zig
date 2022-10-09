@@ -190,7 +190,6 @@ pub const RttiRegistry = struct {
 
     pub fn dynamic_cast_by_id(self: @This(), TargetType: type, source: NeonObjectRef) ?TargetType {
         _ = self;
-        _ = TargetType;
         _ = source;
         return null;
     }

@@ -119,7 +119,6 @@ const GameContext = struct {
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
-        _ = self;
         _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
@@ -161,7 +160,6 @@ const GameContext = struct {
     }
 
     pub fn init_objects(self: *Self) !void {
-        _ = self;
         var gc = self.gc;
         _ = try gc.add_renderobject(.{ .mesh_name = MakeName("m_room"), .material_name = MakeName("mat_mesh"), .init_transform = core.zm.scaling(0.8, 0.8, 0.8) });
 
@@ -248,7 +246,6 @@ const GameContext = struct {
         // --------------------------
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
-        _ = movement;
 
         var renderObject: *graphics.RenderObject = self.gc.renderObjectSet.get(self.denver, .renderObject).?;
         const dt = @floatCast(f32, deltaTime);
@@ -323,9 +320,7 @@ pub fn inputCallback(
     mods: c_int,
 ) callconv(.C) void {
     _ = window;
-    _ = key;
     _ = scancode;
-    _ = action;
     _ = mods;
 
     if (key == c.GLFW_KEY_T and action == c.GLFW_PRESS) {

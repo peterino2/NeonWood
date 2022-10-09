@@ -44,7 +44,6 @@ pub const NeonVkImGui = struct {
             .{ .@"type" = .storage_buffer_dynamic, .descriptor_count = 1000 },
             .{ .@"type" = .input_attachment, .descriptor_count = 1000 },
         };
-        _ = descriptorPoolSizes;
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
             .flags = .{},
@@ -84,7 +83,6 @@ pub const NeonVkImGui = struct {
             .Allocator = null,
             .CheckVkResultFn = checkVkResult,
         };
-        _ = imguiInit;
         core.debug_struct("instance: ", ctx.instance);
         core.debug_struct("huh: ", imguiInit);
         _ = c.cImGui_vk_Init(&imguiInit, vkCast(c.VkRenderPass, ctx.renderPass));
