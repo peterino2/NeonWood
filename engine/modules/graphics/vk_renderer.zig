@@ -44,6 +44,7 @@ pub const RendererInterface = struct {
 
     preDraw: fn (*anyopaque, frameId: usize) void,
     onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
+    postDraw: ?fn (*anyopaque, vk.CommandBuffer, usize) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -55,6 +56,11 @@ pub const RendererInterface = struct {
             pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
                 var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
                 ptr.onBindObject(objectHandle, objectIndex, cmd, frameIndex);
+            }
+
+            pub fn postDraw(pointer: *anyopaque, cmd: vk.CommandBuffer, frameIndex: usize) void {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                ptr.postDraw(cmd, frameIndex);
             }
         };
 
@@ -74,7 +80,13 @@ pub const RendererInterface = struct {
             .typeAlign = @alignOf(TargetType),
             .preDraw = wrappedFuncs.preDraw,
             .onBindObject = wrappedFuncs.onBindObject,
+            .postDraw = null,
         };
+
+        if(@hasDecl(TargetType, "postDraw"))
+        {
+            self.postDraw = wrappedFuncs.postDraw;
+        }
 
         return self;
     }
@@ -1375,6 +1387,13 @@ pub const NeonVkContext = struct {
             var sparseHandle = self.renderObjectSet.sparse[self.renderObjectSet.denseIndices.items[i].index];
             sparseHandle.index = self.renderObjectSet.denseIndices.items[i].index;
             self.draw_render_object(dense, cmd, @intCast(u32, i), deltaTime, sparseHandle);
+        }
+
+        for(self.rendererPlugins.items) |*interface| {
+            if(interface.vtable.postDraw) |postDraw|
+            {
+                postDraw(interface.ptr, cmd, self.nextFrameIndex);
+            }
         }
     }
 

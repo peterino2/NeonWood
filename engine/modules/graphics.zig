@@ -15,6 +15,8 @@ pub const NeonVkImage = vk_renderer.NeonVkImage;
 pub const Material = materials.Material;
 pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
 pub const RendererInterface = vk_renderer.RendererInterface;
+pub const texture = @import("graphics/texture.zig");
+pub const Texture = texture.Texture;
 
 pub const PixelPos = vk_renderer.PixelPos;
 

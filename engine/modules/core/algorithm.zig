@@ -133,7 +133,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !SetHandle
         {
-            std.debug.print("creating set with handle: {any}\n", .{handle});
+            // std.debug.print("creating set with handle: {any}\n", .{handle});
             var currentDenseHandle = self.sparse[handle.index];
             if (currentDenseHandle.alive) {
                 return error.ObjectAlreadyExists;

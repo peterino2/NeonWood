@@ -2,6 +2,12 @@ const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
 
 const animations = @import("projects/neurophobia/animations.zig");
+const papyrusSprite = @import("projects/neurophobia/papyrus.zig");
+const PapyrusSubsystem = papyrusSprite.PapyrusSubsystem;
+const PapyrusSpriteGpu = papyrusSprite.PapyrusSpriteGpu;
+const PapyrusSprite = papyrusSprite.PapyrusSprite;
+const PapyrusImageSubsystem = papyrusSprite.PapyrusImageSubsystem;
+
 const resources = @import("resources");
 const vk = @import("vulkan");
 const core = neonwood.core;
@@ -20,15 +26,13 @@ const PixelPos = graphics.PixelPos;
 const AssetReference = assets.AssetReference;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
-const NeonVkPipelineBuilder = graphics.NeonVkPipelineBuilder;
 
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
-    .{ .name = core.MakeName("t_denverWalk"), .path = "projects/neurophobia/DenverWalksAll.png" },
+    .{ .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
 };
 
 const MeshAssets = [_]AssetReference{
-    .{ .name = core.MakeName("m_monkey"), .path = "content/monkey.obj" },
     .{ .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
 };
 
@@ -46,6 +50,7 @@ const GameContext = struct {
     gc: *graphics.NeonVkContext,
 
     papyrus: *PapyrusSubsystem,
+    papyrusImage: *PapyrusImageSubsystem,
 
     isRotating: bool = false,
     shouldExit: bool = false,
@@ -65,11 +70,11 @@ const GameContext = struct {
     cameraHorizontalRotationStart: core.Quat,
 
     denver: core.ObjectHandle = undefined,
-    testSpriteData: SpriteDataGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
+    testSpriteData: PapyrusSpriteGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
     testWindow: bool = true,
     flipped: bool = false,
     animations: std.ArrayListUnmanaged([*c]const u8),
-    selectedAnim: [3]bool,
+    selectedAnim: [64]bool,
     currentAnim: core.Name = core.MakeName("walkUp"),
     currentAnimCache: core.Name = core.MakeName("None"),
     sensitivity: f64 = 0.005,
@@ -82,7 +87,7 @@ const GameContext = struct {
             .animations = .{},
             .meshAssets = .{},
             .gc = graphics.getContext(),
-            .selectedAnim = .{ false, false, false },
+            .selectedAnim = std.mem.zeroes([64]bool),
             .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(30.0), 0.0, 0.0),
             .cameraHorizontalRotation = undefined,
             .cameraHorizontalRotationStart = undefined,
@@ -90,10 +95,13 @@ const GameContext = struct {
             // for some reason core.createObject fails here... not sure why.
             //core.createObject(PapyrusSubsystem, .{.can_tick = false}) catch unreachable,
             .papyrus = allocator.create(PapyrusSubsystem) catch unreachable,
+            .papyrusImage = allocator.create(PapyrusImageSubsystem) catch unreachable,
         };
 
         self.papyrus.* = PapyrusSubsystem.init(allocator);
         self.camera.rotation = self.cameraRotationStart;
+
+        self.papyrusImage.* = PapyrusImageSubsystem.init(allocator);
 
         core.game_logs("Game starting");
 
@@ -115,28 +123,31 @@ const GameContext = struct {
         _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
-        if (self.papyrus.spriteSheets.get(core.MakeName("t_denverWalk").hash)) |spriteObject| {
-            _ = c.igBegin("testWindow", &self.testWindow, 0);
-            _ = c.igCheckbox("flip sprite", &self.flipped);
-            if (c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0)) {
-                var iter = spriteObject.animations.iterator();
-                var i: usize = 0;
-                while (iter.next()) |animation| {
-                    const anim: animations.SpriteAnimation = animation.value_ptr.*;
-                    const name = anim.name;
-                    if (c.igSelectable_Bool(name.utf8.ptr, self.selectedAnim[i], 0, c.ImVec2{ .x = 0, .y = 0 })) {
-                        self.currentAnim = name;
-                        for (self.selectedAnim) |*flag| {
-                            flag.* = false;
+        if (self.papyrus.spriteSheets.get(core.MakeName("t_denver").hash)) |spriteObject| {
+            if(self.testWindow)
+            {
+                _ = c.igBegin("testWindow", &self.testWindow, 0);
+                _ = c.igCheckbox("flip sprite", &self.flipped);
+                if (c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0)) {
+                    var iter = spriteObject.animations.iterator();
+                    var i: usize = 0;
+                    while (iter.next()) |animation| {
+                        const anim: animations.SpriteAnimation = animation.value_ptr.*;
+                        const name = anim.name;
+                        if (c.igSelectable_Bool(name.utf8.ptr, self.selectedAnim[i], 0, c.ImVec2{ .x = 0, .y = 0 })) {
+                            self.currentAnim = name;
+                            for (self.selectedAnim) |*flag| {
+                                flag.* = false;
+                            }
+                            self.selectedAnim[i] = true;
+                            core.engine_logs("you selected me");
                         }
-                        self.selectedAnim[i] = true;
-                        core.engine_logs("you selected me");
+                        i += 1;
                     }
-                    i += 1;
+                    c.igEndCombo();
                 }
-                c.igEndCombo();
+                c.igEnd();
             }
-            c.igEnd();
         }
     }
 
@@ -152,11 +163,7 @@ const GameContext = struct {
     pub fn init_objects(self: *Self) !void {
         _ = self;
         var gc = self.gc;
-        _ = try gc.add_renderobject(.{
-            .mesh_name = MakeName("m_room"),
-            .material_name = MakeName("mat_mesh"),
-            .init_transform = core.zm.scaling(0.8, 0.8, 0.8)
-        });
+        _ = try gc.add_renderobject(.{ .mesh_name = MakeName("m_room"), .material_name = MakeName("mat_mesh"), .init_transform = core.zm.scaling(0.8, 0.8, 0.8) });
 
         self.denver = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
@@ -166,30 +173,45 @@ const GameContext = struct {
 
         var ptr = gc.renderObjectSet.get(self.denver, .renderObject).?;
 
-        //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
+        //x.ptr.setTextureByName(self.gc, MakeName("t_denver"));
         ptr.applyRelativeRotationX(core.radians(-10.0));
 
-        // convert t_denverwalk into an spritesheet with animations
-        var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
+        // convert t_denver into an spritesheet with animations
+        var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denver"));
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
 
         // zig fmt: off
         // creating frame references for denver
         //                                                     Animation name              frame start   frame count   FrameRate
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),    0,            8,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),  8,            8,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"), 16,           8,            10);
-
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),     0,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"),    8,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),      16,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleDown"),    24,            16,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleRight"),   24 + 16 * 1,   16,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleUp"),      24 + 16 * 2,   16,            10);
         // zig fmt: on
 
-
         ptr.applyTransform(spriteSheet.getXFrameScaling());
-        try self.papyrus.addSprite(self.denver, MakeName("t_denverWalk"));
+        try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
+
+        var i: u32 = 0;
+        while (i < 50) : (i += 1) {
+            var x = try self.gc.add_renderobject(.{
+                .mesh_name = MakeName("mesh_quad"),
+                .material_name = MakeName("mat_mesh"),
+                .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.5 * @intToFloat(f32, i % 100), 1.6, 3.0 * (@intToFloat(f32, i) / 100))),
+            });
+            var p = gc.renderObjectSet.get(x, .renderObject).?;
+            p.applyTransform(spriteSheet.getXFrameScaling());
+            try self.papyrus.addSprite(x, MakeName("t_denver"));
+            try self.papyrus.playSpriteAnimation(x, core.MakeName("idleDown"), .{});
+        }
     }
 
     pub fn prepareGame(self: *Self) !void {
         gGame = self;
         try self.papyrus.prepareSubsystem();
+        try self.papyrusImage.prepareSubsystem();
         graphics.registerRendererPlugin(self.papyrus) catch unreachable;
 
         for (self.textureAssets.items) |asset| {
@@ -231,39 +253,34 @@ const GameContext = struct {
         var renderObject: *graphics.RenderObject = self.gc.renderObjectSet.get(self.denver, .renderObject).?;
         const dt = @floatCast(f32, deltaTime);
         const speed = 3.0;
-        if( movement.z > 0 )
-        {
+        if (movement.z > 0) {
             renderObject.applyTransform(core.zm.translation(0, 0, -speed * dt));
             self.currentAnim = core.MakeName("walkUp");
-            self.flipped =  false;
-            self.camera.translate(.{.x = 0, .y = 0, .z = speed * @floatCast(f32, deltaTime)});
-        }
-        else if( movement.z < 0 )
-        {
+            self.flipped = false;
+            self.camera.translate(.{ .x = 0, .y = 0, .z = speed * @floatCast(f32, deltaTime) });
+        } else if (movement.z < 0) {
             renderObject.applyTransform(core.zm.translation(0, 0, speed * dt));
             self.currentAnim = core.MakeName("walkDown");
-            self.flipped =  false;
-            self.camera.translate(.{.x = 0, .y = 0, .z = -speed * @floatCast(f32, deltaTime)});
-        }
-        else if( movement.x < 0)
-        {
+            self.flipped = false;
+            self.camera.translate(.{ .x = 0, .y = 0, .z = -speed * @floatCast(f32, deltaTime) });
+        } else if (movement.x < 0) {
             renderObject.applyTransform(core.zm.translation(speed * dt, 0, 0));
             self.currentAnim = core.MakeName("walkRight");
             self.flipped = false;
-            self.camera.translate(.{.y = 0, .z = 0, .x = -speed * @floatCast(f32, deltaTime)});
-        }
-        else if( movement.x > 0)
-        {
+            self.camera.translate(.{ .y = 0, .z = 0, .x = -speed * @floatCast(f32, deltaTime) });
+        } else if (movement.x > 0) {
             renderObject.applyTransform(core.zm.translation(-speed * dt, 0, 0));
             self.currentAnim = core.MakeName("walkRight");
             self.flipped = true;
-            self.camera.translate(.{.y = 0, .z = 0, .x = speed * @floatCast(f32, deltaTime)});
+            self.camera.translate(.{ .y = 0, .z = 0, .x = speed * @floatCast(f32, deltaTime) });
+        } else {
+            if (self.currentAnim.hash == core.MakeName("walkDown").hash)
+                self.currentAnim = core.MakeName("idleDown");
+            if (self.currentAnim.hash == core.MakeName("walkRight").hash)
+                self.currentAnim = core.MakeName("idleRight");
+            if (self.currentAnim.hash == core.MakeName("walkUp").hash)
+                self.currentAnim = core.MakeName("idleUp");
         }
-        else
-        {
-            self.currentAnimCache = core.MakeName("None"); // ... wait...
-        }
-
 
         if (self.currentAnimCache.hash != self.currentAnim.hash) {
             self.currentAnimCache = self.currentAnim;
@@ -278,273 +295,7 @@ const GameContext = struct {
         self.textureAssets.deinit(self.allocator);
         self.meshAssets.deinit(self.allocator);
         self.papyrus.deinit();
-    }
-};
-
-// gpu data to be sent to sprite shaders.
-// texture coordinates are set in sprite_mesh.vert
-const SpriteDataGpu = struct {
-    topLeft: core.Vector2f, // texture atlas topLeft coordinate
-    size: core.Vector2f, // texture atlas size
-};
-
-const PapyrusSprite = struct {
-    frameIndex: usize = 0,
-    flipped: bool = false,
-
-    // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
-    // far later when we eventually move onto doing a proper asset system.
-    // there's a reason why papyrus and the animation stuff are all under game code not engine
-    // code
-    spriteSheet: *animations.SpriteSheet,
-};
-
-// Wait.. i just had a huge breakthrough..
-// I can directly access everything vk_renderer.
-
-// This means that I can literally set up the entire sprite pipeline
-// without having to formally implement this stuff in the engine itself.
-
-// subsystem that implements a 2d sprite system that allows you to put animated
-// 2d sprites onto quads.
-const PapyrusSubsystem = struct {
-
-    // Interfaces and tables
-    pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
-    pub const NeonObjectTable = core.RttiData.from(@This());
-
-    const SpriteObjectSet = core.SparseMultiSet(struct {
-        sprite: PapyrusSprite,
-        activeAnims: animations.SpriteAnimationInstance = .{},
-    });
-
-    //spriteObjects: core.SparseSet(*PapyrusSprite),
-    spriteObjects: SpriteObjectSet,
-    allocator: std.mem.Allocator,
-    gc: *graphics.NeonVkContext,
-    pipeData: gpd.GpuPipeData,
-    mappedBuffers: []gpd.GpuMappingData(SpriteDataGpu) = undefined,
-    spriteSheets: std.AutoHashMapUnmanaged(u32, *animations.SpriteSheet),
-
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        var self = @This(){
-            .allocator = allocator,
-            .gc = graphics.getContext(),
-            .pipeData = undefined,
-            //.spriteObjects = core.SparseSet(*PapyrusSprite).init(allocator),
-            .spriteObjects = SpriteObjectSet.init(allocator),
-            .spriteSheets = .{},
-        };
-
-        return self;
-    }
-
-    pub fn setSpriteFrame(self: *@This(), objectHandle: core.ObjectHandle, frameIndex: usize, reversed: bool) void {
-        var spriteObject = self.spriteObjects.get(objectHandle, .sprite).?;
-
-        spriteObject.*.frameIndex = frameIndex;
-        spriteObject.*.reversed = reversed;
-    }
-
-    pub fn playSpriteAnimation(
-        self: *@This(),
-        objectHandle: core.ObjectHandle,
-        animationName: core.Name,
-        params: struct {
-            reverse: bool = false,
-            looping: bool = true,
-        },
-    ) !void {
-        var sprite = self.spriteObjects.get(objectHandle, .sprite).?;
-        var animationInstance = sprite.*.spriteSheet.createAnimationInstance(animationName) orelse return error.MissingAnimation;
-        animationInstance.reverse = params.reverse;
-        animationInstance.looping = params.looping;
-        animationInstance.playing = true;
-        if(self.spriteObjects.get(objectHandle, .activeAnims)) |instance|
-        {
-           instance.* = animationInstance;
-        }
-        else
-        {
-            return error.UnableToRegisterInstance;
-        }
-    }
-
-    pub fn addSpriteSheetByName(self: *@This(), baseTextureName: core.Name) !*animations.SpriteSheet {
-        var texture = self.gc.textures.get(baseTextureName.hash).?;
-        var spriteSheet = try self.allocator.create(animations.SpriteSheet);
-        spriteSheet.* = animations.SpriteSheet.init(&texture.image);
-
-        try self.spriteSheets.put(self.allocator, baseTextureName.hash, spriteSheet);
-
-        return spriteSheet;
-    }
-
-    fn destroy_spritesheets(self: *@This()) void {
-        var iter = self.spriteSheets.iterator();
-        while (iter.next()) |i| {
-            try i.value_ptr.*.deinit(self);
-            self.allocator.destroy(i.value_ptr.*);
-        }
-    }
-
-    pub fn deinit(self: *@This()) void {
-        for (self.mappedBuffers) |*mapped| {
-            mapped.unmap(self.gc);
-        }
-        self.spriteObjects.deinit();
-        self.pipeData.deinit(self.allocator, self.gc);
-    }
-
-    pub fn prepareSubsystem(self: *@This()) !void {
-        var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
-        try spriteDataBuilder.addBufferBinding(SpriteDataGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
-        self.pipeData = try spriteDataBuilder.build();
-
-        try self.createSpriteMaterials();
-        defer spriteDataBuilder.deinit();
-
-        self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, SpriteDataGpu, 0);
-    }
-
-    pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
-        //var newSpriteObject = try self.allocator.create(PapyrusSprite);
-        var newSpriteObject = PapyrusSprite{ .frameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
-
-        var result = try self.spriteObjects.createWithHandle(
-            objectHandle,
-            .{
-                .sprite = newSpriteObject,
-            },
-        );
-
-        if (self.gc.renderObjectSet.get(objectHandle, .renderObject)) |renderObject| {
-            // set the material to mat_sprite
-            renderObject.material = self.gc.materials.get(core.MakeName("mat_sprite").hash).?;
-
-            // assign the texture to the spritesheet and register the spriteObject as using
-            // this spritesheet
-            renderObject.setTextureByName(self.gc, sheetName);
-        }
-
-        _ = result;
-    }
-
-    pub fn setSpriteFlipped(self: *@This(), objectHandle: core.ObjectHandle, flipped: bool ) void
-    {
-        if(self.spriteObjects.get(objectHandle, .sprite))|*object|
-        {
-            object.*.flipped = flipped;
-        }
-    }
-
-    // Part of the renderer plugin interface
-    pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
-        _ = objectIndex;
-
-        if (self.spriteObjects.get(objectHandle, .sprite)) |object| {
-            var renderObject = self.gc.renderObjectSet.get(objectHandle, .renderObject).?;
-            _ = object;
-            self.gc.vkd.cmdBindDescriptorSets(
-                cmd, // command buffer
-                .graphics, // bind point
-                renderObject.material.?.layout, // layout
-                3, // set id
-                1, // binding id
-                self.pipeData.getDescriptorSet(frameIndex), // descriptorSet
-                0,
-                undefined,
-            );
-            // core.graphics_log("Papyrus: binding object {any}:{any} draw index {d}", .{objectHandle, object, objectIndex });
-        }
-    }
-
-    pub fn createSpriteMaterials(self: *@This()) !void {
-        // use default lit and sprite_mesh.vert
-        // this will install several pipelines and materials into the
-
-        core.graphics_logs("creating sprite material");
-        var gc: *graphics.NeonVkContext = self.gc;
-        var pipelineBuilder = try NeonVkPipelineBuilder.init(
-            gc.dev,
-            gc.vkd,
-            gc.allocator,
-            resources.sprite_mesh_vert.len,
-            @ptrCast([*]const u32, resources.sprite_mesh_vert),
-            resources.default_lit_frag.len,
-            @ptrCast([*]const u32, resources.default_lit_frag),
-        );
-        defer pipelineBuilder.deinit();
-
-        try pipelineBuilder.add_mesh_description();
-        try pipelineBuilder.add_push_constant();
-        try pipelineBuilder.add_layout(gc.globalDescriptorLayout);
-        try pipelineBuilder.add_layout(gc.objectDescriptorLayout);
-        try pipelineBuilder.add_layout(gc.singleTextureSetLayout);
-        try pipelineBuilder.add_layout(self.pipeData.descriptorSetLayout);
-        try pipelineBuilder.add_depth_stencil();
-        try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
-
-        var materialName = core.MakeName("mat_sprite");
-        var material = try gc.allocator.create(graphics.Material);
-        material.* = graphics.Material{
-            .materialName = materialName,
-            .pipeline = (try pipelineBuilder.build(gc.renderPass)).?,
-            .layout = pipelineBuilder.pipelineLayout,
-        };
-
-        try gc.add_material(material);
-    }
-
-    fn handleAnimations(self: *@This(), deltaTime: f64) void 
-    {
-        for(self.spriteObjects.dense.items(.activeAnims)) |*anim, i| 
-        {
-            if(anim.playing)
-            {
-                anim.advance(deltaTime);
-                self.spriteObjects.dense.items(.sprite)[i].frameIndex = anim.getCurrentFrame();
-            }
-        }
-    }
-
-    pub fn tick(self: *@This(), deltaTime: f64) void
-    {
-        self.handleAnimations(deltaTime);
-    }
-
-    pub fn preDraw(self: *@This(), frameId: usize) void {
-        // 1. update animation data in the PapyrusPerFrameData
-        _ = self;
-        for (self.spriteObjects.dense.items(.sprite)) |dense, i| {
-            const spriteObject: PapyrusSprite = dense;
-
-            // hacky.. but we can get the true renderer index from the gc
-            // by using the sparse index here.
-            var objectHandle = self.spriteObjects.denseIndices.items[i];
-            var renderIndex = self.gc.renderObjectSet.sparseToDense(objectHandle).?;
-
-            var sheetSize = spriteObject.spriteSheet.getDimensions();
-            var frameInfo = spriteObject.spriteSheet.frames.items[spriteObject.frameIndex];
-            var topLeft = core.Vector2f{
-                .x = @intToFloat(f32, frameInfo.topLeft.x) / @intToFloat(f32, sheetSize.x),
-                .y = @intToFloat(f32, frameInfo.topLeft.y) / @intToFloat(f32, sheetSize.y),
-            };
-
-            var size = core.Vector2f{
-                .x = @intToFloat(f32, frameInfo.size.x) / @intToFloat(f32, sheetSize.x),
-                .y = @intToFloat(f32, frameInfo.size.y) / @intToFloat(f32, sheetSize.y),
-            };
-
-            if (spriteObject.flipped) {
-                topLeft.x += size.x;
-                size.x = -size.x;
-            }
-
-            self.mappedBuffers[frameId].objects[renderIndex].topLeft = topLeft;
-            self.mappedBuffers[frameId].objects[renderIndex].size = size;
-        }
-        // core.graphics_logs("calling papyrus subsystem predraw");
+        self.papyrusImage.deinit();
     }
 };
 
