@@ -33,6 +33,7 @@ pub fn getContext() *NeonVkContext {
 
 pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
+pub const RenderObject = render_object.RenderObject;
 
 pub var gImgui: *NeonVkImGui = undefined;
 

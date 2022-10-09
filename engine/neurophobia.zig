@@ -83,7 +83,7 @@ const GameContext = struct {
             .meshAssets = .{},
             .gc = graphics.getContext(),
             .selectedAnim = .{ false, false, false },
-            .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(60.0), 0.0, 0.0),
+            .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(30.0), 0.0, 0.0),
             .cameraHorizontalRotation = undefined,
             .cameraHorizontalRotationStart = undefined,
             .cameraHorizontalRotationMat = core.zm.identity(),
@@ -101,7 +101,7 @@ const GameContext = struct {
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
 
-        self.camera.translate(.{ .x = 0.0, .y = 10.0, .z = -2.0 });
+        self.camera.translate(.{ .x = 0.0, .y = 7.14, .z = -5.0 });
         self.camera.updateCamera();
 
         self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
@@ -155,18 +155,19 @@ const GameContext = struct {
         _ = try gc.add_renderobject(.{
             .mesh_name = MakeName("m_room"),
             .material_name = MakeName("mat_mesh"),
+            .init_transform = core.zm.scaling(0.8, 0.8, 0.8),
         });
 
         self.denver = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 0.0)),
+            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.5, 2.0)),
         });
 
         var ptr = gc.renderObjectSet.get(self.denver, .renderObject).?;
 
         //x.ptr.setTextureByName(self.gc, MakeName("t_denverWalk"));
-        ptr.applyRelativeRotationX(core.radians(-15.0));
+        ptr.applyRelativeRotationX(core.radians(-10.0));
 
         // convert t_denverwalk into an spritesheet with animations
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denverWalk"));
@@ -226,6 +227,42 @@ const GameContext = struct {
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
         _ = movement;
+
+        var renderObject: *graphics.RenderObject = self.gc.renderObjectSet.get(self.denver, .renderObject).?;
+        const dt = @floatCast(f32, deltaTime);
+        const speed = 3.0;
+        if( movement.z > 0 )
+        {
+            renderObject.applyTransform(core.zm.translation(0, 0, -speed * dt));
+            self.currentAnim = core.MakeName("walkUp");
+            self.flipped =  false;
+            self.camera.translate(.{.x = 0, .y = 0, .z = speed * @floatCast(f32, deltaTime)});
+        }
+        else if( movement.z < 0 )
+        {
+            renderObject.applyTransform(core.zm.translation(0, 0, speed * dt));
+            self.currentAnim = core.MakeName("walkDown");
+            self.flipped =  false;
+            self.camera.translate(.{.x = 0, .y = 0, .z = -speed * @floatCast(f32, deltaTime)});
+        }
+        else if( movement.x < 0)
+        {
+            renderObject.applyTransform(core.zm.translation(speed * dt, 0, 0));
+            self.currentAnim = core.MakeName("walkRight");
+            self.flipped = false;
+            self.camera.translate(.{.y = 0, .z = 0, .x = -speed * @floatCast(f32, deltaTime)});
+        }
+        else if( movement.x > 0)
+        {
+            renderObject.applyTransform(core.zm.translation(-speed * dt, 0, 0));
+            self.currentAnim = core.MakeName("walkRight");
+            self.flipped = true;
+            self.camera.translate(.{.y = 0, .z = 0, .x = speed * @floatCast(f32, deltaTime)});
+        }
+        else
+        {
+            self.currentAnimCache = core.MakeName("None"); // ... wait...
+        }
 
 
         if (self.currentAnimCache.hash != self.currentAnim.hash) {
@@ -368,12 +405,6 @@ const PapyrusSubsystem = struct {
         defer spriteDataBuilder.deinit();
 
         self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, SpriteDataGpu, 0);
-        for (self.mappedBuffers) |_, i| {
-            self.mappedBuffers[i].objects[0].topLeft = .{ .x = 0.0, .y = 0.0 };
-            self.mappedBuffers[i].objects[0].size = .{ .x = 0.5, .y = 0.5 };
-            self.mappedBuffers[i].objects[1].topLeft = .{ .x = 0.0, .y = 0.0 };
-            self.mappedBuffers[i].objects[1].size = .{ .x = 0.5, .y = 0.5 };
-        }
     }
 
     pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
