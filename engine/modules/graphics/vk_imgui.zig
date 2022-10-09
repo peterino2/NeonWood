@@ -8,7 +8,7 @@ const c = vk_renderer.c;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 fn vkCast(comptime T: type, handle: anytype) T {
-    return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
+    return @ptrCast(T, @intToPtr(?*anyopaque, @intCast(usize, @enumToInt(handle))));
 }
 
 // this data structure is invalid until you call setup

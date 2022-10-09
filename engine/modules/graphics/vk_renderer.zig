@@ -29,7 +29,7 @@ pub const PixelPos = struct {
 const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 fn vkCast(comptime T: type, handle: anytype) T {
-    return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
+    return @ptrCast(T, @intToPtr(?*anyopaque, @intCast(usize, @enumToInt(handle))));
 }
 
 const ObjectHandle = core.ObjectHandle;
@@ -519,7 +519,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
-        var alignment = self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment;
+        var alignment = @intCast(usize, self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment);
 
         var alignedSize: usize = originalSize;
         if (alignment > 0) {

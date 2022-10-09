@@ -25,3 +25,7 @@ there is only one module that is special among all the others, and that is
 
 this module implements what will be an effective `standard library` for 
 the rest of the neonwood stack
+
+build flags for shipping:
+
+`zig build -fstage1 -Drelease-fast -Dtarget=x86_64-windows`
