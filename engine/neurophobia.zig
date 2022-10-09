@@ -193,7 +193,7 @@ const GameContext = struct {
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
 
         var i: u32 = 0;
-        while (i < 10) : (i += 1) {
+        while (i < 100000) : (i += 1) {
             var x = try self.gc.add_renderobject(.{
                 .mesh_name = MakeName("mesh_quad"),
                 .material_name = MakeName("mat_mesh"),

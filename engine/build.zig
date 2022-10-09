@@ -3,6 +3,7 @@ const vkgen = @import("modules/graphics/lib/vulkan-zig/generator/index.zig");
 const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
+const zigTracy = @import("modules/core/lib/Zig-Tracy/build_tracy.zig");
 
 const shaders_folder = "modules/graphics/shaders/";
 
@@ -169,6 +170,10 @@ pub fn createGameExecutable(
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=undefined", .{}));
 
     for (cflags.items) |s| {
         _ = s;
@@ -199,7 +204,6 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
-    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
     exe.addIncludePath("modules/core/lib");
     exe.addIncludePath("modules/graphics/lib/vulkan_inc");
     exe.addIncludePath("modules/graphics/lib/cimgui");
@@ -209,6 +213,8 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
+
+    zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
