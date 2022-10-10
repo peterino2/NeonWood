@@ -13,6 +13,7 @@ const vkinit = @import("vk_init.zig");
 const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
 const materials = @import("materials.zig");
+const enable_validation_layers: bool = true;
 
 const SparseSet = core.SparseSet;
 
@@ -1924,7 +1925,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = .{},
             .p_application_info = &appInfo,
-            .enabled_layer_count = 0,
+            .enabled_layer_count = 1,
             .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
             .enabled_extension_count = glfwExtensionsCount,
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
@@ -1975,7 +1976,7 @@ pub const NeonVkContext = struct {
             .p_next = &shaderDrawFeatures,
             .queue_create_info_count = @intCast(u32, createQueueInfoList.items.len),
             .p_queue_create_infos = createQueueInfoList.items.ptr,
-            .enabled_layer_count = 0,
+            .enabled_layer_count = if(enable_validation_layers) 1 else 0,
             .pp_enabled_layer_names = undefined,
             .enabled_extension_count = @intCast(u32, required_device_extensions.len),
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &required_device_extensions),

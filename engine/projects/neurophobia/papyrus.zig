@@ -362,17 +362,16 @@ pub const PapyrusImageSubsystem = struct {
             gc.dev,
             gc.vkd,
             gc.allocator,
-            resources.sprite_mesh_vert.len,
-            @ptrCast([*]const u32, resources.sprite_mesh_vert),
-            resources.default_lit_frag.len,
-            @ptrCast([*]const u32, resources.default_lit_frag),
+            resources.image_vert.len,
+            @ptrCast([*]const u32, resources.image_vert),
+            resources.image_frag.len,
+            @ptrCast([*]const u32, resources.image_frag),
         );
         defer pipelineBuilder.deinit();
 
         try pipelineBuilder.add_mesh_description();
-        try pipelineBuilder.add_push_constant();
-        try pipelineBuilder.add_layout(gc.singleTextureSetLayout);
         try pipelineBuilder.add_layout(self.pipeData.descriptorSetLayout);
+        try pipelineBuilder.add_layout(gc.singleTextureSetLayout);
         try pipelineBuilder.add_depth_stencil();
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 

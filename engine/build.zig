@@ -214,7 +214,8 @@ pub fn createGameExecutable(
     exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 
-    zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
+    // zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
+    zigTracy.link(b, exe, null);
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
@@ -235,6 +236,8 @@ pub fn createGameExecutable(
     res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
     res.addShader("sprite_mesh_vert", shaders_folder ++ "sprite_mesh.vert");
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
+    res.addShader("image_vert", shaders_folder ++ "image_vert.vert");
+    res.addShader("image_frag", shaders_folder ++ "image_frag.frag");
     exe.addPackage(res.package);
 
     var runName = try std.fmt.allocPrint(allocator, "run-{s}", .{name});
@@ -273,23 +276,23 @@ pub fn build(b: *std.build.Builder) void {
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
-    _ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
+    //_ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
+    //    std.debug.print("error: {any}", .{e});
+    //    unreachable;
+    //};
 
     _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
+    // _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
+    //     std.debug.print("error: {any}", .{e});
+    //     unreachable;
+    // };
 
-    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
+    // _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
+    //     std.debug.print("error: {any}", .{e});
+    //     unreachable;
+    // };
 }
