@@ -30,6 +30,7 @@ const mul = core.zm.mul;
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
     .{ .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
+    .{ .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
 };
 
 const MeshAssets = [_]AssetReference{
@@ -78,6 +79,8 @@ const GameContext = struct {
     currentAnim: core.Name = core.MakeName("walkUp"),
     currentAnimCache: core.Name = core.MakeName("None"),
     sensitivity: f64 = 0.005,
+    displayImage: core.ObjectHandle = .{},
+    speechWindow: bool = true,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -123,8 +126,10 @@ const GameContext = struct {
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
         if (self.papyrus.spriteSheets.get(core.MakeName("t_denver").hash)) |spriteObject| {
-            if(self.testWindow)
-            {
+            _ = c.igBegin("Salina", &self.speechWindow, 0);
+            _ = c.igText("Hi... Nice to meet you I guess... My name's Salina. \nI am NOT impressed by your actions today");
+            _ = c.igEnd();
+            if (self.testWindow) {
                 _ = c.igBegin("testWindow", &self.testWindow, 0);
                 _ = c.igCheckbox("flip sprite", &self.flipped);
                 if (c.igBeginCombo("animation List", self.currentAnim.utf8.ptr, 0)) {
@@ -193,7 +198,7 @@ const GameContext = struct {
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
 
         var i: u32 = 0;
-        while (i < 10) : (i += 1) {
+        while (i < 100) : (i += 1) {
             var x = try self.gc.add_renderobject(.{
                 .mesh_name = MakeName("mesh_quad"),
                 .material_name = MakeName("mat_mesh"),
@@ -211,6 +216,7 @@ const GameContext = struct {
         try self.papyrus.prepareSubsystem();
         try self.papyrusImage.prepareSubsystem();
         graphics.registerRendererPlugin(self.papyrus) catch unreachable;
+        graphics.registerRendererPlugin(self.papyrusImage) catch unreachable;
 
         for (self.textureAssets.items) |asset| {
             try self.load_texture(asset);
@@ -230,6 +236,12 @@ const GameContext = struct {
         try self.init_objects();
         self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
+
+        self.displayImage = self.papyrusImage.newDisplayImage(
+            core.MakeName("t_salina_big"),
+            .{ .x = 0.2, .y = 0.2 }, // by default it's anchored from the top left
+            null,
+        );
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {

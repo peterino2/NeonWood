@@ -214,8 +214,8 @@ pub fn createGameExecutable(
     exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
 
-    // zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
-    zigTracy.link(b, exe, null);
+    zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
+    //zigTracy.link(b, exe, null);
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 

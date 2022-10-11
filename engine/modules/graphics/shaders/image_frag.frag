@@ -19,5 +19,6 @@ void main()
     }
 
     outFragColor = vec4(color.xyz, 1.0f);
+    // outFragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
 }
 

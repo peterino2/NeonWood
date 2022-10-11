@@ -5,6 +5,7 @@ const graphics = nw.graphics;
 const core = nw.core;
 const animations = @import("animations.zig");
 const resources = @import("resources");
+const tracy = core.tracy;
 
 const RenderObject = graphics.render_objects.RenderObject;
 const NeonVkImage = graphics.NeonVkImage;
@@ -13,6 +14,7 @@ const NeonVkPipelineBuilder = graphics.NeonVkPipelineBuilder;
 const MakeName = core.MakeName;
 const gpd = graphics.gpu_pipe_data;
 const PixelPos = graphics.PixelPos;
+const ObjectHandle = core.ObjectHandle;
 
 // gpu data to be sent to sprite shaders.
 // texture coordinates are set in sprite_mesh.vert
@@ -127,6 +129,10 @@ pub const PapyrusSubsystem = struct {
     }
 
     pub fn prepareSubsystem(self: *@This()) !void {
+        var zone = tracy.Zone(@src());
+        zone.Name("Papyrus Subsystem init");
+        defer zone.End();
+
         var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
         try spriteDataBuilder.addBufferBinding(PapyrusSpriteGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
         self.pipeData = try spriteDataBuilder.build();
@@ -140,6 +146,9 @@ pub const PapyrusSubsystem = struct {
 
     pub fn addSprite(self: *@This(), objectHandle: core.ObjectHandle, sheetName: core.Name) !void {
         //var newSpriteObject = try self.allocator.create(PapyrusSprite);
+        var zone = tracy.Zone(@src());
+        zone.Name("adding sprite");
+        defer zone.End();
         var newSpriteObject = PapyrusSprite{ .frameIndex = 0, .spriteSheet = self.spriteSheets.get(sheetName.hash).? };
 
         var result = try self.spriteObjects.createWithHandle(
@@ -172,6 +181,8 @@ pub const PapyrusSubsystem = struct {
     // Part of the renderer plugin interface
     pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
         _ = objectIndex;
+        var x = tracy.ZoneNC(@src(),"papyrus sprite render", 0xDDAAAA);
+        defer x.End();
 
         if (self.spriteObjects.get(objectHandle, .sprite)) |object| {
             var renderObject = self.gc.renderObjectSet.get(objectHandle, .renderObject).?;
@@ -229,8 +240,16 @@ pub const PapyrusSubsystem = struct {
 
     fn handleAnimations(self: *@This(), deltaTime: f64) void 
     {
+        var zone = tracy.Zone(@src());
+        zone.Name("papyrus animation");
+        defer zone.End();
+
         for(self.spriteObjects.dense.items(.activeAnims)) |*anim, i| 
         {
+            var zanim = tracy.Zone(@src());
+            zanim.Name("papyrus animation update anim");
+            defer zanim.End();
+
             if(anim.playing)
             {
                 anim.advance(deltaTime);
@@ -291,9 +310,12 @@ pub const PapyrusImageGpu = struct {
 };
 
 pub const PapyrusImage = struct{
-    image: NeonVkImage,
-    topLeft: core.Vector2f,
+    image: *graphics.Texture,
+    textureSet: *vk.DescriptorSet,
+    position: core.Vector2f,
     size: core.Vector2f,
+    scale: core.Vector2f,
+    ordering: f32 = 1.0, // higher is on top
 };
 
 // an incredibly simple image rendering subsystem
@@ -309,6 +331,7 @@ pub const PapyrusImageSubsystem = struct {
     pipeData: gpd.GpuPipeData = undefined,
     mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
     materialName: core.Name = core.MakeName("mat_image"),
+    material: *graphics.Material,
     objects: ObjectSet,
 
     pub fn init(allocator: std.mem.Allocator) @This()
@@ -317,6 +340,7 @@ pub const PapyrusImageSubsystem = struct {
             .allocator = allocator,
             .gc = graphics.getContext(),
             .objects = ObjectSet.init(allocator),
+            .material = undefined,
         };
 
         return self;
@@ -326,14 +350,84 @@ pub const PapyrusImageSubsystem = struct {
     {
         // self.pipeData.unmapAll(self.mappedBuffers);
         // self.pipeData.deinit();
+        for(self.mappedBuffers) |*mapped|
+        {
+            mapped.unmap(self.gc);
+        }
         self.objects.deinit();
     }
 
-    pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize) @This()
+    pub fn uploadImageData(self: *@This(), frameId: usize) void 
     {
-        _ = self;
-        _ = cmd;
-        _ = frameIndex;
+        var gpuObjects = self.mappedBuffers[frameId].objects;
+        for (self.objects.dense.items(.image)) |image, i|
+        {
+            _ = image;
+            gpuObjects[i] = PapyrusImageGpu{
+                .topLeft = .{
+                    .x = 0.1,
+                    .y = 0.1
+                },
+                .size = .{
+                    .x = 0.1,
+                    .y = 0.1,
+                }
+            };
+        }
+    }
+
+    pub fn preDraw(self: *@This(), frameId: usize) void 
+    {   
+        var z1 = tracy.ZoneNC(@src(), "Image Predraw", 0xBBAABB);
+        defer z1.End();
+        self.uploadImageData(frameId);
+    }
+
+    pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void
+    {
+        var z = tracy.ZoneNC(@src(), "Image PostDraw", 0x44AABB);
+        defer z.End();
+
+        _ = frameTime;
+        var vkd = self.gc.vkd;
+        var mesh = self.gc.meshes.get(core.MakeName("mesh_quad").hash).?;
+        var offset: vk.DeviceSize = 0;
+        vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout,0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&mesh.buffer.buffer), core.p_to_a(&offset));
+
+        for (self.objects.dense.items(.image)) |image, i|
+        {
+            var textureSet = image.textureSet;
+            vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(textureSet), 0, undefined);
+            vkd.cmdDraw(cmd, @intCast(u32, mesh.vertices.items.len), 1, 0, @intCast(u32, i));
+        }
+    }
+
+    // creates a display image and returns an unmanaged object handle to it.
+    pub fn newDisplayImage(self: *@This(), textureName: core.Name, initialPosition: core.Vector2f, initialSize: ?core.Vector2f) ObjectHandle
+    {
+        var maybeTex = self.gc.textures.get(textureName.hash);
+        core.assertf(maybeTex != null, "unable to get texture.", .{}) catch unreachable;
+        var tex = maybeTex.?;
+
+        var initSize: core.Vector2f = undefined;
+
+        if(initialSize) |s|
+            initSize = s
+        else
+            initSize = .{ .x = 1.0 , .y = tex.getDimensions().ratio()};
+
+        var initValue = PapyrusImage{
+            .position = initialPosition, 
+            .size = initSize,
+            .textureSet = self.gc.textureSets.get(textureName.hash).?,
+            .image = self.gc.textures.get(textureName.hash).?,
+            .scale = .{ .x = 1.0, .y = 1.0 },
+        };
+
+        var imageObject = self.objects.createObject(.{.image = initValue}) catch unreachable;
+        return imageObject;
     }
 
     pub fn prepareSubsystem(self: *@This()) !void
@@ -385,5 +479,15 @@ pub const PapyrusImageSubsystem = struct {
 
         try gc.add_material(material);
 
+        self.material =  material;
+
+    }
+
+    pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
+        _ = self;
+        _ = objectHandle;
+        _ = objectIndex;
+        _ = cmd;
+        _ = frameIndex;
     }
 };

@@ -121,6 +121,7 @@ pub const Engine = struct {
     }
 
     pub fn tick(self: *@This()) void {
+        tracy.FrameMark();
         tracy.FrameMarkStart("frame");
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
