@@ -157,6 +157,7 @@ pub fn createGameExecutable(
     var allocator = b.allocator;
 
     const mode = b.standardReleaseOptions();
+    const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
     var maxPathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var basePath = try std.fs.realpath(b.build_root, &maxPathBuffer);
@@ -170,10 +171,13 @@ pub fn createGameExecutable(
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
-    try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
+    if(enable_tracy)
+    {
+        try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
+    }
     try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
     try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
-    try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=undefined", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=all", .{}));
 
     for (cflags.items) |s| {
         _ = s;
@@ -204,7 +208,9 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
+    exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
     exe.addIncludePath("modules/core/lib");
+    exe.addIncludePath("modules/audio/lib");
     exe.addIncludePath("modules/graphics/lib/vulkan_inc");
     exe.addIncludePath("modules/graphics/lib/cimgui");
     exe.addIncludePath("modules/graphics/lib/imgui");
@@ -213,9 +219,25 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
+    exe.linkSystemLibrary("m");
 
-    zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
-    //zigTracy.link(b, exe, null);
+    if(mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe)
+    {
+        if(enable_tracy)
+        {
+            std.debug.print("\n\n !! enable_tracy will be ignored for release-* builds\n\n", .{});
+        }
+        zigTracy.link(b, exe, null);
+    }
+    else if(enable_tracy)
+    {
+        std.debug.print("\n\nenabling tracy\n\n", .{});
+        zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
+    }
+    else {
+        std.debug.print("\n\n no tracy\n\n", .{});
+        zigTracy.link(b, exe, null);
+    }
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
@@ -273,6 +295,10 @@ pub fn build(b: *std.build.Builder) void {
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
+    const options = b.addOptions();
+    options.addOption(bool, "validation_layers", true);
+    options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
+
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
@@ -281,10 +307,11 @@ pub fn build(b: *std.build.Builder) void {
     //    unreachable;
     //};
 
-    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
+    var exe = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
+    exe.addOptions("game_build_opts", options);
 
     // _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
     //     std.debug.print("error: {any}", .{e});

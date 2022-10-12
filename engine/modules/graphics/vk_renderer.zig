@@ -14,7 +14,8 @@ const vkinit = @import("vk_init.zig");
 const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
 const materials = @import("materials.zig");
-const enable_validation_layers: bool = true;
+const build_opts = @import("game_build_opts");
+const enable_validation_layers: bool = build_opts.validation_layers;
 
 const SparseSet = core.SparseSet;
 
@@ -536,6 +537,8 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator) Self {
+        core.graphics_log("validation_layers: {any}", .{enable_validation_layers});
+        core.graphics_log("release_build: {any}", .{build_opts.release_build});
         _ = allocator;
         return create_object() catch unreachable;
     }

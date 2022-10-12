@@ -14,6 +14,7 @@ const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
+const audio = neonwood.audio;
 const c = graphics.c;
 const p2a = core.p_to_a;
 
@@ -242,6 +243,7 @@ const GameContext = struct {
             .{ .x = 0.2, .y = 0.2 }, // by default it's anchored from the top left
             null,
         );
+        audio.gSoundEngine.fire_test();
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
@@ -307,22 +309,6 @@ const GameContext = struct {
         self.papyrusImage.deinit();
     }
 };
-
-pub fn main() anyerror!void {
-    graphics.setWindowName("Neurophobia - Rpg Horror Gamejam");
-    engine_log("Starting up", .{});
-    core.start_module();
-    defer core.shutdown_module();
-    graphics.start_module();
-    defer graphics.shutdown_module();
-
-    // Setup the game
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
-    try gameContext.prepareGame();
-
-    // run the game
-    core.gEngine.run();
-}
 
 pub fn inputCallback(
     window: ?*c.GLFWwindow,
@@ -391,4 +377,25 @@ pub fn inputCallback(
             gGame.movementInput.y -= 1.0;
         }
     }
+}
+
+pub fn main() anyerror!void {
+    graphics.setWindowName("Neurophobia - Rpg Horror Gamejam");
+    engine_log("Starting up", .{});
+
+    core.start_module();
+    defer core.shutdown_module();
+
+    audio.start_module();
+    defer audio.shutdown_module();
+
+    graphics.start_module();
+    defer graphics.shutdown_module();
+
+    // Setup the game
+    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
+    try gameContext.prepareGame();
+
+    // run the game
+    core.gEngine.run();
 }
