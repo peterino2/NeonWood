@@ -10,3 +10,6 @@
 [submodule "engine/modules/core/lib/Zig-Tracy"]
 	path = engine/modules/core/lib/Zig-Tracy
 	url = https://github.com/SpexGuy/Zig-Tracy.git
+[submodule "engine/modules/audio/lib/miniaudio"]
+	path = engine/modules/audio/lib/miniaudio
+	url = https://github.com/mackron/miniaudio.git
