@@ -82,6 +82,12 @@ const GameContext = struct {
     sensitivity: f64 = 0.005,
     displayImage: core.ObjectHandle = .{},
     speechWindow: bool = true,
+    
+    positionx: f32 = 0.547,
+    positiony: f32 = 0.927,
+
+    sizex: f32 = 0.416,
+    sizey: f32 = 0.416,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -168,6 +174,18 @@ const GameContext = struct {
                     }
                     c.igEndCombo();
                 }
+
+                _ = c.igSliderFloat("positionx", &self.positionx, 0.0, 1.0, "%f", 0);
+                _ = c.igSliderFloat("positiony", &self.positiony, 0.0, 1.0, "%f", 0);
+
+                _ = c.igSliderFloat("sizex", &self.sizex, 0.0, 1.0, "%f", 0);
+                _ = c.igSliderFloat("sizey", &self.sizey, 0.0, 1.0, "%f", 0);
+
+                if(c.igButton("Play Sound Test",.{.x=150, .y=50}))
+                {
+                    audio.gSoundEngine.fire_test();
+                }
+
                 c.igEnd();
             }
         }
@@ -257,9 +275,10 @@ const GameContext = struct {
 
         self.displayImage = self.papyrusImage.newDisplayImage(
             core.MakeName("t_salina_big"),
-            .{ .x = 0.2, .y = 0.2 }, // by default it's anchored from the top left
-            null,
+            .{ .x = 0.4, .y = 0.9 }, // by default it's anchored from the top left
+            null, //default size
         );
+        self.papyrusImage.setImageScale(self.displayImage, .{.x = 1.0, .y = 1.0});
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
@@ -274,6 +293,9 @@ const GameContext = struct {
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
         // --------------------------
+
+        self.papyrusImage.setImagePosition(self.displayImage, .{.x = self.positionx, .y = self.positiony});
+        self.papyrusImage.setImageScale(self.displayImage, .{.x = self.sizex, .y = self.sizey});
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
 

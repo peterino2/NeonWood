@@ -72,8 +72,8 @@ pub fn Vector2Type(comptime T: type) type {
 
         pub fn fmul(self: @This(), other: anytype) @This() {
             return .{
-                .x = self.x * other,
-                .y = self.y * other,
+                .x = self.x * other.x,
+                .y = self.y * other.y,
             };
         }
 
@@ -89,6 +89,14 @@ pub fn Vector2Type(comptime T: type) type {
             return .{
                 .x = self.x / len,
                 .y = self.y / len,
+            };
+        }
+
+        pub fn invert(self: @This()) @This()
+        {
+            return .{
+                .x = self.y,
+                .y = self.x
             };
         }
     };

@@ -307,6 +307,8 @@ pub const PapyrusSubsystem = struct {
 pub const PapyrusImageGpu = struct {
     topLeft: core.Vector2f,
     size: core.Vector2f,
+    anchorPoint: core.Vector2f = .{.x = -1.0, .y = -1.0},
+    scale: core.Vector2f = .{.x = 0, .y = 0},
 };
 
 pub const PapyrusImage = struct{
@@ -360,18 +362,26 @@ pub const PapyrusImageSubsystem = struct {
     pub fn uploadImageData(self: *@This(), frameId: usize) void 
     {
         var gpuObjects = self.mappedBuffers[frameId].objects;
+        var extent = self.gc.actual_extent;
         for (self.objects.dense.items(.image)) |image, i|
         {
-            _ = image;
+            var position = image.position;
+            var screenRatio = core.Vector2f{.x = 1.0, .y = @intToFloat(f32, extent.height) / @intToFloat(f32, extent.width)};
+            if(screenRatio.x > screenRatio.y)
+            {
+                screenRatio.x = 1 / screenRatio.y;
+                screenRatio.y = 1.0;
+            }
+
+            var size = image.size;
+            var anchor = core.Vector2f{.x = -1.0, .y = -1.0};
+            var scale = image.scale;
+
             gpuObjects[i] = PapyrusImageGpu{
-                .topLeft = .{
-                    .x = 0.1,
-                    .y = 0.1
-                },
-                .size = .{
-                    .x = 0.1,
-                    .y = 0.1,
-                }
+                .topLeft = position,
+                .size = size.fmul(screenRatio.invert()),
+                .anchorPoint = anchor,
+                .scale = scale,
             };
         }
     }
@@ -404,8 +414,25 @@ pub const PapyrusImageSubsystem = struct {
         }
     }
 
+    pub fn setImagePosition(self: *@This(), objectHandle: ObjectHandle, position: core.Vector2f) void
+    {
+        self.objects.get(objectHandle, .image).?.*.position = position;
+    }
+
+    pub fn setImageSize(self: *@This(), objectHandle: ObjectHandle, size: core.Vector2f) void
+    {
+        self.objects.get(objectHandle, .image).?.*.size = size;
+    }
+
+    pub fn setImageScale(self: *@This(), objectHandle: ObjectHandle, scale: core.Vector2f) void
+    {
+        self.objects.get(objectHandle, .image).?.*.scale = scale;
+    }
+
     // creates a display image and returns an unmanaged object handle to it.
-    pub fn newDisplayImage(self: *@This(), textureName: core.Name, initialPosition: core.Vector2f, initialSize: ?core.Vector2f) ObjectHandle
+    pub fn newDisplayImage(self: *@This(), textureName: core.Name, 
+        initialPosition: core.Vector2f, 
+        initialSize: ?core.Vector2f) ObjectHandle
     {
         var maybeTex = self.gc.textures.get(textureName.hash);
         core.assertf(maybeTex != null, "unable to get texture.", .{}) catch unreachable;
@@ -418,12 +445,14 @@ pub const PapyrusImageSubsystem = struct {
         else
             initSize = .{ .x = 1.0 , .y = tex.getDimensions().ratio()};
 
+        core.engine_log("initSize = {any}", .{initSize});
+
         var initValue = PapyrusImage{
             .position = initialPosition, 
             .size = initSize,
             .textureSet = self.gc.textureSets.get(textureName.hash).?,
             .image = self.gc.textures.get(textureName.hash).?,
-            .scale = .{ .x = 1.5, .y = 1.5 },
+            .scale = .{ .x = 1.0, .y = 1.0 },
         };
 
         var imageObject = self.objects.createObject(.{.image = initValue}) catch unreachable;
