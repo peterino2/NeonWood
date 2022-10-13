@@ -11,12 +11,41 @@ orig_dir = os.path.dirname(__file__)
 desc = """
 Neonwood Game Packaging utility.
 
-Reads a nwpackage.py file under
+requires python 3.7
+
+This package is not
+
+Reads a package file under
 `projects/{project_name}/nwpackage.json`
 
 And creates an output package under builds/
 """
 
+"""
+nwpackage.json format
+--
+
+keys: 
+
+"project_name": string 
+The name of the package to assemble, this is used to name the final zip file
+
+"exe_name": string
+(optional) name of the main executable for this package. a null value results
+in no main exe being marked for testing
+
+"extra_binaries": [string]
+list of strings that 
+
+"files_to_exclude": [string]
+list of regexes that are used to exclude engine content, if this is empty
+or if not set, then all engine content is included
+
+
+A note about packaging:
+the corresponding project's content/ folder is always packaged.
+
+"""
 
 parser = argparse.ArgumentParser(
     description = desc
@@ -70,7 +99,7 @@ if __name__ == "__main__":
         packageInfo = readPackage(package)
         packageContent = getContentInPath(f"projects/{package}/content")
         engineContentFiltered = engine_content
-        for excludeFile in packageInfo["filesToExclude"]:
+        for excludeFile in packageInfo["files_to_exclude"]:
             r = re.compile(excludeFile)
             engineContentFiltered = [i for i in engineContentFiltered if not r.match(i)]
 
@@ -93,7 +122,7 @@ if __name__ == "__main__":
 
         # create zip file under packages/
 
-        zipFileName = packageInfo["projectName"] + ".zip"
+        zipFileName = packageInfo["project_name"] + ".zip"
         zipPath = orig_dir + "/packages/" + zipFileName
         print(zipPath)
         with ZipFile(zipPath, 'w', compresslevel=9, compression=ZIP_BZIP2) as z:
