@@ -298,7 +298,9 @@ pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
 
     const options = b.addOptions();
-    options.addOption(bool, "validation_layers", true);
+    options.addOption(bool, "validation_layers", 
+        b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+
     options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
     const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
     // Standard release options allow the person running `zig build` to select

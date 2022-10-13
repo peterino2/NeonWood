@@ -1,0 +1,8 @@
+{
+    "projectName": "cognesia",
+    "exe_name": "neurophobia.exe",
+    "filesToExclude" : [
+        ".*\/lost_empire.*",
+        "/monkey.obj"
+    ]
+}
