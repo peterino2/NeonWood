@@ -13,12 +13,23 @@ Neonwood Game Packaging utility.
 
 requires python 3.7
 
-This package is not
+This package is not needed to build neonwood projects
+merely a convenience for helping create shareable builds.
+
+IMPORTANT!
+
+the project should be compiled with the following flags.
+
+zig build -fstage1 -Dtarget=x86_64-windows -Dvulkan_validation=false
+
+usage: 
+
+manage.py neurophobia
 
 Reads a package file under
-`projects/{project_name}/nwpackage.json`
+`projects/neurophobia/nwpackage.json`
 
-And creates an output package under builds/
+And creates an output package under packages/
 """
 
 """

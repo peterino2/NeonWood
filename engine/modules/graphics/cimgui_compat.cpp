@@ -103,7 +103,7 @@ extern "C" void SetupImguiColors ()
     colors[ImGuiCol_TabUnfocused]           = ImVec4(0.77f, 0.29f, 0.04f, 0.97f);
     colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.70f, 0.57f, 0.21f, 1.00f);
     colors[ImGuiCol_DockingPreview]         = ImVec4(0.42f, 0.26f, 0.09f, 0.70f);
-    colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.0f, 0.00f, 0.00f, 0.00f);
     colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
     colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
     colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
