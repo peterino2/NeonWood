@@ -73,7 +73,7 @@ const GameContext = struct {
 
     denver: core.ObjectHandle = undefined,
     testSpriteData: PapyrusSpriteGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
-    testWindow: bool = true,
+    testWindow: bool = false,
     flipped: bool = false,
     animations: std.ArrayListUnmanaged([*c]const u8),
     selectedAnim: [64]bool,
@@ -127,9 +127,26 @@ const GameContext = struct {
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
         if (self.papyrus.spriteSheets.get(core.MakeName("t_denver").hash)) |spriteObject| {
-            _ = c.igBegin("Salina", &self.speechWindow, 0);
+            _ = c.igSetNextWindowPos(.{
+                .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.1,
+                .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.8
+            }, 0, .{.x = 0, .y = 0});
+
+            _ = c.igSetNextWindowSize(.{
+                .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.8,
+                .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.2
+            }, 0);
+
+            _ = c.igBegin("Salina", &self.speechWindow, c.ImGuiWindowFlags_NoMove | 
+                c.ImGuiWindowFlags_NoCollapse |
+                c.ImGuiWindowFlags_NoResize |
+                c.ImGuiWindowFlags_NoNav |
+                c.ImGuiWindowFlags_NoScrollbar |
+                c.ImGuiWindowFlags_NoTitleBar 
+            );
             _ = c.igText("Hi... Nice to meet you I guess... My name's Salina. \nI am NOT impressed by your actions today");
             _ = c.igEnd();
+
             if (self.testWindow) {
                 _ = c.igBegin("testWindow", &self.testWindow, 0);
                 _ = c.igCheckbox("flip sprite", &self.flipped);
@@ -243,7 +260,6 @@ const GameContext = struct {
             .{ .x = 0.2, .y = 0.2 }, // by default it's anchored from the top left
             null,
         );
-        audio.gSoundEngine.fire_test();
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
@@ -329,6 +345,11 @@ pub fn inputCallback(
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, game ends now");
         core.gEngine.exit();
+    }
+
+    if (key == c.GLFW_KEY_T and action == c.GLFW_PRESS) {
+        core.engine_logs("OpeningDebugMenu");
+        gGame.testWindow = !gGame.testWindow;
     }
 
     if (action == c.GLFW_PRESS) {

@@ -1498,6 +1498,7 @@ pub const NeonVkContext = struct {
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
+            c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
         }
 
         c.glfwPollEvents();

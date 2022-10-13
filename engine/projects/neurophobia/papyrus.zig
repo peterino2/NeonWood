@@ -423,7 +423,7 @@ pub const PapyrusImageSubsystem = struct {
             .size = initSize,
             .textureSet = self.gc.textureSets.get(textureName.hash).?,
             .image = self.gc.textures.get(textureName.hash).?,
-            .scale = .{ .x = 1.0, .y = 1.0 },
+            .scale = .{ .x = 1.5, .y = 1.5 },
         };
 
         var imageObject = self.objects.createObject(.{.image = initValue}) catch unreachable;

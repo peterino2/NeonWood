@@ -93,6 +93,8 @@ pub const NeonVkImGui = struct {
         _ = c.cImGui_vk_DestroyFontUploadObjects();
 
         _ = c.SetupImguiColors();
+
+        c.setFontScale(@intCast(c_int, ctx.actual_extent.width), @intCast(c_int, ctx.actual_extent.height));
     }
 
     pub fn setupVulkanWindow(self: *Self) void {

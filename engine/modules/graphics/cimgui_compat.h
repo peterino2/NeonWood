@@ -38,6 +38,8 @@ void cImGui_vk_SetMinImageCount(uint32_t min_image_count); // To override MinIma
 
 void SetupImguiColors();
 
+void setFontScale(int newWidth, int newHeight);
+
 #ifdef __cplusplus
 }
 #endif

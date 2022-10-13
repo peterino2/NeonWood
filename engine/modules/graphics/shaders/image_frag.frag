@@ -16,9 +16,13 @@ void main()
     if(color.w < 0.05)
     {
         discard;
+        // outFragColor = vec4(0.0, 0.0, 0.0, 0.8f);
+    }
+    else 
+    {
+        outFragColor = vec4(color.xyz, 1.0f);
     }
 
-    outFragColor = vec4(color.xyz, 1.0f);
     // outFragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
 }
 

@@ -153,11 +153,12 @@ pub fn createGameExecutable(
     b: *std.build.Builder,
     name: []const u8,
     mainFile: []const u8,
+    enable_tracy: bool,
+    options: *std.build.OptionsStep,
 ) !*std.build.LibExeObjStep {
     var allocator = b.allocator;
 
     const mode = b.standardReleaseOptions();
-    const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
     var maxPathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var basePath = try std.fs.realpath(b.build_root, &maxPathBuffer);
@@ -220,6 +221,7 @@ pub fn createGameExecutable(
     exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
     exe.linkSystemLibrary("m");
+    exe.addOptions("game_build_opts", options);
 
     if(mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe)
     {
@@ -298,7 +300,7 @@ pub fn build(b: *std.build.Builder) void {
     const options = b.addOptions();
     options.addOption(bool, "validation_layers", true);
     options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
-
+    const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
@@ -307,16 +309,15 @@ pub fn build(b: *std.build.Builder) void {
     //    unreachable;
     //};
 
-    var exe = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
+    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig", enable_tracy, options) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
-    exe.addOptions("game_build_opts", options);
 
-    // _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
-    //     std.debug.print("error: {any}", .{e});
-    //     unreachable;
-    // };
+     _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig", enable_tracy, options) catch |e| {
+         std.debug.print("error: {any}", .{e});
+         unreachable;
+     };
 
     // _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
     //     std.debug.print("error: {any}", .{e});

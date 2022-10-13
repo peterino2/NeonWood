@@ -51,6 +51,7 @@ extern "C" void SetupImguiColors ()
     style.PopupBorderSize = 1;
     style.FrameBorderSize = 0;
     style.TabBorderSize = 0;
+    style.WindowPadding = {20, 20};
 
     style.WindowRounding = 6;
     style.ChildRounding = 6;
@@ -118,4 +119,22 @@ extern "C" void SetupImguiColors ()
     colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
     colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
     colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+}
+
+extern "C" void setFontScale(int newWidth, int newHeight)
+{
+    const float orig_width = 1600;
+    const float orig_height = 900;
+
+    float ratio_width = float(newWidth) / orig_width;
+    float ratio_height = float(newHeight) / orig_height;
+
+    float ratio = ratio_width > ratio_height ? ratio_height : ratio_width;
+
+    auto& io = ImGui::GetIO();
+    io.FontGlobalScale = (ratio * 1.0);
+    printf("global scale: %f (%d x %d)\n", ratio, newWidth, newWidth);
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowPadding = {20 * ratio, 20 * ratio};
 }
