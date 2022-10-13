@@ -1,13 +1,10 @@
-from email.policy import default
 import json
-from posixpath import relpath
 from zipfile import ZIP_BZIP2, ZipFile
 import argparse
 
 import os
 import shutil
 import re
-import zipfile
 
 orig_dir = os.path.dirname(__file__)
 
