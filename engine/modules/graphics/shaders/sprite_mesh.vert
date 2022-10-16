@@ -21,6 +21,7 @@ struct ObjectData {
 struct SpriteData {
     vec2 texCoord;
     vec2 texSize;
+    float alpha;
 };
 
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
@@ -44,6 +45,6 @@ void main()
     vec4 position = final * vec4(vPosition, 1.0f);
     SpriteData sd = spriteBuffer.spriteData[gl_BaseInstance];
 	gl_Position = position;
-	outColor = vec3(vColor.x, vColor.y, vColor.z);
+	outColor = vec3(sd.alpha, vColor.y, vColor.z);
     texCoord = (vTexCoord * sd.texSize + sd.texCoord);
 }

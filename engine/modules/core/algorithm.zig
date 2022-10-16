@@ -39,18 +39,23 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return self;
         }
 
+        pub fn denseItems(self: *@This(), comptime field: Field) []FieldType(field)
+        {
+            return self.dense.items(field);
+        }
+
         pub fn deinit(self: *@This()) void {
             self.dense.deinit(self.allocator);
             self.denseIndices.deinit(self.allocator);
             self.allocator.free(self.sparse);
         }
 
-        pub fn readDense(self: @This(), offset: usize, comptime field: Field) *const T {
-            return &self.dense.items(field)[offset].value;
+        pub fn readDense(self: @This(), offset: usize, comptime field: Field) *const FieldType(field) {
+            return &self.dense.items(field)[offset];
         }
 
-        pub fn getDense(self: *@This(), offset: usize, comptime field: Field) *T {
-            return &self.dense.items(field)[offset].value;
+        pub fn getDense(self: *@This(), offset: usize, comptime field: Field) *FieldType(field) {
+            return &self.dense.items(field)[offset];
         }
 
         // ----- sparse set features -----

@@ -259,6 +259,7 @@ pub fn createGameExecutable(
     res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");
     res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
     res.addShader("sprite_mesh_vert", shaders_folder ++ "sprite_mesh.vert");
+    res.addShader("sprite_mesh_frag", shaders_folder ++ "sprite_mesh.frag");
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
     res.addShader("image_vert", shaders_folder ++ "image_vert.vert");
     res.addShader("image_frag", shaders_folder ++ "image_frag.frag");

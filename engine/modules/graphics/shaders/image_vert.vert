@@ -13,6 +13,7 @@ struct ImageRenderData {
     vec2 imageSize;
     vec2 anchorPoint;
     vec2 scale;
+    float alpha;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer ImageBufferObjects {
@@ -25,11 +26,12 @@ void main()
     vec2 imageSize = objectBuffer.objects[gl_BaseInstance].imageSize;
     vec2 anchor = objectBuffer.objects[gl_BaseInstance].anchorPoint;
     vec2 scale = objectBuffer.objects[gl_BaseInstance].scale;
+    float alpha = objectBuffer.objects[gl_BaseInstance].alpha;
 
     vec2 finalPos = imagePosition + anchor;
 
-
-	outColor = vec3(vColor.x, vColor.y, vColor.z);
+	outColor = vec3(alpha, vColor.y, vColor.z);
+	//outColor = vec3(vColor.x, vColor.y, vColor.z);
     gl_Position = vec4(
         finalPos.x + ( vPosition.x * imageSize.x * scale.x), 
         finalPos.y + (-vPosition.y * imageSize.y * scale.y),

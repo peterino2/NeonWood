@@ -1,5 +1,5 @@
 import json
-from zipfile import ZIP_BZIP2, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 import argparse
 
 import os
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         zipFileName = packageInfo["project_name"] + ".zip"
         zipPath = orig_dir + "/packages/" + zipFileName
         print(zipPath)
-        with ZipFile(zipPath, 'w', compresslevel=9, compression=ZIP_BZIP2) as z:
+        with ZipFile(zipPath, 'w', compresslevel=9, compression=ZIP_DEFLATED) as z:
             for root, dirs, files in os.walk(packageDir):
                 for file in files:
                     fpath = os.path.join(root, file)

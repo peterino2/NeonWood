@@ -20,7 +20,8 @@ void main()
     }
     else 
     {
-        outFragColor = vec4(color.xyz, 1.0f);
+        outFragColor = vec4(color.xyz, in_color.x);
+        //outFragColor = vec4(color.xyz, in_color.x);h
     }
 
     // outFragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);

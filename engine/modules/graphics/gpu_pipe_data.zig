@@ -39,7 +39,8 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 pub fn GpuMappingData(comptime ObjectType: type) type {
     return struct {
         raw: GpuMappingRaw,
-        objects: []ObjectType,
+        objects: []ObjectType, //WARNING! theres a bug do not use this with square operator unless it's a type that's a power of 2
+        trueObjectSize: usize,
 
         pub fn unmap(self: *@This(), gc: *NeonVkContext) void {
             self.raw.unmap(gc);
@@ -66,9 +67,8 @@ pub const GpuPipeDataBinding = struct {
 
     pub fn mapBuffers(self: *@This(), gc: *NeonVkContext, comptime MappingType: type) ![]GpuMappingData(MappingType) {
         var frameIndex: usize = 0;
-        if(self.isFrameBuffer)
-        {
-            try core.assertf(self.frameCount == self.buffers.len, "mismatched frameBuffer {d} != {d}", .{self.frameCount, self.buffers.len});
+        if (self.isFrameBuffer) {
+            try core.assertf(self.frameCount == self.buffers.len, "mismatched frameBuffer {d} != {d}", .{ self.frameCount, self.buffers.len });
         }
         // maps buffers for these bindings, one for each frame
         var rv = try gc.allocator.alloc(GpuMappingData(MappingType), self.buffers.len);
@@ -80,6 +80,7 @@ pub const GpuPipeDataBinding = struct {
 
             var gpuMappingData: GpuMappingData(MappingType) = .{
                 .objects = mapping,
+                .trueObjectSize = self.objectSize,
                 .raw = .{ .data = @ptrCast([]u8, mapping), .allocation = self.buffers[frameIndex].allocation },
             };
 
@@ -89,10 +90,8 @@ pub const GpuPipeDataBinding = struct {
         return rv;
     }
 
-    pub fn deinit(self: *@This(), vmaAllocator: vma.Allocator) void
-    {
-        for(self.buffers) |*buffers|
-        {
+    pub fn deinit(self: *@This(), vmaAllocator: vma.Allocator) void {
+        for (self.buffers) |*buffers| {
             buffers.deinit(vmaAllocator);
         }
     }
@@ -104,8 +103,7 @@ pub const GpuPipeData = struct {
     bindings: []GpuPipeDataBinding,
     descriptorSets: []vk.DescriptorSet, // one per frame
 
-    pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet
-    {
+    pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet {
         return @ptrCast([*]const vk.DescriptorSet, &self.descriptorSets[frameIndex]);
     }
 
@@ -134,8 +132,7 @@ pub const GpuPipeData = struct {
 
     // pub fn unmapAll(self: *@This(), mappings: anytype);
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator, gc: *NeonVkContext) void {
-        for(self.bindings) |*binding|
-        {
+        for (self.bindings) |*binding| {
             binding.deinit(gc.vmaAllocator);
         }
         allocator.free(self.bindings);
@@ -179,7 +176,7 @@ pub const GpuPipeDataBuilder = struct {
     ) !void {
         var gc = self.gc;
         var binding = vkinit.descriptorSetLayoutBinding(descriptorType, stageFlags, self.currentBinding);
-        core.graphics_log("builder adding additional binding {any} {any}", .{ descriptorType, stageFlags });
+        core.graphics_log("builder adding additional binding {any} {any} objectSize = {d}", .{ descriptorType, stageFlags, @sizeOf(BindingType) });
         try self.bindings.append(self.allocator, binding);
 
         var objCount: usize = 1;
@@ -199,6 +196,16 @@ pub const GpuPipeDataBuilder = struct {
         // uniforms require that the buffer object gets padded to the correct size.
         if (descriptorType != .storage_buffer) {
             bindingObjectInfo.finalObjectSize = gc.pad_uniform_buffer_size(bindingObjectInfo.finalObjectSize);
+            core.engine_log("final object size has been padded: {d}", .{bindingObjectInfo.finalObjectSize});
+        }
+        else {
+            var trueSize: usize = 1;
+            while(trueSize < bindingObjectInfo.finalObjectSize) 
+            {
+                trueSize *= 2;
+            }
+            bindingObjectInfo.finalObjectSize = trueSize;
+            core.engine_log("final object size has been padded as storage: {d}", .{bindingObjectInfo.finalObjectSize});
         }
 
         try self.bindingObjectInfos.append(self.allocator, bindingObjectInfo);
@@ -229,7 +236,13 @@ pub const GpuPipeDataBuilder = struct {
             var bindingLayout = self.bindings.items[bindingId];
             _ = bindingLayout;
 
-            core.graphics_log("allocating {d} frame buffers for binding {d}", .{ binding.buffers.len, bindingId });
+            core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{
+                binding.buffers.len,
+                bindingId,
+                bindingInfo.finalObjectSize * bindingInfo.objectCount,
+                bindingInfo.finalObjectSize
+            });
+
             for (binding.buffers) |*buffer, frameId| {
                 var usageFlags: vk.BufferUsageFlags = .{};
                 var memoryFlags: vma.MemoryUsage = .unknown;
@@ -254,8 +267,7 @@ pub const GpuPipeDataBuilder = struct {
                     memoryFlags,
                 );
 
-
-                var bufferInfo = vk.DescriptorBufferInfo {
+                var bufferInfo = vk.DescriptorBufferInfo{
                     .buffer = buffer.buffer,
                     .offset = 0,
                     .range = bindingInfo.finalObjectSize * bindingInfo.objectCount,

@@ -32,6 +32,7 @@ const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
     .{ .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
     .{ .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
+    .{ .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
 };
 
 const MeshAssets = [_]AssetReference{
@@ -88,6 +89,8 @@ const GameContext = struct {
 
     sizex: f32 = 0.416,
     sizey: f32 = 0.416,
+
+    alpha: f32 = 1.0,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -175,15 +178,22 @@ const GameContext = struct {
                     c.igEndCombo();
                 }
 
-                _ = c.igSliderFloat("positionx", &self.positionx, 0.0, 1.0, "%f", 0);
-                _ = c.igSliderFloat("positiony", &self.positiony, 0.0, 1.0, "%f", 0);
+                _ = c.igSliderFloat("positionx", &self.positionx, -2.0, 2.0, "%f", 0);
+                _ = c.igSliderFloat("positiony", &self.positiony, -2.0, 2.0, "%f", 0);
 
-                _ = c.igSliderFloat("sizex", &self.sizex, 0.0, 1.0, "%f", 0);
-                _ = c.igSliderFloat("sizey", &self.sizey, 0.0, 1.0, "%f", 0);
+                _ = c.igSliderFloat("sizex", &self.sizex, -2.0, 2.0, "%f", 0);
+                _ = c.igSliderFloat("sizey", &self.sizey, -2.0, 2.0, "%f", 0);
+                
+                _ = c.igSliderFloat("denver_alpha", &self.alpha, 0, 1.0, "%f", 0);
 
                 if(c.igButton("Play Sound Test",.{.x=150, .y=50}))
                 {
                     audio.gSoundEngine.fire_test();
+                }
+
+                if(c.igButton("switch sprites",.{.x=150, .y=50}))
+                {
+                    self.papyrusImage.setNewImageUseDefaults(self.displayImage, core.MakeName("t_denver_big"));
                 }
 
                 c.igEnd();
@@ -232,7 +242,8 @@ const GameContext = struct {
 
         ptr.applyTransform(spriteSheet.getXFrameScaling());
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
-        _ = try core.gScene.createSceneWithHandle(self.denver, .{.transform = core.zm.identity()});
+        _ = try core.gScene.createSceneObjectWithHandle(self.denver, .{.transform = core.zm.identity()});
+        try core.gScene.setMobility(self.denver, .moveable);
 
         var i: u32 = 0;
         while (i < 100) : (i += 1) {
@@ -283,6 +294,8 @@ const GameContext = struct {
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
+
+        self.papyrusImage.setAlpha(self.displayImage, self.alpha);
 
         // ---- poll camera stuff ----
         c.glfwGetCursorPos(self.gc.window, &self.mousePosition.x, &self.mousePosition.y);

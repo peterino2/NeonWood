@@ -47,6 +47,7 @@ pub const SceneObject = struct {
     settings: SceneObjectSettings,
     children: ArrayListUnmanaged(core.ObjectHandle),
 
+    // --- these.. are all useless lmao
     pub fn getPosition(self: @This()) core.Vectorf {
         return self.posRot.position;
     }
@@ -69,6 +70,7 @@ pub const SceneObject = struct {
             core.zm.matFromQuat(self.getRotation().quat),
         );
     }
+    // ----
 
     pub fn init(params: SceneObjectInitParams) @This() {
         // Hmm thinking in the future we could have scene objects be f64s then crunch them down to f32s when we are submiting to gpu
@@ -123,9 +125,11 @@ pub const SceneSystem = struct {
 
     allocator: std.mem.Allocator,
     objects: SceneSet,
+    dynamicObjects: ArrayListUnmanaged(core.ObjectHandle) = .{},
 
     pub const Field = SceneSet.Field;
     pub const FieldType = SceneSet.FieldType;
+
 
     // ----- creating and updating objects -----
 
@@ -135,13 +139,63 @@ pub const SceneSystem = struct {
         return newHandle;
     }
 
-    pub fn createSceneWithHandle(
+    pub fn createSceneObjectWithHandle(
         self: *@This(),
         objectHandle: core.ObjectHandle,
         params: SceneObjectInitParams,
     ) !core.ObjectHandle {
         var newHandle = try self.objects.createWithHandle(objectHandle, SceneObject.init(params));
         return newHandle;
+    }
+
+    pub fn setPosition(self: @This(), handle: core.ObjectHandle, position: core.Vectorf) void {
+        self.objects.get(handle, .posRot).?.*.position = position;
+    }
+
+    pub fn setRotation(self: @This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
+        self.objects.get(handle, .posRot).?.*.rotation = rotation;
+    }
+
+    pub fn getPosition(self: @This(), handle: core.ObjectHandle) core.Vectorf {
+        return self.objects.get(handle, .posRot).?.position;
+    }
+
+    pub fn getRotation(self: @This(), handle: core.ObjectHandle) core.Rotation {
+        return self.objects.get(handle, .posRot).?.rotation;
+    }
+
+    pub fn getParent(self: @This(), handle: core.ObjectHandle) ?core.ObjectHandle {
+        return self.objects.get(handle, ._repr).?.parent;
+    }
+
+    pub fn getTransform(self: @This(), handle: core.ObjectHandle) core.Transform {
+        return self.objects.get(handle, ._repr).?.transform;
+    }
+
+    // ----- subsystem update procedures
+
+    // internal update transform function
+    fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void 
+    {
+        _ = self;
+
+        repr.*.transform = core.zm.mul(
+            core.zm.translationV(posRot.position.toZm()),
+            core.zm.matFromQuat(posRot.rotation.quat),
+        );
+    }
+
+    pub fn updateTransforms(self: *@This()) void
+    {
+        for(self.objects.denseItems(._repr)) |*repr, i| 
+        {
+            var settings = self.objects.readDense(i, .settings);
+            if(settings.sceneMode == .moveable)
+            {
+                var posRot = self.objects.readDense(i, .posRot);
+                self.updateTransform(repr, posRot.*);
+            }
+        }
     }
 
     // ----- NeonObject interace ----
@@ -152,6 +206,29 @@ pub const SceneSystem = struct {
         };
     }
 
+    pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void
+    {
+        var settings = self.objects.get(objectHandle, .settings).?;
+        if(mobility == .moveable)
+        {
+            if (settings.sceneMode == .static)
+            {
+                try self.dynamicObjects.append(self.allocator, objectHandle);
+            }
+        }
+
+        if(mobility == .static)
+        {
+            if(settings.sceneMode == .moveable)
+            {
+                core.engine_errs("TODO: Changing sceneMode from moveable back to static is not supported yet.");
+                unreachable;
+            }
+        }
+
+        settings.*.sceneMode = mobility;
+    }
+
     pub fn get(self: *@This(), handle: core.ObjectHandle, field: Field) ?*FieldType(field) {
         return self.objects.get(handle, field);
     }
@@ -159,7 +236,7 @@ pub const SceneSystem = struct {
     pub fn tick(self: *@This(), deltaTime: f64) void {
         var z = tracy.ZoneNC(@src(), "Scene System Tick", 0xAABBDD);
         defer z.End();
-        _ = self;
+        self.updateTransforms();
         _ = deltaTime;
     }
 

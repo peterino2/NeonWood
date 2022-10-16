@@ -21,12 +21,16 @@ const ObjectHandle = core.ObjectHandle;
 pub const PapyrusSpriteGpu = struct {
     topLeft: core.Vector2f, // texture atlas topLeft coordinate
     size: core.Vector2f, // texture atlas size
+    alpha: f32 = 1.0,
+    pad: [12]u8 = std.mem.zeroes([12] u8), // padding so that our struct size is exactly 32 bytes.
+    //alpha: core.Vector2f = .{.x = 0, .y = 0},
 };
 
 pub const PapyrusSprite = struct {
     frameIndex: usize = 0,
     flipped: bool = false,
     dirty: bool = true,
+    alpha: f32 = 1.0,
 
     // oh man.. destroying/unloading stuff is going to be a fucking nightmare.. we'll deal with that
     // far later when we eventually move onto doing a proper asset system.
@@ -76,6 +80,11 @@ pub const PapyrusSubsystem = struct {
 
         spriteObject.*.frameIndex = frameIndex;
         spriteObject.*.reversed = reversed;
+    }
+
+    pub fn setSpriteAlpha(self: *@This(), objectHandle: core.ObjectHandle, alpha: f32) void
+    {
+        self.spriteObjects.get(objectHandle, .sprite).?.*.alpha = alpha;
     }
 
     pub fn playSpriteAnimation(
@@ -213,8 +222,8 @@ pub const PapyrusSubsystem = struct {
             gc.allocator,
             resources.sprite_mesh_vert.len,
             @ptrCast([*]const u32, resources.sprite_mesh_vert),
-            resources.default_lit_frag.len,
-            @ptrCast([*]const u32, resources.default_lit_frag),
+            resources.sprite_mesh_frag.len,
+            @ptrCast([*]const u32, resources.sprite_mesh_frag),
         );
         defer pipelineBuilder.deinit();
 
@@ -297,8 +306,12 @@ pub const PapyrusSubsystem = struct {
                 size.x = -size.x;
             }
 
-            self.mappedBuffers[frameId].objects[renderIndex].topLeft = topLeft;
-            self.mappedBuffers[frameId].objects[renderIndex].size = size;
+            var gpuObject = &self.mappedBuffers[frameId].objects[renderIndex];
+            //var gpuObject = &self.mappedBuffers[frameId].getObject(renderIndex);
+
+            gpuObject.*.topLeft = topLeft;
+            gpuObject.*.size = size;
+            gpuObject.*.alpha = spriteObject.alpha;
         }
         // core.graphics_logs("calling papyrus subsystem predraw");
     }
@@ -309,6 +322,8 @@ pub const PapyrusImageGpu = struct {
     size: core.Vector2f,
     anchorPoint: core.Vector2f = .{.x = -1.0, .y = -1.0},
     scale: core.Vector2f = .{.x = 0, .y = 0},
+    alpha: f32 = 1.0,
+    pad: [28]u8 = std.mem.zeroes([28]u8),
 };
 
 pub const PapyrusImage = struct{
@@ -317,6 +332,7 @@ pub const PapyrusImage = struct{
     position: core.Vector2f,
     size: core.Vector2f,
     scale: core.Vector2f,
+    alpha: f32 = 1.0, 
     ordering: f32 = 1.0, // higher is on top
 };
 
@@ -346,6 +362,11 @@ pub const PapyrusImageSubsystem = struct {
         };
 
         return self;
+    }
+
+    pub fn setAlpha(self: *@This(), objectHandle: core.ObjectHandle, alpha: f32)  void
+    {
+        self.objects.get(objectHandle, .image).?.*.alpha = alpha;
     }
 
     pub fn deinit(self: *@This()) void
@@ -382,6 +403,7 @@ pub const PapyrusImageSubsystem = struct {
                 .size = size.fmul(screenRatio.invert()),
                 .anchorPoint = anchor,
                 .scale = scale,
+                .alpha = image.alpha,
             };
         }
     }
@@ -457,6 +479,20 @@ pub const PapyrusImageSubsystem = struct {
 
         var imageObject = self.objects.createObject(.{.image = initValue}) catch unreachable;
         return imageObject;
+    }
+
+    // uses default image size
+    pub fn setNewImageUseDefaults(self: *@This(), handle: core.ObjectHandle, textureName: core.Name) void{
+        var image = self.objects.get(handle, .image).?;
+
+        var maybeTex = self.gc.textures.get(textureName.hash);
+        core.assertf(maybeTex != null, "unable to get texture.", .{}) catch unreachable;
+        var tex = maybeTex.?;
+
+        var initSize = .{ .x = 1.0 , .y = tex.getDimensions().ratio()};
+        image.*.image = self.gc.textures.get(textureName.hash).?;
+        image.*.textureSet = self.gc.textureSets.get(textureName.hash).?;
+        image.*.size = initSize;
     }
 
     pub fn prepareSubsystem(self: *@This()) !void
