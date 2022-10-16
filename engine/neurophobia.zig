@@ -232,6 +232,7 @@ const GameContext = struct {
 
         ptr.applyTransform(spriteSheet.getXFrameScaling());
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
+        _ = try core.gScene.createSceneWithHandle(self.denver, .{.transform = core.zm.identity()});
 
         var i: u32 = 0;
         while (i < 100) : (i += 1) {

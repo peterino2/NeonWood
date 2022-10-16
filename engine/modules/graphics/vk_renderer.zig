@@ -2468,7 +2468,10 @@ pub const NeonVkContext = struct {
     }
 
     /// ---------- renderObject functions
-    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
+
+    // this one treats the renderer like any other subsystem
+
+    fn initRenderObject(self: *@This(), params:CreateRenderObjectParams) !RenderObject{
         var renderObject = RenderObject.fromTransform(params.init_transform);
 
         var findMesh = self.meshes.getEntry(params.mesh_name.hash);
@@ -2482,8 +2485,21 @@ pub const NeonVkContext = struct {
 
         renderObject.material = findMat.?.value_ptr.*;
         renderObject.mesh = findMesh.?.value_ptr;
+        return renderObject;
+    }
 
-        // try self.renderObjects.append(self.allocator, renderObject);
+    pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle
+    {
+        var renderObject = try self.initRenderObject(params);
+
+        var rv = try self.renderObjectSet.createWithHandle(objectHandle, .{ .renderObject = renderObject });
+        self.renderObjectsAreDirty = true;
+
+        return rv;
+    }
+
+    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
+        var renderObject = try self.initRenderObject(params);
 
         var rv = try self.renderObjectSet.createObject(.{ .renderObject = renderObject });
         self.renderObjectsAreDirty = true;

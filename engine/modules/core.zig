@@ -11,6 +11,10 @@ pub usingnamespace @import("core/math.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });
+
+pub const scene = @import("core/scene.zig");
+pub const SceneSystem = scene.SceneSystem;
+
 pub const names = @import("core/names.zig");
 pub const Name = names.Name;
 pub const MakeName = names.MakeName;
@@ -41,9 +45,13 @@ pub fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void
 const logs = logging.engine_logs;
 const log = logging.engine_log;
 
+pub var gScene: *SceneSystem = undefined;
+
 pub fn start_module() void {
     gEngine = gEngineAllocator.create(Engine) catch unreachable;
     gEngine.* = Engine.init(gEngineAllocator) catch unreachable;
+
+    gScene = gEngine.createObject(scene.SceneSystem, .{.can_tick = true}) catch unreachable;
 
     logs("core module starting up... ");
     return;

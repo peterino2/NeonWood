@@ -148,6 +148,11 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
+        pub fn zero() @This()
+        {
+            return .{.x = 0, .y = 0, .z = 0};
+        }
+
         pub fn normalize(self: @This()) @This() {
             if (fabs(self.x) <= 0.0001 and fabs(self.y) <= 0.0001 and fabs(self.z) <= 0.0001) {
                 return .{ .x = 0, .y = 0, .z = 0 };
@@ -223,6 +228,23 @@ pub const Vector4f = Vector4Type(f32);
 pub const Quat = zm.Quat;
 pub const Mat = zm.Mat;
 pub const Transform = zm.Mat;
+
+pub const Rotation = struct 
+{
+    quat: Quat = zm.quatFromRollPitchYaw(0, 0, 0),
+
+    pub fn init() @This()
+    {
+        return .{
+            .quat = .{0,0,0,0},
+        };
+    }
+
+    pub fn rotateVector(self: @This(), other: anytype) @TypeOf(other)
+    {
+        return zm.mul(zm.quatToMat(self.quat), other.toZm());
+    }
+};
 
 pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
     return .{
