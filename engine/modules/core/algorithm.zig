@@ -228,14 +228,16 @@ pub fn SparseSet(comptime T: type) type {
 
 pub const ObjectHandle = SetHandle;
 
-pub const SetHandle = packed struct {
+pub const SetHandle = struct {
     alive: bool = false,
     generation: u11 = 0,
     padding: u2 = 0,
     index: u18 = 0,
 
     pub fn hash(self: @This()) u32 {
-        return @bitCast(u32, self);
+        //return @bitCast(u32, self);
+        _ = self;
+        return 32;
     }
 };
 

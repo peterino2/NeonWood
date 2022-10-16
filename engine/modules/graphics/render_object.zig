@@ -54,6 +54,7 @@ pub const RenderObject = struct {
 
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
+        self.updateScalars();
     }
 
     pub fn applyRelativeRotationX(self: *RenderObject, angle: f32) void {
@@ -168,6 +169,8 @@ pub const Camera = struct {
     pub fn translate(self: *Camera, offset: core.Vectorf) void {
         var off: core.Vectorf = offset;
         off.y = -offset.y;
+        off.x = -offset.x;
+        off.z = -offset.z;
         self.position = self.position.add(off);
     }
 

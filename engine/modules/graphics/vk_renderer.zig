@@ -16,6 +16,7 @@ const texture = @import("texture.zig");
 const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
 const enable_validation_layers: bool = build_opts.validation_layers;
+const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
 
 const SparseSet = core.SparseSet;
 
@@ -456,6 +457,7 @@ pub const NeonVkContext = struct {
     uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
+    sceneManager: NeonVkSceneManager,
 
     shouldShowDebug: bool,
 
@@ -486,6 +488,7 @@ pub const NeonVkContext = struct {
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
+        self.sceneManager = NeonVkSceneManager.init(self.allocator);
     }
 
     pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void {
@@ -1265,6 +1268,8 @@ pub const NeonVkContext = struct {
 
         try self.acquire_next_frame();
         try self.pre_frame_update();
+
+        try self.sceneManager.update(self);
 
         var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const cmd = try self.start_frame_command_buffer();

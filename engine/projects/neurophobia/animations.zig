@@ -128,12 +128,16 @@ pub const SpriteSheet = struct {
         }
     }
 
-    pub fn getXFrameScaling(self: @This()) core.zm.Mat {
+    pub fn getScale(self: @This()) core.Vectorf {
+        return core.Vectorf{.x = 3.0 / self.frames.items[0].size.ratio(), .y = 3.0, .z = 3.0};
+    }
+
+    pub fn getXFrameScaling(self: @This(), scale: f32) core.zm.Mat {
         if (self.frames.items.len == 0) {
-            return core.zm.scaling(1.0, 1.0, 1.0);
+            return core.zm.scaling(scale, scale, scale);
         }
 
-        return core.zm.scaling(1 / self.frames.items[0].size.ratio(), 1.0, 1.0);
+        return core.zm.scaling(scale / self.frames.items[0].size.ratio(), scale, scale);
     }
 
     pub fn addFrame(self: *@This(), allocator: std.mem.Allocator, frame: SpriteFrame) !void {

@@ -26,6 +26,7 @@ pub const SceneObjectPosRot = struct {
         .x = 0, .y = 0, .z = 0
     },
     rotation: core.Rotation = core.Rotation.init(),
+    scale: core.Vectorf = core.Vectorf.new(1.0, 1.0, 1.0),
 };
 
 pub const SceneObjectSettings = struct {
@@ -148,17 +149,26 @@ pub const SceneSystem = struct {
         return newHandle;
     }
 
-    pub fn setPosition(self: @This(), handle: core.ObjectHandle, position: core.Vectorf) void {
+    pub fn setPosition(self:* @This(), handle: core.ObjectHandle, position: core.Vectorf) void {
         self.objects.get(handle, .posRot).?.*.position = position;
     }
 
-    pub fn setRotation(self: @This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
+    pub fn setRotation(self:* @This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
         self.objects.get(handle, .posRot).?.*.rotation = rotation;
+    }
+
+    pub fn setScale(self:* @This(), handle: core.ObjectHandle, x: f32, y: f32, z: f32) void {
+        self.objects.get(handle, .posRot).?.*.scale = .{.x = x, .y = y, .z = z};
+    }
+
+    pub fn setScaleV(self:* @This(), handle: core.ObjectHandle, scale: core.Vectorf) void {
+        self.objects.get(handle, .posRot).?.*.scale = scale;
     }
 
     pub fn getPosition(self: @This(), handle: core.ObjectHandle) core.Vectorf {
         return self.objects.get(handle, .posRot).?.position;
     }
+
 
     pub fn getRotation(self: @This(), handle: core.ObjectHandle) core.Rotation {
         return self.objects.get(handle, .posRot).?.rotation;
@@ -180,8 +190,11 @@ pub const SceneSystem = struct {
         _ = self;
 
         repr.*.transform = core.zm.mul(
+            core.zm.mul(
+                core.zm.scalingV(posRot.scale.toZm()),
+                core.zm.matFromQuat(posRot.rotation.quat),
+            ),
             core.zm.translationV(posRot.position.toZm()),
-            core.zm.matFromQuat(posRot.rotation.quat),
         );
     }
 

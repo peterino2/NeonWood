@@ -41,6 +41,13 @@ const MeshAssets = [_]AssetReference{
 
 var gGame: *GameContext = undefined;
 
+fn zigIgFormat(buf: []u8,comptime fmt: []const u8, args: anytype) !void
+{
+    var print = try std.fmt.bufPrint(buf, fmt, args);
+    //std.debug.print("{s}", .{print});
+    c.igText(print.ptr);
+}
+
 // primarily a test file that exists to create a simple application for
 // basic engine onboarding
 const GameContext = struct {
@@ -91,6 +98,7 @@ const GameContext = struct {
     sizey: f32 = 0.416,
 
     alpha: f32 = 1.0,
+    positionPrintBuffer:[4096]u8 = std.mem.zeroes([4096]u8),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -122,7 +130,7 @@ const GameContext = struct {
         self.cameraHorizontalRotation = self.cameraRotationStart;
         self.cameraHorizontalRotationStart = self.cameraRotationStart;
 
-        self.camera.translate(.{ .x = 0.0, .y = 7.14, .z = -5.0 });
+        self.camera.translate(.{ .x = 0.0, .y = 7.14, .z = 18.0 });
         self.camera.updateCamera();
 
         self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
@@ -196,6 +204,12 @@ const GameContext = struct {
                     self.papyrusImage.setNewImageUseDefaults(self.displayImage, core.MakeName("t_denver_big"));
                 }
 
+                c.igText("Denver sprite stats");
+
+                var posRot = core.gScene.objects.get(self.denver, .posRot).?;
+                var position = posRot.position;
+                zigIgFormat(self.positionPrintBuffer[0..], "{any}", .{position}) catch unreachable;
+
                 c.igEnd();
             }
         }
@@ -240,10 +254,15 @@ const GameContext = struct {
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleUp"),      24 + 16 * 2,   16,            10);
         // zig fmt: on
 
-        ptr.applyTransform(spriteSheet.getXFrameScaling());
+        ptr.applyTransform(spriteSheet.getXFrameScaling(1.0));
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
         _ = try core.gScene.createSceneObjectWithHandle(self.denver, .{.transform = core.zm.identity()});
+        core.assert(core.gScene.objects.denseIndices.items.len == 1);
+        core.assert(core.gScene.objects.denseIndices.items[0].hash() == self.denver.hash());
         try core.gScene.setMobility(self.denver, .moveable);
+        core.gScene.setScaleV(self.denver, spriteSheet.getScale());
+        var posRot = core.gScene.objects.get(self.denver, .posRot).?;
+        posRot.*.position = posRot.position.add(.{.x = 0, .y = 1.6, .z = 2.0});
 
         var i: u32 = 0;
         while (i < 100) : (i += 1) {
@@ -253,7 +272,7 @@ const GameContext = struct {
                 .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.5 * @intToFloat(f32, i % 100), 1.6, 3.0 * (@intToFloat(f32, i) / 100))),
             });
             var p = gc.renderObjectSet.get(x, .renderObject).?;
-            p.applyTransform(spriteSheet.getXFrameScaling());
+            p.applyTransform(spriteSheet.getXFrameScaling(1.0));
             try self.papyrus.addSprite(x, MakeName("t_denver"));
             try self.papyrus.playSpriteAnimation(x, core.MakeName("idleDown"), .{});
         }
@@ -313,29 +332,30 @@ const GameContext = struct {
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
 
-        var renderObject: *graphics.RenderObject = self.gc.renderObjectSet.get(self.denver, .renderObject).?;
+        var posRot = core.gScene.objects.get(self.denver, .posRot).?;
         const dt = @floatCast(f32, deltaTime);
         const speed = 3.0;
+
         if (movement.z > 0) {
-            renderObject.applyTransform(core.zm.translation(0, 0, -speed * dt));
+            posRot.*.position = posRot.position.add(.{ .x = 0, .y = 0, .z = -speed * dt });
             self.currentAnim = core.MakeName("walkUp");
             self.flipped = false;
-            self.camera.translate(.{ .x = 0, .y = 0, .z = speed * @floatCast(f32, deltaTime) });
+            self.camera.translate(.{ .x = 0, .y = 0, .z = -speed * dt });
         } else if (movement.z < 0) {
-            renderObject.applyTransform(core.zm.translation(0, 0, speed * dt));
+            posRot.*.position = posRot.position.add(.{ .x = 0, .y = 0, .z = speed * dt });
             self.currentAnim = core.MakeName("walkDown");
             self.flipped = false;
-            self.camera.translate(.{ .x = 0, .y = 0, .z = -speed * @floatCast(f32, deltaTime) });
+            self.camera.translate(.{ .x = 0, .y = 0, .z = speed * dt });
         } else if (movement.x < 0) {
-            renderObject.applyTransform(core.zm.translation(speed * dt, 0, 0));
+            posRot.*.position = posRot.position.add(.{ .y = 0, .z = 0, .x = speed * dt });
             self.currentAnim = core.MakeName("walkRight");
             self.flipped = false;
-            self.camera.translate(.{ .y = 0, .z = 0, .x = -speed * @floatCast(f32, deltaTime) });
+            self.camera.translate(.{ .y = 0, .z = 0, .x = speed * dt });
         } else if (movement.x > 0) {
-            renderObject.applyTransform(core.zm.translation(-speed * dt, 0, 0));
+            posRot.*.position = posRot.position.add(.{ .y = 0, .z = 0, .x = -speed * dt });
             self.currentAnim = core.MakeName("walkRight");
             self.flipped = true;
-            self.camera.translate(.{ .y = 0, .z = 0, .x = speed * @floatCast(f32, deltaTime) });
+            self.camera.translate(.{ .y = 0, .z = 0, .x = -speed * dt });
         } else {
             if (self.currentAnim.hash == core.MakeName("walkDown").hash)
                 self.currentAnim = core.MakeName("idleDown");
@@ -389,49 +409,31 @@ pub fn inputCallback(
     }
 
     if (action == c.GLFW_PRESS) {
-        if (key == c.GLFW_KEY_R) {
-            gGame.isRotating = !gGame.isRotating;
-        }
-        if (key == c.GLFW_KEY_F) {
-            gGame.fastMove = !gGame.fastMove;
-        }
-        if (key == c.GLFW_KEY_W) {
+        if (key == c.GLFW_KEY_UP) {
             gGame.movementInput.z += 1.0;
         }
-        if (key == c.GLFW_KEY_S) {
+        if (key == c.GLFW_KEY_DOWN) {
             gGame.movementInput.z += -1.0;
         }
-        if (key == c.GLFW_KEY_D) {
+        if (key == c.GLFW_KEY_RIGHT) {
             gGame.movementInput.x += -1.0;
         }
-        if (key == c.GLFW_KEY_A) {
+        if (key == c.GLFW_KEY_LEFT) {
             gGame.movementInput.x += 1.0;
-        }
-        if (key == c.GLFW_KEY_Q) {
-            gGame.movementInput.y += -1.0;
-        }
-        if (key == c.GLFW_KEY_E) {
-            gGame.movementInput.y += 1.0;
         }
     }
     if (action == c.GLFW_RELEASE) {
-        if (key == c.GLFW_KEY_W) {
+        if (key == c.GLFW_KEY_UP) {
             gGame.movementInput.z -= 1.0;
         }
-        if (key == c.GLFW_KEY_S) {
+        if (key == c.GLFW_KEY_DOWN) {
             gGame.movementInput.z -= -1.0;
         }
-        if (key == c.GLFW_KEY_D) {
+        if (key == c.GLFW_KEY_RIGHT) {
             gGame.movementInput.x -= -1.0;
         }
-        if (key == c.GLFW_KEY_A) {
+        if (key == c.GLFW_KEY_LEFT) {
             gGame.movementInput.x -= 1.0;
-        }
-        if (key == c.GLFW_KEY_Q) {
-            gGame.movementInput.y -= -1.0;
-        }
-        if (key == c.GLFW_KEY_E) {
-            gGame.movementInput.y -= 1.0;
         }
     }
 }
