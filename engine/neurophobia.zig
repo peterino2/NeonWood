@@ -31,6 +31,10 @@ const AssetReference = assets.AssetReference;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
 
+const SoundAssets = [_]AssetReference{
+    .{ .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
+};
+
 const TextureAssets = [_]AssetReference{
     .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
     .{ .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
@@ -94,6 +98,7 @@ const GameContext = struct {
     dialogueSys: dialogue.DialogueSystem,
 
     positionPrintBuffer: [4096]u8 = std.mem.zeroes([4096]u8),
+    inDialogue: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -287,7 +292,12 @@ const GameContext = struct {
         }
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
+        // -- dialogue stuff
+
+        self.inDialogue = self.dialogueSys.fadeTime > 0;
+
         // --------------------------
+
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
 
@@ -298,8 +308,8 @@ const GameContext = struct {
 
         if (movement.z > 0) {
             const movementVector = .{ .x = 0, .y = 0, .z = speed * dt };
+            self.currentAnim = core.MakeName("walkDown");
             if (!self.checkMovement(posRot.position, movementVector)) {
-                self.currentAnim = core.MakeName("walkDown");
                 self.flipped = false;
                 moved = true;
                 posRot.*.position = posRot.position.add(movementVector);
@@ -307,8 +317,8 @@ const GameContext = struct {
             }
         } else if (movement.z < 0) {
             const movementVector = .{ .x = 0, .y = 0, .z = -speed * dt };
+            self.currentAnim = core.MakeName("walkUp");
             if (!self.checkMovement(posRot.position, movementVector)) {
-                self.currentAnim = core.MakeName("walkUp");
                 moved = true;
                 self.flipped = false;
                 posRot.*.position = posRot.position.add(movementVector);
@@ -316,19 +326,19 @@ const GameContext = struct {
             }
         } else if (movement.x < 0) {
             const movementVector = .{ .y = 0, .z = 0, .x = -speed * dt };
+            self.currentAnim = core.MakeName("walkRight");
+            self.flipped = true;
             if (!self.checkMovement(posRot.position, movementVector)) {
-                self.currentAnim = core.MakeName("walkRight");
                 moved = true;
-                self.flipped = true;
                 posRot.*.position = posRot.position.add(movementVector);
                 self.camera.translate(movementVector);
             }
         } else if (movement.x > 0) {
             const movementVector = .{ .y = 0, .z = 0, .x = speed * dt };
+            self.currentAnim = core.MakeName("walkRight");
+            self.flipped = false;
             if (!self.checkMovement(posRot.position, movementVector)) {
-                self.currentAnim = core.MakeName("walkRight");
                 moved = true;
-                self.flipped = false;
                 posRot.*.position = posRot.position.add(movementVector);
                 self.camera.translate(movementVector);
             }
@@ -353,8 +363,9 @@ const GameContext = struct {
         self.dialogueSys.tick(deltaTime);
     }
 
+    // returns false if nothing is stopping us from moving
     pub fn checkMovement(self: @This(), start: core.Vectorf, dir: core.Vectorf) bool {
-        return self.collision.lineTrace(start, dir, 0.3);
+        return self.collision.lineTrace(start, dir, 0.3) or self.inDialogue;
     }
 
     pub fn deinit(self: *Self) void {
@@ -395,7 +406,7 @@ pub fn inputCallback(
         if (key == c.GLFW_KEY_Z) {
             if(!gGame.dialogueSys.speechWindow) 
             {
-                gGame.dialogueSys.startDialogue(MakeName("t_denver_big"), "... damn. Why is my room purple");
+                gGame.dialogueSys.startDialogue(MakeName("t_denver_big"), "denver", "Why is my room purple.");
             }
             else {
                 gGame.dialogueSys.hideDialogue();

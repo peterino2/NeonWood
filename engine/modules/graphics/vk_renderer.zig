@@ -1195,7 +1195,7 @@ pub const NeonVkContext = struct {
         defer z.End();
         var clearValues = [2]vk.ClearValue{
             .{
-                .color = .{ .float_32 = [4]f32{ 0.015, 0.015, 0.015, 1.0 } },
+                .color = .{ .float_32 = [4]f32{ 0.005, 0.005, 0.005, 1.0 } },
             },
             .{
                 .depth_stencil = .{

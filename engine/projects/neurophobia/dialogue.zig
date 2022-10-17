@@ -41,14 +41,18 @@ pub const DialogueSystem = struct
     speaker2ImageHandle: core.ObjectHandle = undefined,
     speechWindow: bool = false,
     fadeTime: f32 = 0,
-    fadeDuration: f32 = 0.25,
+    fadeDuration: f32 = 0.33,
     fadeOut: bool = false,
     text: []const u8 = "test text",
     textDisplayBuffer: [4096]u8 = std.mem.zeroes([4096]u8),
     displaySlice: []const u8 = "",
     currentTextSlice: usize = 9,
-    textTime: f32 = 0.05,
+    textTime: f32 = 0.03,
+    speakerName: []const u8 = "denver",
     timeSinceLast: f32 = 0.0,
+
+    speaker1BasePos: f32 = 0.691,
+    speaker1Offset: f32 = 0,
 
     pub fn init(allocator: std.mem.Allocator, gc: *graphics.NeonVkContext) @This()
     {
@@ -84,15 +88,20 @@ pub const DialogueSystem = struct
         self.papyrusImage.setAlpha(self.speaker2ImageHandle, 0);
     }
 
-    pub fn startDialogue(self: *@This(), speakerIconName: ?core.Name, text: []const u8) void
+    pub fn startDialogue(self: *@This(), speakerIconName: ?core.Name, speakerName: ?[]const u8, text: []const u8) void
     {
         self.text = text;
+        if(speakerName) |speaker|
+        {
+            self.speakerName = speaker;
+        }
+
         if(speakerIconName != null)
         {
             self.papyrusImage.setNewImageUseDefaults(self.speaker1ImageHandle, speakerIconName.?);
             self.textDisplayBuffer = std.mem.zeroes(@TypeOf(self.textDisplayBuffer));
         }
-        self.textTime = 0;
+        self.timeSinceLast = 0;
         self.currentTextSlice = 0;
         self.showDialogue();
     }
@@ -101,6 +110,7 @@ pub const DialogueSystem = struct
     {
         self.speechWindow = true;
         self.fadeTime = 0;
+        self.speaker1Offset = -0.3;
         if(!self.fadeOut)
         {
             self.papyrusImage.setAlpha(self.speaker1ImageHandle, 0);
@@ -117,11 +127,11 @@ pub const DialogueSystem = struct
     // must be called from a ui context
     pub fn uiTick(self: *@This(), deltaTime: f64) void 
     {
-        if(self.speechWindow)
+        if(self.fadeTime > 0)
         {
             _ = c.igSetNextWindowPos(.{ .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.1, .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.8 }, 0, .{ .x = 0, .y = 0 });
             _ = c.igSetNextWindowSize(.{ .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.8, .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.2 }, 0);
-            _ = c.igBegin("Salina", null, c.ImGuiWindowFlags_NoMove |
+            _ = c.igBegin(self.speakerName.ptr, null, c.ImGuiWindowFlags_NoMove |
                 c.ImGuiWindowFlags_NoCollapse |
                 c.ImGuiWindowFlags_NoResize |
                 c.ImGuiWindowFlags_NoNav |
@@ -141,22 +151,36 @@ pub const DialogueSystem = struct
         if(self.speechWindow and self.fadeTime < self.fadeDuration and !self.fadeOut)
         {
             self.fadeTime += dt;
-            if(self.fadeTime > 1.0) 
+            self.speaker1Offset = -(self.fadeDuration - self.fadeTime) * 0.3 / self.fadeDuration;
+            if(self.fadeTime > self.fadeDuration)
             {
-                self.fadeTime = 1.0;
+                self.fadeTime = self.fadeDuration;
+                self.speaker1Offset = 0;
             }
+            self.papyrusImage.setImagePosition(self.speaker1ImageHandle, .{ .x = self.speaker1BasePos + self.speaker1Offset, .y = 1.252 });
             self.papyrusImage.setAlpha(self.speaker1ImageHandle, self.fadeTime/self.fadeDuration);
         }
 
         if(self.fadeOut and self.fadeTime > 0)
         {
+            if(self.fadeTime > self.fadeDuration)
+            {
+                self.fadeTime = self.fadeDuration;
+            }
             self.fadeTime -= dt;
             if(self.fadeTime < 0.0)
+            {
                 self.fadeTime = 0;
+            }
             self.papyrusImage.setAlpha(self.speaker1ImageHandle, self.fadeTime/self.fadeDuration);
         }
 
-        if(self.fadeTime >= self.fadeDuration and self.speechWindow and self.currentTextSlice < self.text.len)
+        if(self.fadeTime >= self.fadeDuration)
+        {
+            self.fadeTime += dt;
+        }
+
+        if(self.fadeTime >= (self.fadeDuration + 0.2 ) and self.speechWindow and self.currentTextSlice < self.text.len)
         {
             self.timeSinceLast += dt;
             if(self.timeSinceLast > self.textTime)
