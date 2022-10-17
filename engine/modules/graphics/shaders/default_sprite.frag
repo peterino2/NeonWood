@@ -18,6 +18,6 @@ void main()
         discard;
     }
 
-    outFragColor = vec4(color.xyz, in_color.x);
+    outFragColor = vec4(color.xyz * normalize(vec3(0.1, 0.3, 1.0)), in_color.x);
 }
 

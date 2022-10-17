@@ -20,7 +20,8 @@ void main()
     }
     else 
     {
-        outFragColor = vec4(color.xyz, in_color.x);
+        vec3 mixed = mix(normalize(vec3(0.5, 0.3, 0.2)) * 3, vec3(0.2, 0.2, 0.4) * 3, texCoord.y);
+        outFragColor = vec4(color.xyz * mixed, in_color.x);
         //outFragColor = vec4(color.xyz, in_color.x);h
     }
 
