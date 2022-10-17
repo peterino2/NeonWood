@@ -91,16 +91,8 @@ const GameContext = struct {
     currentAnim: core.Name = core.MakeName("walkUp"),
     currentAnimCache: core.Name = core.MakeName("None"),
     sensitivity: f64 = 0.005,
-    displayImage: core.ObjectHandle = .{},
-    speechWindow: bool = true,
+    dialogueSys: dialogue.DialogueSystem,
 
-    positionx: f32 = 0.691,
-    positiony: f32 = 1.252,
-
-    sizex: f32 = 0.416,
-    sizey: f32 = 0.416,
-
-    alpha: f32 = 1.0,
     positionPrintBuffer: [4096]u8 = std.mem.zeroes([4096]u8),
 
     pub fn init(allocator: std.mem.Allocator) Self {
@@ -117,6 +109,7 @@ const GameContext = struct {
             .cameraHorizontalRotationStart = undefined,
             .cameraHorizontalRotationMat = core.zm.identity(),
             .collision = Collision2D.init(allocator),
+            .dialogueSys = dialogue.DialogueSystem.init(allocator, graphics.getContext()),
             // for some reason core.createObject fails here... not sure why.
             //core.createObject(PapyrusSubsystem, .{.can_tick = false}) catch unreachable,
             .papyrus = allocator.create(PapyrusSubsystem) catch unreachable,
@@ -144,22 +137,11 @@ const GameContext = struct {
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
-        _ = deltaTime;
         // c.igShowDemoWindow(&self.showDemo);
         // core.ui_log("uiTick: {d}", .{deltaTime});
+
+        self.dialogueSys.uiTick(deltaTime);
         if (self.papyrus.spriteSheets.get(core.MakeName("t_denver").hash)) |spriteObject| {
-            _ = c.igSetNextWindowPos(.{ .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.1, .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.8 }, 0, .{ .x = 0, .y = 0 });
-
-            _ = c.igSetNextWindowSize(.{ .x = @intToFloat(f32, self.gc.actual_extent.width) * 0.8, .y = @intToFloat(f32, self.gc.actual_extent.height) * 0.2 }, 0);
-
-            _ = c.igBegin("Salina", &self.speechWindow, c.ImGuiWindowFlags_NoMove |
-                c.ImGuiWindowFlags_NoCollapse |
-                c.ImGuiWindowFlags_NoResize |
-                c.ImGuiWindowFlags_NoNav |
-                c.ImGuiWindowFlags_NoScrollbar |
-                c.ImGuiWindowFlags_NoTitleBar);
-            _ = c.igText("Hi... Nice to meet you I guess... My name's Salina. \nI am NOT impressed by your actions today");
-            _ = c.igEnd();
 
             if (self.testWindow) {
                 _ = c.igBegin("testWindow", &self.testWindow, 0);
@@ -183,21 +165,10 @@ const GameContext = struct {
                     c.igEndCombo();
                 }
 
-                _ = c.igSliderFloat("positionx", &self.positionx, -2.0, 2.0, "%f", 0);
-                _ = c.igSliderFloat("positiony", &self.positiony, -2.0, 2.0, "%f", 0);
-
-                _ = c.igSliderFloat("sizex", &self.sizex, -2.0, 2.0, "%f", 0);
-                _ = c.igSliderFloat("sizey", &self.sizey, -2.0, 2.0, "%f", 0);
-
-                _ = c.igSliderFloat("denver_alpha", &self.alpha, 0, 1.0, "%f", 0);
-
                 if (c.igButton("Play Sound Test", .{ .x = 150, .y = 50 })) {
                     audio.gSoundEngine.fire_test();
                 }
 
-                if (c.igButton("switch sprites", .{ .x = 150, .y = 50 })) {
-                    self.papyrusImage.setNewImageUseDefaults(self.displayImage, core.MakeName("t_denver_big"));
-                }
 
                 c.igText("Denver sprite stats");
 
@@ -274,20 +245,6 @@ const GameContext = struct {
         _ = try self.collision.addLine(.{.x = 2.67,.y = 0.71,.z = -0.22}, .{.x = 2.53,.y = 0.71,.z = -1.74});
         _ = try self.collision.addLine(.{.x = 0.05,.y = 0.71,.z = -1.61}, .{.x = -0.08,.y = 0.71,.z = -3.99});
         _ = try self.collision.addLine(.{.x = -0.08,.y = 0.71,.z = -3.99}, .{.x = -1.70,.y = 0.71,.z = -3.98});
-
-        //var spriteSheet = self.papyrus.spriteSheets.get(MakeName("t_denver").hash).?.*;
-        //var i: u32 = 0;
-        //while (i < 100) : (i += 1) {
-        //    var x = try self.gc.add_renderobject(.{
-        //        .mesh_name = MakeName("mesh_quad"),
-        //        .material_name = MakeName("mat_mesh"),
-        //        .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(2.5 * @intToFloat(f32, i % 100), 1.6, 3.0 * (@intToFloat(f32, i) / 100))),
-        //    });
-        //    var p = gc.renderObjectSet.get(x, .renderObject).?;
-        //    p.applyTransform(spriteSheet.getXFrameScaling(1.0));
-        //    try self.papyrus.addSprite(x, MakeName("t_denver"));
-        //    try self.papyrus.playSpriteAnimation(x, core.MakeName("idleDown"), .{});
-        //}
     }
 
     pub fn prepareGame(self: *Self) !void {
@@ -315,17 +272,11 @@ const GameContext = struct {
         try self.init_objects();
         self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
+        try self.dialogueSys.setup(self.papyrusImage);
 
-        self.displayImage = self.papyrusImage.newDisplayImage(
-            core.MakeName("t_salina_big"),
-            .{ .x = 0.4, .y = 0.9 }, // by default it's anchored from the top left
-            null, //default size
-        );
-        self.papyrusImage.setImageScale(self.displayImage, .{ .x = 1.0, .y = 1.0 });
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
-        self.papyrusImage.setAlpha(self.displayImage, self.alpha);
 
         // ---- poll camera stuff ----
         c.glfwGetCursorPos(self.gc.window, &self.mousePosition.x, &self.mousePosition.y);
@@ -337,9 +288,6 @@ const GameContext = struct {
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
         // --------------------------
-
-        self.papyrusImage.setImagePosition(self.displayImage, .{ .x = self.positionx, .y = self.positiony });
-        self.papyrusImage.setImageScale(self.displayImage, .{ .x = self.sizex, .y = self.sizey });
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
 
@@ -402,6 +350,7 @@ const GameContext = struct {
 
         self.papyrus.setSpriteFlipped(self.denver, self.flipped);
         self.papyrus.tick(deltaTime);
+        self.dialogueSys.tick(deltaTime);
     }
 
     pub fn checkMovement(self: @This(), start: core.Vectorf, dir: core.Vectorf) bool {
@@ -443,6 +392,15 @@ pub fn inputCallback(
     }
 
     if (action == c.GLFW_PRESS) {
+        if (key == c.GLFW_KEY_Z) {
+            if(!gGame.dialogueSys.speechWindow) 
+            {
+                gGame.dialogueSys.startDialogue(MakeName("t_denver_big"), "... damn. Why is my room purple");
+            }
+            else {
+                gGame.dialogueSys.hideDialogue();
+            }
+        }
         if (key == c.GLFW_KEY_UP) {
             gGame.movementInput.z += -1.0;
         }
