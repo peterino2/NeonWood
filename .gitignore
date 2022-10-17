@@ -14,3 +14,4 @@ __pycache__
 CppProperties.json
 
 packages/
+*.blend1
