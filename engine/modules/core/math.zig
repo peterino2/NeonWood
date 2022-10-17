@@ -92,6 +92,11 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
+        pub fn dot(self: @This(), other: @This()) T
+        {
+            return self.x * other.x + self.y * other.y;
+        }
+
         pub fn invert(self: @This()) @This()
         {
             return .{
