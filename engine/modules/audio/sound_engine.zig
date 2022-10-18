@@ -23,7 +23,7 @@ pub const SoundLoader = struct {
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
         core.engine_log("loading sound asset {s}", .{assetRef.path});
-        try self.engine.loadSound(assetRef.name, assetRef.path, .{});
+        self.engine.loadSound(assetRef.name, assetRef.path, .{}) catch return assets.AssetLoaderError.UnableToLoad;
     }
 };
 
@@ -53,10 +53,6 @@ pub const NeonSoundEngine = struct {
         return self;
     }
 
-    pub fn fire_test(self: *@This()) void {
-        _ = c.ma_engine_play_sound(self.engine, "content/heyheypeople.wav", null);
-    }
-
     pub fn loadSound(
         self: *@This(),
         soundName: core.Name,
@@ -66,10 +62,21 @@ pub const NeonSoundEngine = struct {
             volume: bool = false,
         },
     ) !void {
-        _ = self;
-        _ = soundName;
-        _ = fileName;
+        var sound = try self.allocator.create(c.ma_sound);
+        var res = c.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
+        if(res != c.MA_SUCCESS)
+        {
+            return error.MiniAudioError;
+        }
         _ = soundParams;
+        try self.sounds.put(self.allocator, soundName.hash, sound);
+    }
+
+    pub fn playSound(self: *@This(), soundName: core.Name) void
+    {
+        var sound = self.sounds.get(soundName.hash).?;
+
+        _ = c.ma_sound_start(sound);
     }
 
     pub fn deinit(self: *@This()) void {

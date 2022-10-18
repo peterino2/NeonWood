@@ -4,7 +4,10 @@
     "files_to_exclude" : [
         ".*\/lost_empire.*",
         "/monkey.obj",
-        "/singleSpriteTest.png"
+        "/singleSpriteTest.png",
+        ".*.blend",
+        "/heyheypeople.wav",
+        ".*.blend1"
     ],
     "extra_binaries":[]
 }

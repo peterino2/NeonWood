@@ -1,6 +1,7 @@
 const std = @import("std");
 const nw = @import("root").neonwood;
 const graphics = nw.graphics;
+const audio = nw.audio;
 const core = nw.core;
 
 const NeonVkImage = graphics.NeonVkImage;
@@ -11,6 +12,16 @@ const PixelPos = graphics.PixelPos;
 pub const SpriteFrame = struct {
     topLeft: PixelPos,
     size: PixelPos,
+};
+
+pub const SpriteAnimCallbackRegistry = struct {
+    callbacks: ArrayListUnmanaged(AnimCallback) = .{},
+};
+
+pub const AnimCallback = struct {
+    triggerFrame: usize,
+    context: *anyopaque,
+    callback: fn (*anyopaque) void,
 };
 
 pub const SpriteAnimation = struct {
@@ -31,8 +42,9 @@ pub const SpriteAnimation = struct {
 
 pub const SpriteAnimationInstance = struct {
     animation: SpriteAnimation = .{},
+    callbacks: ?SpriteAnimCallbackRegistry = null,
     currentFrameTime: f64 = 0.0,
-    currentAnimFrameIndex: usize  = 0,
+    currentAnimFrameIndex: usize = 0,
     playSpeed: f64 = 1.0,
     looping: bool = false,
     playing: bool = false,
@@ -50,6 +62,14 @@ pub const SpriteAnimationInstance = struct {
             self.currentFrameTime = 0.0;
             self.currentAnimFrameIndex += 1;
 
+            if (self.callbacks) |callbacks| {
+                for (callbacks.callbacks.items) |callback| {
+                    if (callback.triggerFrame == self.currentAnimFrameIndex) {
+                        callback.callback(callback.context);
+                    }
+                }
+            }
+
             if (!self.looping and self.currentAnimFrameIndex == animation.frameCount) {
                 self.playing = false;
             }
@@ -59,10 +79,22 @@ pub const SpriteAnimationInstance = struct {
     }
 };
 
+const SoundEventWrap = struct {
+    soundName: core.Name,
+
+    pub fn exec(ptr: *anyopaque) void
+    {
+        var this = @ptrCast(*@This(), @alignCast(@alignOf(@This()), ptr));
+        audio.gSoundEngine.playSound(this.soundName);
+    }
+};
+
 pub const SpriteSheet = struct {
     image: *const NeonVkImage,
     frames: ArrayListUnmanaged(SpriteFrame),
     animations: std.AutoHashMapUnmanaged(u32, SpriteAnimation),
+    animationCallbacks: std.AutoHashMapUnmanaged(u32, SpriteAnimCallbackRegistry) = .{},
+    soundEvents: ArrayListUnmanaged(*SoundEventWrap) = .{},
 
     pub fn init(image: *const NeonVkImage) @This() {
         var self = @This(){
@@ -78,6 +110,41 @@ pub const SpriteSheet = struct {
         self.frames.deinit(allocator);
     }
 
+    pub fn addSoundEvent(
+        self: *@This(),
+        allocator: std.mem.Allocator,
+        animationName: core.Name,
+        triggerFrame: usize,
+        soundName: core.Name,
+    ) !void {
+        var soundEvent = try allocator.create(SoundEventWrap);
+        soundEvent.* = .{.soundName = soundName};
+        try self.soundEvents.append(allocator, soundEvent);
+
+        try self.addAnimationCallback(allocator, animationName, triggerFrame, SoundEventWrap.exec, soundEvent);
+    }
+
+    pub fn addAnimationCallback(
+        self: *@This(),
+        allocator: std.mem.Allocator,
+        animationName: core.Name,
+        triggerFrame: usize,
+        func: fn (*anyopaque) void,
+        context: *anyopaque,
+    ) !void {
+        if(!self.animationCallbacks.contains(animationName.hash))
+        {
+            try self.animationCallbacks.put(
+                allocator,
+                animationName.hash,
+                SpriteAnimCallbackRegistry{},
+            );
+            //AnimCallback{ .callback = func, .context = context, .triggerFrame = triggerFrame },
+        }
+        var v = self.animationCallbacks.getEntry(animationName.hash).?;
+        try v.value_ptr.*.callbacks.append(allocator, AnimCallback{ .callback = func, .context = context, .triggerFrame = triggerFrame });
+    }
+
     pub fn createAnimationInstance(self: @This(), name: core.Name) ?SpriteAnimationInstance {
         if (self.animations.get(name.hash)) |animation| {
             var rv: SpriteAnimationInstance = .{
@@ -85,6 +152,10 @@ pub const SpriteSheet = struct {
                 .currentFrameTime = 0.0,
                 .currentAnimFrameIndex = 0,
             };
+
+            if (self.animationCallbacks.get(name.hash)) |entry| {
+                rv.callbacks = entry;
+            }
 
             return rv;
         }
@@ -129,7 +200,7 @@ pub const SpriteSheet = struct {
     }
 
     pub fn getScale(self: @This()) core.Vectorf {
-        return core.Vectorf{.x = 3.4 / self.frames.items[0].size.ratio(), .y = 3.4, .z = 3.4};
+        return core.Vectorf{ .x = 3.4 / self.frames.items[0].size.ratio(), .y = 3.4, .z = 3.4 };
     }
 
     pub fn getXFrameScaling(self: @This(), scale: f32) core.zm.Mat {

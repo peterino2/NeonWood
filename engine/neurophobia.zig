@@ -32,7 +32,7 @@ const MakeName = core.MakeName;
 const mul = core.zm.mul;
 
 const GameAssets = [_]assets.AssetRef{
-    .{ .assetType = core.MakeName("Sound"), .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
+    .{ .assetType = core.MakeName("Sound"), .name = core.MakeName("s_footstep"), .path = "content/footstep.wav" },
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
@@ -155,10 +155,6 @@ const GameContext = struct {
                     c.igEndCombo();
                 }
 
-                if (c.igButton("Play Sound Test", .{ .x = 150, .y = 50 })) {
-                    audio.gSoundEngine.fire_test();
-                }
-
                 c.igText("Denver sprite stats");
 
                 var posRot = core.gScene.objects.get(self.denver, .posRot).?;
@@ -179,8 +175,14 @@ const GameContext = struct {
         // creating frame references for denver
         //                                                     Animation name                 Frame start    Frame count   FrameRate
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),     0,             8,            10);
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkDown"), 2, MakeName("s_footstep"));
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkDown"), 6, MakeName("s_footstep"));
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"),    8,             8,            10);
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkRight"), 2, MakeName("s_footstep"));
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkRight"), 6, MakeName("s_footstep"));
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),      16,             8,            10);
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkUp"), 2, MakeName("s_footstep"));
+        try spriteSheet.addSoundEvent(self.allocator, core.MakeName("walkUp"), 6, MakeName("s_footstep"));
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleDown"),    24,            16,            10);
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleRight"),   24 + 16 * 1,   16,            10);
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleUp"),      24 + 16 * 2,   16,            10);
