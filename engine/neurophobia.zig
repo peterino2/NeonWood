@@ -32,12 +32,12 @@ const MakeName = core.MakeName;
 const mul = core.zm.mul;
 
 const GameAssets = [_]assets.AssetRef{
-    .{.assetType = core.MakeName("Sound"), .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
-    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
-    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
-    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
-    .{.assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
-    .{.assetType = core.MakeName("Mesh"), .name = core.MakeName("m_break_room"), .path = "content/BreakRoomModel.obj" },
+    .{ .assetType = core.MakeName("Sound"), .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
+    .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
+    .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_break_room"), .path = "content/BreakRoomModel.obj" },
 };
 
 var gGame: *GameContext = undefined;
@@ -170,6 +170,23 @@ const GameContext = struct {
         }
     }
 
+    pub fn create_denver_sheet(self: *Self) !void {
+        // convert t_denver into an spritesheet with animations
+        var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denver"));
+        try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
+
+        // zig fmt: off
+        // creating frame references for denver
+        //                                                     Animation name                 Frame start    Frame count   FrameRate
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),     0,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"),    8,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),      16,             8,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleDown"),    24,            16,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleRight"),   24 + 16 * 1,   16,            10);
+        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleUp"),      24 + 16 * 2,   16,            10);
+        // zig fmt: on
+    }
+
     pub fn init_denver(self: *Self) !void {
         var gc = self.gc;
 
@@ -179,27 +196,17 @@ const GameContext = struct {
             .init_transform = mul(core.zm.scaling(5.0, 5.0, 5.0), core.zm.translation(0.0, 1.6, 2.0)),
         });
 
-        // convert t_denver into an spritesheet with animations
-        var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_denver"));
-        try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
-
-        // zig fmt: off
-        // creating frame references for denver
-        //                                                     Animation name              frame start   frame count   FrameRate
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkDown"),     0,             8,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkRight"),    8,             8,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("walkUp"),      16,             8,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleDown"),    24,            16,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleRight"),   24 + 16 * 1,   16,            10);
-        try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("idleUp"),      24 + 16 * 2,   16,            10);
-        // zig fmt: on
-
         try self.papyrus.addSprite(self.denver, MakeName("t_denver"));
+
         _ = try core.gScene.createSceneObjectWithHandle(self.denver, .{ .transform = core.zm.identity() });
-        core.assert(core.gScene.objects.denseIndices.items.len == 1);
-        core.assert(core.gScene.objects.denseIndices.items[0].hash() == self.denver.hash());
         try core.gScene.setMobility(self.denver, .moveable);
-        core.gScene.setScaleV(self.denver, spriteSheet.getScale());
+
+        core.gScene.setScaleV(
+            self.denver,
+            self.papyrus.spriteSheets.get(MakeName("t_denver").hash).?.getScale(),
+        );
+
+        // Setting up the scene setting
         var posRot = core.gScene.objects.get(self.denver, .posRot).?;
         posRot.*.position = posRot.position.add(.{ .x = 0, .y = 1.9, .z = 2.0 });
     }
@@ -213,45 +220,10 @@ const GameContext = struct {
             .mesh_name = MakeName("m_break_room"),
             .material_name = MakeName("mat_mesh"),
             .init_transform = core.zm.scaling(1, 1, 1),
-            //.init_transform = core.zm.scaling(0.8, 0.8, 0.8),
         });
 
         try self.init_denver();
         try self.collision.loadCollisionFromFile("content/BreakRoomCollision.cg");
-        // ====== CODEGEN  =====
-        // _ = try self.collision.addLine(.{.x = -1.22,.y = 0.09,.z = -6.04}, .{.x = 1.49,.y = 0.09,.z = -6.04});
-        // _ = try self.collision.addLine(.{.x = -1.22,.y = 0.09,.z = -3.14}, .{.x = -1.22,.y = 0.09,.z = 0.06});
-        // _ = try self.collision.addLine(.{.x = 1.49,.y = 0.09,.z = -6.04}, .{.x = 1.49,.y = 0.09,.z = 3.56});
-        // _ = try self.collision.addLine(.{.x = -1.91,.y = 0.09,.z = 0.06}, .{.x = -1.22,.y = 0.09,.z = 0.06});
-        // _ = try self.collision.addLine(.{.x = 3.19,.y = 0.09,.z = 3.56}, .{.x = 3.19,.y = 0.09,.z = 6.86});
-        // _ = try self.collision.addLine(.{.x = 0.89,.y = 0.09,.z = 9.16}, .{.x = -5.02,.y = 0.09,.z = 9.16});
-        // _ = try self.collision.addLine(.{.x = -2.91,.y = 0.09,.z = 2.36}, .{.x = -2.91,.y = 0.09,.z = 0.56});
-        // _ = try self.collision.addLine(.{.x = 1.49,.y = 0.09,.z = 3.56}, .{.x = 3.19,.y = 0.09,.z = 3.56});
-        // _ = try self.collision.addLine(.{.x = -4.61,.y = 0.09,.z = 2.36}, .{.x = -2.91,.y = 0.09,.z = 2.36});
-        // _ = try self.collision.addLine(.{.x = -5.02,.y = 0.09,.z = 9.16}, .{.x = -5.02,.y = 0.09,.z = 0.66});
-        // _ = try self.collision.addLine(.{.x = 3.19,.y = 0.09,.z = 6.86}, .{.x = 0.89,.y = 0.09,.z = 6.86});
-        // _ = try self.collision.addLine(.{.x = 0.89,.y = 0.09,.z = 6.86}, .{.x = 0.89,.y = 0.09,.z = 9.16});
-        // _ = try self.collision.addLine(.{.x = -4.61,.y = 0.09,.z = 0.66}, .{.x = -4.61,.y = 0.09,.z = 2.36});
-        // _ = try self.collision.addLine(.{.x = -5.02,.y = 0.09,.z = 0.66}, .{.x = -4.61,.y = 0.09,.z = 0.66});
-        // _ = try self.collision.addLine(.{.x = -1.91,.y = 0.09,.z = -3.14}, .{.x = -1.22,.y = 0.09,.z = -3.14});
-        // _ = try self.collision.addLine(.{.x = -1.22,.y = 0.09,.z = -6.04}, .{.x = -2.91,.y = 0.09,.z = -6.04});
-        // _ = try self.collision.addLine(.{.x = -2.91,.y = 0.09,.z = -6.04}, .{.x = -2.91,.y = 0.09,.z = -3.64});
-        // _ = try self.collision.addLine(.{.x = -2.91,.y = 0.09,.z = 0.56}, .{.x = -1.91,.y = 0.09,.z = 0.56});
-        // _ = try self.collision.addLine(.{.x = -1.91,.y = 0.09,.z = 0.56}, .{.x = -1.91,.y = 0.09,.z = 0.06});
-        // _ = try self.collision.addLine(.{.x = -2.91,.y = 0.09,.z = -3.64}, .{.x = -1.91,.y = 0.09,.z = -3.64});
-        // _ = try self.collision.addLine(.{.x = -1.91,.y = 0.09,.z = -3.64}, .{.x = -1.91,.y = 0.09,.z = -3.14});
-
-        // ====== CODEGEN  =====
-        // _ = try self.collision.addLine(.{ .x = -3.16, .y = 0.71, .z = 0.14 }, .{ .x = -3.19, .y = 0.71, .z = 3.45 });
-        // _ = try self.collision.addLine(.{ .x = -3.19, .y = 0.71, .z = 3.45 }, .{ .x = 4.87, .y = 0.71, .z = 3.49 });
-        // _ = try self.collision.addLine(.{ .x = 4.87, .y = 0.71, .z = 3.49 }, .{ .x = 4.92, .y = 0.71, .z = -0.22 });
-        // _ = try self.collision.addLine(.{ .x = -1.66, .y = 0.71, .z = 0.04 }, .{ .x = -3.16, .y = 0.71, .z = 0.14 });
-        // _ = try self.collision.addLine(.{ .x = 4.92, .y = 0.71, .z = -0.22 }, .{ .x = 2.67, .y = 0.71, .z = -0.22 });
-        // _ = try self.collision.addLine(.{ .x = -1.70, .y = 0.71, .z = -3.98 }, .{ .x = -1.66, .y = 0.71, .z = 0.04 });
-        // _ = try self.collision.addLine(.{ .x = 2.53, .y = 0.71, .z = -1.74 }, .{ .x = 0.05, .y = 0.71, .z = -1.61 });
-        // _ = try self.collision.addLine(.{ .x = 2.67, .y = 0.71, .z = -0.22 }, .{ .x = 2.53, .y = 0.71, .z = -1.74 });
-        // _ = try self.collision.addLine(.{ .x = 0.05, .y = 0.71, .z = -1.61 }, .{ .x = -0.08, .y = 0.71, .z = -3.99 });
-        // _ = try self.collision.addLine(.{ .x = -0.08, .y = 0.71, .z = -3.99 }, .{ .x = -1.70, .y = 0.71, .z = -3.98 });
     }
 
     pub fn prepareGame(self: *Self) !void {
@@ -261,10 +233,11 @@ const GameContext = struct {
         graphics.registerRendererPlugin(self.papyrus) catch unreachable;
         graphics.registerRendererPlugin(self.papyrusImage) catch unreachable;
 
-        for(GameAssets) |asset|
-        {
+        for (GameAssets) |asset| {
             try assets.gAssetSys.loadRef(asset);
         }
+
+        try self.create_denver_sheet();
 
         try assets.gAssetSys.loadRef(.{
             .name = MakeName("testSound"),
