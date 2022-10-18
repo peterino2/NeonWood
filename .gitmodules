@@ -13,3 +13,6 @@
 [submodule "engine/modules/audio/lib/miniaudio"]
 	path = engine/modules/audio/lib/miniaudio
 	url = https://github.com/mackron/miniaudio.git
+[submodule "engine/projects/neurophobia/zig-halcyon"]
+	path = engine/projects/neurophobia/zig-halcyon
+	url = https://github.com/peterino2/zig-halcyon.git
