@@ -176,7 +176,7 @@ const GameContext = struct {
         self.denver = try gc.add_renderobject(.{
             .mesh_name = MakeName("mesh_quad"),
             .material_name = MakeName("mat_mesh"),
-            .init_transform = mul(core.zm.scaling(3.0, 3.0, 3.0), core.zm.translation(0.0, 1.6, 2.0)),
+            .init_transform = mul(core.zm.scaling(5.0, 5.0, 5.0), core.zm.translation(0.0, 1.6, 2.0)),
         });
 
         // convert t_denver into an spritesheet with animations
@@ -201,7 +201,7 @@ const GameContext = struct {
         try core.gScene.setMobility(self.denver, .moveable);
         core.gScene.setScaleV(self.denver, spriteSheet.getScale());
         var posRot = core.gScene.objects.get(self.denver, .posRot).?;
-        posRot.*.position = posRot.position.add(.{ .x = 0, .y = 1.6, .z = 2.0 });
+        posRot.*.position = posRot.position.add(.{ .x = 0, .y = 1.9, .z = 2.0 });
     }
 
     pub fn init_objects(self: *Self) !void {

@@ -129,7 +129,7 @@ pub const SpriteSheet = struct {
     }
 
     pub fn getScale(self: @This()) core.Vectorf {
-        return core.Vectorf{.x = 3.0 / self.frames.items[0].size.ratio(), .y = 3.0, .z = 3.0};
+        return core.Vectorf{.x = 3.4 / self.frames.items[0].size.ratio(), .y = 3.4, .z = 3.4};
     }
 
     pub fn getXFrameScaling(self: @This(), scale: f32) core.zm.Mat {
