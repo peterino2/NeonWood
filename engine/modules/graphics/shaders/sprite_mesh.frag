@@ -29,7 +29,7 @@ void main()
         discard;
     }
 
-    vec3 mixedColor = mix(normalize(vec3(0.1, 0.1, 0.6)) * sqrt(3), normalize(vec3(1.2,1.2,1.0)) * 3, 1 - texCoord.y);
+    vec3 mixedColor = mix(normalize(vec3(0.1, 0.1, 0.6)) * sqrt(2), normalize(vec3(.5,0.5, 1.2)) * 5, 1 - texCoord.y);
 
     outFragColor = vec4(color.xyz * mixedColor, in_color.x);
     //outFragColor = vec4(1.0, 0.0, 0.0, in_color.x);

@@ -5,6 +5,12 @@ const core = neonwood.core;
 
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+pub const CGAny = union(enum){
+    line: CGLine, // only line is supported right now
+    box: CGBox,
+    circle: CGCircle,
+};
+
 pub const CGBox = struct {
 
     topLeft: core.Vectorf,
@@ -143,6 +149,90 @@ pub const Collision2D = struct {
             .circles = .{},
             .lines = .{},
         };
+    }
+
+    fn iterIntoVec(iter:anytype) !core.Vectorf
+    {
+        var vec: core.Vectorf = undefined;
+        var next: u32 = 0;
+        while ( next < 3)  {
+            var tok = iter.next().?;
+            switch (next) {
+                0 => {
+                    vec.x = try std.fmt.parseFloat(f32, tok);
+                },
+                1 => {
+                    vec.y = try std.fmt.parseFloat(f32, tok);
+                },
+                2 => {
+                    vec.z = try std.fmt.parseFloat(f32, tok);
+                },
+                else => {
+                    unreachable;
+                }
+            }
+            next += 1;
+        }
+        return vec;
+    }
+
+    fn parseLine(line: []const u8) ?CGAny
+    {
+        if(line.len < 2) 
+            return null;
+
+        var tokens = std.mem.tokenize(u8, line, " ");
+        var maybeFirst = tokens.next();
+
+        if(maybeFirst == null)
+        {
+            return null;
+        }
+
+        var first = maybeFirst.?;
+
+        if(std.mem.eql(u8, first, "#"))
+        {
+            return null;
+        }
+
+        if(std.mem.eql(u8, first, "L"))
+        {
+            var p1 = iterIntoVec(&tokens) catch unreachable;
+            var p2 = iterIntoVec(&tokens) catch unreachable;
+
+            return CGAny{
+                .line = .{.start = p1, .end = p2},
+            };
+        }
+
+        return null;
+    }
+
+    // loads a collision asset from a file, adding it's collision to the current collision geometry
+    pub fn loadCollisionFromFile(self: *@This(), path: []const u8) !void
+    {
+        var fileContents = try core.loadFileAlloc(path, 1, self.allocator);
+        defer self.allocator.free(fileContents);
+
+        var lines = core.splitIntoLines(fileContents);
+
+        while(lines.next()) |line|
+        {
+            var res = parseLine(line);
+            if(res)|r|
+            {
+                switch(r)
+                {
+                    .line => |newLine| {
+                        try self.lines.append(self.allocator, newLine);
+                    },
+                    else =>{
+                        unreachable;
+                    }
+                }
+            }
+        }
     }
 
     // returns true if it hits something

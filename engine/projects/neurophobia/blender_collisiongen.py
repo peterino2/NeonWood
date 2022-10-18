@@ -31,7 +31,24 @@ def toVectorf(v):
     ostr += "}"
     return ostr
 
+def toL(v):
+    vertex = obdata.vertices[v].co;
+    ostr = ""
+    ostr += f"{vertex.x:.2f} "
+    ostr += f"{vertex.z:.2f} "
+    ostr += f"{-vertex.y:.2f} "
+    return ostr
+
 print("// ====== CODEGEN  =====")
 
 for e in obdata.edges:
     print('_ = try self.collision.addLine({}, {});'.format(toVectorf(e.vertices[0]), toVectorf(e.vertices[1])))
+    
+
+opath = "D:/uproj/neonwood/engine/content/BreakRoomCollision.cg"
+
+with open(opath, "w") as f:
+    for e in obdata.edges:
+        ostr = 'L {} {}\n'.format(toL(e.vertices[0]), toL(e.vertices[1]))
+        print(ostr)
+        f.write(ostr)

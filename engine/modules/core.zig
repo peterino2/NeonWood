@@ -85,3 +85,30 @@ pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
 pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
 }
+
+pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {
+    // find a \n and see if it has \r\n
+    var index: u32 = 0;
+    while (index < file_contents.len) : (index += 1) {
+        if (file_contents[index] == '\n') {
+            if (index > 0) {
+                if (file_contents[index - 1] == '\r') {
+                    return std.mem.split(u8, file_contents, "\r\n");
+                } else {
+                    return std.mem.split(u8, file_contents, "\n");
+                }
+            } else {
+                return std.mem.split(u8, file_contents, "\n");
+            }
+        }
+    }
+    return std.mem.split(u8, file_contents, "\n");
+}
+
+pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
+    var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
+    const filesize = (try file.stat()).size;
+    var buffer: []u8 = try allocator.allocAdvanced(u8, @intCast(u29, alignment), @intCast(usize, filesize), .exact);
+    try file.reader().readNoEof(buffer);
+    return buffer;
+}

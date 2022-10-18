@@ -1265,6 +1265,8 @@ pub const NeonVkContext = struct {
     pub fn draw(self: *Self, deltaTime: f64) !void {
         self.updateTime(deltaTime);
 
+        try self.sceneManager.update(self);
+
         var z1 = tracy.Zone(@src());
         z1.Name("drawing UI");
         try self.draw_ui(deltaTime);
@@ -1273,7 +1275,6 @@ pub const NeonVkContext = struct {
         try self.acquire_next_frame();
         try self.pre_frame_update();
 
-        try self.sceneManager.update(self);
 
         var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const cmd = try self.start_frame_command_buffer();
