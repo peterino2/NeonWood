@@ -31,19 +31,12 @@ const AssetReference = assets.AssetReference;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
 
-const SoundAssets = [_]AssetReference{
-    .{ .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
-};
-
-const TextureAssets = [_]AssetReference{
-    .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
-    .{ .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
-    .{ .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
-    .{ .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
-};
-
-const MeshAssets = [_]AssetReference{
-    .{ .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
+const GameAssets = [_]assets.AssetRef{
+    .{.assetType = core.MakeName("Sound"), .name = core.MakeName("s_audio_pip"), .path = "content/audioPip.wav" },
+    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver"), .path = "content/DenverSheet.png" },
+    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_salina_big"), .path = "content/Salina_annoyed.png" },
+    .{.assetType = core.MakeName("Texture"), .name = core.MakeName("t_denver_big"), .path = "content/Denver_Big.png" },
+    .{.assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
 };
 
 var gGame: *GameContext = undefined;
@@ -75,8 +68,6 @@ const GameContext = struct {
     panCamera: bool = false,
     showDemo: bool = true,
     panCameraCache: bool = false,
-    textureAssets: std.ArrayListUnmanaged(AssetReference) = .{},
-    meshAssets: std.ArrayListUnmanaged(AssetReference) = .{},
     movementInput: Vectorf = Vectorf.new(0.0, 0.0, 0.0),
 
     mousePosition: Vector2 = Vector2.zero(),
@@ -87,7 +78,6 @@ const GameContext = struct {
     cameraHorizontalRotationStart: core.Quat,
 
     denver: core.ObjectHandle = undefined,
-    testSpriteData: PapyrusSpriteGpu = .{ .topLeft = .{ .x = 0, .y = 0 }, .size = .{ .x = 1.0, .y = 1.0 } },
     testWindow: bool = false,
     flipped: bool = false,
     animations: std.ArrayListUnmanaged([*c]const u8),
@@ -104,9 +94,7 @@ const GameContext = struct {
         var self = Self{
             .allocator = allocator,
             .camera = Camera.init(),
-            .textureAssets = .{},
             .animations = .{},
-            .meshAssets = .{},
             .gc = graphics.getContext(),
             .selectedAnim = std.mem.zeroes([64]bool),
             .cameraRotationStart = core.zm.quatFromRollPitchYaw(core.radians(30.0), 0.0, 0.0),
@@ -135,9 +123,6 @@ const GameContext = struct {
         self.camera.translate(.{ .x = 0.0, .y = 7.14, .z = 18.0 });
         self.camera.updateCamera();
 
-        self.textureAssets.appendSlice(self.allocator, &TextureAssets) catch unreachable;
-        self.meshAssets.appendSlice(self.allocator, &MeshAssets) catch unreachable;
-
         return self;
     }
 
@@ -147,7 +132,6 @@ const GameContext = struct {
 
         self.dialogueSys.uiTick(deltaTime);
         if (self.papyrus.spriteSheets.get(core.MakeName("t_denver").hash)) |spriteObject| {
-
             if (self.testWindow) {
                 _ = c.igBegin("testWindow", &self.testWindow, 0);
                 _ = c.igCheckbox("flip sprite", &self.flipped);
@@ -174,7 +158,6 @@ const GameContext = struct {
                     audio.gSoundEngine.fire_test();
                 }
 
-
                 c.igText("Denver sprite stats");
 
                 var posRot = core.gScene.objects.get(self.denver, .posRot).?;
@@ -184,15 +167,6 @@ const GameContext = struct {
                 c.igEnd();
             }
         }
-    }
-
-    pub fn load_texture(self: *Self, assetRef: AssetReference) !void {
-        _ = try self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path);
-        try self.gc.make_mesh_image_from_texture(assetRef.name);
-    }
-
-    pub fn load_mesh(self: *Self, assetRef: AssetReference) !void {
-        _ = try self.gc.new_mesh_from_obj(assetRef.name, assetRef.path);
     }
 
     pub fn init_denver(self: *Self) !void {
@@ -230,6 +204,9 @@ const GameContext = struct {
     }
 
     pub fn init_objects(self: *Self) !void {
+        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
+        self.gc.activateCamera(&self.camera);
+
         var gc = self.gc;
         _ = try gc.add_renderobject(.{
             .mesh_name = MakeName("m_room"),
@@ -240,16 +217,16 @@ const GameContext = struct {
         try self.init_denver();
 
         // ====== CODEGEN  =====
-        _ = try self.collision.addLine(.{.x = -3.16,.y = 0.71,.z = 0.14}, .{.x = -3.19,.y = 0.71,.z = 3.45});
-        _ = try self.collision.addLine(.{.x = -3.19,.y = 0.71,.z = 3.45}, .{.x = 4.87,.y = 0.71,.z = 3.49});
-        _ = try self.collision.addLine(.{.x = 4.87,.y = 0.71,.z = 3.49}, .{.x = 4.92,.y = 0.71,.z = -0.22});
-        _ = try self.collision.addLine(.{.x = -1.66,.y = 0.71,.z = 0.04}, .{.x = -3.16,.y = 0.71,.z = 0.14});
-        _ = try self.collision.addLine(.{.x = 4.92,.y = 0.71,.z = -0.22}, .{.x = 2.67,.y = 0.71,.z = -0.22});
-        _ = try self.collision.addLine(.{.x = -1.70,.y = 0.71,.z = -3.98}, .{.x = -1.66,.y = 0.71,.z = 0.04});
-        _ = try self.collision.addLine(.{.x = 2.53,.y = 0.71,.z = -1.74}, .{.x = 0.05,.y = 0.71,.z = -1.61});
-        _ = try self.collision.addLine(.{.x = 2.67,.y = 0.71,.z = -0.22}, .{.x = 2.53,.y = 0.71,.z = -1.74});
-        _ = try self.collision.addLine(.{.x = 0.05,.y = 0.71,.z = -1.61}, .{.x = -0.08,.y = 0.71,.z = -3.99});
-        _ = try self.collision.addLine(.{.x = -0.08,.y = 0.71,.z = -3.99}, .{.x = -1.70,.y = 0.71,.z = -3.98});
+        _ = try self.collision.addLine(.{ .x = -3.16, .y = 0.71, .z = 0.14 }, .{ .x = -3.19, .y = 0.71, .z = 3.45 });
+        _ = try self.collision.addLine(.{ .x = -3.19, .y = 0.71, .z = 3.45 }, .{ .x = 4.87, .y = 0.71, .z = 3.49 });
+        _ = try self.collision.addLine(.{ .x = 4.87, .y = 0.71, .z = 3.49 }, .{ .x = 4.92, .y = 0.71, .z = -0.22 });
+        _ = try self.collision.addLine(.{ .x = -1.66, .y = 0.71, .z = 0.04 }, .{ .x = -3.16, .y = 0.71, .z = 0.14 });
+        _ = try self.collision.addLine(.{ .x = 4.92, .y = 0.71, .z = -0.22 }, .{ .x = 2.67, .y = 0.71, .z = -0.22 });
+        _ = try self.collision.addLine(.{ .x = -1.70, .y = 0.71, .z = -3.98 }, .{ .x = -1.66, .y = 0.71, .z = 0.04 });
+        _ = try self.collision.addLine(.{ .x = 2.53, .y = 0.71, .z = -1.74 }, .{ .x = 0.05, .y = 0.71, .z = -1.61 });
+        _ = try self.collision.addLine(.{ .x = 2.67, .y = 0.71, .z = -0.22 }, .{ .x = 2.53, .y = 0.71, .z = -1.74 });
+        _ = try self.collision.addLine(.{ .x = 0.05, .y = 0.71, .z = -1.61 }, .{ .x = -0.08, .y = 0.71, .z = -3.99 });
+        _ = try self.collision.addLine(.{ .x = -0.08, .y = 0.71, .z = -3.99 }, .{ .x = -1.70, .y = 0.71, .z = -3.98 });
     }
 
     pub fn prepareGame(self: *Self) !void {
@@ -259,26 +236,27 @@ const GameContext = struct {
         graphics.registerRendererPlugin(self.papyrus) catch unreachable;
         graphics.registerRendererPlugin(self.papyrusImage) catch unreachable;
 
-        for (self.textureAssets.items) |asset| {
-            try self.load_texture(asset);
+        for(GameAssets) |asset|
+        {
+            try assets.gAssetSys.loadRef(asset);
         }
 
-        for (self.meshAssets.items) |asset| {
-            try self.load_mesh(asset);
-        }
+        try assets.gAssetSys.loadRef(.{
+            .name = MakeName("testSound"),
+            .assetType = MakeName("Sound"),
+            .path = "content/heyheypeople.wav",
+        });
 
         // todo: this needs a nicer interface.
         try graphics.getContext().add_ui_object(.{
             .ptr = self,
             .vtable = &InterfaceUiTable,
         });
-
-        _ = c.glfwSetKeyCallback(self.gc.window, inputCallback);
-        try self.init_objects();
-        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
-        self.gc.activateCamera(&self.camera);
         try self.dialogueSys.setup(self.papyrusImage);
 
+        _ = c.glfwSetKeyCallback(self.gc.window, inputCallback);
+
+        try self.init_objects();
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
@@ -292,12 +270,9 @@ const GameContext = struct {
         }
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
-        // -- dialogue stuff
-
         self.inDialogue = self.dialogueSys.fadeTime > 0;
 
         // --------------------------
-
 
         var movement = self.movementInput.normalize().fmul(@floatCast(f32, deltaTime));
 
@@ -306,8 +281,7 @@ const GameContext = struct {
         const speed = 4.0;
         var moved: bool = false;
 
-        if(!self.inDialogue)
-        {
+        if (!self.inDialogue) {
             if (movement.z > 0) {
                 const movementVector = .{ .x = 0, .y = 0, .z = speed * dt };
                 self.currentAnim = core.MakeName("walkDown");
@@ -372,8 +346,6 @@ const GameContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.textureAssets.deinit(self.allocator);
-        self.meshAssets.deinit(self.allocator);
         self.papyrus.deinit();
         self.papyrusImage.deinit();
     }
@@ -407,11 +379,9 @@ pub fn inputCallback(
 
     if (action == c.GLFW_PRESS) {
         if (key == c.GLFW_KEY_Z) {
-            if(!gGame.dialogueSys.speechWindow) 
-            {
+            if (!gGame.dialogueSys.speechWindow) {
                 gGame.dialogueSys.startDialogue(MakeName("t_denver_big"), "Denver", "Why is my room purple.");
-            }
-            else {
+            } else {
                 gGame.dialogueSys.hideDialogue();
             }
         }
@@ -450,6 +420,9 @@ pub fn main() anyerror!void {
 
     core.start_module();
     defer core.shutdown_module();
+
+    assets.start_module();
+    defer assets.shutdown_module();
 
     audio.start_module();
     defer audio.shutdown_module();

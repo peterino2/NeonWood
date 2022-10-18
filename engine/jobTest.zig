@@ -82,10 +82,9 @@ const GameContext = struct {
             }
         };
 
-        self.jobContext = try JobContext.new(
+        self.jobContext = try JobContext.newJob(
             std.heap.c_allocator,
-            Lambda,
-            .{
+            Lambda{
                 .wanker = wanker,
                 .game = self,
             },

@@ -47,6 +47,7 @@ pub fn registerRendererPlugin(value: anytype) !void
     };
     var gc = getContext();
     try gc.rendererPlugins.append(gc.allocator, ref);
+
 }
 
 pub fn start_module() void {
@@ -65,6 +66,8 @@ pub fn start_module() void {
     gImgui = vkUi;
 
     vkUi.setup(context) catch unreachable;
+
+    vk_renderer.init_loaders() catch unreachable;
 }
 
 pub fn shutdown_module() void {

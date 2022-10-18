@@ -3,7 +3,8 @@
     "exe_name": "neurophobia.exe",
     "files_to_exclude" : [
         ".*\/lost_empire.*",
-        "/monkey.obj"
+        "/monkey.obj",
+        "/singleSpriteTest.png"
     ],
     "extra_binaries":[]
 }

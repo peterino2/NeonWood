@@ -4,6 +4,7 @@ const resources = @import("resources");
 pub const c = @import("c.zig");
 const vma = @import("vma");
 const core = @import("../core.zig");
+const assets = @import("../assets.zig");
 const tracy = core.tracy;
 const vk_constants = @import("vk_constants.zig");
 const vk_pipeline = @import("vk_pipeline.zig");
@@ -433,7 +434,7 @@ pub const NeonVkContext = struct {
     // .... oh thats bad .. need to arrange these guys. refactor materials meshes and textures into
     // pointers
     materials: std.AutoHashMapUnmanaged(u32, *Material), // all future arraylists should be unmanaged
-    meshes: std.AutoHashMapUnmanaged(u32, Mesh), // all future arraylists should be unmanaged
+    meshes: std.AutoHashMapUnmanaged(u32, *Mesh), // all future arraylists should be unmanaged
     textures: std.AutoHashMapUnmanaged(u32, *Texture), // all future arraylists should be unmanaged
     cameraRef: ?*render_objects.Camera,
 
@@ -746,31 +747,34 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_primitive_meshes(self: *Self) !void {
-        var quadMesh = mesh.Mesh.init(self, self.allocator);
+        var quadMesh = try self.allocator.create(mesh.Mesh);
+        quadMesh.* = mesh.Mesh.init(self, self.allocator);
+
         try quadMesh.vertices.resize(6);
-        quadMesh.vertices.items[0].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
-        quadMesh.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
-        quadMesh.vertices.items[2].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[0].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[2].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
 
-        quadMesh.vertices.items[3].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
-        quadMesh.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
-        quadMesh.vertices.items[5].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[3].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
+        quadMesh.*.vertices.items[5].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
 
-        quadMesh.vertices.items[0].uv = .{ .x = 1.0, .y = 0.0 };
-        quadMesh.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
-        quadMesh.vertices.items[2].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.*.vertices.items[0].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.*.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
+        quadMesh.*.vertices.items[2].uv = .{ .x = 0.0, .y = 1.0 };
 
-        quadMesh.vertices.items[3].uv = .{ .x = 0.0, .y = 1.0 };
-        quadMesh.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
-        quadMesh.vertices.items[5].uv = .{ .x = 1.0, .y = 0.0 };
+        quadMesh.*.vertices.items[3].uv = .{ .x = 0.0, .y = 1.0 };
+        quadMesh.*.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
+        quadMesh.*.vertices.items[5].uv = .{ .x = 1.0, .y = 0.0 };
 
         try quadMesh.upload(self);
         try self.meshes.put(self.allocator, core.MakeName("mesh_quad").hash, quadMesh);
     }
 
     // we need a content filing system
-    pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !mesh.Mesh {
-        var newMesh = mesh.Mesh.init(self, self.allocator);
+    pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
+        var newMesh = try self.allocator.create(mesh.Mesh);
+        newMesh.* = mesh.Mesh.init(self, self.allocator);
         try newMesh.load_from_obj_file(filename);
         try newMesh.upload(self);
         try self.meshes.put(self.allocator, meshName.hash, newMesh);
@@ -2372,7 +2376,8 @@ pub const NeonVkContext = struct {
     pub fn destroy_meshes(self: *Self) !void {
         var iter = self.meshes.iterator();
         while (iter.next()) |i| {
-            i.value_ptr.deinit(self);
+            i.value_ptr.*.deinit(self);
+            self.allocator.destroy(i.value_ptr.*);
         }
         self.meshes.deinit(self.allocator);
     }
@@ -2489,7 +2494,7 @@ pub const NeonVkContext = struct {
             return error.NoMaterialFound;
 
         renderObject.material = findMat.?.value_ptr.*;
-        renderObject.mesh = findMesh.?.value_ptr;
+        renderObject.mesh = findMesh.?.value_ptr.*;
         return renderObject;
     }
 
@@ -2521,3 +2526,43 @@ pub fn setWindowName(newWindowName: []const u8) void {
 }
 
 pub var gContext: *NeonVkContext = undefined;
+
+
+pub const TextureLoader = struct {
+    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
+    gc: *NeonVkContext,
+
+    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
+        core.engine_log("loading texture asset {s}", .{assetRef.path});
+
+        _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
+        self.gc.make_mesh_image_from_texture(assetRef.name) catch return error.UnableToLoad;
+    }
+};
+
+pub const MeshLoader = struct {
+    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
+    gc: *NeonVkContext,
+
+    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
+        core.engine_log("loading mesh asset {s}", .{assetRef.path});
+        _ = self.gc.new_mesh_from_obj(assetRef.name, assetRef.path) catch return error.UnableToLoad;
+    }
+};
+
+pub var gTextureLoader: *TextureLoader = undefined;
+pub var gMeshLoader: *MeshLoader = undefined;
+
+pub fn init_loaders() !void
+{
+    var allocator = std.heap.c_allocator;
+
+    gTextureLoader = try allocator.create(TextureLoader);
+    gTextureLoader.* = .{.gc = gContext};
+
+    gMeshLoader = try allocator.create(MeshLoader);
+    gMeshLoader.* = .{.gc = gContext};
+
+    try assets.gAssetSys.registerLoader(gTextureLoader);
+    try assets.gAssetSys.registerLoader(gMeshLoader);
+}
