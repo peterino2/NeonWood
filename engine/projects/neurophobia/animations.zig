@@ -16,6 +16,11 @@ pub const SpriteFrame = struct {
 
 pub const SpriteAnimCallbackRegistry = struct {
     callbacks: ArrayListUnmanaged(AnimCallback) = .{},
+
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void
+    {
+        self.callbacks.deinit(allocator);
+    }
 };
 
 pub const AnimCallback = struct {
@@ -108,6 +113,12 @@ pub const SpriteSheet = struct {
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         self.frames.deinit(allocator);
+        for(self.soundEvents.items) |event|
+        {
+            allocator.destroy(event);
+        }
+        self.animations.deinit(allocator);
+        self.animationCallbacks.deinit(allocator);
     }
 
     pub fn addSoundEvent(
