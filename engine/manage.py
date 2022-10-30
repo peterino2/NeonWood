@@ -54,7 +54,8 @@ or if not set, then all engine content is included
 
 
 A note about packaging:
-the corresponding project's content/ folder is always packaged.
+the corresponding project's content/ folder is always packaged.... 
+this isn't quite working just yet
 
 """
 
@@ -127,13 +128,18 @@ if __name__ == "__main__":
 
         # copy over dlls and exes
         binaries = default_binaries.copy()
-        binaries.append("zig-out/bin/" + packageInfo["exe_name"])
+        exe_name = packageInfo["exe_name"]
+        if(os.name == 'nt'):
+            exe_name = exe_name + ".exe"
+        binaries.append("zig-out/bin/" + exe_name)
         for binary in binaries:
             shutil.copy(binary, packageDir)
 
         # create zip file under packages/
 
         zipFileName = packageInfo["project_name"] + ".zip"
+        if(os.name == 'posix'):
+            zipFileName = packageInfo["project_name"] + "_linux.zip"
         zipPath = orig_dir + "/packages/" + zipFileName
         print(zipPath)
         with ZipFile(zipPath, 'w', compresslevel=9, compression=ZIP_DEFLATED) as z:

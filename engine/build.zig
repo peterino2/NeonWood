@@ -180,8 +180,10 @@ pub fn createGameExecutable(
     }
     try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=all", .{}));
 
+
     for (cflags.items) |s| {
-        std.debug.print("cflag: {s}\n", .{s});
+        _ = s;
+        //std.debug.print("cflag: {s}\n", .{s});
     }
 
     var thisBuildFile = @src().file;

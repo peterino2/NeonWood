@@ -48,6 +48,8 @@ build flags for shipping:
 - get latest from:
 https://packages.lunarg.com/
 
+mesa-common-dev is also needed for creating cross platform packages on linux
+
 or rip :
 
 ```
