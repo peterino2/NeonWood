@@ -2,7 +2,9 @@ const std = @import("std");
 const logging = @import("logging.zig");
 const names = @import("names.zig");
 const input = @import("input.zig");
+const algorithm =  @import("algorithm.zig");
 
+const ObjectHandle = algorithm.ObjectHandle;
 const Name = names.Name;
 const MakeName = names.MakeName;
 
@@ -27,38 +29,6 @@ pub fn InterfaceRef(comptime Vtable: type) type
 
 pub const RTTI_MAX_TYPES = 1024;
 
-pub const RendererInterfaceRef = InterfaceRef(RendererInterface);
-
-pub const RendererInterface = struct {
-    typeName: Name,
-    typeSize: usize,
-    typeAlign: usize,
-
-    preDraw: fn (*anyopaque) void,
-
-    pub fn from(comptime TargetType: type) @This() {
-        const wrappedPreDraw = struct {
-            pub fn func(pointer: *anyopaque) void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
-                ptr.preDraw();
-            }
-        };
-
-        if (!@hasDecl(TargetType, "preDraw")) {
-            @compileLog("Tried to generate RendererInterfaceData for type ", TargetType, "but it's missing preDraw");
-            unreachable;
-        }
-
-        var self = @This(){
-            .typeName = MakeTypeName(TargetType),
-            .typeSize = @sizeOf(TargetType),
-            .typeAlign = @alignOf(TargetType),
-            .preDraw = wrappedPreDraw.func,
-        };
-
-        return self;
-    }
-};
 
 pub fn MakeTypeName(comptime TargetType: type) Name {
     const hashedName = comptime std.fmt.comptimePrint("{s}_{d}", .{ @typeName(TargetType), @sizeOf(TargetType) });
@@ -220,7 +190,6 @@ pub const RttiRegistry = struct {
 
     pub fn dynamic_cast_by_id(self: @This(), TargetType: type, source: NeonObjectRef) ?TargetType {
         _ = self;
-        _ = TargetType;
         _ = source;
         return null;
     }

@@ -9,6 +9,7 @@ layout (location = 0) out vec4 outFragColor;
 void main()
 {
 	//return red
+	// outFragColor = vec4(0.0, 1.0, 0.0,1.0f);
 	outFragColor = vec4(in_color,1.0f);
 }
 

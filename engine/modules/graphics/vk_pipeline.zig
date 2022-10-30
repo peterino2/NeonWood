@@ -71,6 +71,9 @@ pub const NeonVkPipelineBuilder = struct {
     plci: ?vk.PipelineLayoutCreateInfo,
     pdsci: ?vk.PipelineDepthStencilStateCreateInfo,
 
+    topology: vk.PrimitiveTopology = .triangle_list,
+    polygonMode: vk.PolygonMode = .fill,
+
     pushConstantRange: ?vk.PushConstantRange,
 
     viewport: vk.Viewport,
@@ -112,8 +115,6 @@ pub const NeonVkPipelineBuilder = struct {
             .dynamic_state_count = 2,
             .p_dynamic_states = &dynamicStates,
         };
-        _ = dynamicStateCreateInfo;
-        _ = dynamicStates;
 
         // its here....
         var gpci = vk.GraphicsPipelineCreateInfo{
@@ -176,6 +177,9 @@ pub const NeonVkPipelineBuilder = struct {
         self.pdsci = null;
         self.descriptorLayouts = ArrayList(vk.DescriptorSetLayout).init(allocator);
 
+        self.topology = .triangle_list;
+        self.polygonMode= .fill;
+
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
             .code_size = vert_spv_len,
@@ -224,6 +228,16 @@ pub const NeonVkPipelineBuilder = struct {
         self.vertexInputDescription = try meshes.VertexInputDescription.init(self.allocator);
     }
 
+    pub fn set_topology(self: *@This(), topology: vk.PrimitiveTopology) void 
+    {
+        self.topology = topology;
+    }
+
+    pub fn set_polygon_mode(self: *@This(), polygonMode: vk.PolygonMode) void
+    {
+        self.polygonMode = polygonMode;
+    }
+
     // the init _ functions are called last and perform cleanup. all the other add_ functions can be called
     // before this
     pub fn init_triangle_pipeline(self: *NeonVkPipelineBuilder, extents: vk.Extent2D) !void {
@@ -251,7 +265,8 @@ pub const NeonVkPipelineBuilder = struct {
 
         self.piasci = vk.PipelineInputAssemblyStateCreateInfo{
             .flags = .{},
-            .topology = .triangle_list,
+            .topology = self.topology,
+            // .topology = .line_list,
             .primitive_restart_enable = vk.FALSE,
         };
 
@@ -259,9 +274,10 @@ pub const NeonVkPipelineBuilder = struct {
             .flags = .{},
             .depth_clamp_enable = vk.FALSE,
             .rasterizer_discard_enable = vk.FALSE,
-            .polygon_mode = .fill,
+            .polygon_mode = self.polygonMode,
+            //.polygon_mode = .line,
             //.cull_mode = .{ .back_bit = true },
-            .cull_mode = .{ .back_bit = true },
+            .cull_mode = .{ .back_bit = false },
             .front_face = .clockwise,
             .depth_bias_enable = vk.FALSE,
             .depth_bias_constant_factor = 0.0,

@@ -8,7 +8,7 @@ const c = vk_renderer.c;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 fn vkCast(comptime T: type, handle: anytype) T {
-    return @ptrCast(T, @intToPtr(?*anyopaque, @enumToInt(handle)));
+    return @ptrCast(T, @intToPtr(?*anyopaque, @intCast(usize, @enumToInt(handle))));
 }
 
 // this data structure is invalid until you call setup
@@ -44,7 +44,6 @@ pub const NeonVkImGui = struct {
             .{ .@"type" = .storage_buffer_dynamic, .descriptor_count = 1000 },
             .{ .@"type" = .input_attachment, .descriptor_count = 1000 },
         };
-        _ = descriptorPoolSizes;
 
         var poolInfo = vk.DescriptorPoolCreateInfo{
             .flags = .{},
@@ -59,7 +58,7 @@ pub const NeonVkImGui = struct {
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
         io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
         // io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
-        var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/VT323.ttf", 24, null, null);
+        var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/VT323.ttf", 36, null, null);
         _ = font;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
 
@@ -84,7 +83,6 @@ pub const NeonVkImGui = struct {
             .Allocator = null,
             .CheckVkResultFn = checkVkResult,
         };
-        _ = imguiInit;
         core.debug_struct("instance: ", ctx.instance);
         core.debug_struct("huh: ", imguiInit);
         _ = c.cImGui_vk_Init(&imguiInit, vkCast(c.VkRenderPass, ctx.renderPass));
@@ -93,6 +91,10 @@ pub const NeonVkImGui = struct {
         _ = c.cImGui_vk_CreateFontsTexture(vkCast(c.VkCommandBuffer, ctx.uploadContext.commandBuffer));
         try ctx.finish_upload_context(&ctx.uploadContext);
         _ = c.cImGui_vk_DestroyFontUploadObjects();
+
+        _ = c.SetupImguiColors();
+
+        c.setFontScale(@intCast(c_int, ctx.actual_extent.width), @intCast(c_int, ctx.actual_extent.height));
     }
 
     pub fn setupVulkanWindow(self: *Self) void {
@@ -118,3 +120,4 @@ export fn checkVkResult(result: c_int) void {
     core.graphics_log("This is a big problem imgui call result: {any}", .{r});
     unreachable;
 }
+

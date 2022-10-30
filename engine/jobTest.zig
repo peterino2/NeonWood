@@ -32,7 +32,7 @@ var gGame: *GameContext = undefined;
 const jobTestCount = 1000;
 
 // primarily a test file that exists to create a simple application for
-// basic engine onboarding
+// job dispatching.
 const GameContext = struct {
     const Self = @This();
     pub const NeonObjectTable = core.RttiData.from(Self);
@@ -67,9 +67,6 @@ const GameContext = struct {
 
         var wanker = Wanker{};
 
-        _ = Wanker;
-        _ = wanker;
-
         const Lambda = struct {
             capturedValue: u32 = 43,
             wanker: Wanker,
@@ -84,12 +81,10 @@ const GameContext = struct {
                 _ = job;
             }
         };
-        _ = Lambda;
 
-        self.jobContext = try JobContext.new(
+        self.jobContext = try JobContext.newJob(
             std.heap.c_allocator,
-            Lambda,
-            .{
+            Lambda{
                 .wanker = wanker,
                 .game = self,
             },

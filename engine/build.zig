@@ -3,6 +3,7 @@ const vkgen = @import("modules/graphics/lib/vulkan-zig/generator/index.zig");
 const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
+const zigTracy = @import("modules/core/lib/Zig-Tracy/build_tracy.zig");
 
 const shaders_folder = "modules/graphics/shaders/";
 
@@ -152,6 +153,8 @@ pub fn createGameExecutable(
     b: *std.build.Builder,
     name: []const u8,
     mainFile: []const u8,
+    enable_tracy: bool,
+    options: *std.build.OptionsStep,
 ) !*std.build.LibExeObjStep {
     var allocator = b.allocator;
 
@@ -169,6 +172,13 @@ pub fn createGameExecutable(
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
+    if(enable_tracy)
+    {
+        try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
+    }
+    try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
+    try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=all", .{}));
 
     for (cflags.items) |s| {
         _ = s;
@@ -199,16 +209,37 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
-    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
-    exe.addIncludeDir("modules/core/lib");
-    exe.addIncludeDir("modules/graphics/lib/vulkan_inc");
-    exe.addIncludeDir("modules/graphics/lib/cimgui");
-    exe.addIncludeDir("modules/graphics/lib/imgui");
-    exe.addIncludeDir("modules/graphics/lib/imgui/backends");
-    exe.addIncludeDir("modules/graphics/lib");
-    exe.addIncludeDir("modules/graphics");
-    exe.addLibPath("modules/graphics/lib");
+    exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
+    exe.addIncludePath("modules/core/lib");
+    exe.addIncludePath("modules/audio/lib");
+    exe.addIncludePath("modules/graphics/lib/vulkan_inc");
+    exe.addIncludePath("modules/graphics/lib/cimgui");
+    exe.addIncludePath("modules/graphics/lib/imgui");
+    exe.addIncludePath("modules/graphics/lib/imgui/backends");
+    exe.addIncludePath("modules/graphics/lib");
+    exe.addIncludePath("modules/graphics");
+    exe.addLibraryPath("modules/graphics/lib");
     exe.linkSystemLibrary("glfw3dll");
+    exe.linkSystemLibrary("m");
+    exe.addOptions("game_build_opts", options);
+
+    if(mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe)
+    {
+        if(enable_tracy)
+        {
+            std.debug.print("\n\n !! enable_tracy will be ignored for release-* builds\n\n", .{});
+        }
+        zigTracy.link(b, exe, null);
+    }
+    else if(enable_tracy)
+    {
+        std.debug.print("\n\nenabling tracy\n\n", .{});
+        zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
+    }
+    else {
+        std.debug.print("\n\n no tracy\n\n", .{});
+        zigTracy.link(b, exe, null);
+    }
 
     const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
 
@@ -228,7 +259,12 @@ pub fn createGameExecutable(
     res.addShader("triangle_vert_colored", shaders_folder ++ "triangle_colored.vert");
     res.addShader("triangle_frag_colored", shaders_folder ++ "triangle_colored.frag");
     res.addShader("sprite_mesh_vert", shaders_folder ++ "sprite_mesh.vert");
+    res.addShader("sprite_mesh_frag", shaders_folder ++ "sprite_mesh.frag");
     res.addShader("default_lit_frag", shaders_folder ++ "default_lit.frag");
+    res.addShader("image_vert", shaders_folder ++ "image_vert.vert");
+    res.addShader("image_frag", shaders_folder ++ "image_frag.frag");
+    res.addShader("debug_vert", shaders_folder ++ "debug.vert");
+    res.addShader("debug_frag", shaders_folder ++ "debug.frag");
     exe.addPackage(res.package);
 
     var runName = try std.fmt.allocPrint(allocator, "run-{s}", .{name});
@@ -264,25 +300,33 @@ pub fn build(b: *std.build.Builder) void {
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
+    const options = b.addOptions();
+    options.addOption(bool, "validation_layers", 
+        b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+
+    options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
+    const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
+
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
+
     // const gen = vkgen.VkGenerateStep.init(b, "modules/graphics/lib/vk.xml", "vk.zig");
-    _ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
+    //_ = createGameExecutable(target, b, "objViewer", "objViewer.zig") catch |e| {
+    //    std.debug.print("error: {any}", .{e});
+    //    unreachable;
+    //};
+
+    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig", enable_tracy, options) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig") catch |e| {
+    _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "imgui_demo", "imgui_demo.zig") catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
-
-    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig") catch |e| {
+    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };

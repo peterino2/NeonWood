@@ -1,0 +1,457 @@
+[BAD_NODE]
+$: ERROR!! This text is not set up.
+@end
+
+[main_menu_start]
+@setMovementEnabled(0)
+@setPlayerVisible(0)
+@end
+
+[test_view_page]
+@showPage(t_test_page)
+@end
+
+
+[main_menu_dialogue]
+$: Press Z to advance dialogue
+$: Use the arrow keys to move around.
+$: Please play with the sound on.
+$: Use '+' or '-' to increase and decrease the volume
+$: Press F1 at any time to see the controls.
+$: Does that make sense?
+    > No, can you repeat that?
+        @goto main_menu_dialogue
+    > Yes, I'm ready to start.
+        $: Thanks for playing. And good luck!
+        @changeRooms(1 content/BreakRoom)
+@end
+
+[goto_main_menu]
+@changeRooms(0 content/mainMenu)
+@end
+
+# ----- act 1: breakroom
+[breakroom_open]
+@jumpIf(breakroom_start_dialogue_finished breakroom_return)
+[breakroom_start]
+@setGameInt(breakroom_start_dialogue_finished 1)
+@setGameInt(can_make_coffee 1)
+@setGameInt(doorToHallwayLockedFirstEntry 1)
+$: ...
+@setSpeaker(0 t_denver_big)
+Denver: (Huh... someone's already here?)
+Denver: Oh hi Salina. You're in the break room today?
+@setSpeaker(0 t_salina_big)
+Salina: Mhmm. What of it?
+@setSpeaker(0 t_denver_big)
+Denver: Ah... Nothing.
+Denver: (Shes.. so cold all the time..)
+@end
+
+[breakroom_return]
+@setPlayerVisible(1)
+@end
+
+[breakroom_table_and_chairs]
+$: 4 Chairs and a table are tucked into a corner.
+$: Everyone seems to prefer the back chair for some reason.
+$: You don't feel very comfortable sitting down with salina in the room.
+$: Besides. You've sat enough today.
+@end
+
+[breakroom_talk_to_salina_0]
+@jumpIf(salinaAskedCoffee give_salina_coffee)
+@jumpIf(drank_coffee_alone salina_talk_1)
+@setSpeaker(0 t_denver_big)
+Denver: ...
+@setSpeaker(0 t_salina_big)
+Salina: ...
+@setSpeaker(0 t_denver_big)
+Denver: ...
+@setSpeaker(0 t_salina_big)
+Salina: ...
+@setSpeaker(0 t_denver_big)
+Denver: (She's completely absorbed in what she's reading).
+@end
+
+[give_salina_coffee]
+@setGameInt(salinaAskedCoffee 0)
+$: You give her the coffee
+@jumpIf(normal_sugar salina_doesnt_like_coffee)
+@jumpIf(extra_sugar salina_coffee_extra_sugar)
+@jumpIf(too_much_sugar salina_coffee_suffering)
+@goto salina_likes_coffee
+
+[salina_coffee_suffering]
+$: ...
+@setSpeaker(0 t_salina_big)
+Salina: What in the actual
+@shakeScreen(0)
+Salina: FUCK.
+Salina: seems you really can't be trusted at all to do anything right!
+@setSpeaker(0 t_denver_big)
+Denver: (Not gonna lie... that was pretty funny.)
+@goto finished_coffee
+
+[salina_doesnt_like_coffee]
+$: She takes a sip and her brow furrows
+$: She puts the coffee down and continues reading
+@goto finished_coffee
+
+[salina_likes_coffee]
+$: She nods and continues drinking
+@setGameInt(salina_likes_coffee 1)
+@goto finished_coffee
+
+[finished_coffee]
+$: ...
+$: ...
+$: ...
+$: Some time passes and you finished your coffee
+$: Salina's still reading profusely
+@setSpeaker(0 t_denver_big)
+Denver: I should go put this cup back in the cupboards.
+@setGameInt(cupboardNote 1)
+@end
+
+[breakroom_cupboard]
+$: It's an old cupboard
+$: It's full of coffee mugs.
+@jumpIf(cupboardNote finding_cupboard_page)
+@end
+
+[finding_cupboard_page]
+$: You try to put your mug back in the cupboard
+@setSpeaker(0 t_denver_big)
+Denver: ... Huh what is that back there?
+@showPage(t_page1)
+@setGameInt(page1found 1)
+$: ...
+@shakeScreen(0)
+@playSound(s_thump)
+@setSpeaker(0 t_salina_big)
+Salina: WHAT WAIT IS THAT -
+$: Salina rushes over and snatches the page away from you.
+@setSpeaker(0 t_denver_big)
+@shakeScreen(0)
+Denver: Hey whats the big idea!
+@setSpeaker(0 t_salina_big)
+$: Salina ignores you and shoves the page into her book.
+$: ...
+Salina: Daisy is missing.
+@setSpeaker(0 t_denver_big)
+Denver: ... What?
+@setSpeaker(0 t_salina_big)
+Salina: I haven't seen her around for the past few days.
+Salina: Also there's this.
+$: She holds up the book 
+Salina: She's been leaving us notes.
+@setSpeaker(0 t_denver_big)
+Denver: Why didn't you tell me about it.
+@setSpeaker(0 t_salina_big)
+Salina: More people involved would cause more panic. Also...
+Salina: How do I put this lightly...
+Salina: You're an idiot
+@setSpeaker(0 t_denver_big)
+Denver: (seriously?)
+@setSpeaker(0 t_salina_big)
+Salina: Anyway I think she hid these pages all around.
+Salina: as a clue to the rest of us.
+@setSpeaker(0 t_denver_big)
+Denver: Have you found any more
+@setSpeaker(0 t_salina_big)
+Salina: Just the one behind my computer
+@setSpeaker(0 t_denver_big)
+Denver: Well... Daisy's my friend. I'm going to find the other pages.
+@setSpeaker(0 t_salina_big)
+Salina: Do what you want I doubt you'll be successful.
+Salina: But if you do find any more pages.
+Salina: be sure to come right back here
+Salina: Do feel free to search all of our rooms.
+@setSpeaker(0 t_denver_big)
+Denver: Including yours?
+@setSpeaker(0 t_salina_big)
+Salina: Of course.
+@setGameInt(salinaFirstDiscussion 1)
+@setGameInt(doorToHallwayLockedFirstEntry 0)
+@setGameInt(denversDoorIsLockedNoKey 1)
+@end
+
+[salina_coffee_extra_sugar]
+$: She takes one sip and her eyes go wide.
+@setSpeaker(0 t_salina_big)
+@shakeScreen(0)
+@playSound(s_thump)
+Salina: GODDAMIT. Are you trying to kill me??
+@setSpeaker(0 t_denver_big)
+Denver: ah shucks my bad.
+@setGameInt(salina_really_dislikes_coffee 1)
+@goto finished_coffee
+
+[breakroom_coffee_kettle]
+$: There's an ancient kettle sitting on the countertop
+$: you're surprised how well it's holding up.
+$: It's made a lot of fresh pots.
+@jumpIf(can_make_coffee make_coffee)
+@end
+
+[make_coffee]
+@setSpeaker(0 t_denver_big)
+Denver: (Now that I think about it... I should make some coffee)
+    > Make some Coffee
+        @goto making_coffee
+    > Not right now
+        @end
+@end
+
+[making_coffee]
+$: You decide to make yourself a cup of coffee
+$: You grab a mug from under the counter, and grab a filter holder
+$: You put a spoonful of grinds into the paper filter. 
+@playSound(s_coffee_made)
+$: The warm aroma fills the air
+@setSpeaker(0 t_denver_big)
+Denver: (Should I offer some to Salina?)
+    > Ask her
+        @goto salina_ask_coffee
+    > She can live without it
+        @goto drink_alone
+@end
+
+[drink_alone]
+@setGameInt(drank_coffee_alone 1)
+[making_coffee_ingredients]
+@setSpeaker(0 t_denver_big)
+Denver: (Hmm... Sugar or nah.)
+    > 1 sugar cube
+        @setGameInt(normal_sugar 1)
+    > 2 sugar cubes
+        @setGameInt(extra_sugar 1)
+    > An irresponsible amount of sugar
+        @setGameInt(too_much_sugar 1)
+    > Drink it black
+        @setGameInt(no_sugar 1)
+Denver: (Cream or Milk?)
+    > Use Cream
+        @setGameInt(cream 1)
+    > Use Milk
+        @setGameInt(milk 1)
+    > None
+        @setGameInt(no_cream 1)
+$: You mix the ingredients into the cup
+@setGameInt(can_make_coffee 0)
+@jumpIf(salinaAskedCoffee can_give_salina_coffee)
+@goto finished_coffee
+
+[can_give_salina_coffee]
+$: It smells nice, you shoud probably give it to Salina.
+@end
+
+[salina_ask_coffee]
+@setGameInt(salinaAskedCoffee 1)
+@setSpeaker(0 t_denver_big)
+Denver: Do you want some coffee?
+@setSpeaker(0 t_salina_big)
+Salina: ...
+@setSpeaker(0 t_denver_big)
+Denver: ... hello? coffee?
+@setSpeaker(0 t_salina_big)
+Salina: Oh... Uh... sure. no sugar please
+$: She keeps reading her papers and seems to ignore you again.
+$: You decide to get on with making the coffee
+@goto making_coffee_ingredients
+
+# ------ Main game content here
+
+# --- pages
+
+[page2]
+@jumpIf(page2pickedup endStub)
+@setGameInt(page2pickedup 1)
+@hideMesh(0)
+@setSpeaker(0 t_denver_big)
+Denver: Is this one of daisy's pages?
+@showPage(t_page2)
+$: ...
+@end
+
+
+[endStub]
+@setPlayerVisible(1)
+@setSpeaker(0 t_denver_big)
+Denver: Why would daisy put a page here..
+@end
+
+# links ---
+
+[door_to_denvers]
+@jumpIf(page2pickedup denvers_door_page2)
+$: It's locked...
+Denver: Wait... it's locked?
+Denver: Why is my room locked?
+@end
+
+[denvers_door_page2]
+@jumpIf(denvers_unlocked door_to_denvers_unlocked)
+@jumpIf(page2Found)
+@setSpeaker(0 t_denver_big)
+Denver: Home sweet home...
+@playSound(s_thump)
+$: It's locked...
+Denver: Wait... it's locked?
+@playSound(s_thump)
+@shakeScreen(0)
+$: *Thump*
+@playSound(s_thump)
+@shakeScreen(0)
+$: *Thump*
+@playSound(s_door_open)
+Denver: ... wait it's open now.
+@setGameInt(denvers_unlocked 1)
+
+[door_to_denvers_unlocked]
+@changeRooms(0 content/RoomDenver)
+@notInHallway(0)
+@end
+
+[page3Grabbed]
+@setSpeaker(0 t_denver_big)
+Denver: I need to get back to the breakroom..
+@end
+
+[page3]
+@jumpIf(page3Grabbed page3Grabbed)
+@setGameInt(page3Grabbed 1)
+@hideMesh(0)
+@showPage(t_page6)
+@playSound(s_horror)
+@setTextSpeed(0.3)
+$: You are being watched
+@setTextSpeed(0.01)
+@shakeScreen(0)
+@playSound(s_darkness)
+@blackOut(0)
+$: !!
+@setGameInt(denversDoorCursed 1)
+Denver: Salina... I need to get back to her...
+@end
+
+[denvers_door_locked_no_key]
+@playSound(s_thump)
+@setSpeaker(0 t_denver_big)
+Denver: Thats weird.. it's locked? 
+@setGameInt(denverKnowsDoorIslocked 1)
+@end
+
+[door_to_salinas]
+@changeRooms(0 content/RoomSalina)
+@notInHallway(0)
+@end
+
+[door_to_breakroom]
+@jumpIf(denversDoorCursed enter_cursed_hallway)
+@setSpeaker(0 t_denver_big)
+Denver: Theres still some rooms I haven't explored yet.
+@end
+
+[cursed_hallway_start]
+@lightsOn(0)
+Denver: What the hell is going on!
+@end
+
+[f1_to_f2]
+@jumpIf(floor2_unlocked f1_to_f2_unlocked)
+@setSpeaker(0 t_denver_big)
+Denver: I should check out the rest of this floor first
+@end
+
+[f1_to_f2_unlocked]
+@changeRooms(3 content/Hallway1)
+@end
+
+# -- second floor
+[f2_to_f1]
+@changeRooms(3 content/Hallway0)
+@end
+
+[door_to_cursed]
+@changeRooms(0 content/RoomCursed)
+@notInHallway(0)
+@end
+
+[door_to_daisy]
+@changeRooms(0 content/RoomDaisy)
+@notInHallway(0)
+@end
+
+[door_to_jeff]
+@changeRooms(0 content/RoomJeff)
+@notInHallway(0)
+@end
+
+[door_to_kevin]
+@changeRooms(0 content/RoomKevin)
+@notInHallway(0)
+@end
+
+# rooms
+
+[breakroom_exit]
+@jumpIf(doorToHallwayLockedFirstEntry breakroom_just_got_here)
+@changeRooms(0 content/Hallway0)
+@inHallway(0)
+@end
+
+[breakroom_just_got_here]
+@setSpeaker(0 t_denver_big)
+Denver: I just got here...
+@end
+
+[roomDenver_exit]
+@changeRooms(1 content/Hallway0)
+@inHallway(0)
+@end
+
+[roomSalina_exit]
+@changeRooms(2 content/Hallway0)
+@inHallway(0)
+@end
+
+[roomCursed_exit]
+@changeRooms(1 content/Hallway1)
+@inHallway(0)
+@end
+
+[roomJeff_exit]
+@changeRooms(4 content/Hallway1)
+@inHallway(0)
+@end
+
+[roomKevin_exit]
+@changeRooms(5 content/Hallway1)
+@inHallway(0)
+@end
+
+[roomDaisy_exit]
+@changeRooms(2 content/Hallway1)
+@inHallway(0)
+@end
+
+[enter_cursed_hallway]
+@changeRooms(0 content/HallwayCursed)
+@inHallway(0)
+@end
+
+[enter_cursed_room]
+@changeRooms(0 content/RoomCursed)
+@startEndGame(0)
+@shakeScreen(0)
+@playSound(s_truehorror)
+@end
+
+[doomed]
+$: Not everyone is meant to survive these things
+$: Daisy didn't
+$: And neither did Denver.
+@playSound(s_clicking)
+@end

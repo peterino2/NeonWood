@@ -1,0 +1,62 @@
+{
+    "startingPosition": [
+        {
+            "position": {
+                "x": 1.67999267e-01,
+                "y": 1.89999997e+00,
+                "z": 2.89999866e+00
+            },
+            "anim": "idleUp"
+        }
+    ],
+    "startingDir": {
+        "utf8": "idleUp"
+    },
+    "startingDialogue": null,
+    "interactables": {
+        "items": [
+        ],
+        "capacity": 8
+    },
+    "mainStageMesh": {
+        "position": {
+            "x": 0.0e+00,
+            "y": 0.0e+00,
+            "z": 0.0e+00
+        },
+        "rotation": [
+            -0.0e+00,
+            0.0e+00,
+            -0.0e+00,
+            1.0e+00
+        ],
+        "scale": {
+            "x": 1.0e+00,
+            "y": 1.0e+00,
+            "z": 1.0e+00
+        },
+        "mesh": {
+            "utf8": "m_roomCursed",
+            "hash": 4196866218
+        },
+        "texture": {
+            "utf8": "t_scuffed_room",
+            "hash": 4270977144
+        },
+        "hasCollisions": true,
+        "collisionFile": "content/RoomCursed.cg",
+        "hasSprite": false,
+        "spriteName": {
+            "utf8": "",
+            "hash": 3696677242
+        },
+        "startingAnim": {
+            "utf8": "",
+            "hash": 3696677242
+        }
+    },
+    "extraMeshes": {
+        "items": [],
+        "capacity": 0
+    }
+}

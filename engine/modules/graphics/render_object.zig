@@ -24,10 +24,16 @@ pub const RenderObject = struct {
     material: ?*Material = null,
     texture: ?*vk.DescriptorSet = null,
     transform: core.Mat,
+    visibility: bool = true,
 
     // new position and rotator based api
     position: Vectorf,
     rotation: Quat,
+    scale: Vectorf,
+
+    // TODO factor this out into a metadata function
+    textureName: core.Name = core.NoName,
+    meshName: core.Name = core.NoName,
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
@@ -37,6 +43,7 @@ pub const RenderObject = struct {
             .transform = transform,
             .position = undefined,
             .rotation = undefined,
+            .scale = undefined,
         };
 
         self.updateScalars();
@@ -49,11 +56,13 @@ pub const RenderObject = struct {
     }
 
     pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.texture = gc.textureSets.getEntry(name.hash).?.value_ptr.*;
+        self.texture = gc.textureSets.get(name.hash).?;
+        self.textureName = name;
     }
 
     pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
+        self.updateScalars();
     }
 
     pub fn applyRelativeRotationX(self: *RenderObject, angle: f32) void {
@@ -110,6 +119,7 @@ pub const RenderObject = struct {
     pub fn updateScalars(self: *RenderObject) void {
         self.position = Vectorf.fromZm(mul(self.transform, Vectorf.new(0.0, 0.0, 0.0).toZm()));
         self.rotation = zm.matToQuat(self.transform);
+        self.scale = core.matToScalef(self.transform);
     }
 };
 
@@ -166,7 +176,11 @@ pub const Camera = struct {
     }
 
     pub fn translate(self: *Camera, offset: core.Vectorf) void {
-        self.position = self.position.add(offset);
+        var off: core.Vectorf = offset;
+        off.y = offset.y;
+        off.x = offset.x;
+        off.z = offset.z;
+        self.*.position = self.position.add(off);
     }
 
     pub fn setPositionAndRotationEuler(self: *Camera, position: Vectorf, eulerAngles: Vectorf) void {
@@ -183,8 +197,9 @@ pub const Camera = struct {
     }
 
     pub fn resolve(self: *Camera, base: Mat) void {
-        self.transform = mul(zm.translation(self.position.x, self.position.y, self.position.z), base);
-        self.transform = mul(self.transform, zm.matFromQuat(self.rotation));
+        self.transform = mul(base, zm.matFromQuat(self.rotation));
+        self.transform = mul(zm.translationV(self.position.fmul(-1).toZm()), self.transform);
         self.final = mul(self.transform, self.projection);
     }
+    
 };

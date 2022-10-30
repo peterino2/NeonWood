@@ -6,7 +6,9 @@ const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
 const core = @import("../core.zig");
 const jobs = @import("jobs.zig");
+const tracy = core.tracy;
 const trace = @import("trace.zig");
+
 const TracesContext = trace.TracesContext;
 const Name = names.Name;
 const MakeName = names.MakeName;
@@ -119,15 +121,21 @@ pub const Engine = struct {
     }
 
     pub fn tick(self: *@This()) void {
+        tracy.FrameMark();
+        tracy.FrameMarkStart("frame");
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
 
         var index: isize = @intCast(isize, self.tickables.items.len) - 1;
         while (index >= 0) : (index -= 1) {
+            var z = tracy.Zone(@src());
             const objectRef = self.rttiObjects.items[self.tickables.items[@intCast(usize, index)]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
+            z.Name(objectRef.vtable.typeName.utf8);
+            z.End();
         }
         self.lastEngineTime = newTime;
+        tracy.FrameMarkEnd("frame");
     }
 
     pub fn run(self: *@This()) void {

@@ -1,22 +1,35 @@
 const core = @import("core.zig");
 const std = @import("std");
-const vk_renderer = @import("graphics/vk_renderer.zig");
+pub const vk_renderer = @import("graphics/vk_renderer.zig");
 const materials = @import("graphics/materials.zig");
 
+
+pub usingnamespace @import("graphics/debug_draws.zig");
+pub const gpu_pipe_data = @import("graphics/gpu_pipe_data.zig");
 pub const vkinit = @import("graphics/vk_init.zig");
 pub const c = vk_renderer.c;
 pub const NeonVkPipelineBuilder = vk_renderer.NeonVkPipelineBuilder;
-
 pub const NeonVkContext = vk_renderer.NeonVkContext;
 pub const vk_ui = @import("graphics/vk_imgui.zig");
 pub const constants = @import("graphics/vk_constants.zig");
 pub const NeonVkImGui = vk_ui.NeonVkImGui;
+pub const NeonVkImage = vk_renderer.NeonVkImage;
 pub const Material = materials.Material;
+pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
+pub const RendererInterface = vk_renderer.RendererInterface;
+pub const texture = @import("graphics/texture.zig");
+pub const debug_draw = @import("graphics/debug_draws.zig");
+pub const mesh = @import("graphics/mesh.zig");
+pub const Mesh = mesh.Mesh;
+pub const Texture = texture.Texture;
+
+pub const PixelPos = vk_renderer.PixelPos;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
 pub const setWindowName = vk_renderer.setWindowName;
 pub const NumFrames = constants.NUM_FRAMES;
+
 
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;
@@ -28,10 +41,9 @@ pub fn getContext() *NeonVkContext {
 
 pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
+pub const RenderObject = render_object.RenderObject;
 
 pub var gImgui: *NeonVkImGui = undefined;
-
-const RendererInterfaceRef = core.RendererInterfaceRef;
 
 pub fn registerRendererPlugin(value: anytype) !void
 {
@@ -41,6 +53,7 @@ pub fn registerRendererPlugin(value: anytype) !void
     };
     var gc = getContext();
     try gc.rendererPlugins.append(gc.allocator, ref);
+
 }
 
 pub fn start_module() void {
@@ -59,6 +72,10 @@ pub fn start_module() void {
     gImgui = vkUi;
 
     vkUi.setup(context) catch unreachable;
+
+    vk_renderer.init_loaders() catch unreachable;
+
+    debug_draw.init_debug_draw_subsystem() catch unreachable;
 }
 
 pub fn shutdown_module() void {
@@ -66,3 +83,5 @@ pub fn shutdown_module() void {
     vk_renderer.gContext.deinit();
     engine_logs("graphics module shutting down...");
 }
+
+pub var icon: []const u8 = "content/icon.png";

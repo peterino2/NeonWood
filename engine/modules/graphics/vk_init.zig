@@ -50,7 +50,6 @@ pub fn commandPoolCreateInfo(
 }
 
 pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
-    _ = cmd;
 
     var info = vk.SubmitInfo{
         .wait_semaphore_count = 0,

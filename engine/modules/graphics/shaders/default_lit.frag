@@ -29,5 +29,8 @@ void main()
         discard;
     }
 
-    outFragColor = vec4(color.xyz, 1.0f);
+    //vec3 mixed = mix(normalize(vec3(0.5, 0.3, 0.2)) * 3, vec3(0.2, 0.2, 1) * 3, texCoord.y * 2);
+    outFragColor = vec4(color.xyz, color.w);
+    //outFragColor = vec4(color.xyz, 1.0f);
+    //outFragColor = vec4(0.0, 1.0, 0.0, 1.0f);
 }

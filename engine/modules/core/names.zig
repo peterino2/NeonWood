@@ -16,5 +16,6 @@ pub const Name = struct {
 };
 
 pub fn MakeName(comptime utf8: []const u8) Name {
+    @setEvalBranchQuota(100000);
     return comptime Name.fromUtf8(utf8);
 }

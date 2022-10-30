@@ -1,0 +1,9 @@
+{
+    "project_name": "demo",
+    "exe_name": "demo.exe",
+    "files_to_exclude" : [
+        ".*\/lost_empire.*",
+        "/monkey.obj"
+    ],
+    "extra_binaries":[]
+}

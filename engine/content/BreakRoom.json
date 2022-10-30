@@ -1,0 +1,103 @@
+{
+            "startingPosition": 
+            [
+                {
+                    "position": {
+                        "x": 1.67999267e-01,
+                        "y": 1.89999997e+00,
+                        "z": 2.89999866e+00
+                    },
+                    "anim": "idleDown"
+                },
+                {
+                    "position": {"x":2.7674827575683594, "z":5.621770858764648, "y":1.9},
+                    "flipped": true,
+                    "anim": "idleRight",
+                    "startingDialogue": "breakroom_open"
+                }
+            ],
+            "startingDialogue": null,
+            "interactables": {
+                "items": [
+                    {
+                        "position": {
+                            "x": 3.28600001e+00,
+                            "y": 1.95000004e+00,
+                            "z": 6.46000003e+00
+                        },
+                        "radius": 5.0e-01,
+                        "tag": "breakroom_exit"
+                    },
+                    {
+                        "position": {"x":-3.5926783084869385, "z":-1.0553274154663086, "y":1.9},
+                        "radius": 2.0,
+                        "tag": "breakroom_table_and_chairs"
+                    },
+                    {
+                        "position": {"x":-4.732638359069824, "z":3.696155071258545, "y": 3.5},
+                        "radius": 0.5,
+                        "tag": "breakroom_talk_to_salina_0"
+                    },
+                    {
+                        "position": {"x":2.5881028175354004, "z":1.2971868515014648, "y":2.5},
+                        "radius": 0.5,
+                        "tag": "breakroom_coffee_kettle"
+                    },
+                    {
+                        "position": {"x":1.7943553924560547, "z":-4.566980361938477, "y":2.5},
+                        "radius": 0.5,
+                        "tag": "breakroom_cupboard"
+                    }
+                ],
+                "capacity": 8
+            },
+            "mainStageMesh": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00,
+                    "z": 0.0e+00
+                },
+                "rotation": [
+                    -0.0e+00,
+                    0.0e+00,
+                    -0.0e+00,
+                    1.0e+00
+                ],
+                "scale": {
+                    "x": 1.0e+00,
+                    "y": 1.0e+00,
+                    "z": 1.0e+00
+                },
+                "mesh": {
+                    "utf8": "m_break_room",
+                    "hash": 1022298064
+                },
+                "texture": {
+                    "utf8": "t_scuffed_room",
+                    "hash": 4270977144
+                },
+                "hasCollisions": true,
+                "collisionFile": "content/BreakRoomCollision.cg",
+                "hasSprite": false,
+                "spriteName": {
+                    "utf8": "",
+                    "hash": 3696677242
+                },
+                "startingAnim": {
+                    "utf8": "",
+                    "hash": 3696677242
+                }
+            },
+            "extraMeshes": {
+                "items": [
+                    {
+                        "position": {"x":-4.732638359069824, "z":3.696155071258545, "y": 1.9},
+                        "mesh": "mesh_quad",
+                        "sprite_texture": "t_salina",
+                        "sprite_anim": "idleDown"
+                    }
+
+                ],
+                "capacity": 0
+            }
+        }

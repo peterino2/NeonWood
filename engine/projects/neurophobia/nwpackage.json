@@ -1,0 +1,16 @@
+{
+    "project_name": "cognesia",
+    "exe_name": "neurophobia.exe",
+    "files_to_exclude" : [
+        ".*\/lost_empire.*",
+        ".*/sources/.*",
+        "/monkey.obj",
+        "/singleSpriteTest.png",
+        "/track1.wav",
+        "/heyheypeople.wav",
+        ".*.blend",
+        ".*.mtl",
+        ".*.blend1"
+    ],
+    "extra_binaries":[]
+}

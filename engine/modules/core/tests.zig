@@ -8,9 +8,6 @@ test "logging" {
     const count = misc.count;
     const range = misc.range;
 
-    _ = count;
-    _ = range;
-
     test_setup();
     logs("Test logging baybe");
 

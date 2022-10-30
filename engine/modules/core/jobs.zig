@@ -119,7 +119,8 @@ pub const JobWorker = struct {
                 self.busy.store(false, .SeqCst);
             } else {
                 // core.engine_log("worker {d}: no job available, sleeping again", .{self.workerId});
-                std.time.sleep(1000);
+                std.Thread.Futex.wait(&self.futex, self.current);
+                //std.time.sleep(10000000);
             }
 
             if (self.manager != null) {
@@ -151,9 +152,9 @@ pub const JobContext = struct {
     capture: []u8 = undefined,
     hasCaptureAlloc: bool = false,
 
-    pub fn new(allocator: std.mem.Allocator, comptime CaptureType: type, capture: CaptureType) !JobContext {
-        _ = CaptureType;
-        _ = capture;
+    pub fn newJob(allocator: std.mem.Allocator, capture: anytype) !JobContext 
+    {
+        const CaptureType = @TypeOf(capture);
         if (!@hasDecl(CaptureType, "func")) {
             return error.NoValidLambda;
         }
@@ -164,7 +165,30 @@ pub const JobContext = struct {
                 ptr.func(context);
             }
         };
-        _ = Wrap;
+
+        var self = Self{
+            .allocator = allocator,
+            .func = Wrap.wrappedFunc,
+        };
+
+        var ptr = try allocator.create(CaptureType);
+        self.capture.len = @sizeOf(CaptureType);
+        self.capture.ptr = @ptrCast([*]u8, ptr);
+        ptr.* = capture;
+        return self;
+    }
+
+    pub fn new(allocator: std.mem.Allocator, comptime CaptureType: type, capture: CaptureType) !JobContext {
+        if (!@hasDecl(CaptureType, "func")) {
+            return error.NoValidLambda;
+        }
+
+        const Wrap = struct {
+            pub fn wrappedFunc(pointer: *anyopaque, context: *JobContext) void {
+                var ptr = @ptrCast(*CaptureType, @alignCast(@alignOf(CaptureType), pointer));
+                ptr.func(context);
+            }
+        };
 
         var self = Self{
             .allocator = allocator,

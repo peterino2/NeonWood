@@ -2,6 +2,10 @@
 
 #include <vulkan/vulkan.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ImGui_ImplVulkan_InitInfo
 {
     VkInstance                      Instance;
@@ -32,3 +36,10 @@ bool cImGui_vk_CreateFontsTexture(VkCommandBuffer command_buffer);
 void cImGui_vk_DestroyFontUploadObjects();
 void cImGui_vk_SetMinImageCount(uint32_t min_image_count); // To override MinImageCount after initialization (e.g. if swap chain is recreated)
 
+void SetupImguiColors();
+
+void setFontScale(int newWidth, int newHeight);
+
+#ifdef __cplusplus
+}
+#endif
