@@ -29,3 +29,30 @@ the rest of the neonwood stack
 build flags for shipping:
 
 `zig build -fstage1 -Drelease-fast -Dtarget=x86_64-windows`
+
+
+# Dependencies
+
+## Windows:
+
+- python 3.6+
+- lunarg vulkan development libraries ( binaries added to path )
+- glslc on your path
+
+## Linux: 
+
+# Building
+
+## Linux
+
+- get latest from:
+https://packages.lunarg.com/
+
+or rip :
+
+```
+wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.231-jammy.list https://packages.lunarg.com/vulkan/1.3.231/lunarg-vulkan-1.3.231-jammy.list
+sudo apt update
+sudo apt install vulkan-sdk
+```

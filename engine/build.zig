@@ -175,14 +175,13 @@ pub fn createGameExecutable(
     if(enable_tracy)
     {
         try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
+        try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
+        try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
     }
-    try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
-    try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
     try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=all", .{}));
 
     for (cflags.items) |s| {
-        _ = s;
-        // std.debug.print("cflag: {s}\n", .{s});
+        std.debug.print("cflag: {s}\n", .{s});
     }
 
     var thisBuildFile = @src().file;
@@ -219,7 +218,16 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
-    exe.linkSystemLibrary("glfw3dll");
+    if(target.getOs().tag == .windows)
+    {
+        exe.linkSystemLibrary("glfw3dll");
+    }
+    else 
+    {
+        exe.linkSystemLibrary("glfw");
+        exe.linkSystemLibrary("dl");
+        exe.linkSystemLibrary("pthread");
+    }
     exe.linkSystemLibrary("m");
     exe.addOptions("game_build_opts", options);
 
