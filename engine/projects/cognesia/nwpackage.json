@@ -1,6 +1,6 @@
 {
     "project_name": "cognesia",
-    "exe_name": "neurophobia",
+    "exe_name": "cognesia",
     "files_to_exclude" : [
         ".*\/lost_empire.*",
         ".*/sources/.*",

@@ -2,13 +2,13 @@ const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
 
 // game specific systems
-const animations = @import("projects/neurophobia/animations.zig");
-pub const dialogue = @import("projects/neurophobia/dialogue.zig");
-const papyrusSprite = @import("projects/neurophobia/papyrus.zig");
-const collisions = @import("projects/neurophobia/collisions.zig");
-const interactable = @import("projects/neurophobia/interactable.zig");
-const halcyon_sys = @import("projects/neurophobia/halcyon_sys.zig");
-const stage = @import("projects/neurophobia/stage.zig");
+const animations = @import("projects/cognesia/animations.zig");
+pub const dialogue = @import("projects/cognesia/dialogue.zig");
+const papyrusSprite = @import("projects/cognesia/papyrus.zig");
+const collisions = @import("projects/cognesia/collisions.zig");
+const interactable = @import("projects/cognesia/interactable.zig");
+const halcyon_sys = @import("projects/cognesia/halcyon_sys.zig");
+const stage = @import("projects/cognesia/stage.zig");
 
 const Collision2D = collisions.Collision2D;
 const PapyrusSubsystem = papyrusSprite.PapyrusSubsystem;
