@@ -326,7 +326,7 @@ pub fn build(b: *std.build.Builder) void {
     //    unreachable;
     //};
 
-    _ = createGameExecutable(target, b, "neurophobia", "neurophobia.zig", enable_tracy, options) catch |e| {
+    _ = createGameExecutable(target, b, "cognesia", "cognesia.zig", enable_tracy, options) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };

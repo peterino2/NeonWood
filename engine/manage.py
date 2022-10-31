@@ -24,10 +24,10 @@ zig build -fstage1 -Dtarget=x86_64-windows -Dvulkan_validation=false
 
 usage: 
 
-manage.py neurophobia
+manage.py cognesia
 
 Reads a package file under
-`projects/neurophobia/nwpackage.json`
+`projects/cognesia/nwpackage.json`
 
 And creates an output package under packages/
 """

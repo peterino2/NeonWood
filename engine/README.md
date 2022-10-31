@@ -1,3 +1,29 @@
+# NeonWood Game Engine
+
+This is a vulkan based gamedev toolkit targeting the vulkan renderer for now.
+It's been written over the last two months as a learning project but has so far 
+already released a game jam game: Cognesia. 
+
+You can play it here: 
+
+The intent is to provide a general purpose low overhead gamedev toolkit that I can 
+use to produce small games with.
+
+And eventually evolve it into a full on game engine for use with creating larger
+personal project games for windows linux macos android and any other systems I
+can get my hands on.
+
+
+# Building
+
+A couple of sample programs ship with the integration branch. They include a 
+multithreaded job dispatch test, an imgui test with support for docking.
+
+And the gamejam game `cognesia`
+
+# Features
+
+* Highly modular
 
 # NeonWood Toy Game Development Toolkit
 

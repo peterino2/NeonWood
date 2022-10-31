@@ -27,7 +27,7 @@ pub const Mesh = struct {
 
 };
 
-// a stage is a list of asset datas required to load a scene in neurophobia
+// a stage is a list of asset datas required to load a scene in cognesia
 pub const StageData = struct {
 
     allocator: std.mem.Allocator,
