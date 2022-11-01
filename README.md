@@ -1,4 +1,8 @@
-# NeonWood Game Engine
+
+![](https://i.imgur.com/U3uyhEX.png)
+
+
+# Neonwood
 
 This is a vulkan based gamedev toolkit targeting the vulkan renderer for now.
 It's been written over the last two months as a learning project but has so far
@@ -6,7 +10,8 @@ already released a game jam game: Cognesia.
 
 You can play it here on windows or linux.
 
-[itch.io page](https://peterino2.itch.io/cognesia)
+![](https://img.itch.zone/aW1hZ2UvMTc2ODYxOS8xMDM5OTAwOC5wbmc=/original/nuQmeN.png)
+[https://peterino2.itch.io/cognesia](https://peterino2.itch.io/cognesia)
 
 The intent is to provide a general purpose low overhead gamedev toolkit that I can
 use to produce small games with.
@@ -42,38 +47,28 @@ zig build -fstage1 -Drelease-safe
 implemented in a game or a project first before being considered for being added to
 the core engine.
 * Data oriented, major subsystems heavily leverage sparse multisets as a primary container
-for object-like data. (this is a precursor to a more formal ECS planned.)
+for object-like data, with object handles being interchangeable between them. (this is a precursor to a more formal ECS)
 * Core engine features extensible with an interface idiom.
 * No real distinction between game and engine code, The best games are the ones that have
 a highly systemic approach to content production.
-* Performant. integrates tracy for performance profiling, vulkan for low over
-* Cross platform desktop support with vulkan, and planned webgpu support in the future.
-* Will be battle tested. I love making games I intend to actually leverage this engine to
+* Performant. integrates tracy for performance profiling, vulkan for low overhead graphics.
+* A job queue dispatch system is available as well for multithreading
+* Will be battle tested. I love making games. I intend to actually leverage this engine to
 make real and playable games, and prefer to drive feature development by making products.
-* Will probably eventually get documented.
+* Cross platform desktop support with vulkan, and planned webgpu support in the future.
+* Will probably get documented all the way through.
 
 ## Cognesia Game Features
 
 * Custom scripting language `zig-halcyon` designed for authoring branching dialogue content
 * Mixed 2d 3d and sprite based artwork
-* Screen effects
+* Screen effects such as vignette and fading.
 * Custom sprite animation system with support for footsteps and animation montage events
 * The most ghetto collision and boundary detection system you've ever seen.
-* All content was created in an afternoon.
+* All written content was created in a single afternoon.
 
-### Organization and Architecture
 
-The codebase will heavily leverage build.zig as it's master build system.
-
-modules/ contains core engine code. available for use with all projects.
-
-Because the goal is to bubble features from individual projects into engine.
-Games and applications will implement features and systems they need under projects/\<game name\>/
-first.
-
-(eg Cogensia implements an animated sprite renderer, this is not part of the core engine. But it could be...)
-
-Individual modules start up and are called by the main application via the engine's `start_module()` function.
+## Building
 
 build flags for shipping:
 
@@ -104,6 +99,42 @@ sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.231-jammy.list https://p
 sudo apt update
 sudo apt install vulkan-sdk
 ```
+
+### Organization, Architecture
+
+The codebase will heavily leverage build.zig as it's master build system.
+`modules/` contains core engine code. available for use with all projects.
+
+Because the goal is to bubble features from individual projects into engine.
+Games and applications will implement features and systems they need under `projects/\<game name\>/`
+first.
+
+(eg Cogensia implements an animated sprite renderer, this is not part of the core engine. But it could be...)
+
+Individual modules start up and are called by the main application via the engine's `start_module()` function.
+
+### Guiding Design and long term vision
+
+I'm honestly a firm believer of the idea that the only flipping thing that matters when it comes to games is content.
+
+To produce content in a timely manner you can either throw tons of people at the problem or be ultra focused in the data that you produce for the engine.
+
+If the data going into your engine is in the best format for describing your content, then production will go smoothly.
+
+This runs counter to various larger mainstream game engines' philosophies of providing ultra-flexible tooling for designers and artists. Flexibility magnifies code complexity by orders of magnitude because non technical staff are now responsible for technical decisions.
+
+This works at AAA companies because of the manpower available and it keeps lots of people engaged which is great.
+
+But smaller shops must be as data driven as possible when it comes to describing content. To my knowledge there are very few game engines out there that make it easy during design time to specify data requirements and low level systems implementations.
+
+These newer engines like bevy come close but still not quite to the degree that I'm thinking of.
+
+The ideal engine should:
+
+Provide baseline common features such as rendering, physics, graphics, low level networking.
+
+and allow the game programmers to implement systems for their specific game that crunch data for their specific game.
+
 
 ## Libraries and packages used
 
