@@ -86,6 +86,14 @@ pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
 }
 
+pub fn dumpDefaultTrace() !void 
+{
+    for(gEngine.tracesContext.traces.getEntry(DefaultName.hash).?.value_ptr.*.data.items) |*t|
+    {
+        t.debugPrint(std.heap.c_allocator);
+    }
+}
+
 pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {
     // find a \n and see if it has \r\n
     var index: u32 = 0;

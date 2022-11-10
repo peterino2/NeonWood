@@ -141,10 +141,12 @@ const GameContext = struct {
     }
 };
 
+
 pub fn main() anyerror!void {
     engine_log("Starting up", .{});
     core.start_module();
     defer core.shutdown_module();
+
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });

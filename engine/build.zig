@@ -317,6 +317,8 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
     const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
+    const perf_tests = b.option(bool, "test-perf", "builds various perf tests") orelse false;
+
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
 
@@ -336,8 +338,17 @@ pub fn build(b: *std.build.Builder) void {
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options) catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
+
+    if(perf_tests)
+    {
+        _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options) catch |e| {
+            std.debug.print("error: {any}", .{e});
+            unreachable;
+        };
+
+        _ = createGameExecutable(target, b, "test_perf_sparse_set", "sparse_set_perf.zig", enable_tracy, options) catch |e| {
+            std.debug.print("error: {any}", .{e});
+            unreachable;
+        };
+    }
 }

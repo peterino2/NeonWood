@@ -234,14 +234,12 @@ pub const IndexType = u24;
 pub const GenerationType = u7;
 
 pub const SetHandle = packed struct {
-    alive: bool = false,
-    generation: GenerationType = 0,
     index: IndexType = 0,
+    generation: GenerationType = 0,
+    alive: bool = false,
 
     pub fn hash(self: @This()) u32 {
         return @bitCast(u32, self);
-        //_ = self;
-        //return 32;
     }
 };
 
