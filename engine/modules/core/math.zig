@@ -1,7 +1,7 @@
 const std = @import("std");
 const misc = @import("misc.zig");
 const logging = @import("logging.zig");
-const algorithm = @import("algorithm.zig");
+const algorithm = @import("lib/p2/algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
 const math = std.math;
 

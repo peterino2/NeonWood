@@ -89,7 +89,7 @@ pub const AssetReferenceSys = struct {
 
     pub fn loadRef(self: @This(), asset: AssetRef) !void 
     {
-        core.engine_log("loading asset {any}", .{asset});
+        core.engine_log("loading asset {s} ({s}) [{s}]", .{asset.name.utf8, asset.assetType.utf8, asset.path});
         try self.loaders.get(asset.assetType.hash).?.loadAsset(asset);
     }
 };

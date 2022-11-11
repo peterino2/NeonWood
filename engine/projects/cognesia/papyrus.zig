@@ -486,8 +486,6 @@ pub const PapyrusImageSubsystem = struct {
         else
             initSize = .{ .x = 1.0 , .y = tex.getDimensions().ratio()};
 
-        core.engine_log("initSize = {any}", .{initSize});
-
         var initValue = PapyrusImage{
             .position = initialPosition, 
             .size = initSize,

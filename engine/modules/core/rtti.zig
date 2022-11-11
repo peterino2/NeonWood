@@ -2,7 +2,7 @@ const std = @import("std");
 const logging = @import("logging.zig");
 const names = @import("names.zig");
 const input = @import("input.zig");
-const algorithm =  @import("algorithm.zig");
+const algorithm =  @import("lib/p2/algorithm.zig");
 
 const ObjectHandle = algorithm.ObjectHandle;
 const Name = names.Name;
