@@ -22,9 +22,7 @@ pub const SceneMobilityMode = enum {
 };
 
 pub const SceneObjectPosRot = struct {
-    position: core.Vectorf = .{
-        .x = 0, .y = 0, .z = 0
-    },
+    position: core.Vectorf = .{ .x = 0, .y = 0, .z = 0 },
     rotation: core.Rotation = core.Rotation.init(),
     scale: core.Vectorf = core.Vectorf.new(1.0, 1.0, 1.0),
 };
@@ -88,7 +86,7 @@ pub const SceneObject = struct {
             .transform => {
                 self._repr.transform = params.transform;
                 self.posRot.position = core.Vectorf.fromZm(core.zm.mul(params.transform, core.Vectorf.zero().toZm()));
-                self.posRot.rotation = .{.quat = core.zm.matToQuat(params.transform)};
+                self.posRot.rotation = .{ .quat = core.zm.matToQuat(params.transform) };
             },
             .position => {},
             .rotation => {},
@@ -96,8 +94,7 @@ pub const SceneObject = struct {
             .positionRot => {},
         }
 
-        if(shouldUpdate)
-        {
+        if (shouldUpdate) {
             self.update();
         }
 
@@ -115,7 +112,7 @@ pub const SceneObjectInitParams = union(enum) {
     },
     positionRot: struct {
         position: core.Vectorf = .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-        angles: core.Quat = core.zm.quatFromRollPitchYaw(0.0, 0.0, 0.0),
+        angles: core.Quat = core.zm.qidentity(),
     },
 };
 
@@ -130,7 +127,6 @@ pub const SceneSystem = struct {
 
     pub const Field = SceneSet.Field;
     pub const FieldType = SceneSet.FieldType;
-
 
     // ----- creating and updating objects -----
 
@@ -149,26 +145,25 @@ pub const SceneSystem = struct {
         return newHandle;
     }
 
-    pub fn setPosition(self:* @This(), handle: core.ObjectHandle, position: core.Vectorf) void {
+    pub fn setPosition(self: *@This(), handle: core.ObjectHandle, position: core.Vectorf) void {
         self.objects.get(handle, .posRot).?.*.position = position;
     }
 
-    pub fn setRotation(self:* @This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
+    pub fn setRotation(self: *@This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
         self.objects.get(handle, .posRot).?.*.rotation = rotation;
     }
 
-    pub fn setScale(self:* @This(), handle: core.ObjectHandle, x: f32, y: f32, z: f32) void {
-        self.objects.get(handle, .posRot).?.*.scale = .{.x = x, .y = y, .z = z};
+    pub fn setScale(self: *@This(), handle: core.ObjectHandle, x: f32, y: f32, z: f32) void {
+        self.objects.get(handle, .posRot).?.*.scale = .{ .x = x, .y = y, .z = z };
     }
 
-    pub fn setScaleV(self:* @This(), handle: core.ObjectHandle, scale: core.Vectorf) void {
+    pub fn setScaleV(self: *@This(), handle: core.ObjectHandle, scale: core.Vectorf) void {
         self.objects.get(handle, .posRot).?.*.scale = scale;
     }
 
     pub fn getPosition(self: *@This(), handle: core.ObjectHandle) core.Vectorf {
         return self.objects.get(handle, .posRot).?.position;
     }
-
 
     pub fn getRotation(self: *@This(), handle: core.ObjectHandle) core.Rotation {
         return self.objects.get(handle, .posRot).?.rotation;
@@ -185,8 +180,7 @@ pub const SceneSystem = struct {
     // ----- subsystem update procedures
 
     // internal update transform function
-    fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void 
-    {
+    fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void {
         _ = self;
 
         repr.*.transform = core.zm.mul(
@@ -198,13 +192,10 @@ pub const SceneSystem = struct {
         );
     }
 
-    pub fn updateTransforms(self: *@This()) void
-    {
-        for(self.objects.denseItems(._repr)) |*repr, i| 
-        {
+    pub fn updateTransforms(self: *@This()) void {
+        for (self.objects.denseItems(._repr)) |*repr, i| {
             var settings = self.objects.readDense(i, .settings);
-            if(settings.sceneMode == .moveable)
-            {
+            if (settings.sceneMode == .moveable) {
                 var posRot = self.objects.readDense(i, .posRot);
                 self.updateTransform(repr, posRot.*);
             }
@@ -219,21 +210,16 @@ pub const SceneSystem = struct {
         };
     }
 
-    pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void
-    {
+    pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void {
         var settings = self.objects.get(objectHandle, .settings).?;
-        if(mobility == .moveable)
-        {
-            if (settings.sceneMode == .static)
-            {
+        if (mobility == .moveable) {
+            if (settings.sceneMode == .static) {
                 try self.dynamicObjects.append(self.allocator, objectHandle);
             }
         }
 
-        if(mobility == .static)
-        {
-            if(settings.sceneMode == .moveable)
-            {
+        if (mobility == .static) {
+            if (settings.sceneMode == .moveable) {
                 core.engine_errs("TODO: Changing sceneMode from moveable back to static is not supported yet.");
                 unreachable;
             }

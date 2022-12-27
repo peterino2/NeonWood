@@ -117,7 +117,7 @@ pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.allocAdvanced(u8, @intCast(u29, alignment), @intCast(usize, filesize), .exact);
+    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
     try file.reader().readNoEof(buffer);
     return buffer;
 }

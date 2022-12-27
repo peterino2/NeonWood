@@ -219,9 +219,9 @@ pub const PapyrusSubsystem = struct {
             gc.vkd,
             gc.allocator,
             resources.sprite_mesh_vert.len,
-            @ptrCast([*]const u32, resources.sprite_mesh_vert),
+            @ptrCast([*]const u32, &resources.sprite_mesh_vert),
             resources.sprite_mesh_frag.len,
-            @ptrCast([*]const u32, resources.sprite_mesh_frag),
+            @ptrCast([*]const u32, &resources.sprite_mesh_frag),
         );
         defer pipelineBuilder.deinit();
 

@@ -145,7 +145,7 @@ pub const SpriteSheet = struct {
         allocator: std.mem.Allocator,
         animationName: core.Name,
         triggerFrame: usize,
-        func: fn (*anyopaque) void,
+        func: *const fn (*anyopaque) void,
         context: *anyopaque,
     ) !void {
         if (!self.animationCallbacks.contains(animationName.hash)) {
