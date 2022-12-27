@@ -50,9 +50,9 @@ pub const RendererInterface = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    preDraw: fn (*anyopaque, frameId: usize) void,
-    onBindObject: fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
-    postDraw: ?fn (*anyopaque, vk.CommandBuffer, usize, f64) void,
+    preDraw: *const fn (*anyopaque, frameId: usize) void,
+    onBindObject: *const fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
+    postDraw: ?*const fn (*anyopaque, vk.CommandBuffer, usize, f64) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -355,10 +355,10 @@ pub const NeonVkContext = struct {
     pub const maxMode = 3;
 
     const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
-        .{ .@"type" = .uniform_buffer, .descriptor_count = 100 },
-        .{ .@"type" = .uniform_buffer_dynamic, .descriptor_count = 100 },
-        .{ .@"type" = .storage_buffer, .descriptor_count = 100 },
-        .{ .@"type" = .combined_image_sampler, .descriptor_count = 100 },
+        .{ .type = .uniform_buffer, .descriptor_count = 100 },
+        .{ .type = .uniform_buffer_dynamic, .descriptor_count = 100 },
+        .{ .type = .storage_buffer, .descriptor_count = 100 },
+        .{ .type = .combined_image_sampler, .descriptor_count = 100 },
     };
 
     mode: u32,
@@ -467,15 +467,13 @@ pub const NeonVkContext = struct {
 
     shouldShowDebug: bool,
 
-    pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void 
-    {
+    pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.hash).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.meshName = meshName;
     }
 
-    pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void 
-    {
+    pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void {
         var textureSet = self.textureSets.get(textureName.hash).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.texture = textureSet;
     }
@@ -658,7 +656,7 @@ pub const NeonVkContext = struct {
         return self.textures.getEntry(textureName.hash).?.value_ptr.*;
     }
 
-    pub fn make_mesh_image_from_texture(self: *Self, name: core.Name, params: struct{useBlocky: bool = true}) !void {
+    pub fn make_mesh_image_from_texture(self: *Self, name: core.Name, params: struct { useBlocky: bool = true }) !void {
         if (self.textureSets.contains(name.hash)) {
             return;
         }
@@ -674,7 +672,7 @@ pub const NeonVkContext = struct {
 
         var imageBufferInfo = vk.DescriptorImageInfo{
             //.sampler = self.blockySampler,
-            .sampler = if(params.useBlocky) self.blockySampler else self.linearSampler,
+            .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
             .image_view = (self.textures.get(name.hash)).?.imageView,
             .image_layout = .shader_read_only_optimal,
         };
@@ -982,9 +980,9 @@ pub const NeonVkContext = struct {
             self.vkd,
             self.allocator,
             resources.triangle_mesh_vert.len,
-            @ptrCast([*]const u32, resources.triangle_mesh_vert),
+            @ptrCast([*]const u32, &resources.triangle_mesh_vert),
             resources.default_lit_frag.len,
-            @ptrCast([*]const u32, resources.default_lit_frag),
+            @ptrCast([*]const u32, &resources.default_lit_frag),
         );
         defer pipeline_builder.deinit();
 
@@ -1041,9 +1039,9 @@ pub const NeonVkContext = struct {
             self.vkd,
             self.allocator,
             resources.triangle_vert_static.len,
-            @ptrCast([*]const u32, resources.triangle_vert_static),
+            @ptrCast([*]const u32, &resources.triangle_vert_static),
             resources.triangle_frag_static.len,
-            @ptrCast([*]const u32, resources.triangle_frag_static),
+            @ptrCast([*]const u32, &resources.triangle_frag_static),
         );
 
         try static_tri_builder.init_triangle_pipeline(self.actual_extent);
@@ -1057,9 +1055,9 @@ pub const NeonVkContext = struct {
             self.vkd,
             self.allocator,
             resources.triangle_vert_colored.len,
-            @ptrCast([*]const u32, resources.triangle_vert_colored),
+            @ptrCast([*]const u32, &resources.triangle_vert_colored),
             resources.triangle_frag_colored.len,
-            @ptrCast([*]const u32, resources.triangle_frag_colored),
+            @ptrCast([*]const u32, &resources.triangle_frag_colored),
         );
         try colored_tri_b.init_triangle_pipeline(self.actual_extent);
         try colored_tri_b.add_depth_stencil();
@@ -1339,7 +1337,7 @@ pub const NeonVkContext = struct {
         core.gScene.updateTransforms();
         try self.sceneManager.update(self);
 
-        if(!self.isMinimized){
+        if (!self.isMinimized) {
             var z1 = tracy.Zone(@src());
             z1.Name("drawing UI");
             try self.draw_ui(deltaTime);
@@ -1376,15 +1374,13 @@ pub const NeonVkContext = struct {
             var x = tracy.ZoneN(@src(), "End of Frame");
             try self.finish_frame();
             x.End();
-        }
-        else 
-        {
+        } else {
             var w: c_int = undefined;
             var h: c_int = undefined;
             c.glfwGetWindowSize(self.window, &w, &h);
 
-            if ((self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and 
-                (w > 0 and h > 0)) 
+            if ((self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and
+                (w > 0 and h > 0))
             {
                 self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
 
@@ -1409,7 +1405,6 @@ pub const NeonVkContext = struct {
 
             std.time.sleep(1000 * 1000);
         }
-
     }
 
     fn draw_render_object(
@@ -1608,8 +1603,8 @@ pub const NeonVkContext = struct {
         var h: c_int = undefined;
         c.glfwGetWindowSize(self.window, &w, &h);
 
-        if ((outOfDate or self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and 
-            (w > 0 and h > 0)) 
+        if ((outOfDate or self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and
+            (w > 0 and h > 0))
         {
             self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
 
@@ -1699,7 +1694,7 @@ pub const NeonVkContext = struct {
             .store_op = .store,
             .stencil_load_op = .dont_care,
             .stencil_store_op = .dont_care,
-            .initial_layout = .@"undefined",
+            .initial_layout = .undefined,
             .final_layout = .present_src_khr,
         };
 
@@ -1718,7 +1713,7 @@ pub const NeonVkContext = struct {
             .store_op = .store,
             .stencil_load_op = .clear, // equals to zero
             .stencil_store_op = .store, // equals to zero but we don't care
-            .initial_layout = .@"undefined",
+            .initial_layout = .undefined,
             .final_layout = .depth_stencil_attachment_optimal,
         };
 
@@ -1943,7 +1938,7 @@ pub const NeonVkContext = struct {
             .sharing_mode = .exclusive,
             .queue_family_index_count = 0,
             .p_queue_family_indices = undefined,
-            .initial_layout = .@"undefined",
+            .initial_layout = .undefined,
             .image_type = .@"2d",
             .format = self.depthFormat,
             .extent = depthImageExtent,
@@ -2653,7 +2648,7 @@ pub const TextureLoader = struct {
         core.engine_log("loading texture asset {s}", .{assetRef.path});
 
         _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-        self.gc.make_mesh_image_from_texture(assetRef.name, .{.useBlocky = assetRef.properties.textureUseBlockySampler}) catch return error.UnableToLoad;
+        self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
     }
 };
 

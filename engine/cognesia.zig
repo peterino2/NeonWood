@@ -96,12 +96,12 @@ const GameAssets = [_]assets.AssetRef{
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_test_page"), .path = "content/page_test.png", .properties = .{
         .textureUseBlockySampler = false,
     } },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page1"), .path = "content/Page1.png", .properties = .{.textureUseBlockySampler = false} },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page2"), .path = "content/Page2.png", .properties = .{.textureUseBlockySampler = false} },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page3"), .path = "content/Page3.png", .properties = .{.textureUseBlockySampler = false} },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page4"), .path = "content/Page4.png", .properties = .{.textureUseBlockySampler = false} },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page5"), .path = "content/Page5.png", .properties = .{.textureUseBlockySampler = false} },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page6"), .path = "content/Page6.png", .properties = .{.textureUseBlockySampler = false} },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page1"), .path = "content/Page1.png", .properties = .{ .textureUseBlockySampler = false } },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page2"), .path = "content/Page2.png", .properties = .{ .textureUseBlockySampler = false } },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page3"), .path = "content/Page3.png", .properties = .{ .textureUseBlockySampler = false } },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page4"), .path = "content/Page4.png", .properties = .{ .textureUseBlockySampler = false } },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page5"), .path = "content/Page5.png", .properties = .{ .textureUseBlockySampler = false } },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_page6"), .path = "content/Page6.png", .properties = .{ .textureUseBlockySampler = false } },
     //.{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
     //.{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room2"), .path = "content/room2.obj" },
     //.{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_room3"), .path = "content/room3.obj" },
@@ -136,11 +136,7 @@ const ScreenEffects = struct {
 
     pageAnimTime: f32 = 0,
     pageShowRiseTime: f32 = 1.0,
-    pageState: enum {
-        rising,
-        fading,
-        holding
-    } = .holding,
+    pageState: enum { rising, fading, holding } = .holding,
     pageVisible: bool = false,
 
     blackFadeAnimTime: f32 = 0,
@@ -176,24 +172,20 @@ const ScreenEffects = struct {
 
     papyrusImage: *PapyrusImageSubsystem,
 
-    pub fn showPage(self: *@This(), pageName: core.Name) void
-    {
+    pub fn showPage(self: *@This(), pageName: core.Name) void {
         self.papyrusImage.setNewImageUseDefaults(self.page, pageName);
         self.pageState = .rising;
         self.pageVisible = true;
-        self.papyrusImage.setImageScale(self.page, .{.x = -0.714, .y = 0.714});
+        self.papyrusImage.setImageScale(self.page, .{ .x = -0.714, .y = 0.714 });
     }
 
-    pub fn hidePage(self: *@This()) void
-    {
+    pub fn hidePage(self: *@This()) void {
         self.pageVisible = false;
         self.pageState = .fading;
     }
 
-    pub fn tickPageAnim(self: *@This(), dt: f32) void 
-    {
-        switch(self.pageState)
-        {
+    pub fn tickPageAnim(self: *@This(), dt: f32) void {
+        switch (self.pageState) {
             .holding => {
                 return;
             },
@@ -201,8 +193,7 @@ const ScreenEffects = struct {
                 self.pageAnimTime += dt;
                 var alpha = core.clamp(self.pageAnimTime / self.pageShowRiseTime, 0, 1);
                 self.papyrusImage.setAlpha(self.page, alpha);
-                if(self.pageAnimTime > self.pageShowRiseTime)
-                {
+                if (self.pageAnimTime > self.pageShowRiseTime) {
                     self.pageAnimTime = 0;
                     self.pageState = .holding;
                 }
@@ -211,22 +202,16 @@ const ScreenEffects = struct {
                 self.pageAnimTime += dt;
                 var alpha = core.clamp((self.pageShowRiseTime - self.pageAnimTime) / self.pageShowRiseTime, 0, 1);
                 self.papyrusImage.setAlpha(self.page, alpha);
-                if(self.pageAnimTime > self.pageShowRiseTime)
-                {
+                if (self.pageAnimTime > self.pageShowRiseTime) {
                     self.pageAnimTime = 0;
                     self.pageState = .holding;
                 }
-            }
+            },
         }
     }
 
-    pub fn getEngineSplashTotalTime(self: @This()) f32 
-    {
-        return self.engineSplashPreHoldTime 
-            + self.engineSplashRiseTime 
-            + self.engineSplashHoldTime 
-            + self.engineSplashPostFadeTime 
-            + self.engineSplashFadeTime;
+    pub fn getEngineSplashTotalTime(self: @This()) f32 {
+        return self.engineSplashPreHoldTime + self.engineSplashRiseTime + self.engineSplashHoldTime + self.engineSplashPostFadeTime + self.engineSplashFadeTime;
     }
 
     pub fn init(papyrusImage: *PapyrusImageSubsystem) @This() {
@@ -240,14 +225,13 @@ const ScreenEffects = struct {
         self.engineSplashState = .prehold;
         self.engineSplashFirstFrame = true;
         self.papyrusImage.setNewImageUseDefaults(self.engineSplash, splashImage);
-        self.papyrusImage.setImageScale(self.engineSplash, .{.x = -1, .y = 1});
+        self.papyrusImage.setImageScale(self.engineSplash, .{ .x = -1, .y = 1 });
         self.papyrusImage.setAlpha(self.engineSplash, 0);
         self.splashSound = splashSound;
     }
 
     pub fn tickEngineSplashAnim(self: *@This(), deltaTime: f32) void {
-        if(self.engineSplashFirstFrame)
-        {
+        if (self.engineSplashFirstFrame) {
             self.engineSplashFirstFrame = false;
             return;
         }
@@ -261,8 +245,7 @@ const ScreenEffects = struct {
                 if (self.engineSplashTime > self.engineSplashPreHoldTime) {
                     self.engineSplashTime = 0;
                     self.engineSplashState = .rising;
-                    if(self.splashSound) |splashSound|
-                    {
+                    if (self.splashSound) |splashSound| {
                         audio.gSoundEngine.playSound(splashSound) catch unreachable;
                     }
                 }
@@ -301,28 +284,22 @@ const ScreenEffects = struct {
         }
     }
 
-    pub fn startEndGame(self: *@This()) void
-    {
+    pub fn startEndGame(self: *@This()) void {
         self.endGame = true;
         gGame.setMovementEnabled(false);
     }
 
-    pub fn tickEndGame(self: *@This(), dt: f32) void
-    {
-        if(self.endGame == true)
-        {
+    pub fn tickEndGame(self: *@This(), dt: f32) void {
+        if (self.endGame == true) {
             gGame.setMovementEnabled(false);
             self.endGameTime += dt;
-            if(self.endGameTime > 5.0)
-            {
+            if (self.endGameTime > 5.0) {
                 self.papyrusImage.setAlpha(self.blackFader, (self.endGameTime - 5.0) / (self.endGameFade - 5.0));
 
-                if(self.endGameTime > self.endGameFade)
-                {
+                if (self.endGameTime > self.endGameFade) {
                     gGame.halcyon.startDialogue("doomed");
                     self.endGame = false;
                 }
-
             }
         }
     }
@@ -361,7 +338,7 @@ const ScreenEffects = struct {
         // self.papyrusImage.setImageUseAbsolute(self.vignette, true);
         self.papyrusImage.setImageScale(self.vignette, .{ .x = 2.0, .y = 2.0 });
         self.papyrusImage.setAlpha(self.vignette, 0.0);
-        
+
         self.page = self.papyrusImage.newDisplayImage(
             core.MakeName("t_cognesia"),
             .{ .x = 1, .y = 1 },
@@ -427,8 +404,6 @@ const ScreenEffects = struct {
     }
 };
 
-// primarily a test file that exists to create a simple application for
-// basic engine onboarding
 const GameContext = struct {
     const Self = @This();
     pub const NeonObjectTable = core.RttiData.from(Self);
@@ -494,7 +469,7 @@ const GameContext = struct {
     roomCollisionFile: []const u8 = "content/BreakRoomCollision.cg",
     showInstructions: bool = false,
     movementEnabled: bool = false,
-    playedIntro:bool = true,
+    playedIntro: bool = true,
     playingCognesiaSplash: bool = false,
 
     sceneMeshes: std.ArrayListUnmanaged(core.ObjectHandle),
@@ -506,11 +481,9 @@ const GameContext = struct {
         self.movementEnabled = enabled;
     }
 
-    pub fn removeSceneObjects(self: *@This()) void
-    {
+    pub fn removeSceneObjects(self: *@This()) void {
         // TODO: this function.. yes this function right here is why we need a "proper" ecs
-        for(self.sceneMeshes.items)|object|
-        {
+        for (self.sceneMeshes.items) |object| {
             _ = self.gc.renderObjectSet.destroyObject(object);
             _ = self.papyrus.spriteObjects.destroyObject(object);
         }
@@ -533,8 +506,6 @@ const GameContext = struct {
             .cameraHorizontalRotationMat = core.zm.identity(),
             .collision = Collision2D.init(allocator),
             .dialogueSys = dialogue.DialogueSystem.init(allocator, graphics.getContext()),
-            // for some reason core.createObject fails here... not sure why.
-            //core.createObject(PapyrusSubsystem, .{.can_tick = false}) catch unreachable,
             .papyrus = allocator.create(PapyrusSubsystem) catch unreachable,
             .papyrusImage = allocator.create(PapyrusImageSubsystem) catch unreachable,
             .interactions = interactable.InteractionSystem.init(allocator),
@@ -697,16 +668,14 @@ const GameContext = struct {
         }
     }
 
-    pub fn create_page_sprite(self: *@This()) !void 
-    {
+    pub fn create_page_sprite(self: *@This()) !void {
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_page"));
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 16, .y = 16 });
 
         try spriteSheet.addRangeBasedAnimation(self.allocator, core.MakeName("holding"), 0, 1, 1);
     }
 
-    pub fn create_salina_sheet(self: *@This()) !void
-    {
+    pub fn create_salina_sheet(self: *@This()) !void {
         var spriteSheet = try self.papyrus.addSpriteSheetByName(MakeName("t_salina"));
         try spriteSheet.generateSpriteFrames(self.allocator, .{ .x = 32, .y = 48 });
 
@@ -831,19 +800,17 @@ const GameContext = struct {
     pub fn loadStageFromFileFinish(self: *@This(), stageDataPath: []const u8, positionSelect: usize) !void {
         self.setPlayerVisible(true);
         self.setMovementEnabled(true);
-        if(self.meshVisibilitiesByScene.get(self.currentScenePath.hash)) |*visibility|
-        {
-            for(self.currentSceneVisibilities.items) |v, i|
-            {
+        if (self.meshVisibilitiesByScene.get(self.currentScenePath.hash)) |*visibility| {
+            for (self.currentSceneVisibilities.items) |v, i| {
                 visibility.items[i] = v;
             }
         }
         self.currentSceneVisibilities.clearRetainingCapacity();
         self.removeSceneObjects();
-        
+
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         var arenaAlloc = arena.allocator();
-        var stageData =  stage.StageData.init(arenaAlloc);
+        var stageData = stage.StageData.init(arenaAlloc);
         try stageData.loadFromFile(stageDataPath);
         try stageData.saveToDisk("sampleOutput.json");
         self.allocator.free(self.roomCollisionFile);
@@ -882,10 +849,8 @@ const GameContext = struct {
             _ = try self.interactions.addTalkable(core.Name.fromUtf8(i.tag), i.tag, i.position, i.radius);
         }
 
-        for(stageData.data.extraMeshes.items) |i|
-        {
-            if(i.hasSprite)
-            {
+        for (stageData.data.extraMeshes.items) |i| {
+            if (i.hasSprite) {
                 var spriteSheet = self.papyrus.spriteSheets.get(i.spriteName.hash).?;
                 var newObject = try self.gc.add_renderobject(.{
                     .mesh_name = core.MakeName("mesh_quad"),
@@ -894,7 +859,7 @@ const GameContext = struct {
                 });
 
                 try self.papyrus.addSprite(newObject, i.spriteName);
-                try self.papyrus.playSpriteAnimation(newObject, i.startingAnim, .{.looping = false});
+                try self.papyrus.playSpriteAnimation(newObject, i.startingAnim, .{ .looping = false });
 
                 try self.sceneMeshes.append(self.allocator, newObject);
             }
@@ -902,19 +867,14 @@ const GameContext = struct {
 
         var pathName = core.Name.fromUtf8(stageDataPath);
         self.currentScenePath = pathName;
-        if(self.meshVisibilitiesByScene.get(pathName.hash)) |*visibilities|
-        {
-            for (self.sceneMeshes.items) |sceneMesh ,i|
-            {
+        if (self.meshVisibilitiesByScene.get(pathName.hash)) |*visibilities| {
+            for (self.sceneMeshes.items) |sceneMesh, i| {
                 self.gc.setObjectVisibility(sceneMesh, visibilities.*.items[i]);
                 try self.currentSceneVisibilities.append(self.allocator, visibilities.*.items[i]);
             }
-        }
-        else 
-        {
+        } else {
             var visibilities: std.ArrayList(bool) = std.ArrayList(bool).init(self.allocator);
-            for (self.sceneMeshes.items) |_|
-            {
+            for (self.sceneMeshes.items) |_| {
                 try self.currentSceneVisibilities.append(self.allocator, true);
                 try visibilities.append(true);
             }
@@ -923,7 +883,6 @@ const GameContext = struct {
 
         core.engine_log("extra meshes in scene: {d}", .{self.currentSceneVisibilities.items.len});
         core.assert(self.currentSceneVisibilities.items.len == self.sceneMeshes.items.len);
-
     }
 
     pub fn createAndSaveStageData(self: *@This(), stageDataPath: []const u8) !void {
@@ -1019,7 +978,7 @@ const GameContext = struct {
         try self.loadStageFromFileFinish("content/mainMenu.json", 0);
         self.screenEffects.startEngineSplashSequence(core.MakeName("t_engineSplash"), core.MakeName("s_engineSplash"));
         self.playedIntro = false;
-       // try self.loadStageFromFileFinish("content/BreakRoom.json", 0);
+        // try self.loadStageFromFileFinish("content/BreakRoom.json", 0);
 
         // load interactions
         // _ = try self.interactions.addTalkable(
@@ -1077,12 +1036,9 @@ const GameContext = struct {
 
         self.camera.resolve(self.cameraHorizontalRotationMat);
         self.inDialogue = self.dialogueSys.speechWindow or self.screenEffects.pageVisible;
-        if(self.screenEffects.pageVisible or self.screenEffects.pageState != .holding)
-        {
+        if (self.screenEffects.pageVisible or self.screenEffects.pageState != .holding) {
             self.dialogueSys.dialogueIsHidden = true;
-        }
-        else 
-        {
+        } else {
             self.dialogueSys.dialogueIsHidden = false;
         }
 
@@ -1219,10 +1175,8 @@ const GameContext = struct {
         self.dialogueSys.tick(deltaTime);
         self.handleShakeScreen(@floatCast(f32, deltaTime));
         self.screenEffects.tickAnims(@floatCast(f32, deltaTime));
-        if(self.screenEffects.engineSplashState == .dead and !self.screenEffects.engineSplashFirstFrame)
-        {
-            if(self.playedIntro == false)
-            {
+        if (self.screenEffects.engineSplashState == .dead and !self.screenEffects.engineSplashFirstFrame) {
+            if (self.playedIntro == false) {
                 self.playedIntro = true;
                 self.screenEffects.startEngineSplashSequence(core.MakeName("t_cognesia"), core.MakeName("s_fs_reverb"));
                 self.playingCognesiaSplash = true;
@@ -1231,8 +1185,7 @@ const GameContext = struct {
             }
         }
 
-        if(self.playingCognesiaSplash and self.screenEffects.engineSplashState == .dead)
-        {
+        if (self.playingCognesiaSplash and self.screenEffects.engineSplashState == .dead) {
             self.playingCognesiaSplash = false;
             self.halcyon.startDialogue("main_menu_dialogue");
         }
@@ -1264,8 +1217,8 @@ pub fn inputCallback(
 
     if (key == c.GLFW_KEY_T and action == c.GLFW_PRESS) {
         core.engine_logs("OpeningDebugMenu");
-        if(debugAvailable)
-        gGame.testWindow = !gGame.testWindow;
+        if (debugAvailable)
+            gGame.testWindow = !gGame.testWindow;
     }
     if (key == c.GLFW_KEY_F1 and action == c.GLFW_PRESS) {
         core.engine_logs("OpeningDebugMenu");
@@ -1292,13 +1245,11 @@ pub fn inputCallback(
                 if (gGame.dialogueSys.choices.choices.items.len > 0) {
                     gGame.halcyon.progress(gGame.dialogueSys.choices.active_choice);
                 } else {
-                    if(!gGame.dialogueSys.dialogueIsHidden)
-                    {
+                    if (!gGame.dialogueSys.dialogueIsHidden) {
                         gGame.halcyon.progress(null);
                     }
                 }
-                if(gGame.screenEffects.pageVisible and gGame.screenEffects.pageState == .holding)
-                {
+                if (gGame.screenEffects.pageVisible and gGame.screenEffects.pageState == .holding) {
                     gGame.halcyon.progress(null);
                     gGame.screenEffects.hidePage();
                 }
@@ -1359,7 +1310,7 @@ pub fn main() anyerror!void {
     defer graphics.shutdown_module();
 
     // Setup the game
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
+    var gameContext = try core.gEngine.createObject(GameContext, .{ .can_tick = true });
     try gameContext.prepareGame();
 
     // run the game

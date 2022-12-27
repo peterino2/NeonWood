@@ -10,7 +10,7 @@ const shaders_folder = "modules/graphics/shaders/";
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.allocAdvanced(u8, @intCast(u29, alignment), filesize, .exact);
+    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
     try file.reader().readNoEof(buffer);
     return buffer;
 }
@@ -120,9 +120,10 @@ pub const ResourceGenStep = struct {
             }
         }
 
-        writer.print("pub const {s} = @embedFile(\"", .{name}) catch unreachable;
-        renderPath(shader_out_path, writer);
-        writer.writeAll("\");\n") catch unreachable;
+        writer.print("pub const {s} align(8) = @embedFile(\"{s}.spv", .{ name, source }) catch unreachable;
+        // writer.print("pub const {s} align(8) = @embedFile(\"", .{name}) catch unreachable;
+        // renderPath(shader_out_path, writer);
+        writer.writeAll("\").*;\n") catch unreachable;
 
         if (!should_generate) {
             return;
@@ -172,14 +173,12 @@ pub fn createGameExecutable(
     defer cflags.deinit();
 
     try cflags.append(try std.fmt.allocPrint(allocator, "-I{s}/modules/core/lib/stb/", .{enginePath}));
-    if(enable_tracy)
-    {
+    if (enable_tracy) {
         try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_ENABLE=1", .{}));
         try cflags.append(try std.fmt.allocPrint(allocator, "-DTRACY_HAS_CALLSTACK=0", .{}));
         try cflags.append(try std.fmt.allocPrint(allocator, "-D_Win32_WINNT=0x601", .{}));
     }
     try cflags.append(try std.fmt.allocPrint(allocator, "-fno-sanitize=all", .{}));
-
 
     for (cflags.items) |s| {
         _ = s;
@@ -220,12 +219,9 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
-    if(target.getOs().tag == .windows)
-    {
+    if (target.getOs().tag == .windows) {
         exe.linkSystemLibrary("glfw3dll");
-    }
-    else 
-    {
+    } else {
         exe.linkSystemLibrary("glfw");
         exe.linkSystemLibrary("dl");
         exe.linkSystemLibrary("pthread");
@@ -233,20 +229,15 @@ pub fn createGameExecutable(
     exe.linkSystemLibrary("m");
     exe.addOptions("game_build_opts", options);
 
-    if(mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe)
-    {
-        if(enable_tracy)
-        {
+    if (mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe) {
+        if (enable_tracy) {
             std.debug.print("\n\n !! enable_tracy will be ignored for release-* builds\n\n", .{});
         }
         zigTracy.link(b, exe, null);
-    }
-    else if(enable_tracy)
-    {
+    } else if (enable_tracy) {
         std.debug.print("\n\nenabling tracy\n\n", .{});
         zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
-    }
-    else {
+    } else {
         std.debug.print("\n\n no tracy\n\n", .{});
         zigTracy.link(b, exe, null);
     }
@@ -311,8 +302,7 @@ pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
 
     const options = b.addOptions();
-    options.addOption(bool, "validation_layers", 
-        b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+    options.addOption(bool, "validation_layers", b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
 
     options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
     const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
@@ -338,9 +328,7 @@ pub fn build(b: *std.build.Builder) void {
         unreachable;
     };
 
-
-    if(perf_tests)
-    {
+    if (perf_tests) {
         _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options) catch |e| {
             std.debug.print("error: {any}", .{e});
             unreachable;

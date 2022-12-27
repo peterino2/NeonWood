@@ -33,15 +33,12 @@ const logging = @import("core/logging.zig");
 const vk = @import("vulkan");
 const c = @This();
 
-pub fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void
-{
-    if(!eval)
-    {
+pub fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
+    if (!eval) {
         logging.engine_err(fmt, args);
         return error.AssertFailure;
     }
 }
-
 
 const logs = logging.engine_logs;
 const log = logging.engine_log;
@@ -52,7 +49,7 @@ pub fn start_module() void {
     gEngine = gEngineAllocator.create(Engine) catch unreachable;
     gEngine.* = Engine.init(gEngineAllocator) catch unreachable;
 
-    gScene = gEngine.createObject(scene.SceneSystem, .{.can_tick = true}) catch unreachable;
+    gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
 
     logs("core module starting up... ");
     return;
@@ -73,7 +70,11 @@ pub fn dispatchJob(capture: anytype) !void {
 pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;
 pub var gEngine: *Engine = undefined;
 
-pub const createObject = engine.createObject;
+pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
+    // std.debug.print("address of gEngine {any}", .{params});
+    return gEngine.createObject(T, params);
+    // return error.NotImplemented;
+}
 
 pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
     try gEngine.tracesContext.traces.getEntry(name.hash).?.value_ptr.*.traceFmt(
@@ -87,10 +88,8 @@ pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
 }
 
-pub fn dumpDefaultTrace() !void 
-{
-    for(gEngine.tracesContext.traces.getEntry(DefaultName.hash).?.value_ptr.*.data.items) |*t|
-    {
+pub fn dumpDefaultTrace() !void {
+    for (gEngine.tracesContext.traces.getEntry(DefaultName.hash).?.value_ptr.*.data.items) |*t| {
         t.debugPrint(std.heap.c_allocator);
     }
 }
@@ -144,23 +143,21 @@ pub fn implement_func_for_tagged_union_nonull(
 }
 
 // checks if a string contains another string
-pub fn stringContains(lhs: []const u8, rhs: []const u8) bool
-{
+pub fn stringContains(lhs: []const u8, rhs: []const u8) bool {
     return std.mem.indexOf(u8, lhs, rhs);
 }
 
 pub const NoName = MakeName("none");
 
-pub fn writeToFile(data: []const u8, path: []const u8) !void
-{
+pub fn writeToFile(data: []const u8, path: []const u8) !void {
     const file = try std.fs.cwd().createFile(
         path,
-        .{ 
+        .{
             .read = true,
         },
     );
 
     const bytes_written = try file.writeAll(data);
     _ = bytes_written;
-    log("written: bytes to {s}", .{ path});
+    log("written: bytes to {s}", .{path});
 }
