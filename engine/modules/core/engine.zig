@@ -22,7 +22,9 @@ const JobManager = jobs.JobManager;
 const engine_log = logging.engine_log;
 
 pub fn createObject(comptime T: type, params: NeonObjectParams) !*T {
-    return core.gEngine.createObject(T, params);
+    std.debug.print("address of gEngine {any}", .{params});
+    //return core.gEngine.createObject(T, params);
+    return error.NotImplemented;
 }
 
 pub const Engine = struct {
@@ -107,10 +109,8 @@ pub const Engine = struct {
         try self.rttiObjects.append(self.allocator, newObjectRef);
 
         if (params.can_tick) {
-            comptime {
-                if (!@hasDecl(T, "tick")) {
-                    return error.RequestedTickNotAvailable; // tried to register a tickable for an object which does not implement tick
-                }
+            if (!@hasDecl(T, "tick")) {
+                return error.RequestedTickNotAvailable; // tried to register a tickable for an object which does not implement tick
             }
 
             // register to tick table

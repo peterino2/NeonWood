@@ -18,8 +18,7 @@ pub const SpriteFrame = struct {
 pub const SpriteAnimCallbackRegistry = struct {
     callbacks: ArrayListUnmanaged(AnimCallback) = .{},
 
-    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void
-    {
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         self.callbacks.deinit(allocator);
     }
 };
@@ -27,7 +26,7 @@ pub const SpriteAnimCallbackRegistry = struct {
 pub const AnimCallback = struct {
     triggerFrame: usize,
     context: *anyopaque,
-    callback: fn (*anyopaque) void,
+    callback: *const fn (*anyopaque) void,
 };
 
 pub const SpriteAnimation = struct {
@@ -87,11 +86,9 @@ pub const SpriteAnimationInstance = struct {
 const SoundEventWrap = struct {
     soundName: core.Name,
 
-    pub fn exec(ptr: *anyopaque) void
-    {
+    pub fn exec(ptr: *anyopaque) void {
         var this = @ptrCast(*@This(), @alignCast(@alignOf(@This()), ptr));
-        if(root.gGame.bInHallway and this.soundName.hash == core.MakeName("s_footstep").hash)
-        {
+        if (root.gGame.bInHallway and this.soundName.hash == core.MakeName("s_footstep").hash) {
             audio.gSoundEngine.playSound(core.MakeName("s_fs_reverb")) catch {
                 audio.sound_err("unable to play sound {s}", .{this.soundName.utf8});
             };
@@ -122,8 +119,7 @@ pub const SpriteSheet = struct {
 
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         self.frames.deinit(allocator);
-        for(self.soundEvents.items) |event|
-        {
+        for (self.soundEvents.items) |event| {
             allocator.destroy(event);
         }
         self.animations.deinit(allocator);
@@ -138,7 +134,7 @@ pub const SpriteSheet = struct {
         soundName: core.Name,
     ) !void {
         var soundEvent = try allocator.create(SoundEventWrap);
-        soundEvent.* = .{.soundName = soundName};
+        soundEvent.* = .{ .soundName = soundName };
         try self.soundEvents.append(allocator, soundEvent);
 
         try self.addAnimationCallback(allocator, animationName, triggerFrame, SoundEventWrap.exec, soundEvent);
@@ -149,11 +145,10 @@ pub const SpriteSheet = struct {
         allocator: std.mem.Allocator,
         animationName: core.Name,
         triggerFrame: usize,
-        func: fn (*anyopaque) void,
+        func: *const fn (*anyopaque) void,
         context: *anyopaque,
     ) !void {
-        if(!self.animationCallbacks.contains(animationName.hash))
-        {
+        if (!self.animationCallbacks.contains(animationName.hash)) {
             try self.animationCallbacks.put(
                 allocator,
                 animationName.hash,

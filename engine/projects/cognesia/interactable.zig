@@ -14,12 +14,11 @@ pub const InteractableInterface = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    onInteract: fn (*anyopaque) void,
-    serialize: fn (*anyopaque, std.mem.Allocator) std.ArrayList(u8),
+    onInteract: *const fn (*anyopaque) void,
+    serialize: *const fn (*anyopaque, std.mem.Allocator) std.ArrayList(u8),
 
-    pub fn from(comptime TargetType: type)  @This() {
+    pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
-
             pub fn onInteract(pointer: *anyopaque) void {
                 var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
                 ptr.onInteract();
@@ -41,7 +40,6 @@ pub const InteractableInterface = struct {
 
         return self;
     }
-
 };
 
 pub const InteractableObject = struct {
@@ -50,13 +48,11 @@ pub const InteractableObject = struct {
     radius: f32,
     disabled: bool = false,
 
-    pub fn interact(self: *@This()) void 
-    {
+    pub fn interact(self: *@This()) void {
         self.interface.onInteract();
     }
 
-    pub fn serialize(self: *@This(), allocator: std.mem.Allocator) std.ArrayList(u8) 
-    {
+    pub fn serialize(self: *@This(), allocator: std.mem.Allocator) std.ArrayList(u8) {
         return self.interface.vtable.serialize(self.interface.ptr, allocator);
     }
 };
@@ -71,13 +67,11 @@ pub const HalcyonInteractable = struct {
     dialogueTag: []const u8,
     handle: core.ObjectHandle = undefined,
 
-    pub fn onInteract(self: *@This()) void
-    {
+    pub fn onInteract(self: *@This()) void {
         halcyonSys.startDialogue(self.dialogueTag);
     }
 
-    pub fn serialize(self: @This(), allocator: std.mem.Allocator) std.ArrayList(u8)
-    {
+    pub fn serialize(self: @This(), allocator: std.mem.Allocator) std.ArrayList(u8) {
         var ostr = std.ArrayList(u8).init(allocator);
         ostr.appendSlice(self.dialogueTag) catch unreachable;
 
@@ -89,21 +83,19 @@ pub const InteractableRef = struct {
     ptr: *anyopaque,
     vtable: *const InteractableInterface,
 
-    pub fn makeRef(target: anytype) @This()
-    {
+    pub fn makeRef(target: anytype) @This() {
         return .{
             .ptr = target,
             .vtable = &@TypeOf(target.*).InteractableVTable,
         };
     }
 
-    pub fn onInteract(self: *@This()) void
-    {
+    pub fn onInteract(self: *@This()) void {
         self.vtable.onInteract(self.ptr);
     }
 };
 
-pub const InteractableObjectSet = core.SparseMultiSet(struct{ object: InteractableObject });
+pub const InteractableObjectSet = core.SparseMultiSet(struct { object: InteractableObject });
 
 pub const InteractionSystem = struct {
     interactables: InteractableObjectSet,
@@ -111,8 +103,7 @@ pub const InteractionSystem = struct {
     highLightObject: ?core.ObjectHandle,
     talkables: std.AutoHashMapUnmanaged(u32, *HalcyonInteractable),
 
-    pub fn init(allocator: std.mem.Allocator) @This()
-    {
+    pub fn init(allocator: std.mem.Allocator) @This() {
         return .{
             .allocator = allocator,
             .interactables = InteractableObjectSet.init(allocator),
@@ -121,73 +112,55 @@ pub const InteractionSystem = struct {
         };
     }
 
-    pub fn addInteractable(self: *@This(), interactable: InteractableObject) !core.ObjectHandle
-    {
+    pub fn addInteractable(self: *@This(), interactable: InteractableObject) !core.ObjectHandle {
         return try self.interactables.createObject(.{
             .object = interactable,
         });
     }
 
-    pub fn addTalkable(self: *@This(), interactableName: core.Name, text: []const u8, position: core.Vectorf, radius: f32) !core.ObjectHandle
-    {
-
-        if(self.talkables.get(interactableName.hash)) |original|
-        {
+    pub fn addTalkable(self: *@This(), interactableName: core.Name, text: []const u8, position: core.Vectorf, radius: f32) !core.ObjectHandle {
+        if (self.talkables.get(interactableName.hash)) |original| {
             var handle = original.*.handle;
             self.interactables.get(handle, .object).?.*.disabled = false;
             self.interactables.get(handle, .object).?.*.position = position;
             self.interactables.get(handle, .object).?.*.radius = radius;
             return handle;
-        }
-        else {
+        } else {
             var testText = try self.allocator.create(HalcyonInteractable);
             testText.*.dialogueTag = text;
 
             try self.talkables.put(self.allocator, interactableName.hash, testText);
 
-            var interactable: InteractableObject = .{
-                .interface = InteractableRef.makeRef(testText),
-                .position = position,
-                .radius = radius
-            };
+            var interactable: InteractableObject = .{ .interface = InteractableRef.makeRef(testText), .position = position, .radius = radius };
 
             var handle = try self.addInteractable(interactable);
             testText.*.handle = handle;
             return handle;
         }
-
-
     }
 
-    pub fn disableAll(self: *@This()) void
-    {
-        for(self.interactables.denseItems(.object)) |*interactable|
-        {
+    pub fn disableAll(self: *@This()) void {
+        for (self.interactables.denseItems(.object)) |*interactable| {
             interactable.*.disabled = true;
         }
     }
 
-    pub fn getNearestObjectInRange(self: *@This(), position: core.Vectorf, radius: f32, showDebug: bool) ?*InteractableObject
-    {
+    pub fn getNearestObjectInRange(self: *@This(), position: core.Vectorf, radius: f32, showDebug: bool) ?*InteractableObject {
         // only considers x and z position
         var nearest: ?*InteractableObject = null;
         var nearestDist: f32 = 100000000;
-        
-        for(self.interactables.denseItems(.object)) |*interactable|
-        {
-            if(interactable.*.disabled)
+
+        for (self.interactables.denseItems(.object)) |*interactable| {
+            if (interactable.*.disabled)
                 continue;
             var distance = interactable.position.sub(position).lengthXZ();
-            if(showDebug)
-            {
+            if (showDebug) {
                 graphics.debug_draw.debugSphere(interactable.position, interactable.radius, .{
                     .color = core.Vectorf.new(1.0, 1.0, 0.0),
                 });
             }
-            if( distance < (interactable.radius + radius) )
-            {
-                if(distance < nearestDist)
-                {
+            if (distance < (interactable.radius + radius)) {
+                if (distance < nearestDist) {
                     nearest = interactable;
                     nearestDist = distance;
                 }
@@ -196,5 +169,4 @@ pub const InteractionSystem = struct {
 
         return nearest;
     }
-
 };

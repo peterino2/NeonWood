@@ -4,7 +4,7 @@ const std = @import("std");
 pub fn load_file_alloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.allocAdvanced(u8, @intCast(u29, alignment), filesize, .exact);
+    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
     try file.reader().readNoEof(buffer);
     return buffer;
 }

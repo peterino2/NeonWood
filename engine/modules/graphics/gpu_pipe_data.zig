@@ -80,10 +80,14 @@ pub const GpuPipeDataBinding = struct {
             mapping.ptr = @ptrCast([*]MappingType, data);
             mapping.len = self.objectCount;
 
+            var dataMapping: []u8 = undefined;
+            dataMapping.ptr = @ptrCast([*]u8, data);
+            dataMapping.len = self.objectCount;
             var gpuMappingData: GpuMappingData(MappingType) = .{
                 .objects = mapping,
                 .trueObjectSize = self.objectSize,
-                .raw = .{ .data = @ptrCast([]u8, mapping), .allocation = self.buffers[frameIndex].allocation },
+                // .raw = .{ .data = @ptrCast[]u8, mapping), .allocation = self.buffers[frameIndex].allocation },
+                .raw = .{ .data = dataMapping, .allocation = self.buffers[frameIndex].allocation },
             };
 
             rv[frameIndex] = gpuMappingData;
@@ -169,11 +173,10 @@ pub const GpuPipeDataBuilder = struct {
         return self;
     }
 
-    pub fn setObjectCount (
+    pub fn setObjectCount(
         self: *@This(),
         count: usize,
-    )void 
-    {
+    ) void {
         self.*.objectCount = count;
     }
 
@@ -207,11 +210,9 @@ pub const GpuPipeDataBuilder = struct {
         if (descriptorType != .storage_buffer) {
             bindingObjectInfo.finalObjectSize = gc.pad_uniform_buffer_size(bindingObjectInfo.finalObjectSize);
             core.engine_log("final object size has been padded: {d}", .{bindingObjectInfo.finalObjectSize});
-        }
-        else {
+        } else {
             var trueSize: usize = 1;
-            while(trueSize < bindingObjectInfo.finalObjectSize) 
-            {
+            while (trueSize < bindingObjectInfo.finalObjectSize) {
                 trueSize *= 2;
             }
             bindingObjectInfo.finalObjectSize = trueSize;
@@ -246,12 +247,7 @@ pub const GpuPipeDataBuilder = struct {
             var bindingLayout = self.bindings.items[bindingId];
             _ = bindingLayout;
 
-            core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{
-                binding.buffers.len,
-                bindingId,
-                bindingInfo.finalObjectSize * bindingInfo.objectCount,
-                bindingInfo.finalObjectSize
-            });
+            core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{ binding.buffers.len, bindingId, bindingInfo.finalObjectSize * bindingInfo.objectCount, bindingInfo.finalObjectSize });
 
             for (binding.buffers) |*buffer, frameId| {
                 var usageFlags: vk.BufferUsageFlags = .{};

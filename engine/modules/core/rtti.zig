@@ -2,7 +2,7 @@ const std = @import("std");
 const logging = @import("logging.zig");
 const names = @import("names.zig");
 const input = @import("input.zig");
-const algorithm =  @import("algorithm.zig");
+const algorithm = @import("lib/p2/algorithm.zig");
 
 const ObjectHandle = algorithm.ObjectHandle;
 const Name = names.Name;
@@ -14,8 +14,7 @@ const AutoHashMap = std.AutoHashMap;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMapUnmanaged = std.AutoHashMapUnmanaged;
 
-pub fn InterfaceRef(comptime Vtable: type) type
-{
+pub fn InterfaceRef(comptime Vtable: type) type {
     return struct {
         ptr: *anyopaque,
         vtable: *const Vtable,
@@ -29,13 +28,11 @@ pub fn InterfaceRef(comptime Vtable: type) type
 
 pub const RTTI_MAX_TYPES = 1024;
 
-
 pub fn MakeTypeName(comptime TargetType: type) Name {
     const hashedName = comptime std.fmt.comptimePrint("{s}_{d}", .{ @typeName(TargetType), @sizeOf(TargetType) });
 
     return MakeName(hashedName);
 }
-
 
 pub const UiObjectRef = InterfaceRef(InterfaceUiData);
 
@@ -44,7 +41,7 @@ pub const InterfaceUiData = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    uiTick_func: fn (*anyopaque, f64) void,
+    uiTick_func: *const fn (*anyopaque, f64) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedUiTick = struct {
@@ -75,9 +72,9 @@ pub const RttiData = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    init_func: fn (std.mem.Allocator, *anyopaque) void,
-    tick_func: ?fn (*anyopaque, f64) void = null,
-    deinit_func: ?fn (*anyopaque) void = null,
+    init_func: *const fn (std.mem.Allocator, *anyopaque) void,
+    tick_func: ?*const fn (*anyopaque, f64) void = null,
+    deinit_func: ?*const fn (*anyopaque) void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {

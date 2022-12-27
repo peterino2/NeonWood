@@ -70,9 +70,11 @@ make real and playable games, and prefer to drive feature development by making 
 
 ## Building
 
-build flags for shipping:
+build flags for shipping with any moderately recent zig 0.10 version:
 
 `zig build -fstage1 -Drelease-safe -Dtarget=x86_64-windows`
+
+(now that the gamejam is over i will be switching to the stage 2 compiler...)
 
 ## Dependencies
 
@@ -115,7 +117,7 @@ Individual modules start up and are called by the main application via the engin
 
 ### Guiding Design and long term vision
 
-I'm honestly a firm believer of the idea that the only flipping thing that matters when it comes to games is content.
+I'm honestly a firm believer of the idea that the only flipping thing that matters when it comes to games is **content**.
 
 To produce content in a timely manner you can either throw tons of people at the problem or be ultra focused in the data that you produce for the engine.
 

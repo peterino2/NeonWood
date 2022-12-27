@@ -148,12 +148,11 @@ pub const JobContext = struct {
 
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
     //func: *const fn (*anyopaque, *JobContext) void,
-    func: fn (*anyopaque, *JobContext) void,
+    func: *const fn (*anyopaque, *JobContext) void,
     capture: []u8 = undefined,
     hasCaptureAlloc: bool = false,
 
-    pub fn newJob(allocator: std.mem.Allocator, capture: anytype) !JobContext 
-    {
+    pub fn newJob(allocator: std.mem.Allocator, capture: anytype) !JobContext {
         const CaptureType = @TypeOf(capture);
         if (!@hasDecl(CaptureType, "func")) {
             return error.NoValidLambda;

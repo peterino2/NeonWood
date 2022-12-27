@@ -12,11 +12,11 @@ pub const DebugLine = struct {
     end: core.Vectorf,
 
     pub fn resolve(self: @This(), _: anytype) core.Transform {
-        var delta =  self.start.sub(self.end);
+        var delta = self.start.sub(self.end);
         var d = delta.normalize();
         var axz = std.math.atan2(f32, -d.z, d.x) + core.radians(180.0);
-        var ay = -std.math.asin( d.y);
-        var mat1 = core.zm.matFromRollPitchYaw(0,0,ay);
+        var ay = -std.math.asin(d.y);
+        var mat1 = core.zm.matFromRollPitchYaw(0, 0, ay);
         var mat2 = core.zm.rotationY(axz);
         var len = delta.length();
         //var r = core.zm.matFromRollPitchYaw(d.x * std.math.pi, d.z * std.math.pi, d.y * std.math.pi);
@@ -27,18 +27,14 @@ pub const DebugLine = struct {
         //var r = core.matFromEulerAngles(d.x, d.y, d.z);
         //var r = core.zm.lookAtRh();
 
-
-
         //var len = delta.length();
-        return core.zm.mul(
-            core.zm.mul(
-                core.zm.mul(mat1, mat2), 
-                core.zm.scaling(len, len, len),
-            ),
-            core.zm.translationV(self.start.toZm()));
-         //core.zm.scaling(len,len,len),);//mul(
-            //core.zm.mul(core.zm.scaling(len, len, len), r);
-            //core.zm.translationV(self.start.toZm()), 
+        return core.zm.mul(core.zm.mul(
+            core.zm.mul(mat1, mat2),
+            core.zm.scaling(len, len, len),
+        ), core.zm.translationV(self.start.toZm()));
+        //core.zm.scaling(len,len,len),);//mul(
+        //core.zm.mul(core.zm.scaling(len, len, len), r);
+        //core.zm.translationV(self.start.toZm()),
         //);
     }
 };
@@ -155,9 +151,9 @@ pub const DebugDrawSubsystem = struct {
             gc.vkd,
             gc.allocator,
             resources.debug_vert.len,
-            @ptrCast([*]const u32, resources.debug_vert),
+            @ptrCast([*]const u32, &resources.debug_vert),
             resources.debug_frag.len,
-            @ptrCast([*]const u32, resources.debug_frag),
+            @ptrCast([*]const u32, &resources.debug_frag),
         );
         defer pipelineBuilder.deinit();
 
@@ -289,14 +285,14 @@ pub const DebugDrawParams = struct {
 };
 
 pub fn debugSphere(position: core.Vectorf, radius: f32, params: DebugDrawParams) void {
-     gDebugDrawSys.debugDraws.push(.{
-         .primitive = .{ .sphere = .{
-             .position = position,
-             .radius = radius,
-         } },
-         .color = params.color,
-         .duration = params.duration,
-     }) catch return;
+    gDebugDrawSys.debugDraws.push(.{
+        .primitive = .{ .sphere = .{
+            .position = position,
+            .radius = radius,
+        } },
+        .color = params.color,
+        .duration = params.duration,
+    }) catch return;
 }
 
 pub fn debugLine(start: core.Vectorf, end: core.Vectorf, params: DebugDrawParams) void {

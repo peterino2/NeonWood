@@ -1072,9 +1072,9 @@ pub const VulkanFunctions = extern struct {
 
     fn isDeviceFunc(comptime FuncType: type) bool {
         comptime {
-            const info = @typeInfo(FuncType).Fn;
-            if (info.args.len == 0) return false;
-            const arg0 = info.args[0].arg_type;
+            const info = @typeInfo(@typeInfo(FuncType).Pointer.child).Fn;
+            if (info.params.len == 0) return false;
+            const arg0 = info.params[0].type;
             return arg0 == vk.Device or arg0 == vk.Queue or arg0 == vk.CommandBuffer;
         }
     }
@@ -1083,24 +1083,24 @@ pub const VulkanFunctions = extern struct {
         comptime T: type,
         inst: vk.Instance,
         device: vk.Device,
-        vkGetInstanceProcAddr: fn (vk.Instance, [*:0]const u8) callconv(vk.vulkan_call_conv) vk.PfnVoidFunction,
-        vkGetDeviceProcAddr: fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vk.vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetDeviceProcAddr: *const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) T {
         if (@typeInfo(T) != .Struct) return undefined;
         var value: T = undefined;
         inline for (@typeInfo(T).Struct.fields) |field| {
             if (comptime std.mem.startsWith(u8, field.name, "vk")) {
-                if (comptime isDeviceFunc(field.field_type)) {
+                if (comptime isDeviceFunc(field.type)) {
                     const func = vkGetDeviceProcAddr(device, @ptrCast([*:0]const u8, field.name.ptr));
                     const resolved = func orelse @panic("Couldn't fetch vk device function " ++ field.name);
-                    @field(value, field.name) = @ptrCast(field.field_type, resolved);
+                    @field(value, field.name) = @ptrCast(field.type, resolved);
                 } else {
                     const func = vkGetInstanceProcAddr(inst, @ptrCast([*:0]const u8, field.name.ptr));
                     const resolved = func orelse @panic("Couldn't fetch vk instance function " ++ field.name);
-                    @field(value, field.name) = @ptrCast(field.field_type, resolved);
+                    @field(value, field.name) = @ptrCast(field.type, resolved);
                 }
             } else {
-                @field(value, field.name) = loadRecursive(field.field_type, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
+                @field(value, field.name) = loadRecursive(field.type, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
             }
         }
         return value;
@@ -1109,10 +1109,10 @@ pub const VulkanFunctions = extern struct {
     pub fn init(
         inst: vk.Instance,
         device: vk.Device,
-        vkGetInstanceProcAddr: fn (vk.Instance, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
+        vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) VulkanFunctions {
         const vkGetDeviceProcAddrPtr = vkGetInstanceProcAddr(inst, "vkGetDeviceProcAddr") orelse @panic("Couldn't fetch vkGetDeviceProcAddr: vkGetInstanceProcAddr returned null.");
-        const vkGetDeviceProcAddr = @ptrCast(fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, vkGetDeviceProcAddrPtr);
+        const vkGetDeviceProcAddr = @ptrCast(*const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, vkGetDeviceProcAddrPtr);
         return loadRecursive(VulkanFunctions, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
     }
 };

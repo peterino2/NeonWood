@@ -1,14 +1,13 @@
 const std = @import("std");
 const misc = @import("misc.zig");
 const logging = @import("logging.zig");
-const algorithm = @import("algorithm.zig");
+const algorithm = @import("lib/p2/algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
 const math = std.math;
 
 pub const Rayf = RayType(f32);
 
-pub fn matToScalef(mat: anytype) Vectorf
-{
+pub fn matToScalef(mat: anytype) Vectorf {
     const x = Vectorf.new(mat[0][0], mat[0][1], mat[0][2]).length();
     const y = Vectorf.new(mat[1][0], mat[1][1], mat[1][2]).length();
     const z = Vectorf.new(mat[2][0], mat[2][1], mat[2][2]).length();
@@ -16,8 +15,7 @@ pub fn matToScalef(mat: anytype) Vectorf
     return Vectorf.new(x, y, z);
 }
 
-pub fn RayType(comptime T: type) type
-{
+pub fn RayType(comptime T: type) type {
     return struct {
         start: Vector3Type(T),
         dir: Vector3Type(T),
@@ -112,23 +110,16 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
-        pub fn dot(self: @This(), other: @This()) T
-        {
+        pub fn dot(self: @This(), other: @This()) T {
             return self.x * other.x + self.y * other.y;
         }
 
-        pub fn length(self: @This()) T
-        {
+        pub fn length(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
         }
 
-
-        pub fn invert(self: @This()) @This()
-        {
-            return .{
-                .x = self.y,
-                .y = self.x
-            };
+        pub fn invert(self: @This()) @This() {
+            return .{ .x = self.y, .y = self.x };
         }
     };
 }
@@ -171,8 +162,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn vmul(self: @This(), other: anytype) @This() 
-        {
+        pub fn vmul(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x * other.x,
                 .y = self.y * other.y,
@@ -188,23 +178,19 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn equals(self: @This(), other: anytype) bool
-        {
+        pub fn equals(self: @This(), other: anytype) bool {
             return self.x == other.x and self.y == self.y and self.z == self.z;
         }
 
-        pub fn zero() @This()
-        {
-            return .{.x = 0, .y = 0, .z = 0};
+        pub fn zero() @This() {
+            return .{ .x = 0, .y = 0, .z = 0 };
         }
 
-        pub fn length(self: @This()) T
-        {
+        pub fn length(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.z * self.z + self.y * self.y);
         }
 
-        pub fn lengthXZ(self: @This()) T
-        {
+        pub fn lengthXZ(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.z * self.z);
         }
 
@@ -284,19 +270,16 @@ pub const Quat = zm.Quat;
 pub const Mat = zm.Mat;
 pub const Transform = zm.Mat;
 
-pub const Rotation = struct 
-{
-    quat: Quat = zm.quatFromRollPitchYaw(0, 0, 0),
+pub const Rotation = struct {
+    quat: Quat = zm.qidentity(),
 
-    pub fn init() @This()
-    {
+    pub fn init() @This() {
         return .{
-            .quat = .{0,0,0,0},
+            .quat = .{ 0, 0, 0, 0 },
         };
     }
 
-    pub fn rotateVector(self: @This(), other: anytype) @TypeOf(other)
-    {
+    pub fn rotateVector(self: @This(), other: anytype) @TypeOf(other) {
         return zm.mul(zm.quatToMat(self.quat), other.toZm());
     }
 };
