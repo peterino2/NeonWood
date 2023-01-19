@@ -72,7 +72,7 @@ make real and playable games, and prefer to drive feature development by making 
 
 build flags for shipping with any moderately recent zig 0.10 version:
 
-`zig build -fstage1 -Drelease-safe -Dtarget=x86_64-windows`
+`zig build -Drelease-safe -Dtarget=x86_64-windows`
 
 (now that the gamejam is over i will be switching to the stage 2 compiler...)
 
