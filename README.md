@@ -70,11 +70,9 @@ make real and playable games, and prefer to drive feature development by making 
 
 ## Building
 
-build flags for shipping with any moderately recent zig 0.10 version:
+build flags for shipping with any moderately recent zig 0.11 version:
 
 `zig build -Drelease-safe -Dtarget=x86_64-windows`
-
-(now that the gamejam is over i will be switching to the stage 2 compiler...)
 
 ## Dependencies
 
