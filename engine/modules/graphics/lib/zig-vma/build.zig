@@ -18,7 +18,7 @@ pub fn build(b: *std.build.Builder) void {
     tests.setTarget(target);
 
     // link vk
-    tests.addPackagePath("vk", "test/vulkan_core.zig");
+    tests.addModulePath("vk", "test/vulkan_core.zig");
     if (target.getOs().tag == .windows) {
         tests.addObjectFile("test/vulkan-1.lib");
     } else {

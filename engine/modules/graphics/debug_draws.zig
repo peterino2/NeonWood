@@ -118,9 +118,9 @@ pub const DebugDrawSubsystem = struct {
     materialName: core.Name = core.MakeName("mat_debugsys"),
 
     const Primitives = [_]assets.AssetRef{
-        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_sphere"), .path = "content/primitive_sphere.obj" },
-        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_box"), .path = "content/primitive_box.obj" },
-        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_line"), .path = "content/primitive_line.obj" },
+        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_sphere"), .path = "content/meshes/primitive_sphere.obj" },
+        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_box"), .path = "content/meshes/primitive_box.obj" },
+        .{ .assetType = core.MakeName("Mesh"), .name = core.MakeName("m_primitive_line"), .path = "content/meshes/primitive_line.obj" },
     };
 
     pub fn prepareSubsystem(self: *@This(), gc: *graphics.NeonVkContext) !void {

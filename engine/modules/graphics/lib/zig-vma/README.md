@@ -18,7 +18,7 @@ vma_build.pkg(exe.builder, "path/to/vk.zig")
 ```
 If you aren't using `link` to enable the vma package on your root, you will still need to link the C sources with the executable, using this:
 ```zig
-vma_build.linkWithoutPkg(exe, mode, target);
+vma_build.linkWithoutModule(exe, mode, target);
 ```
 
 `vma_config.zig` contains build flags which will be used to configure the project.  It has separate configurations for debug and release builds.  These flags can be modified to tune the library.

@@ -3,7 +3,6 @@ const std = @import("std");
 pub const vk_renderer = @import("graphics/vk_renderer.zig");
 const materials = @import("graphics/materials.zig");
 
-
 pub usingnamespace @import("graphics/debug_draws.zig");
 pub const gpu_pipe_data = @import("graphics/gpu_pipe_data.zig");
 pub const vkinit = @import("graphics/vk_init.zig");
@@ -30,10 +29,8 @@ pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 pub const setWindowName = vk_renderer.setWindowName;
 pub const NumFrames = constants.NUM_FRAMES;
 
-
 const engine_logs = core.engine_logs;
 const engine_log = core.engine_log;
-
 
 pub fn getContext() *NeonVkContext {
     return vk_renderer.gContext;
@@ -45,15 +42,13 @@ pub const RenderObject = render_object.RenderObject;
 
 pub var gImgui: *NeonVkImGui = undefined;
 
-pub fn registerRendererPlugin(value: anytype) !void
-{
+pub fn registerRendererPlugin(value: anytype) !void {
     var ref = RendererInterfaceRef{
-        .ptr = value, 
+        .ptr = value,
         .vtable = &@TypeOf(value.*).RendererInterfaceVTable,
     };
     var gc = getContext();
     try gc.rendererPlugins.append(gc.allocator, ref);
-
 }
 
 pub fn start_module() void {
@@ -84,4 +79,4 @@ pub fn shutdown_module() void {
     engine_logs("graphics module shutting down...");
 }
 
-pub var icon: []const u8 = "content/icon.png";
+pub var icon: []const u8 = "content/textures/icon.png";

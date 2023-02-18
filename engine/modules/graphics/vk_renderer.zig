@@ -690,7 +690,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn load_core_textures(self: *Self) !void {
-        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/texture_sample.png");
+        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/textures/texture_sample.png");
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
