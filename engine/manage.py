@@ -9,7 +9,7 @@ import re
 orig_dir = os.path.dirname(__file__)
 
 desc = """
-Neonwood Game Packaging utility.
+Neonwood Game Packaging and project management utility
 
 requires python 3.7
 
