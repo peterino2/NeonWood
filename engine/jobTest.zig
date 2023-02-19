@@ -11,6 +11,7 @@ const Vector2 = core.Vector2;
 const Camera = graphics.render_object.Camera;
 const RenderObject = graphics.render_objects.RenderObject;
 const AssetReference = assets.AssetReference;
+const AsyncAssetJobContext = assets.AyncAssetJobContext;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
 const JobContext = core.JobContext;
@@ -41,14 +42,14 @@ const GameContext = struct {
     wakeCount: u32 = 100,
     jobContext: JobContext,
     timeTilWake: f64 = 2.0,
-    jobComplete: bool = false,
     jobWorker: *JobWorker,
     count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
     complete: [jobTestCount]bool = std.mem.zeroes([jobTestCount]bool),
+    timeElapsed: f64 = 0.0,
+    reinjectFired: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
-            .jobComplete = false,
             .allocator = allocator,
             .jobWorker = JobWorker.init(allocator) catch unreachable,
             .jobContext = undefined,
@@ -60,7 +61,6 @@ const GameContext = struct {
     }
 
     pub fn prepare(self: *Self) !void {
-        self.jobComplete = true;
         const Wanker = struct {
             value: u32 = 42069,
         };
@@ -98,7 +98,7 @@ const GameContext = struct {
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
-        _ = deltaTime;
+        self.timeElapsed += deltaTime;
 
         core.traceFmtDefault("ticking!", .{}) catch unreachable;
 
@@ -114,6 +114,41 @@ const GameContext = struct {
             }
             std.debug.print("\n", .{});
             core.engine_logs("endTick");
+        }
+
+        const L = struct {
+            jobId: usize,
+            game: *GameContext,
+            reInjected: bool = false,
+
+            pub fn func(ctx: @This(), job: *JobContext) void {
+                _ = job;
+
+                if (ctx.jobId % 2 == 0) {
+                    core.dispatchJob(@This(){
+                        .game = ctx.game,
+                        .jobId = 1,
+                        .reInjected = true,
+                    }) catch unreachable;
+                }
+
+                core.engine_logs("sample text this is an injected job");
+                std.time.sleep(1000 * 1000 * 100);
+                if (ctx.reInjected) {
+                    core.engine_logs("reinjected job done");
+                } else {
+                    core.engine_logs("injected job done");
+                }
+            }
+        };
+
+        if (!self.reinjectFired and self.timeElapsed > 4.0) {
+            var i: usize = 0;
+            self.reinjectFired = true;
+
+            while (i < 100) : (i += 1) {
+                core.dispatchJob(L{ .game = self, .jobId = i }) catch unreachable;
+            }
         }
 
         self.timeTilWake -= 0.1;
@@ -141,12 +176,10 @@ const GameContext = struct {
     }
 };
 
-
 pub fn main() anyerror!void {
     engine_log("Starting up", .{});
     core.start_module();
     defer core.shutdown_module();
-
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });

@@ -17,6 +17,8 @@ const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
 const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
+const RingQueue = core.RingQueue;
+
 //const enable_validation_layers: bool = build_opts.validation_layers;
 const enable_validation_layers: bool = false;
 const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
@@ -430,17 +432,14 @@ pub const NeonVkContext = struct {
     renderObjectsAreDirty: bool,
     cameraMovement: Vectorf,
 
-    // renderObjects: ArrayListUnmanaged(RenderObject), // all future arraylists should be unmanaged
     renderObjectsByMaterial: ArrayListUnmanaged(u32),
     renderObjectSet: RenderObjectSet,
 
     textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
 
-    // .... oh thats bad .. need to arrange these guys. refactor materials meshes and textures into
-    // pointers
-    materials: std.AutoHashMapUnmanaged(u32, *Material), // all future arraylists should be unmanaged
-    meshes: std.AutoHashMapUnmanaged(u32, *Mesh), // all future arraylists should be unmanaged
-    textures: std.AutoHashMapUnmanaged(u32, *Texture), // all future arraylists should be unmanaged
+    materials: std.AutoHashMapUnmanaged(u32, *Material),
+    meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
+    textures: std.AutoHashMapUnmanaged(u32, *Texture),
     cameraRef: ?*render_objects.Camera,
 
     blockySampler: vk.Sampler,
@@ -594,7 +593,7 @@ pub const NeonVkContext = struct {
             1000000000,
         );
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &context.uploadFence));
-        context.active = false;
+        context.active = false; //  replace this thing with a lock
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
@@ -2639,41 +2638,3 @@ pub fn setWindowName(newWindowName: []const u8) void {
 }
 
 pub var gContext: *NeonVkContext = undefined;
-
-pub const TextureLoader = struct {
-    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
-    gc: *NeonVkContext,
-
-    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("loading texture asset {s}", .{assetRef.path});
-
-        _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-        self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
-    }
-};
-
-pub const MeshLoader = struct {
-    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
-    gc: *NeonVkContext,
-
-    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("loading mesh asset {s}", .{assetRef.path});
-        _ = self.gc.new_mesh_from_obj(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-    }
-};
-
-pub var gTextureLoader: *TextureLoader = undefined;
-pub var gMeshLoader: *MeshLoader = undefined;
-
-pub fn init_loaders() !void {
-    var allocator = std.heap.c_allocator;
-
-    gTextureLoader = try allocator.create(TextureLoader);
-    gTextureLoader.* = .{ .gc = gContext };
-
-    gMeshLoader = try allocator.create(MeshLoader);
-    gMeshLoader.* = .{ .gc = gContext };
-
-    try assets.gAssetSys.registerLoader(gTextureLoader);
-    try assets.gAssetSys.registerLoader(gMeshLoader);
-}

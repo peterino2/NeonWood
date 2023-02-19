@@ -141,16 +141,15 @@ pub fn createGameExecutable(
     mainFile: []const u8,
     enable_tracy: bool,
     options: *std.build.OptionsStep,
+    mode: anytype,
 ) !*std.build.LibExeObjStep {
     var allocator = b.allocator;
 
     var maxPathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
-    var basePath = try std.fs.realpath(b.build_root.path.?, &maxPathBuffer);
-    _ = basePath;
+    _ = maxPathBuffer;
     var enginePathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
     var enginePath = try std.fs.realpath(b.build_root.path.?, &enginePathBuffer);
 
-    // std.debug.print("build_root: {s} \n", .{basePath});
     var cflags = std.ArrayList([]const u8).init(allocator);
     defer cflags.deinit();
 
@@ -172,7 +171,6 @@ pub fn createGameExecutable(
     var mainFilePath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ engineRoot, mainFile });
     defer allocator.free(mainFilePath);
 
-    const mode = b.standardOptimizeOption(.{});
     const exe = b.addExecutable(.{
         .name = name,
         .root_source_file = .{ .path = mainFile },
@@ -302,20 +300,22 @@ pub fn build(b: *std.build.Builder) void {
     //    unreachable;
     //};
 
-    _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options) catch |e| {
+    const mode = b.standardOptimizeOption(.{});
+
+    _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options, mode) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;
     };
 
     if (perf_tests) {
-        // _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options) catch |e| {
-        //     std.debug.print("error: {any}", .{e});
-        //     unreachable;
-        // };
+        _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options, mode) catch |e| {
+            std.debug.print("error: {any}", .{e});
+            unreachable;
+        };
 
-        // _ = createGameExecutable(target, b, "test_perf_sparse_set", "sparse_set_perf.zig", enable_tracy, options) catch |e| {
-        //     std.debug.print("error: {any}", .{e});
-        //     unreachable;
-        // };
+        _ = createGameExecutable(target, b, "test_perf_sparse_set", "sparse_set_perf.zig", enable_tracy, options, mode) catch |e| {
+            std.debug.print("error: {any}", .{e});
+            unreachable;
+        };
     }
 }

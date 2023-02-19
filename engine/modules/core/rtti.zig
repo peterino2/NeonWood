@@ -67,14 +67,21 @@ pub const InterfaceUiData = struct {
     }
 };
 
+pub const RttiDataEventError = error{
+    UnknownStatePanic,
+};
+
 pub const RttiData = struct {
     typeName: Name,
     typeSize: usize,
     typeAlign: usize,
 
+    // format here is a bit imprecise
+    // the correct format is pub fn init(std.mem.Allocator) T
     init_func: *const fn (std.mem.Allocator, *anyopaque) void,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
+    processEvents: ?*const fn (*anyopaque, u64) RttiDataEventError!void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
@@ -101,6 +108,17 @@ pub const RttiData = struct {
             };
 
             self.tick_func = wrappedTick.func;
+        }
+
+        if (@hasDecl(TargetType, "processEvents")) {
+            const wrappedProcessEvents = struct {
+                pub fn func(pointer: *anyopaque, frameNumber: u64) RttiDataEventError!void {
+                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    try ptr.processEvents(frameNumber);
+                }
+            };
+
+            self.processEvents = wrappedProcessEvents.func;
         }
 
         if (@hasDecl(TargetType, "deinit")) {

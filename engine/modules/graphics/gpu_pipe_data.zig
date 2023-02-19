@@ -31,12 +31,12 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 // builder.addBuffer(CameraDataGpu, .uniform);
 // var gpuObject: NeonGpuObject = builder.build();
 
-// TODO: add a way to unmap multiple buffers
+// TODO: add a way to unmap multiple buffers.. it has been months now. I have no idea what i meant by this.
 
 // ---- Proposed API for implemeting extensions into the game ---
 
 // a GpuPipeData is an API that exists as an API that abstracts both
-// vulkan buffer allocation and
+// vulkan buffer allocation and mapping
 
 pub fn GpuMappingData(comptime ObjectType: type) type {
     return struct {
@@ -296,6 +296,4 @@ pub const GpuPipeDataBuilder = struct {
         self.bindings.deinit(self.allocator);
         self.bindingObjectInfos.deinit(self.allocator);
     }
-
-    // 2. buffer allocation and write descriptions
 };

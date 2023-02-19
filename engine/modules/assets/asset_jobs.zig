@@ -8,7 +8,20 @@ const JobManager = core.JobManager;
 
 const AssetReference = assets.AssetReference;
 
-const AsyncAssetJobContext = struct {
+pub const AsyncAssetJobContext = struct {
     mutex: std.mutex.Mutex,
-    asset: AssetReference,
+    assetLoadList: []const AssetReference,
+    allocator: std.mem.Allocator,
+
+    pub fn loadAssets(assetList: []const AssetReference, allocator: std.mem.Allocator) !*@This() {
+        var this: *@This() = try allocator.create(@This());
+
+        this.* = .{
+            .mutex = .{},
+            .assetLoadList = assetList,
+            .allocator = allocator,
+        };
+
+        return this;
+    }
 };

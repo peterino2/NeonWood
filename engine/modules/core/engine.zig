@@ -21,30 +21,24 @@ const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
 
-pub fn createObject(comptime T: type, params: NeonObjectParams) !*T {
-    std.debug.print("address of gEngine {any}", .{params});
-    //return core.gEngine.createObject(T, params);
-    return error.NotImplemented;
-}
-
 pub const Engine = struct {
     exitSignal: bool,
 
-    subsystems: ArrayList(*anyopaque),
-    subsystemsByType: AutoHashMap(u32, usize),
     allocator: std.mem.Allocator,
+
+    // better name for these rtti objects is actually 'engine object'
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
+    eventors: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize),
     tracesContext: *TracesContext,
     jobManager: JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
+    frameNumber: u64,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
-            .subsystems = ArrayList(*anyopaque).init(allocator),
-            .subsystemsByType = AutoHashMap(u32, usize).init(allocator),
             .allocator = allocator,
             .exitSignal = false,
             .rttiObjects = .{},
@@ -53,43 +47,16 @@ pub const Engine = struct {
             .lastEngineTime = 0.0,
             .tracesContext = try allocator.create(TracesContext),
             .jobManager = JobManager.init(allocator),
+            .eventors = .{},
+            .frameNumber = 0,
         };
 
         rv.tracesContext.* = TracesContext.init(allocator);
 
         return rv;
     }
-
-    pub fn addSubsystem(self: *@This(), subsystem: anytype) !void {
-        const typeInfo = @typeInfo(@TypeOf(subsystem));
-        switch (typeInfo) {
-            .Pointer => |_| {
-                const nextId = self.subsystems.items.len;
-                try self.subsystems.append(subsystem);
-                try self.subsystemsByType.put(
-                    MakeName(@typeName(@TypeOf(subsystem.*))).hash,
-                    nextId,
-                );
-            },
-            else => {
-                return error.SubsystemRegisterationNotAPointer;
-            },
-        }
-    }
-
-    pub fn getSubsystem(self: *@This(), comptime subsystemType: type) ?*subsystemType {
-        const name = comptime MakeName(@typeName(subsystemType));
-        const index = self.subsystemsByType.get(name.hash) orelse return null;
-        return @ptrCast(*subsystemType, @alignCast(
-            @alignOf(subsystemType),
-            self.subsystems.items[index],
-        ));
-    }
-
     pub fn deinit(self: *@This()) void {
         self.tracesContext.deinit();
-        self.subsystems.deinit();
-        self.subsystemsByType.deinit();
     }
 
     // creates a neon object using the engine's allocator.
@@ -117,6 +84,10 @@ pub const Engine = struct {
             try self.tickables.append(self.allocator, newIndex);
         }
 
+        if (@hasDecl(T, "processEvents")) {
+            try self.eventors.append(self.allocator, newObjectRef); //
+        }
+
         return newObjectPtr;
     }
 
@@ -125,6 +96,11 @@ pub const Engine = struct {
         tracy.FrameMarkStart("frame");
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
+        self.frameNumber += 1;
+
+        for (self.eventors.items) |*objectRef| {
+            objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;
+        }
 
         var index: isize = @intCast(isize, self.tickables.items.len) - 1;
         while (index >= 0) : (index -= 1) {
@@ -151,31 +127,7 @@ pub const Engine = struct {
 
 pub const NeonObjectParams = struct {
     can_tick: bool = false,
+    responds_to_events: bool = false,
 };
-
-test "basic type registration" {
-    const alloc = std.testing.allocator;
-    var engine = try Engine.init(alloc);
-    defer engine.deinit();
-
-    const struct1 = struct {
-        name: []const u8,
-    };
-
-    var struct1_inst = struct1{ .name = "struct1" };
-
-    var anonstruct = struct {
-        name: []const u8,
-
-        pub fn init() @This() {
-            return @This(){ .name = "takyon" };
-        }
-    }.init();
-
-    try engine.addSubsystem(&struct1_inst);
-    try engine.addSubsystem(&anonstruct);
-
-    try std.testing.expect(&struct1_inst == engine.getSubsystem(struct1).?);
-}
 
 test "comptime registration implementation" {}

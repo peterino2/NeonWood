@@ -22,6 +22,8 @@ pub const mesh = @import("graphics/mesh.zig");
 pub const Mesh = mesh.Mesh;
 pub const Texture = texture.Texture;
 
+pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
+
 pub const PixelPos = vk_renderer.PixelPos;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
@@ -68,7 +70,7 @@ pub fn start_module() void {
 
     vkUi.setup(context) catch unreachable;
 
-    vk_renderer.init_loaders() catch unreachable;
+    vk_assetLoaders.init_loaders() catch unreachable;
 
     debug_draw.init_debug_draw_subsystem() catch unreachable;
 }

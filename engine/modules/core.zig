@@ -71,9 +71,7 @@ pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;
 pub var gEngine: *Engine = undefined;
 
 pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
-    // std.debug.print("address of gEngine {any}", .{params});
     return gEngine.createObject(T, params);
-    // return error.NotImplemented;
 }
 
 pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {

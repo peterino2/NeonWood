@@ -4,10 +4,6 @@ const core = @import("../core.zig");
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
-// simple test, no manager needed.
-// var worker = JobWorker.init(std.mem.Allocator);
-// try worker.assignContext(); // errors if the worker is not read
-
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
 
@@ -39,7 +35,10 @@ pub const JobManager = struct {
     pub fn newJob(self: *@This(), capture: anytype) !void {
         const Lambda = @TypeOf(capture);
         // 1. create a job context;
-        var ctx = try JobContext.new(std.heap.c_allocator, Lambda, capture);
+        // this context is destroyed by the worker thread after it completes.
+        // todo: Job contexts should be part of a fast bump allocation.
+        // or some custom allocator that
+        var ctx = try JobContext.new(self.allocator, Lambda, capture);
         // core.engine_logs("trying to create job");
         // 2. find a worker and pass it the job context if available
         for (self.workers) |worker| {
@@ -77,7 +76,6 @@ pub const JobWorker = struct {
     manager: ?*JobManager = null,
 
     pub fn wake(self: *JobWorker) void {
-        // core.engine_log("waking worker {d}", .{self.workerId});
         std.Thread.Futex.wake(&self.futex, 1);
     }
 
@@ -97,19 +95,13 @@ pub const JobWorker = struct {
     }
 
     pub fn assignContext(self: *@This(), context: JobContext) !void {
-        // core.engine_log("worker {d}: assigned job", .{self.workerId});
         self.busy.store(true, .SeqCst);
         self.currentJobContext = context;
         self.wake();
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
-        // core.engine_log("worker {d}: ready", .{self.workerId});
-
         while (!self.shouldDie.load(.Acquire)) {
-            // std.Thread.Futex.wait(&self.futex, self.current);
-            // core.engine_log("worker {d}: we woke up", .{self.workerId});
-
             if (self.currentJobContext != null) {
                 self.busy.store(true, .SeqCst);
                 var ctx = self.currentJobContext.?;
@@ -118,9 +110,7 @@ pub const JobWorker = struct {
                 self.currentJobContext = null;
                 self.busy.store(false, .SeqCst);
             } else {
-                // core.engine_log("worker {d}: no job available, sleeping again", .{self.workerId});
                 std.Thread.Futex.wait(&self.futex, self.current);
-                //std.time.sleep(10000000);
             }
 
             if (self.manager != null) {
@@ -147,8 +137,7 @@ pub const JobContext = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
-    //func: *const fn (*anyopaque, *JobContext) void,
-    func: *const fn (*anyopaque, *JobContext) void,
+    func: *const fn (*anyopaque, *JobContext) void, // todo, add an error for job funcs
     capture: []u8 = undefined,
     hasCaptureAlloc: bool = false,
 

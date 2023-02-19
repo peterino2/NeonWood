@@ -20,11 +20,9 @@ pub fn start_module() void {
     gAssetSys.* = AssetReferenceSys.init(allocator);
 }
 
-pub fn shutdown_module() void {
-}
+pub fn shutdown_module() void {}
 
-pub fn loadList(assetList: anytype) !void
-{
+pub fn loadList(assetList: anytype) !void {
     for (assetList) |asset| {
         try gAssetSys.loadRef(asset);
     }
