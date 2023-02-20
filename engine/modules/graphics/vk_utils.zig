@@ -16,7 +16,53 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
 
-pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkImage {
+pub const PngContents = struct {
+    path: []const u8,
+    pixels: []u8,
+    size: core.Vector2u,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
+        var pngFileContents = try core.loadFileAlloc(filePath, 8, allocator);
+        var decoder = try spng.SpngContext.newDecoder();
+        defer decoder.deinit();
+
+        try decoder.setBuffer(pngFileContents);
+        const header = try decoder.getHeader();
+
+        var imageSize = @intCast(usize, header.width * header.height * 4);
+        var pixels: []u8 = try allocator.alloc(u8, imageSize);
+        var len = try decoder.decode(pixels, spng.SPNG_FMT_RGBA8, spng.SPNG_DECODE_TRNS);
+        try core.assertf(len == pixels.len, "decoded pixel size not buffer size {d} != {d}", .{ len, pixels.len });
+
+        return PngContents{
+            .path = try core.dupe(u8, allocator, filePath),
+            .pixels = pixels,
+            .size = .{ .x = header.width, .y = header.height },
+            .allocator = allocator,
+        };
+    }
+
+    pub fn stagePixels(self: @This(), ctx: *NeonVkContext) !NeonVkBuffer {
+        var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly);
+        const data = try ctx.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
+        @memcpy(data, @ptrCast([*]const u8, self.pixels), self.pixels.len);
+        ctx.vmaAllocator.unmapMemory(stagingBuffer.allocation);
+        return stagingBuffer;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.free(self.path);
+        self.allocator.free(self.pixels);
+    }
+};
+
+pub const LoadAndStageImage = struct {
+    stagingBuffer: NeonVkBuffer,
+    image: NeonVkImage,
+};
+
+pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
     // When you record command buffers, their command pools can only be used from
     // one thread at a time. While you can create multiple command buffers from a
     // command pool, you cant fill those commands from multiple threads. If you
@@ -29,34 +75,13 @@ pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkIm
     // but calling VkQueueSubmit is not going to be threadsafe unless we create a
     // seperate command pool for each thread.
 
-    var pngFileContents = try core.loadFileAlloc(filePath, 8, ctx.allocator);
-    var decoder = try spng.SpngContext.newDecoder();
-    try decoder.setBuffer(pngFileContents);
-    const header = try decoder.getHeader();
+    var pngContents = try PngContents.init(ctx.allocator, filePath);
 
-    var imageSize = @intCast(usize, header.width * header.height * 4);
-    var pixels: []u8 = try ctx.allocator.alloc(u8, header.width * header.height * 4);
-    var len = try decoder.decode(pixels, spng.SPNG_FMT_RGBA8, spng.SPNG_DECODE_TRNS);
-
-    try core.assertf(len == pixels.len, "Expected length of pixels is not length of allocated buffer allocated = {d} decoded = {d}", .{ pixels.len, len });
-
-    var stagingBuffer = try ctx.create_buffer(imageSize, .{ .transfer_src_bit = true }, .cpuOnly);
-
-    const data = try ctx.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
-
-    defer stagingBuffer.deinit(ctx.vmaAllocator);
-    @memcpy(data, @ptrCast([*]const u8, pixels), imageSize);
-
-    ctx.vmaAllocator.unmapMemory(stagingBuffer.allocation);
-
-    decoder.deinit();
-    ctx.allocator.free(pixels);
-
-    ctx.allocator.free(pngFileContents);
+    var stagingBuffer = try pngContents.stagePixels(ctx);
 
     var imageExtent = vk.Extent3D{
-        .width = @intCast(u32, header.width),
-        .height = @intCast(u32, header.height),
+        .width = @intCast(u32, pngContents.size.x),
+        .height = @intCast(u32, pngContents.size.y),
         .depth = 1,
     };
 
@@ -78,8 +103,15 @@ pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkIm
         .pixelHeight = imageExtent.height,
     };
 
-    // this part below here is unsafe. return now to make this function
-    // safe... and useless
+    pngContents.deinit();
+
+    return .{
+        .stagingBuffer = stagingBuffer,
+        .image = newImage,
+    };
+}
+
+pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage) !void {
     try ctx.start_upload_context(&ctx.uploadContext);
     {
         var cmd = ctx.uploadContext.commandBuffer;
@@ -127,7 +159,7 @@ pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkIm
                 .base_array_layer = 0,
                 .layer_count = 1,
             },
-            .image_extent = imageExtent,
+            .image_extent = .{ .width = newImage.pixelWidth, .height = newImage.pixelHeight, .depth = 1 },
         };
 
         ctx.vkd.cmdCopyBufferToImage(
@@ -168,6 +200,4 @@ pub fn load_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !NeonVkIm
         );
     }
     try ctx.finish_upload_context(&ctx.uploadContext);
-
-    return newImage;
 }

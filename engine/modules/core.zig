@@ -161,3 +161,11 @@ pub fn writeToFile(data: []const u8, path: []const u8) !void {
     _ = bytes_written;
     log("written: bytes to {s}", .{path});
 }
+
+pub fn dupe(comptime T: type, allocator: std.mem.Allocator, source: []const T) ![]T {
+    var buff: []T = try allocator.alloc(T, source.len);
+    for (source) |s, i| {
+        buff[i] = s;
+    }
+    return buff;
+}

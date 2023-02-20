@@ -393,7 +393,7 @@ pub const PapyrusImageSubsystem = struct {
 
             gpuObjects[i] = PapyrusImageGpu{
                 .topLeft = position,
-                .size = size.fmul(screenRatio.invert()),
+                .size = size.fmul(screenRatio.swizzleYX()),
                 .anchorPoint = anchor,
                 .scale = scale,
                 .alpha = image.alpha,

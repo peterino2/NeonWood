@@ -5,6 +5,8 @@ const algorithm = @import("lib/p2/algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
 const math = std.math;
 
+// super ghetto math library
+
 pub const Rayf = RayType(f32);
 
 pub fn matToScalef(mat: anytype) Vectorf {
@@ -34,7 +36,6 @@ pub fn matFromEulerAngles(x: f32, y: f32, z: f32) Mat {
     return zm.matFromRollPitchYaw(y, z, x);
 }
 
-// wtf is this.. get it out
 pub fn Radians(comptime T: type) type {
     return struct {
         value: T,
@@ -60,42 +61,42 @@ pub fn Vector2Type(comptime T: type) type {
         x: T,
         y: T,
 
-        pub fn new(x: T, y: T) @This() {
+        pub inline fn new(x: T, y: T) @This() {
             return .{
                 .x = x,
                 .y = y,
             };
         }
 
-        pub fn zero() @This() {
+        pub inline fn zero() @This() {
             return .{
                 .x = 0.0,
                 .y = 0.0,
             };
         }
 
-        pub fn add(self: @This(), other: @This()) @This() {
+        pub inline fn add(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
             };
         }
 
-        pub fn sub(self: @This(), other: @This()) @This() {
+        pub inline fn sub(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
             };
         }
 
-        pub fn fmul(self: @This(), other: anytype) @This() {
+        pub inline fn fmul(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x * other.x,
                 .y = self.y * other.y,
             };
         }
 
-        pub fn normalize(self: @This()) @This() {
+        pub inline fn normalize(self: @This()) @This() {
             if (fabs(self.x) <= 0.0001 and fabs(self.y) <= 0.0001) {
                 return .{ .x = 0, .y = 0 };
             }
@@ -110,15 +111,15 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
-        pub fn dot(self: @This(), other: @This()) T {
+        pub inline fn dot(self: @This(), other: @This()) T {
             return self.x * other.x + self.y * other.y;
         }
 
-        pub fn length(self: @This()) T {
+        pub inline fn length(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
         }
 
-        pub fn invert(self: @This()) @This() {
+        pub inline fn swizzleYX(self: @This()) @This() {
             return .{ .x = self.y, .y = self.x };
         }
     };
@@ -130,7 +131,7 @@ pub fn Vector3Type(comptime T: type) type {
         y: T,
         z: T,
 
-        pub fn new(x: T, y: T, z: T) @This() {
+        pub inline fn new(x: T, y: T, z: T) @This() {
             return .{
                 .x = x,
                 .y = y,
@@ -138,15 +139,15 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn toZm(self: @This()) zm.Vec {
+        pub inline fn toZm(self: @This()) zm.Vec {
             return .{ self.x, self.y, self.z, 1.0 };
         }
 
-        pub fn fromZm(vec: zm.Vec) @This() {
+        pub inline fn fromZm(vec: zm.Vec) @This() {
             return @This().new(vec[0], vec[1], vec[2]);
         }
 
-        pub fn add(self: @This(), other: @This()) @This() {
+        pub inline fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
@@ -154,7 +155,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn sub(self: @This(), other: @This()) @This() {
+        pub inline fn sub(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
@@ -162,7 +163,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn vmul(self: @This(), other: anytype) @This() {
+        pub inline fn vmul(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x * other.x,
                 .y = self.y * other.y,
@@ -170,7 +171,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn fmul(self: @This(), other: anytype) @This() {
+        pub inline fn fmul(self: @This(), other: anytype) @This() {
             return .{
                 .x = self.x * other,
                 .y = self.y * other,
@@ -178,23 +179,23 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub fn equals(self: @This(), other: anytype) bool {
+        pub inline fn equals(self: @This(), other: anytype) bool {
             return self.x == other.x and self.y == self.y and self.z == self.z;
         }
 
-        pub fn zero() @This() {
+        pub inline fn zero() @This() {
             return .{ .x = 0, .y = 0, .z = 0 };
         }
 
-        pub fn length(self: @This()) T {
+        pub inline fn length(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.z * self.z + self.y * self.y);
         }
 
-        pub fn lengthXZ(self: @This()) T {
+        pub inline fn lengthXZ(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.z * self.z);
         }
 
-        pub fn normalize(self: @This()) @This() {
+        pub inline fn normalize(self: @This()) @This() {
             if (fabs(self.x) <= 0.0001 and fabs(self.y) <= 0.0001 and fabs(self.z) <= 0.0001) {
                 return .{ .x = 0, .y = 0, .z = 0 };
             }
@@ -219,7 +220,7 @@ pub fn Vector4Type(comptime T: type) type {
         z: T,
         w: T,
 
-        pub fn new(x: T, y: T, z: T, w: T) @This() {
+        pub inline fn new(x: T, y: T, z: T, w: T) @This() {
             return .{
                 .x = x,
                 .y = y,
@@ -228,7 +229,7 @@ pub fn Vector4Type(comptime T: type) type {
             };
         }
 
-        pub fn add(self: @This(), other: @This()) @This() {
+        pub inline fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
@@ -237,7 +238,7 @@ pub fn Vector4Type(comptime T: type) type {
             };
         }
 
-        pub fn sub(self: @This(), other: @This()) @This() {
+        pub inline fn sub(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
@@ -246,7 +247,7 @@ pub fn Vector4Type(comptime T: type) type {
             };
         }
 
-        pub fn normalize(self: @This()) @This() {
+        pub inline fn normalize(self: @This()) @This() {
             var len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w);
 
             return .{
@@ -264,6 +265,11 @@ pub const Vector4 = Vector4Type(f64);
 pub const Vectorf = Vector3Type(f32);
 pub const Vector2f = Vector2Type(f32);
 pub const Vector2 = Vector2Type(f64);
+
+pub const Vector2i = Vector2Type(i32);
+pub const Vector2u = Vector2Type(u32);
+pub const Vector2l = Vector2Type(i64);
+
 pub const EulerAngles = Vector3Type(f32);
 pub const Vector4f = Vector4Type(f32);
 pub const Quat = zm.Quat;
@@ -307,7 +313,7 @@ pub const Color = struct {
 };
 
 // idk why, i just wanted to try this.
-pub const Vector32NetQuantized = extern union {
+pub const VectorfQuantized = extern union {
     payload: u64,
     components: packed struct {
         x: u21,

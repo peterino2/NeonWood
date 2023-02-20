@@ -11,48 +11,49 @@ var gGame: *GameContext = undefined;
 
 const testimage = "lost_empire-RGBA";
 const testimage2 = "texture_sample";
+//const testimage2 = "texture_sample";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetRef{
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_210"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_211"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_212"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_213"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_210"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_211"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_212"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_213"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_310"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_311"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_312"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_313"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_310"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_311"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_312"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_313"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_411"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_412"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_413"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_414"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_411"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_412"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_413"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_414"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_510"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_511"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_512"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_513"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_510"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_511"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_512"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_513"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_210"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_211"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_212"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_213"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_210"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_211"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_212"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_213"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_310"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_311"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_312"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_313"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_310"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_311"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_312"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_313"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_411"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_412"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_413"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_414"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_411"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_412"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_413"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_414"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_510"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_511"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_512"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_513"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_510"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_511"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_512"), .path = "content/textures/" ++ testimage2 ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_513"), .path = "content/textures/" ++ testimage2 ++ ".png" },
 
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_2d0"), .path = "content/textures/" ++ testimage ++ ".png" },
     .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("t_2d1"), .path = "content/textures/" ++ testimage ++ ".png" },

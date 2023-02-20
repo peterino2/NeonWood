@@ -3,6 +3,8 @@ const vk = @import("vulkan");
 
 const core = @import("../core.zig");
 const assets = @import("../assets.zig");
+const vk_utils = @import("vk_utils.zig");
+const vkinit = @import("vk_init.zig");
 
 const tracy = core.tracy;
 const materials = @import("materials.zig");
@@ -19,14 +21,14 @@ pub const TextureLoader = struct {
     pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
     pub const NeonObjectTable = core.RttiData.from(@This());
 
-    const LoadedTextureDescription = struct {
+    const StagedTextureDescription = struct {
         name: core.Name,
-        texture: *Texture,
-        textureSet: *vk.DescriptorSet,
+        stagingResults: vk_utils.LoadAndStageImage,
+        assetRef: assets.AssetRef,
     };
 
     gc: *NeonVkContext,
-    assetsReady: core.RingQueue(LoadedTextureDescription),
+    assetsReady: core.RingQueue(StagedTextureDescription),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
         core.engine_log("async loading texture asset {s}", .{assetRef.path});
@@ -40,16 +42,15 @@ pub const TextureLoader = struct {
             gc: *NeonVkContext,
 
             pub fn func(ctx: @This(), job: *core.JobContext) void {
-                const gc = ctx.gc;
                 _ = job;
+                const gc = ctx.gc;
                 // I'm like 99% sure theres a memory leak here if this raises an error
-                var newTexture = gc.upload_texture_from_file(ctx.assetRef.path) catch unreachable;
-                var textureSet = gc.create_mesh_image_for_texture(newTexture, .{ .useBlocky = ctx.assetRef.properties.textureUseBlockySampler }) catch unreachable;
+                var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.assetRef.path) catch unreachable;
 
-                var loadedDescription = LoadedTextureDescription{
+                var loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
-                    .texture = newTexture,
-                    .textureSet = textureSet,
+                    .stagingResults = stagingResults,
+                    .assetRef = ctx.assetRef,
                 };
 
                 ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
@@ -69,7 +70,24 @@ pub const TextureLoader = struct {
             defer self.assetsReady.unlock();
             while (self.assetsReady.popFromUnlocked()) |assetReady| {
                 core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
-                gc.install_texture_into_registry(assetReady.name, assetReady.texture, assetReady.textureSet) catch unreachable;
+                var stagingBuffer = assetReady.stagingResults.stagingBuffer;
+                var image = assetReady.stagingResults.image;
+                vk_utils.submit_copy_from_staging(gc, stagingBuffer, image) catch return error.UnknownStatePanic;
+                stagingBuffer.deinit(gc.vmaAllocator);
+
+                var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
+                var imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
+                var newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+
+                newTexture.* = Texture{
+                    .image = image,
+                    .imageView = imageView,
+                };
+                var textureSet = gc.create_mesh_image_for_texture(newTexture, .{
+                    .useBlocky = assetReady.assetRef.properties.textureUseBlockySampler,
+                }) catch unreachable;
+
+                gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
             }
         }
     }
@@ -78,7 +96,7 @@ pub const TextureLoader = struct {
         return .{
             .gc = vk_renderer.gContext,
             //todo: the RttiData init function should have a handleable error
-            .assetsReady = core.RingQueue(LoadedTextureDescription).init(allocator, 4096) catch unreachable,
+            .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 4096) catch unreachable,
         };
     }
 };

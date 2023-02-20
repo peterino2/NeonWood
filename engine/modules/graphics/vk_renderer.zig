@@ -467,8 +467,6 @@ pub const NeonVkContext = struct {
 
     shouldShowDebug: bool,
 
-    vmaAllocatorMappingLock: std.Thread.Mutex,
-
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.hash).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -560,7 +558,6 @@ pub const NeonVkContext = struct {
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
-        self.vmaAllocatorMappingLock = .{};
         self.uploadContext.mutex = .{};
     }
 
@@ -647,7 +644,10 @@ pub const NeonVkContext = struct {
     }
 
     pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
-        var image = try vk_utils.load_image_from_file(self, texturePath);
+        var stagingResults = try vk_utils.load_and_stage_image_from_file(self, texturePath);
+        try vk_utils.submit_copy_from_staging(self, stagingResults.stagingBuffer, stagingResults.image);
+        var image = stagingResults.image;
+
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
         var newTexture = try self.allocator.create(Texture);
@@ -696,7 +696,6 @@ pub const NeonVkContext = struct {
 
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
         var newTexture = try self.upload_texture_from_file(texturePath);
-
         try self.textures.put(self.allocator, textureName.hash, newTexture);
         return self.textures.getEntry(textureName.hash).?.value_ptr.*;
     }
