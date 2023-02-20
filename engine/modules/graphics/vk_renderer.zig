@@ -144,6 +144,7 @@ pub const NeonVkUploadContext = struct {
     uploadFence: vk.Fence,
     commandPool: vk.CommandPool,
     commandBuffer: vk.CommandBuffer,
+    mutex: std.Thread.Mutex,
     active: bool,
 };
 
@@ -466,6 +467,8 @@ pub const NeonVkContext = struct {
 
     shouldShowDebug: bool,
 
+    vmaAllocatorMappingLock: std.Thread.Mutex,
+
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.hash).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -557,6 +560,8 @@ pub const NeonVkContext = struct {
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
+        self.vmaAllocatorMappingLock = .{};
+        self.uploadContext.mutex = .{};
     }
 
     pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void {
@@ -568,6 +573,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
+        context.mutex.lock();
         var cmd = context.commandBuffer;
         var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
         try self.vkd.beginCommandBuffer(cmd, &cbi);
@@ -594,6 +600,7 @@ pub const NeonVkContext = struct {
         );
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &context.uploadFence));
         context.active = false; //  replace this thing with a lock
+        context.mutex.unlock();
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
@@ -639,19 +646,58 @@ pub const NeonVkContext = struct {
         return self;
     }
 
-    pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
+    pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
         var image = try vk_utils.load_image_from_file(self, texturePath);
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
-
         var newTexture = try self.allocator.create(Texture);
+
         newTexture.* = Texture{
             .image = image,
             .imageView = imageView,
         };
 
-        try self.textures.put(self.allocator, textureName.hash, newTexture);
+        return newTexture;
+    }
 
+    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: *Texture, params: struct { useBlocky: bool = true }) !*vk.DescriptorSet {
+        var textureSet = try self.allocator.create(vk.DescriptorSet);
+        var allocInfo = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = self.descriptorPool,
+            .descriptor_set_count = 1,
+            .p_set_layouts = p2a(&self.singleTextureSetLayout),
+        };
+
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, textureSet));
+
+        var imageBufferInfo = vk.DescriptorImageInfo{
+            //.sampler = self.blockySampler,
+            .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
+            .image_view = inTexture.imageView,
+            .image_layout = .shader_read_only_optimal,
+        };
+
+        var writeDescriptorSet = vkinit.writeDescriptorImage(
+            .combined_image_sampler,
+            textureSet.*,
+            &imageBufferInfo,
+            0,
+        );
+
+        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&writeDescriptorSet), 0, undefined);
+
+        return textureSet;
+    }
+
+    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: *vk.DescriptorSet) !void {
+        try self.textures.put(self.allocator, name.hash, textureRef);
+        try self.textureSets.put(self.allocator, name.hash, textureSet);
+    }
+
+    pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
+        var newTexture = try self.upload_texture_from_file(texturePath);
+
+        try self.textures.put(self.allocator, textureName.hash, newTexture);
         return self.textures.getEntry(textureName.hash).?.value_ptr.*;
     }
 

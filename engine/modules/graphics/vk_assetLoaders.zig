@@ -18,33 +18,58 @@ const Texture = texture.Texture;
 pub const TextureLoader = struct {
     pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
     pub const NeonObjectTable = core.RttiData.from(@This());
+
     const LoadedTextureDescription = struct {
-        imageName: []const u8,
+        name: core.Name,
         texture: *Texture,
-        textureSet: vk.DescriptorSet,
+        textureSet: *vk.DescriptorSet,
     };
 
     gc: *NeonVkContext,
     assetsReady: core.RingQueue(LoadedTextureDescription),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("loading texture asset {s}", .{assetRef.path});
+        core.engine_log("async loading texture asset {s}", .{assetRef.path});
 
-        _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-        self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
+        // _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
+        // self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
+
+        const Lambda = struct {
+            loader: *TextureLoader,
+            assetRef: assets.AssetRef,
+            gc: *NeonVkContext,
+
+            pub fn func(ctx: @This(), job: *core.JobContext) void {
+                const gc = ctx.gc;
+                _ = job;
+                // I'm like 99% sure theres a memory leak here if this raises an error
+                var newTexture = gc.upload_texture_from_file(ctx.assetRef.path) catch unreachable;
+                var textureSet = gc.create_mesh_image_for_texture(newTexture, .{ .useBlocky = ctx.assetRef.properties.textureUseBlockySampler }) catch unreachable;
+
+                var loadedDescription = LoadedTextureDescription{
+                    .name = ctx.assetRef.name,
+                    .texture = newTexture,
+                    .textureSet = textureSet,
+                };
+
+                ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
+            }
+        };
+
+        core.dispatchJob(Lambda{ .loader = self, .gc = self.gc, .assetRef = assetRef }) catch return error.UnableToLoad;
     }
 
     // processing events, some should really be processing events rather than
     pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {
         _ = frameNumber;
+        const gc = self.gc;
 
         if (self.assetsReady.count() > 0) {
             self.assetsReady.lock();
             defer self.assetsReady.unlock();
-            while (self.assetsReady.count() > 0) {
-                if (self.assetsReady.popFromUnlocked()) |assetReady| {
-                    _ = assetReady;
-                }
+            while (self.assetsReady.popFromUnlocked()) |assetReady| {
+                core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
+                gc.install_texture_into_registry(assetReady.name, assetReady.texture, assetReady.textureSet) catch unreachable;
             }
         }
     }

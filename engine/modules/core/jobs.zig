@@ -21,7 +21,7 @@ pub const JobManager = struct {
             .workers = undefined,
         };
 
-        self.workers = self.allocator.alloc(*JobWorker, self.numCpus - 1) catch unreachable;
+        self.workers = self.allocator.alloc(*JobWorker, self.numCpus - 2) catch unreachable;
 
         var i: usize = 0;
         while (i < self.workers.len) : (i += 1) {

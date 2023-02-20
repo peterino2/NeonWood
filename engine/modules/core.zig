@@ -21,6 +21,8 @@ pub const Name = names.Name;
 pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
 
+pub const spng = @import("core/lib/zig-spng/spng.zig");
+
 pub const assert = std.debug.assert;
 pub const DefaultName = MakeName("default");
 
@@ -112,7 +114,7 @@ pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {
 }
 
 // alignment of 1 should be used for text files
-pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
+pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const filesize = (try file.stat()).size;
     var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);

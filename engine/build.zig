@@ -4,11 +4,24 @@ const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
 const zigTracy = @import("modules/core/lib/Zig-Tracy/build_tracy.zig");
+const spng_build = @import("modules/core/lib/zig-spng/build.zig");
 const shaders_folder = "modules/graphics/shaders/";
 
 // manage.py will search for projects under the projects/ folder and create a
 // zig-cache/nwprojects.zig
 const programList = @import("generated_projects.zig").programList;
+
+pub fn linkSpng(b: *std.Build, exe: *std.build.CompileStep) void {
+    var cflags = std.ArrayList([]const u8).init(b.allocator);
+    cflags.append("-DSPNG_USE_MINIZ=1") catch unreachable;
+    defer cflags.deinit();
+
+    exe.addIncludePath("modules/core/lib/zig-spng/libspng/spng");
+    exe.addIncludePath("modules/core/lib/zig-spng/");
+
+    exe.addCSourceFile("modules/core/lib/zig-spng/libspng/spng/spng.c", cflags.items);
+    exe.addCSourceFile("modules/core/lib/zig-spng/miniz.c", cflags.items);
+}
 
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     //var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
@@ -200,6 +213,7 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
+    linkSpng(b, exe);
 
     if (target.getOs().tag == .windows) {
         exe.linkSystemLibrary("glfw3dll");

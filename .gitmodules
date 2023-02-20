@@ -19,3 +19,6 @@
 [submodule "engine/modules/core/lib/p2"]
 	path = engine/modules/core/lib/p2
 	url = https://github.com/peterino2/p2-algorithms.git
+[submodule "engine/modules/core/lib/zig-spng"]
+	path = engine/modules/core/lib/zig-spng
+	url = https://github.com/peterino2/zig-spng
