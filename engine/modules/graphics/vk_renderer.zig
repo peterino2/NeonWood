@@ -593,6 +593,7 @@ pub const NeonVkContext = struct {
             context.uploadFence,
         );
 
+        var z1 = tracy.ZoneN(@src(), "waiting for upload fence to complete");
         _ = try self.vkd.waitForFences(
             self.dev,
             1,
@@ -600,6 +601,7 @@ pub const NeonVkContext = struct {
             1,
             1000000000,
         );
+        z1.End();
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &context.uploadFence));
         context.active = false; //  replace this thing with a lock
         context.mutex.unlock();

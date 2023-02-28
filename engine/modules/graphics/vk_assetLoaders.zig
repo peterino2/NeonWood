@@ -31,11 +31,12 @@ pub const TextureLoader = struct {
     assetsReady: core.RingQueue(StagedTextureDescription),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("async loading texture asset {s}", .{assetRef.path});
+        // core.engine_log("async loading texture asset {s}", .{assetRef.path});
 
         // _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
         // self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
 
+        var z = tracy.ZoneN(@src(), "TextureLoader loadAsset");
         const Lambda = struct {
             loader: *TextureLoader,
             assetRef: assets.AssetRef,
@@ -62,6 +63,7 @@ pub const TextureLoader = struct {
         };
 
         core.dispatchJob(Lambda{ .loader = self, .gc = self.gc, .assetRef = assetRef }) catch return error.UnableToLoad;
+        z.End();
     }
 
     // processing events, some should really be processing events rather than
@@ -81,6 +83,7 @@ pub const TextureLoader = struct {
                 core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
                 var image = assetReady.stagingResults.image;
+
                 vk_utils.submit_copy_from_staging(gc, stagingBuffer, image) catch return error.UnknownStatePanic;
                 stagingBuffer.deinit(gc.vmaAllocator);
 

@@ -1,5 +1,6 @@
 const std = @import("std");
 const core = @import("../core.zig");
+const tracy = core.tracy;
 
 pub const AssetReference = struct {
     name: core.Name,
@@ -84,7 +85,9 @@ pub const AssetReferenceSys = struct {
     }
 
     pub fn loadRef(self: @This(), asset: AssetRef) !void {
+        var z = tracy.ZoneN(@src(), "AssetReferenceSys LoadRef");
         core.engine_log("loading asset {s} ({s}) [{s}]", .{ asset.name.utf8, asset.assetType.utf8, asset.path });
         try self.loaders.getPtr(asset.assetType.hash).?.loadAsset(asset);
+        z.End();
     }
 };

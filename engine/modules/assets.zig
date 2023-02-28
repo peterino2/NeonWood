@@ -24,6 +24,10 @@ pub fn shutdown_module() void {}
 
 pub fn loadList(assetList: anytype) !void {
     for (assetList) |asset| {
+        var z1 = core.tracy.ZoneN(@src(), "Loading asset");
+        core.tracy.Message(asset.name.utf8);
+        core.tracy.Message(asset.path);
         try gAssetSys.loadRef(asset);
+        z1.End();
     }
 }

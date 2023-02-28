@@ -5,6 +5,7 @@ const vma = @import("vma");
 const vk = @import("vulkan");
 const obj_loader = @import("lib/objLoader/obj_loader.zig");
 const vkinit = @import("vk_init.zig");
+const tracy = core.tracy;
 
 const spng = core.spng;
 
@@ -113,8 +114,11 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 }
 
 pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage) !void {
+    var z1 = tracy.ZoneN(@src(), "submitting copy from staging buffer");
+    defer z1.End();
     try ctx.start_upload_context(&ctx.uploadContext);
     {
+        var z2 = tracy.ZoneN(@src(), "recording command buffer");
         var cmd = ctx.uploadContext.commandBuffer;
         var range = vk.ImageSubresourceRange{
             .aspect_mask = .{ .color_bit = true },
@@ -199,6 +203,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             1,
             p2a(&imageBarrier_toReadable),
         );
+        z2.End();
     }
     try ctx.finish_upload_context(&ctx.uploadContext);
 }
