@@ -5,11 +5,16 @@ pub const Name = struct {
     hash: u32,
 
     pub fn fromUtf8(source: []const u8) Name {
-        const hashFunc = std.hash.CityHash32.hash;
+        var hash: u32 = 5381;
+
+        for (source) |c| {
+            hash = @mulWithOverflow(hash, 33)[0];
+            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+        }
 
         var self = .{
             .utf8 = source,
-            .hash = hashFunc(source),
+            .hash = hash,
         };
         return self;
     }

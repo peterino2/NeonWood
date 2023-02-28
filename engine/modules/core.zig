@@ -9,6 +9,7 @@ pub const zm = @import("core/lib/zmath/zmath.zig");
 pub usingnamespace @import("core/lib/p2/algorithm.zig");
 const algorithm = @import("core/lib/p2/algorithm.zig");
 pub usingnamespace @import("core/math.zig");
+pub usingnamespace @import("core/string.zig");
 pub usingnamespace @cImport({
     @cInclude("stb/stb_image.h");
 });

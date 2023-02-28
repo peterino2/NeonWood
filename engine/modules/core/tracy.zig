@@ -11,16 +11,14 @@ pub const ctracy = @cImport({
 pub const TracyFrame = struct {
     name: CStr,
 
-    pub fn end(self: *@This()) void
-    {
+    pub fn end(self: *@This()) void {
         ctracy.___tracy_emit_frame_mark_end(self.name);
     }
 };
 
-pub fn frame(name: ?[*c]const u8) callconv(.Inline) TracyFrame
-{
+pub inline fn frame(name: ?[*c]const u8) TracyFrame {
     const f = TracyFrame{
-        .name = if(name) |n| n else "default",
+        .name = if (name) |n| n else "default",
     };
 
     ctracy.___tracy_emit_frame_mark_start(f.name);
@@ -30,23 +28,21 @@ pub fn frame(name: ?[*c]const u8) callconv(.Inline) TracyFrame
 pub const ZoneContext = struct {
     zone: ctracy.___tracy_c_zone_context,
 
-    pub fn end(self: ZoneContext) void 
-    {
+    pub fn end(self: ZoneContext) void {
         ctracy.___tracy_emit_zone_end(self.zone);
     }
 };
 
-pub fn trace(comptime src: std.builtin.SourceLocation, name: ?[*c]const u8) callconv(.Inline)ZoneContext {
-
+pub inline fn trace(comptime src: std.builtin.SourceLocation, name: ?[*c]const u8) ZoneContext {
     const location: ctracy.___tracy_source_location_data = .{
-        .name = if(name) |n| n else null,
+        .name = if (name) |n| n else null,
         .function = src.fn_name.ptr,
         .file = src.file.ptr,
         .line = src.line,
         .color = 0,
     };
 
-    return ZoneContext {
+    return ZoneContext{
         .zone = ctracy.___tracy_emit_zone_begin_callstack(&location, 1, 1),
     };
 }

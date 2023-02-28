@@ -58,7 +58,7 @@ pub const NeonVkImGui = struct {
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
         io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
         // io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
-        var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/fonts/VT323.ttf", 36, null, null);
+        var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/fonts/VT323.ttf", 18, null, null);
         _ = font;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
 
@@ -83,8 +83,6 @@ pub const NeonVkImGui = struct {
             .Allocator = null,
             .CheckVkResultFn = checkVkResult,
         };
-        core.debug_struct("instance: ", ctx.instance);
-        core.debug_struct("huh: ", imguiInit);
         _ = c.cImGui_vk_Init(&imguiInit, vkCast(c.VkRenderPass, ctx.renderPass));
 
         try ctx.start_upload_context(&ctx.uploadContext);

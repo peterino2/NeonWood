@@ -19,8 +19,8 @@ const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
 const RingQueue = core.RingQueue;
 
-//const enable_validation_layers: bool = build_opts.validation_layers;
-const enable_validation_layers: bool = false;
+const enable_validation_layers: bool = build_opts.validation_layers;
+// const enable_validation_layers: bool = false;
 const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
 
 const SparseSet = core.SparseSet;
@@ -296,6 +296,11 @@ pub const NeonVkPhysicalDeviceInfo = struct {
         var count: u32 = 0; // adding this for the vulkan two-step
         // load family properties
         vki.getPhysicalDeviceQueueFamilyProperties(pdevice, &count, null);
+
+        // load device properties
+        self.deviceProperties = vki.getPhysicalDeviceProperties(pdevice);
+        core.graphics_log(" device Name: {s}", .{@ptrCast([*:0]u8, &self.deviceProperties.device_name)});
+
         core.graphics_log("  Found {d} family properties", .{count});
         if (count == 0)
             return error.NoPhysicalDeviceQueueFamilyProperties;
@@ -326,8 +331,6 @@ pub const NeonVkPhysicalDeviceInfo = struct {
             _ = try vki.getPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &count, self.presentModes.items.ptr);
         }
 
-        // load device properties
-        self.deviceProperties = vki.getPhysicalDeviceProperties(pdevice);
         // load memory properties
         self.memoryProperties = vki.getPhysicalDeviceMemoryProperties(pdevice);
         // get surface capabilit00eies
@@ -365,6 +368,8 @@ pub const NeonVkContext = struct {
     };
 
     mode: u32,
+
+    graph: core.FileLog,
 
     // Quirks of the way the zig wrapper loads the functions for vulkan, means i gotta maintain these
     vkb: vk_constants.BaseDispatch,
@@ -621,24 +626,65 @@ pub const NeonVkContext = struct {
     // this is the old version
     pub fn create_object() !Self {
         var self: Self = undefined;
+        self.graph = try core.FileLog.init(std.heap.c_allocator, "renderer_graph.viz");
+        try self.graph.write("digraph G {{\n", .{});
 
+        try self.graph.write("  root->init_zig_data\n", .{});
         try self.init_zig_data();
+
+        try self.graph.write("  root->init_glfw\n", .{});
         try self.init_glfw();
+
+        try self.graph.write("  root->init_api\n", .{});
         try self.init_api();
+
+        try self.graph.write("  root->init_device\n", .{});
         try self.init_device();
+
+        try self.graph.write("  root->init_vma\n", .{});
         try self.init_vma();
+
+        try self.graph.write("  root->init_command_pools\n", .{});
         try self.init_command_pools();
+
+        try self.graph.write("  root->init_command_buffers\n", .{});
         try self.init_command_buffers();
+
+        try self.graph.write("  root->init_syncs\n", .{});
         try self.init_syncs();
+
+        try self.graph.write("  root->init_or_recycle_swapchain\n", .{});
         try self.init_or_recycle_swapchain();
+
+        try self.graph.write("  root->init_rendertarget\n", .{});
         try self.init_rendertarget();
+
+        try self.graph.write("  root->init_renderpasses\n", .{});
         try self.init_renderpasses();
+
+        try self.graph.write("  root->init_framebuffers\n", .{});
         try self.init_framebuffers();
+
+        try self.graph.write("  root->init_descriptors\n", .{});
         try self.init_descriptors();
+
+        try self.graph.write("  root->init_texture_descriptor\n", .{});
         try self.init_texture_descriptor();
+
+        try self.graph.write("  root->load_core_textures\n", .{});
         try self.load_core_textures();
+
+        try self.graph.write("  root->init_pipelines\n", .{});
         try self.init_pipelines();
+
+        try self.graph.write("  root->init_primitive_meshes\n", .{});
         try self.init_primitive_meshes();
+
+        try self.graph.write("}}\n", .{});
+        try self.graph.writeOut();
+
+        var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", "Saved/renderer_graph.viz", "-o", "Saved/renderer_graph.png" }, std.heap.c_allocator);
+        try childProc.spawn();
 
         return self;
     }
@@ -1002,6 +1048,7 @@ pub const NeonVkContext = struct {
 
     pub fn init_vma(self: *Self) !void {
         self.vmaFunctions = vma.VulkanFunctions.init(self.instance, self.dev, self.vkb.dispatch.vkGetInstanceProcAddr);
+        try self.graph.write("  init_vma->\"vma@0x{x}\"\n", .{@ptrToInt(&self.vmaAllocator)});
 
         self.vmaAllocator = try vma.Allocator.create(.{
             .instance = self.instance,
@@ -2104,10 +2151,14 @@ pub const NeonVkContext = struct {
     fn init_api(self: *Self) !void {
         self.vkb = try BaseDispatch.load(c.glfwGetInstanceProcAddress);
 
+        try self.graph.write("  init_api->\"BaseDispatch@0x{x}\" [style=dotted]\n", .{@ptrToInt(&self.vkb)});
+
+        try self.graph.write("  init_api->create_vulkan_instance\n", .{});
         try self.create_vulkan_instance();
         errdefer self.vki.destroyInstance(self.instance, null);
 
         // create KHR surface structure
+        try self.graph.write("  init_api->create_surface\n", .{});
         try self.create_surface();
         errdefer self.vki.destroySurfaceKHR(self.instance, self.surface, null);
     }
@@ -2148,13 +2199,16 @@ pub const NeonVkContext = struct {
             .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, glfwExtensions),
         };
 
+        try self.graph.write("  create_vulkan_instance->\"vkb.createInstance\"\n", .{});
         self.instance = try self.vkb.createInstance(&icis, null);
 
+        try self.graph.write("  create_vulkan_instance->\"vki.load\"\n", .{});
         // load vulkan per instance functions
         self.vki = try InstanceDispatch.load(self.instance, c.glfwGetInstanceProcAddress);
     }
 
     fn init_device(self: *Self) !void {
+        try self.graph.write("  init_device->create_physical_devices\n", .{});
         try self.create_physical_devices();
 
         var ids = ArrayList(u32).init(self.allocator);
@@ -2215,7 +2269,10 @@ pub const NeonVkContext = struct {
     }
 
     fn create_physical_devices(self: *Self) !void {
+        try self.graph.write("  create_physical_devices->enumerate_physical_devices\n", .{});
         try self.enumerate_physical_devices();
+
+        try self.graph.write("  create_physical_devices->find_physical_devices\n", .{});
         try self.find_physical_device();
     }
 
@@ -2356,6 +2413,14 @@ pub const NeonVkContext = struct {
                 self.surface,
                 self.allocator,
             ));
+
+            try self.graph.write(
+                "  enumerate_physical_devices->\"device:{s}:{*}\"\n",
+                .{
+                    @ptrCast([*:0]const u8, &self.enumeratedPhysicalDevices.items[i].deviceProperties.device_name),
+                    devices.ptr,
+                },
+            );
         }
     }
 

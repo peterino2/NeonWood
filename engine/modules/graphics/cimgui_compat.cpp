@@ -53,13 +53,13 @@ extern "C" void SetupImguiColors ()
     style.TabBorderSize = 0;
     style.WindowPadding = {20, 20};
 
-    style.WindowRounding = 6;
-    style.ChildRounding = 6;
-    style.FrameRounding = 6;
-    style.ScrollbarRounding = 6;
-    style.GrabRounding = 6;
-    style.LogSliderDeadzone = 6;
-    style.TabRounding = 6;
+    style.WindowRounding = 2;
+    style.ChildRounding = 2;
+    style.FrameRounding = 2;
+    style.ScrollbarRounding = 2;
+    style.GrabRounding = 2;
+    style.LogSliderDeadzone = 2;
+    style.TabRounding = 2;
     style.WindowMenuButtonPosition = ImGuiDir_None;
 
     ImVec4* colors = ImGui::GetStyle().Colors;
