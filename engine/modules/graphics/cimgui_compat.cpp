@@ -43,6 +43,7 @@ extern "C" void cImGui_vk_SetMinImageCount(uint32_t min_image_count)
     ImGui_ImplVulkan_SetMinImageCount(min_image_count);
 }
 
+// we setup the style in C because there's a lot of styles online and they're easier to copy paste into c
 extern "C" void SetupImguiColors ()
 {
     ImGuiStyle& style = ImGui::GetStyle();

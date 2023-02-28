@@ -58,8 +58,8 @@ pub const NeonVkImGui = struct {
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
         io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
         // io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
-        var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/fonts/VT323.ttf", 18, null, null);
-        _ = font;
+        // var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "content/fonts/VT323.ttf", 18, null, null);
+        // _ = font;
         _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
 
         var style = c.igGetStyle();

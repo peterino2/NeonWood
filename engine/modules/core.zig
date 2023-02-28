@@ -54,6 +54,8 @@ pub fn start_module() void {
 
     gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
 
+    logging.setupLogging(gEngine) catch unreachable;
+
     logs("core module starting up... ");
     return;
 }
