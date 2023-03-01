@@ -13,7 +13,16 @@ const testimage = "lost_empire-RGBA";
 const testimage2 = "texture_sample";
 
 // Asset loader
-const AssetReferences = [_]assets.AssetRef{};
+const AssetReferences = [_]assets.AssetRef{
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d0"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d1"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d2"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d0"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d1"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d2"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+};
 
 // Primarily a test file that exists to create a simple application for
 // basic engine onboarding
@@ -39,54 +48,42 @@ const GameContext = struct {
     pub fn uiTick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
-        var idStr: []const u8 = "DockWindow";
-        var dockspaceID = c.igGetIDWithSeed(idStr.ptr, &idStr[idStr.len - 1], 0);
-
-        var viewport = c.igGetMainViewport();
-
-        c.igSetNextWindowPos(viewport.?.*.WorkPos, 0, .{ .x = 0, .y = 0 });
-        c.igSetNextWindowSize(viewport.?.*.WorkSize, 0);
-        c.igPushStyleVar_Float(c.ImGuiStyleVar_WindowRounding, 0.0);
-        c.igPushStyleVar_Float(c.ImGuiStyleVar_WindowBorderSize, 0.0);
-
-        c.igPushStyleVar_Vec2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-
-        var dockspace_flags: c_int = c.ImGuiDockNodeFlags_None;
-        var window_flags: c_int = c.ImGuiWindowFlags_MenuBar | c.ImGuiWindowFlags_NoDocking;
-        //var window_flags: c_int = c.ImGuiWindowFlags_NoDocking;
-        window_flags |= c.ImGuiWindowFlags_NoTitleBar | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus;
-        window_flags |= c.ImGuiWindowFlags_NoBackground;
-
-        if (c.igBegin("DockSpace Demo", null, window_flags)) {
-            if (c.igBeginMenuBar()) {
-                if (c.igBeginMenu("Options", true)) {
-                    _ = c.igMenuItem_Bool("Fullscreen", null, true, true);
-                    c.igEndMenu();
-                }
-                c.igEndMenuBar();
-            }
-            _ = c.igDockSpace(dockspaceID, .{ .x = 0, .y = 0 }, dockspace_flags, null);
-            c.igEnd();
+        if (self.showDemo) {
+            c.igShowDemoWindow(&self.showDemo);
         }
 
-        c.igPopStyleVar(3);
-
-        // c.igDockBuilderRemoveNode(dockspaceID);
-        // _ = c.igDockBuilderAddNode(dockspaceID, c.ImGuiDockNodeFlags_PassthruCentralNode | c.ImGuiDockNodeFlags_DockSpace);
-        // c.igDockBuilderSetNodeSize(dockspaceID, viewport.?.*.Size);
-        // c.igDockBuilderFinish(dockspaceID);
-
         if (self.debugOpen) {
-            if (c.igBegin("Debug Menu", &self.debugOpen, 0)) {
+            if (!c.igBegin("Debug Menu", &(self.debugOpen), 0)) {
+                c.igEnd();
+            } else {
                 c.igText("hello motherfucker");
 
                 if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
                     core.engine_logs("I have been pressed!");
                     self.debugOpen = false;
                 }
+                c.igEnd();
             }
-            c.igEnd();
         }
+
+        _ = c.igBegin(
+            "instructions",
+            null,
+            c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoTitleBar,
+        );
+        c.igText("Press ESC to close\nPress SPACE to open the demo window");
+        c.igEnd();
+
+        var drawList = c.igGetBackgroundDrawList_Nil();
+        c.ImDrawList_AddQuad(
+            drawList,
+            .{ .x = 100, .y = 100 },
+            .{ .x = 200, .y = 100 },
+            .{ .x = 200, .y = 200 },
+            .{ .x = 100, .y = 200 },
+            0xFF0000FF,
+            2.0,
+        );
     }
 
     pub fn prepare_game(self: *Self) !void {
