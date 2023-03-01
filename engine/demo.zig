@@ -13,7 +13,16 @@ const testimage = "lost_empire-RGBA";
 const testimage2 = "texture_sample";
 
 // Asset loader
-const AssetReferences = [_]assets.AssetRef{};
+const AssetReferences = [_]assets.AssetRef{
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d0"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d1"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d2"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d0"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d1"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d2"), .path = "content/textures/" ++ testimage ++ ".png" },
+    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+};
 
 // Primarily a test file that exists to create a simple application for
 // basic engine onboarding

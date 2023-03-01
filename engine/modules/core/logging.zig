@@ -6,7 +6,7 @@ var gLoggerSys: ?*LoggerSys = null;
 
 fn printInner(comptime fmt: []const u8, args: anytype) void {
     if (gLoggerSys) |loggerSys| {
-        loggerSys.print(fmt, args) catch std.debug.print("unable to print", .{});
+        loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);
     } else {
         std.debug.print("> " ++ fmt, args);
     }
@@ -91,30 +91,71 @@ pub const LoggerSys = struct {
     pub const NeonObjectTable = core.RttiData.from(@This());
 
     writeOutBuffer: std.ArrayList(u8),
+    flushBuffer: std.ArrayList(u8),
     allocator: std.mem.Allocator,
     logFilePath: []const u8,
     logFile: std.fs.File,
     consoleFile: std.fs.File,
     lock: std.Thread.Mutex = .{},
+    flushLock: std.Thread.Mutex = .{},
 
     pub fn flush(self: *@This()) !void {
-        // todo.. double buffer
         var z = tracy.ZoneN(@src(), "Trying to flush");
+        defer z.End();
+
         self.lock.lock();
+        self.flushLock.lock();
+
+        {
+            var swap = self.writeOutBuffer;
+            self.writeOutBuffer = self.flushBuffer;
+            self.flushBuffer = swap;
+
+            const L = struct {
+                loggerSys: *LoggerSys,
+
+                pub fn func(ctx: @This(), _: *core.JobContext) void {
+                    var z1 = tracy.ZoneN(@src(), "flushing output buffer");
+                    defer z1.End();
+                    ctx.loggerSys.flushFromJob() catch unreachable;
+                }
+            };
+
+            try core.dispatchJob(L{ .loggerSys = self });
+        }
+
+        self.flushLock.unlock();
+        self.lock.unlock();
+    }
+
+    pub fn flushWriteBuffer(self: *@This()) !void {
+        self.flushLock.lock();
         try self.logFile.writer().writeAll(self.writeOutBuffer.items);
         try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
         self.writeOutBuffer.clearRetainingCapacity();
-        self.lock.unlock();
-        z.End();
+        self.flushLock.unlock();
+    }
+
+    pub fn flushFromJob(self: *@This()) !void {
+        self.flushLock.lock();
+        try self.logFile.writer().writeAll(self.flushBuffer.items);
+        try self.consoleFile.writer().writeAll(self.flushBuffer.items);
+        self.flushBuffer.clearRetainingCapacity();
+        self.flushLock.unlock();
     }
 
     pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
         self.lock.lock();
         try self.writeOutBuffer.writer().print(fmt, args);
+        const flushBufferLen = self.flushBuffer.items.len;
         self.lock.unlock();
 
         if (self.writeOutBuffer.items.len > 8192) {
-            try self.flush();
+            if (flushBufferLen == 0) {
+                try self.flush();
+            } else {
+                try self.flushWriteBuffer();
+            }
         }
     }
 
@@ -126,7 +167,8 @@ pub const LoggerSys = struct {
 
         var self = @This(){
             .allocator = allocator,
-            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 16000) catch unreachable,
+            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,
+            .flushBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,
             .logFilePath = ofile,
             .logFile = cwd.createFile(ofile, .{}) catch unreachable,
             .consoleFile = std.io.getStdOut(),
