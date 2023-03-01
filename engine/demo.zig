@@ -73,6 +73,17 @@ const GameContext = struct {
         );
         c.igText("Press ESC to close\nPress SPACE to open the demo window");
         c.igEnd();
+
+        var drawList = c.igGetBackgroundDrawList_Nil();
+        c.ImDrawList_AddQuad(
+            drawList,
+            .{ .x = 100, .y = 100 },
+            .{ .x = 200, .y = 100 },
+            .{ .x = 200, .y = 200 },
+            .{ .x = 100, .y = 200 },
+            0xFF0000FF,
+            2.0,
+        );
     }
 
     pub fn prepare_game(self: *Self) !void {

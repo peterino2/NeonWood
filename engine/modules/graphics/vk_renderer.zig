@@ -47,6 +47,7 @@ const MakeTypeName = core.MakeTypeName;
 pub const RendererInterfaceRef = core.InterfaceRef(RendererInterface);
 
 // RendererInterfaceVTable
+// TODO get rid of this, I don't think I want to do pipelines in this manner anymore
 pub const RendererInterface = struct {
     typeName: Name,
     typeSize: usize,
@@ -1484,7 +1485,7 @@ pub const NeonVkContext = struct {
 
                 try self.init_or_recycle_swapchain();
                 try self.init_framebuffers();
-                c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
+                // c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
             }
 
             if (w <= 0 or h <= 0) {
@@ -1708,7 +1709,7 @@ pub const NeonVkContext = struct {
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
-            c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
+            // c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
         }
 
         if (w <= 0 or h <= 0) {
