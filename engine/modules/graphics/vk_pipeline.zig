@@ -116,7 +116,6 @@ pub const NeonVkPipelineBuilder = struct {
             .p_dynamic_states = &dynamicStates,
         };
 
-        // its here....
         var gpci = vk.GraphicsPipelineCreateInfo{
             .flags = .{},
             .stage_count = @intCast(u32, self.sscis.items.len),
@@ -178,7 +177,7 @@ pub const NeonVkPipelineBuilder = struct {
         self.descriptorLayouts = ArrayList(vk.DescriptorSetLayout).init(allocator);
 
         self.topology = .triangle_list;
-        self.polygonMode= .fill;
+        self.polygonMode = .fill;
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
@@ -228,13 +227,11 @@ pub const NeonVkPipelineBuilder = struct {
         self.vertexInputDescription = try meshes.VertexInputDescription.init(self.allocator);
     }
 
-    pub fn set_topology(self: *@This(), topology: vk.PrimitiveTopology) void 
-    {
+    pub fn set_topology(self: *@This(), topology: vk.PrimitiveTopology) void {
         self.topology = topology;
     }
 
-    pub fn set_polygon_mode(self: *@This(), polygonMode: vk.PolygonMode) void
-    {
+    pub fn set_polygon_mode(self: *@This(), polygonMode: vk.PolygonMode) void {
         self.polygonMode = polygonMode;
     }
 

@@ -9,19 +9,15 @@ const engine_log = core.engine_log;
 const c = graphics.c;
 var gGame: *GameContext = undefined;
 
-const testimage = "lost_empire-RGBA";
-const testimage2 = "texture_sample";
+const testimage1 = "content/textures/lost_empire-RGBA.png";
+const testimage2 = "content/textures/texture_sample.png";
 
 // Asset loader
-const AssetReferences = [_]assets.AssetRef{
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d0"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d1"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d2"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d3"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d0"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d1"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d2"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+const AssetReferences = [_]assets.AssetImportReference{
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a1", testimage1),
+    assets.MakeImportRef("Texture", "a2", testimage1),
+    assets.MakeImportRef("Texture", "a3", testimage1),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -62,7 +58,6 @@ const GameContext = struct {
 
         var dockspace_flags: c_int = c.ImGuiDockNodeFlags_None;
         var window_flags: c_int = c.ImGuiWindowFlags_MenuBar | c.ImGuiWindowFlags_NoDocking;
-        //var window_flags: c_int = c.ImGuiWindowFlags_NoDocking;
         window_flags |= c.ImGuiWindowFlags_NoTitleBar | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus;
         window_flags |= c.ImGuiWindowFlags_NoBackground;
 
@@ -79,11 +74,6 @@ const GameContext = struct {
         }
 
         c.igPopStyleVar(3);
-
-        // c.igDockBuilderRemoveNode(dockspaceID);
-        // _ = c.igDockBuilderAddNode(dockspaceID, c.ImGuiDockNodeFlags_PassthruCentralNode | c.ImGuiDockNodeFlags_DockSpace);
-        // c.igDockBuilderSetNodeSize(dockspaceID, viewport.?.*.Size);
-        // c.igDockBuilderFinish(dockspaceID);
 
         if (self.debugOpen) {
             if (c.igBegin("Debug Menu", &self.debugOpen, 0)) {

@@ -8,7 +8,11 @@ pub const AssetRef = asset_references.AssetRef;
 pub const AssetReference = asset_references.AssetReference;
 pub const AssetLoaderError = asset_references.AssetLoaderError;
 pub const AssetLoaderInterface = asset_references.AssetLoaderInterface;
+pub const AssetImportReference = asset_references.AssetImportReference;
+pub const AssetPropertiesBag = asset_references.AssetPropertiesBag;
 pub const AssetReferenceSys = asset_references.AssetReferenceSys;
+
+pub const MakeImportRef = asset_references.MakeImportRef;
 
 pub const AsyncAssetJobContext = asset_jobs.AsyncAssetJobContext;
 
@@ -23,11 +27,11 @@ pub fn start_module() void {
 pub fn shutdown_module() void {}
 
 pub fn loadList(assetList: anytype) !void {
-    for (assetList) |asset| {
+    for (assetList) |assetImport| {
         var z1 = core.tracy.ZoneN(@src(), "Loading asset");
-        core.tracy.Message(asset.name.utf8);
-        core.tracy.Message(asset.path);
-        try gAssetSys.loadRef(asset);
+        core.tracy.Message(assetImport.assetRef.name.utf8);
+        core.tracy.Message(assetImport.properties.path);
+        try gAssetSys.loadRef(assetImport.assetRef, assetImport.properties);
         z1.End();
     }
 }

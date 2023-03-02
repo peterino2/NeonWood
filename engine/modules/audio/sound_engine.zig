@@ -37,11 +37,12 @@ pub const SoundLoader = struct {
         };
     }
 
-    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("loading sound asset {s}", .{assetRef.path});
-        self.engine.loadSound(assetRef.name, assetRef.path, .{
+    // unfortunately this one is blocking
+    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, properties: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
+        core.engine_log("loading sound asset {s}", .{properties.?.path});
+        self.engine.loadSound(assetRef.name, properties.?.path, .{
             .volume = assetRef.properties.soundVolume,
-        }) catch { 
+        }) catch {
             core.engine_log("unable to load sound {s}", .{assetRef.name.utf8});
         };
     }
@@ -87,8 +88,7 @@ pub const NeonSoundEngine = struct {
         errdefer self.allocator.destroy(sound);
 
         var res = c.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
-        if(res != c.MA_SUCCESS)
-        {
+        if (res != c.MA_SUCCESS) {
             sound_err("tried loading sound: {s} failed", .{soundName.utf8});
             return error.MiniAudioError;
         }
@@ -97,31 +97,27 @@ pub const NeonSoundEngine = struct {
         c.ma_sound_set_volume(sound, soundParams.volume);
     }
 
-    pub fn playSound(self: *@This(), soundName: core.Name) !void
-    {
+    pub fn playSound(self: *@This(), soundName: core.Name) !void {
         var maybeSound = self.sounds.get(soundName.hash);
 
-        if(maybeSound == null)
+        if (maybeSound == null)
             return error.NoSoundError;
 
         var sound = maybeSound.?;
 
-        if(c.ma_sound_start(sound) != c.MA_SUCCESS)
+        if (c.ma_sound_start(sound) != c.MA_SUCCESS)
             sound_err("unable to start sound: {s}", .{soundName.utf8});
     }
 
-    pub fn setVolume(self: *@This(), volume: f32) void 
-    {
+    pub fn setVolume(self: *@This(), volume: f32) void {
         self.volume = volume;
         _ = c.ma_engine_set_volume(self.engine, volume);
     }
 
-    pub fn stopSound(self: *@This(), soundName: core.Name) void
-    {
+    pub fn stopSound(self: *@This(), soundName: core.Name) void {
         var sound = self.sounds.get(soundName.hash).?;
 
-        if(c.ma_sound_stop(sound) != c.MA_SUCCESS)
-        {
+        if (c.ma_sound_stop(sound) != c.MA_SUCCESS) {
             //
         }
     }

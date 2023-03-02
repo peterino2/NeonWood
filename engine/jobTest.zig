@@ -18,17 +18,6 @@ const JobContext = core.JobContext;
 const JobWorker = core.JobWorker;
 const JobManager = core.JobManager;
 
-const TextureAssets = [_]AssetReference{
-    .{ .name = core.MakeName("t_sprite"), .path = "content/singleSpriteTest.png" },
-    .{ .name = core.MakeName("t_lost_empire"), .path = "content/lost_empire-RGBA.png" },
-};
-
-const MeshAssets = [_]AssetReference{
-    .{ .name = core.MakeName("m_monkey"), .path = "content/monkey.obj" },
-    .{ .name = core.MakeName("m_room"), .path = "content/SCUFFED_Room.obj" },
-    .{ .name = core.MakeName("m_empire"), .path = "content/lost_empire.obj" },
-};
-
 var gGame: *GameContext = undefined;
 const jobTestCount = 1000;
 

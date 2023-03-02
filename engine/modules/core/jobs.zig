@@ -76,6 +76,8 @@ pub const JobWorker = struct {
     manager: ?*JobManager = null,
 
     pub fn wake(self: *JobWorker) void {
+        // this needs to be re-evaluated, it's nice for system performance but
+        // a 1-2ms worst case wake time is kind of unacceptable.
         std.Thread.Futex.wake(&self.futex, 1);
     }
 

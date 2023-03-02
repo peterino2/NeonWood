@@ -25,12 +25,13 @@ pub const TextureLoader = struct {
         name: core.Name,
         stagingResults: vk_utils.LoadAndStageImage,
         assetRef: assets.AssetRef,
+        properties: assets.AssetPropertiesBag,
     };
 
     gc: *NeonVkContext,
     assetsReady: core.RingQueue(StagedTextureDescription),
 
-    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
+    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, props: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
         // core.engine_log("async loading texture asset {s}", .{assetRef.path});
 
         // _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
@@ -41,20 +42,22 @@ pub const TextureLoader = struct {
             loader: *TextureLoader,
             assetRef: assets.AssetRef,
             gc: *NeonVkContext,
+            properties: assets.AssetPropertiesBag,
 
             pub fn func(ctx: @This(), job: *core.JobContext) void {
                 _ = job;
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
                 // I'm like 99% sure theres a memory leak here if this raises an error
-                var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.assetRef.path) catch unreachable;
+                var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
 
                 tracy.Message(ctx.assetRef.name.utf8);
-                tracy.Message(ctx.assetRef.path);
+                tracy.Message(ctx.properties.path);
                 var loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
                     .stagingResults = stagingResults,
                     .assetRef = ctx.assetRef,
+                    .properties = ctx.properties,
                 };
 
                 z1.End();
@@ -62,7 +65,13 @@ pub const TextureLoader = struct {
             }
         };
 
-        core.dispatchJob(Lambda{ .loader = self, .gc = self.gc, .assetRef = assetRef }) catch return error.UnableToLoad;
+        core.dispatchJob(Lambda{
+            .loader = self,
+            .gc = self.gc,
+            .assetRef = assetRef,
+            .properties = props.?,
+        }) catch return error.UnableToLoad;
+
         z.End();
     }
 
@@ -78,7 +87,7 @@ pub const TextureLoader = struct {
                 var z1 = tracy.ZoneN(@src(), "Uploading asset loaded by TextureLoader");
                 tracy.Message("TextureLoader");
                 tracy.Message(assetReady.assetRef.name.utf8);
-                tracy.Message(assetReady.assetRef.path);
+                tracy.Message(assetReady.properties.path);
 
                 core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
@@ -96,7 +105,7 @@ pub const TextureLoader = struct {
                     .imageView = imageView,
                 };
                 var textureSet = gc.create_mesh_image_for_texture(newTexture, .{
-                    .useBlocky = assetReady.assetRef.properties.textureUseBlockySampler,
+                    .useBlocky = assetReady.properties.textureUseBlockySampler,
                 }) catch unreachable;
 
                 gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
@@ -109,7 +118,7 @@ pub const TextureLoader = struct {
         return .{
             .gc = vk_renderer.gContext,
             //todo: the RttiData init function should have a handleable error
-            .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 4096) catch unreachable,
+            .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 1024) catch unreachable,
         };
     }
 };
@@ -119,14 +128,9 @@ pub const MeshLoader = struct {
     pub const NeonObjectTable = core.RttiData.from(@This());
     gc: *NeonVkContext,
 
-    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef) assets.AssetLoaderError!void {
-        core.engine_log("loading mesh asset {s}", .{assetRef.path});
-        _ = self.gc.new_mesh_from_obj(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-    }
-
-    pub fn tick(self: *@This(), dt: f64) void {
-        _ = self;
-        _ = dt;
+    pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
+        core.engine_log("loading mesh asset {s}", .{propertiesBag.?.path});
+        _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
     }
 };
 
