@@ -6,6 +6,8 @@ const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
+
+const audio = neonwood.audio;
 const c = graphics.c;
 var gGame: *GameContext = undefined;
 
@@ -14,10 +16,8 @@ const testimage2 = "content/textures/texture_sample.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
+    assets.MakeImportRef("Mesh", "m_empire", "content/meshes/lost_empire.obj"),
     assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a1", testimage1),
-    assets.MakeImportRef("Texture", "a2", testimage1),
-    assets.MakeImportRef("Texture", "a3", testimage1),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -27,18 +27,60 @@ const GameContext = struct {
     pub const NeonObjectTable = core.RttiData.from(Self);
     pub const InterfaceUiTable = core.InterfaceUiData.from(Self);
 
+    camera: graphics.Camera,
     allocator: std.mem.Allocator,
     showDemo: bool = true,
     debugOpen: bool = true,
+    gc: *graphics.NeonVkContext = undefined,
+    objHandle: core.ObjectHandle = .{},
+    assetReady: bool = false,
+    cameraHorizontalRotationMat: core.Mat,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
             .allocator = allocator,
+            .camera = graphics.Camera.init(),
+            .cameraHorizontalRotationMat = core.zm.identity(),
         };
 
-        core.game_logs("Game starting");
+        self.camera.rotation = core.zm.quatFromRollPitchYaw(core.radians(30.0), core.radians(0.0), 0.0);
+        self.camera.fov = 90.0;
+        self.camera.position = .{ .x = 0.0, .y = 7, .z = 0 };
+        self.camera.updateCamera();
+        self.camera.resolve(self.cameraHorizontalRotationMat);
 
         return self;
+    }
+
+    pub fn tick(self: *@This(), deltaTime: f64) void {
+        if (!self.assetReady) {
+            const texName = core.MakeName("a0");
+            if (self.gc.textures.contains(texName.hash)) {
+                var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+                obj.setTextureByName(self.gc, texName);
+                self.assetReady = true;
+            }
+        }
+
+        if (self.camera.isDirty()) {
+            self.camera.updateCamera();
+        }
+
+        _ = deltaTime;
+        var i: f32 = 0;
+        while (i < 1000) : (i += 1) {
+            graphics.debugLine(
+                .{ .x = -1000, .y = 0, .z = -1000 + i * 5 },
+                .{ .x = 1000, .y = 0, .z = -1000 + i * 5 },
+                .{},
+            );
+
+            graphics.debugLine(
+                .{ .x = -1000 + i * 5, .y = 0, .z = -1000 },
+                .{ .x = -1000 + i * 5, .y = 0, .z = 1000 },
+                .{},
+            );
+        }
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -94,11 +136,20 @@ const GameContext = struct {
             .vtable = &InterfaceUiTable,
         });
 
-        gGame = self;
-
+        self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
-        _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
+        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
+        self.gc.activateCamera(&self.camera);
+        self.objHandle = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_empire"),
+            .material_name = core.MakeName("mat_mesh"),
+            .init_transform = core.zm.translation(0, -15, 0),
+        });
+
+        gGame = self;
+
+        // _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
     }
 
     pub fn deinit(self: *Self) void {
@@ -113,13 +164,17 @@ pub fn main() anyerror!void {
 
     core.start_module();
     defer core.shutdown_module();
+
     assets.start_module();
     defer assets.shutdown_module();
+
+    // audio.start_module();
+    // defer audio.shutdown_module();
 
     graphics.start_module();
     defer graphics.shutdown_module();
 
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = false });
+    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
     try gameContext.prepare_game();
 
     // run the game

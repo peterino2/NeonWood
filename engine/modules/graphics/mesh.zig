@@ -48,7 +48,7 @@ pub const Mesh = struct {
 
         if (fileContents.meshes.items.len > 0) {
             // default grabbing shape zero
-            core.graphics_log("loading mesh: ", .{});
+            core.graphics_log("loading mesh: {s}", .{filename});
             fileContents.meshes.items[0].print_stats();
             try self.load_from_obj_mesh(fileContents.meshes.items[0]);
         }
