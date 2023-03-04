@@ -115,9 +115,17 @@ pub const Engine = struct {
     }
 
     pub fn run(self: *@This()) void {
-        while (!self.exitSignal) {
-            self.tick();
-        }
+        const L = struct {
+            engine: *Engine,
+
+            pub fn func(ctx: @This(), job: *core.JobContext) void {
+                _ = job;
+                while (!ctx.engine.exitSignal) {
+                    ctx.engine.tick();
+                }
+            }
+        };
+        core.dispatchJob(L{ .engine = self }) catch unreachable;
     }
 
     pub fn exit(self: *@This()) void {

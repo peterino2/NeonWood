@@ -1494,12 +1494,25 @@ pub const NeonVkContext = struct {
                 self.extent.height = @intCast(u32, h);
             }
 
-            c.glfwPollEvents();
             self.firstFrame = false;
+
+            // try core.dispatchJob(PollEventsJob{});
 
             std.time.sleep(1000 * 1000);
         }
     }
+
+    const PollEventsJob = struct {
+        name: []const u8 = "Polling Events",
+        pub fn func(ctx: @This(), job: *core.JobContext) void {
+            _ = ctx;
+            _ = job;
+
+            var z2 = tracy.ZoneNC(@src(), "Polling Events", 0xBBAAFF);
+            c.glfwWaitEvents();
+            z2.End();
+        }
+    };
 
     fn draw_render_object(
         self: *Self,
@@ -1669,12 +1682,14 @@ pub const NeonVkContext = struct {
             .p_command_buffers = @ptrCast([*]const vk.CommandBuffer, &self.commandBuffers.items[self.nextFrameIndex]),
         };
 
+        var z1 = tracy.ZoneNC(@src(), "submitting", 0xBBAAFF);
         try self.vkd.queueSubmit(
             self.graphicsQueue.handle,
             1,
             @ptrCast([*]const vk.SubmitInfo, &submit),
             self.commandBufferFences.items[self.nextFrameIndex],
         );
+        z1.End();
 
         var presentInfo = vk.PresentInfoKHR{
             .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
@@ -1716,8 +1731,14 @@ pub const NeonVkContext = struct {
             self.isMinimized = true;
         }
 
-        c.glfwPollEvents();
+        //try core.dispatchJob(PollEventsJob{});
         self.firstFrame = false;
+    }
+
+    pub fn pollEventsFunc(_: @This()) void {
+        var z1 = tracy.ZoneN(@src(), "Polling glfw envents");
+        defer z1.End();
+        c.glfwWaitEvents();
     }
 
     fn destroy_framebuffers(self: *Self) !void {

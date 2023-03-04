@@ -25,7 +25,7 @@ pub const JobManager = struct {
 
         var i: usize = 0;
         while (i < self.workers.len) : (i += 1) {
-            self.workers[i] = JobWorker.init(self.allocator) catch unreachable;
+            self.workers[i] = JobWorker.init(self.allocator, i) catch unreachable;
             self.workers[i].workerId = i;
         }
 
@@ -81,13 +81,16 @@ pub const JobWorker = struct {
         std.Thread.Futex.wake(&self.futex, 1);
     }
 
-    pub fn init(allocator: std.mem.Allocator) !*@This() {
+    pub fn init(allocator: std.mem.Allocator, workerNumber: usize) !*@This() {
         var self = try allocator.create(JobWorker);
 
         self.* = .{
             .allocator = allocator,
             .workerThread = try std.Thread.spawn(.{}, @This().workerThreadFunc, .{self}),
         };
+        var printed = try std.fmt.allocPrint(allocator, "WorkerThread_{d}", .{workerNumber});
+        defer allocator.free(printed);
+        try self.workerThread.setName(printed);
 
         return self;
     }

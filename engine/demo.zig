@@ -35,9 +35,10 @@ pub const GameContext = struct {
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
     cameraHorizontalRotationMat: core.Mat,
+    cameraTime: f64 = 0.0,
+    movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0),
 
     pub fn init(allocator: std.mem.Allocator) Self {
-        core.engine_log("engine log types found: ", .{});
         var self = Self{
             .allocator = allocator,
             .camera = graphics.Camera.init(),
@@ -45,7 +46,7 @@ pub const GameContext = struct {
         };
 
         self.camera.rotation = core.zm.quatFromRollPitchYaw(core.radians(30.0), core.radians(0.0), 0.0);
-        self.camera.fov = 90.0;
+        self.camera.fov = 70.0;
         self.camera.position = .{ .x = 0.0, .y = 7, .z = 0 };
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
@@ -62,12 +63,12 @@ pub const GameContext = struct {
                 self.assetReady = true;
             }
         }
+        self.cameraTime += deltaTime;
 
-        if (self.camera.isDirty()) {
-            self.camera.updateCamera();
-        }
+        self.camera.translate(self.movementInput.fmul(0.1));
+        self.camera.updateCamera();
+        self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        _ = deltaTime;
         var i: f32 = 0;
         while (i < 1000) : (i += 1) {
             graphics.debugLine(
@@ -149,8 +150,6 @@ pub const GameContext = struct {
         });
 
         gGame = self;
-
-        // _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
     }
 
     pub fn deinit(self: *Self) void {
@@ -180,6 +179,12 @@ pub fn main() anyerror!void {
 
     // run the game
     core.gEngine.run();
+
+    _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
+
+    while (!core.gEngine.exitSignal) {
+        graphics.getContext().pollEventsFunc();
+    }
 }
 
 pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
@@ -187,9 +192,46 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
     _ = scancode;
     _ = mods;
 
+    // Todo turn these into an events pump
+
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, game ends now");
         core.gEngine.exit();
+    }
+
+    if (action == c.GLFW_PRESS) {
+        if (key == c.GLFW_KEY_W) {
+            gGame.movementInput.z += -1;
+        }
+
+        if (key == c.GLFW_KEY_S) {
+            gGame.movementInput.z += 1;
+        }
+
+        if (key == c.GLFW_KEY_A) {
+            gGame.movementInput.x += -1;
+        }
+
+        if (key == c.GLFW_KEY_D) {
+            gGame.movementInput.x += 1;
+        }
+    }
+    if (action == c.GLFW_RELEASE) {
+        if (key == c.GLFW_KEY_W) {
+            gGame.movementInput.z -= -1;
+        }
+
+        if (key == c.GLFW_KEY_S) {
+            gGame.movementInput.z -= 1;
+        }
+
+        if (key == c.GLFW_KEY_A) {
+            gGame.movementInput.x -= -1;
+        }
+
+        if (key == c.GLFW_KEY_D) {
+            gGame.movementInput.x -= 1;
+        }
     }
 
     if (key == c.GLFW_KEY_SPACE and action == c.GLFW_PRESS) {

@@ -167,39 +167,3 @@ pub fn dupe(comptime T: type, allocator: std.mem.Allocator, source: []const T) !
 }
 
 pub const NeonObjectTableName: []const u8 = "NeonObjectTable";
-
-pub fn SearchDeclsRecursive(comptime T: type) ?[]const RttiTypeInfo {
-    @setEvalBranchQuota(10000000);
-    return SearchDeclsRecursiveInner(T);
-}
-
-pub fn SearchDeclsRecursiveInner(comptime T: type) ?[]const RttiTypeInfo {
-    inline for (comptime std.meta.declarations(T)) |decl| {
-        if (decl.is_pub and !std.mem.eql(u8, decl.name, "RttiTypeInfoList")) {
-            if (@TypeOf(@field(T, decl.name)) == type) {
-                switch (@typeInfo(@field(T, decl.name))) {
-                    .Struct, .Enum, .Union, .Opaque => {
-                        inline for (comptime std.meta.declarations(T)) |decl2| {
-                            if (std.mem.eql(u8, decl2.name, NeonObjectTableName)) {
-                                @compileLog(decl.name, decl2.name, @typeInfo(@field(T, decl.name)));
-                            }
-                            // if (decl.is_pub and !std.mem.eql(u8, decl.name, "std") and !std.mem.eql(u8, decl.name, "c") and !std.mem.eql(u8, decl.name, "ctracy") and !std.mem.eql(u8, decl.name, "cimport") and !std.mem.eql(u8, decl.name, "vk") and !std.mem.eql(u8, decl.name, "vk_constants")) {
-                            //     _ = SearchDeclsRecursiveInner(@field(T, decl.name));
-                            // }
-                            // and std.mem.eql(u8, decl2.name, NeonObjectTableName)) {} else {}
-                        }
-                    },
-                    else => {},
-                }
-            }
-        }
-    }
-
-    return null;
-}
-
-pub const RttiTypeInfoList: ?[]const RttiTypeInfo = SearchDeclsRecursive(root);
-
-pub const RttiTypeInfo = struct {
-    name: []const u8,
-};
