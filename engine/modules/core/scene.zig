@@ -131,7 +131,7 @@ pub const SceneSystem = struct {
     // ----- creating and updating objects -----
 
     // scene objects are the primary object type
-    pub fn createSceneObject(self: @This(), params: SceneObjectInitParams) !core.ObjectHandle {
+    pub fn createSceneObject(self: *@This(), params: SceneObjectInitParams) !core.ObjectHandle {
         var newHandle = try self.objects.createObject(SceneObject.init(params));
         return newHandle;
     }
@@ -228,7 +228,7 @@ pub const SceneSystem = struct {
         settings.*.sceneMode = mobility;
     }
 
-    pub fn get(self: *@This(), handle: core.ObjectHandle, field: Field) ?*FieldType(field) {
+    pub fn get(self: *@This(), handle: core.ObjectHandle, comptime field: Field) ?*FieldType(field) {
         return self.objects.get(handle, field);
     }
 

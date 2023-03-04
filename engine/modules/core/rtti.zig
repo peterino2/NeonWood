@@ -78,6 +78,8 @@ pub const RttiData = struct {
 
     // format here is a bit imprecise
     // the correct format is pub fn init(std.mem.Allocator) T
+    // this is used like a construct in place because... reasons
+
     init_func: *const fn (std.mem.Allocator, *anyopaque) void,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
@@ -192,20 +194,3 @@ test "test rtti data" {
     try std.testing.expect(x.wanker == 42069);
     try std.testing.expect(y.wanker == 69420);
 }
-
-pub const RttiRegistry = struct {
-    entries: [RTTI_MAX_TYPES]RttiData,
-    count: u32 = 0,
-
-    pub fn init() @This() {
-        var self = std.mem.zeroes(@This());
-
-        return self;
-    }
-
-    pub fn dynamic_cast_by_id(self: @This(), TargetType: type, source: NeonObjectRef) ?TargetType {
-        _ = self;
-        _ = source;
-        return null;
-    }
-};

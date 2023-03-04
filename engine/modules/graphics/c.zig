@@ -8,7 +8,7 @@ pub usingnamespace @cImport({
     @cInclude("cimgui_compat.h");
     @cInclude("cimgui_impl.h");
     @cInclude("stdlib.h");
-    @cInclude("string.h");
+    @cInclude("stb/stb_image.h");
 });
 
 const vk = @import("vulkan");

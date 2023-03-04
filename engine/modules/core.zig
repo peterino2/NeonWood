@@ -1,3 +1,4 @@
+const root = @import("root");
 pub usingnamespace @import("core/misc.zig");
 pub usingnamespace @import("core/logging.zig");
 pub usingnamespace @import("core/engineTime.zig");
@@ -10,9 +11,6 @@ pub usingnamespace @import("core/lib/p2/algorithm.zig");
 const algorithm = @import("core/lib/p2/algorithm.zig");
 pub usingnamespace @import("core/math.zig");
 pub usingnamespace @import("core/string.zig");
-pub usingnamespace @cImport({
-    @cInclude("stb/stb_image.h");
-});
 
 pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
@@ -145,11 +143,6 @@ pub fn implement_func_for_tagged_union_nonull(
     unreachable;
 }
 
-// checks if a string contains another string
-pub fn stringContains(lhs: []const u8, rhs: []const u8) bool {
-    return std.mem.indexOf(u8, lhs, rhs);
-}
-
 pub const NoName = MakeName("none");
 
 pub fn writeToFile(data: []const u8, path: []const u8) !void {
@@ -172,3 +165,41 @@ pub fn dupe(comptime T: type, allocator: std.mem.Allocator, source: []const T) !
     }
     return buff;
 }
+
+pub const NeonObjectTableName: []const u8 = "NeonObjectTable";
+
+pub fn SearchDeclsRecursive(comptime T: type) ?[]const RttiTypeInfo {
+    @setEvalBranchQuota(10000000);
+    return SearchDeclsRecursiveInner(T);
+}
+
+pub fn SearchDeclsRecursiveInner(comptime T: type) ?[]const RttiTypeInfo {
+    inline for (comptime std.meta.declarations(T)) |decl| {
+        if (decl.is_pub and !std.mem.eql(u8, decl.name, "RttiTypeInfoList")) {
+            if (@TypeOf(@field(T, decl.name)) == type) {
+                switch (@typeInfo(@field(T, decl.name))) {
+                    .Struct, .Enum, .Union, .Opaque => {
+                        inline for (comptime std.meta.declarations(T)) |decl2| {
+                            if (std.mem.eql(u8, decl2.name, NeonObjectTableName)) {
+                                @compileLog(decl.name, decl2.name, @typeInfo(@field(T, decl.name)));
+                            }
+                            // if (decl.is_pub and !std.mem.eql(u8, decl.name, "std") and !std.mem.eql(u8, decl.name, "c") and !std.mem.eql(u8, decl.name, "ctracy") and !std.mem.eql(u8, decl.name, "cimport") and !std.mem.eql(u8, decl.name, "vk") and !std.mem.eql(u8, decl.name, "vk_constants")) {
+                            //     _ = SearchDeclsRecursiveInner(@field(T, decl.name));
+                            // }
+                            // and std.mem.eql(u8, decl2.name, NeonObjectTableName)) {} else {}
+                        }
+                    },
+                    else => {},
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+pub const RttiTypeInfoList: ?[]const RttiTypeInfo = SearchDeclsRecursive(root);
+
+pub const RttiTypeInfo = struct {
+    name: []const u8,
+};

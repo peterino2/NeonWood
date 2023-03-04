@@ -311,13 +311,3 @@ pub const Color = struct {
     b: u8,
     a: u8,
 };
-
-// idk why, i just wanted to try this.
-pub const VectorfQuantized = extern union {
-    payload: u64,
-    components: packed struct {
-        x: u21,
-        y: u21,
-        z: u21,
-    },
-};

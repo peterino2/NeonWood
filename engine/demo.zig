@@ -22,7 +22,7 @@ const AssetReferences = [_]assets.AssetImportReference{
 
 // Primarily a test file that exists to create a simple application for
 // basic engine onboarding
-const GameContext = struct {
+pub const GameContext = struct {
     const Self = @This();
     pub const NeonObjectTable = core.RttiData.from(Self);
     pub const InterfaceUiTable = core.InterfaceUiData.from(Self);
@@ -37,6 +37,7 @@ const GameContext = struct {
     cameraHorizontalRotationMat: core.Mat,
 
     pub fn init(allocator: std.mem.Allocator) Self {
+        core.engine_log("engine log types found: ", .{});
         var self = Self{
             .allocator = allocator,
             .camera = graphics.Camera.init(),

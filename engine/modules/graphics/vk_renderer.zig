@@ -567,7 +567,7 @@ pub const NeonVkContext = struct {
         self.uploadContext.mutex = .{};
     }
 
-    pub fn add_plugin(self: *Self, interface: core.RendererInterfaceRef) !void {
+    pub fn add_plugin(self: *Self, interface: RendererInterfaceRef) !void {
         try self.rendererPlugins.append(interface);
     }
 
@@ -2554,7 +2554,7 @@ pub const NeonVkContext = struct {
         var h: c_int = -1;
         var w: c_int = -1;
         var comp: c_int = -1;
-        var pixels: ?*u8 = core.stbi_load(graphics.icon.ptr, &w, &h, &comp, core.STBI_rgb_alpha);
+        var pixels: ?*u8 = c.stbi_load(graphics.icon.ptr, &w, &h, &comp, c.STBI_rgb_alpha);
         var iconImage = c.GLFWimage{
             .width = w,
             .height = h,
@@ -2563,7 +2563,7 @@ pub const NeonVkContext = struct {
         debug_struct("loaded image: ", iconImage);
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         c.glfwSetWindowAspectRatio(self.window, 16, 9);
-        defer core.stbi_image_free(pixels);
+        defer c.stbi_image_free(pixels);
     }
 
     pub fn destroy_upload_context(self: *Self, context: *NeonVkUploadContext) !void {

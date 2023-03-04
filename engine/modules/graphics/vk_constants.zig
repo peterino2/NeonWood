@@ -5,7 +5,7 @@ const core = @import("../core.zig");
 
 pub const MAX_OBJECTS = 100000;
 pub const NUM_FRAMES: usize = 2;
-pub const DEVICE_LAYERS: []core.CStr = .{VK_KHRONOS_VALIDATION_LAYER_STRING};
+pub const DEVICE_LAYERS = [_]core.CStr{VK_KHRONOS_VALIDATION_LAYER_STRING};
 
 pub const required_device_layers = [_]core.CStr{"VK_LAYER_KHRONOS_validation"};
 
