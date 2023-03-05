@@ -837,7 +837,7 @@ pub const NeonVkContext = struct {
 
         self.sceneParameterBuffer = try self.create_buffer(sceneParamBufferSize, .{ .uniform_buffer_bit = true }, .cpuToGpu);
 
-        for (core.count(NumFrames)) |_, i| {
+        for (core.count(NumFrames), 0..) |_, i| {
             // detail the object descriptor set
             self.frameData[i].objectBuffer = try self.create_buffer(@sizeOf(NeonVkObjectDataGpu) * MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu);
 
@@ -1509,7 +1509,7 @@ pub const NeonVkContext = struct {
             _ = job;
 
             var z2 = tracy.ZoneNC(@src(), "Polling Events", 0xBBAAFF);
-            c.glfwWaitEvents();
+            c.glfwPollEvents();
             z2.End();
         }
     };
@@ -1659,7 +1659,7 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
 
         var z2 = tracy.ZoneNC(@src(), "rendering objects", 0xBBAAFF);
-        for (self.renderObjectSet.dense.items(.renderObject)) |dense, i| {
+        for (self.renderObjectSet.dense.items(.renderObject), 0..) |dense, i| {
             // holy moly i really should make a convenience function for this.
             // dense to sparse given a known dense index
             var sparseHandle = self.renderObjectSet.sparse[self.renderObjectSet.denseIndices.items[i].index];
@@ -1748,7 +1748,7 @@ pub const NeonVkContext = struct {
             self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
         }
         self.framebuffers.deinit();
-        for (self.swapImages.items) |_, i| {
+        for (self.swapImages.items, 0..) |_, i| {
             self.swapImages.items[i].deinit(self);
         }
         self.swapImages.deinit();
@@ -1774,7 +1774,7 @@ pub const NeonVkContext = struct {
 
         core.graphics_log("swapImages count = {d}", .{self.swapImages.items.len});
 
-        for (self.swapImages.items) |image, i| {
+        for (self.swapImages.items, 0..) |image, i| {
             attachments[0] = image.view;
             //debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
             self.framebuffers.items[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
@@ -2009,7 +2009,7 @@ pub const NeonVkContext = struct {
 
         _ = try self.vkd.getSwapchainImagesKHR(self.dev, self.swapchain, &count, images.ptr);
 
-        for (core.count(NumFrames)) |_, i| {
+        for (core.count(NumFrames), 0..) |_, i| {
             const image = images[i];
 
             var ivci = vk.ImageViewCreateInfo{
@@ -2113,7 +2113,7 @@ pub const NeonVkContext = struct {
             .flags = .{},
         };
 
-        for (core.count(NumFrames)) |_, i| {
+        for (core.count(NumFrames), 0..) |_, i| {
             self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
             self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
         }
@@ -2140,7 +2140,7 @@ pub const NeonVkContext = struct {
             .flags = .{ .signaled_bit = true },
         };
 
-        for (core.count(NumFrames)) |_, i| {
+        for (core.count(NumFrames), 0..) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
 
@@ -2340,7 +2340,7 @@ pub const NeonVkContext = struct {
 
             // look for queueFamilyProperties looking for both a graphics card and a present queue
 
-            for (pDeviceInfo.queueFamilyProperties.items) |props, i| {
+            for (pDeviceInfo.queueFamilyProperties.items, 0..) |props, i| {
                 if (props.queue_count == 0)
                     continue;
 
@@ -2353,7 +2353,7 @@ pub const NeonVkContext = struct {
 
             //  find the present queue family
 
-            for (pDeviceInfo.queueFamilyProperties.items) |props, i| {
+            for (pDeviceInfo.queueFamilyProperties.items, 0..) |props, i| {
                 if (props.queue_count == 0)
                     continue;
 
@@ -2463,7 +2463,7 @@ pub const NeonVkContext = struct {
     fn check_required_vulkan_layers(self: *Self, requiredNames: []const CStr) !void {
         var layers = try self.get_layer_extensions();
         defer self.allocator.free(layers);
-        for (layers) |layer, i| {
+        for (layers, 0..) |layer, i| {
             core.graphics_log("  {d}: Layer name: {?s} \"{?s}\"", .{
                 i,
                 core.buf_to_cstr(layer.layer_name),
@@ -2670,7 +2670,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_descriptors(self: *Self) void {
-        for (self.frameData) |_, i| {
+        for (self.frameData, 0..) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vmaAllocator);
             // self.frameData[i].spriteBuffer.deinit(self.vmaAllocator);
             self.frameData[i].objectBuffer.deinit(self.vmaAllocator);

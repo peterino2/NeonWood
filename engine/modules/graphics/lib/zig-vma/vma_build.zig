@@ -30,6 +30,20 @@ pub fn pkg(b: *Builder, vk_root_file: []const u8) *Module {
     });
 }
 
+pub fn pkg2(b: *Builder, vk_package: anytype) *Module {
+    const allocator = b.allocator;
+    _ = allocator;
+    return b.createModule(.{
+        .source_file = .{ .path = zig_vma_file },
+        .dependencies = &[_]std.Build.ModuleDependency{
+            .{
+                .name = "vk",
+                .module = vk_package,
+            },
+        },
+    });
+}
+
 fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
     comptime {
         @setEvalBranchQuota(100000);
@@ -94,9 +108,10 @@ fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
     }
 }
 
-pub fn link(object: *LibExeObjStep, vk_root_file: []const u8, mode: std.builtin.Mode, target: std.zig.CrossTarget) void {
+pub fn link(object: *LibExeObjStep, vk_package: anytype, mode: std.builtin.Mode, target: std.zig.CrossTarget, builder: *Builder) void {
+    var package = pkg2(builder, vk_package);
     linkWithoutModule(object, mode, target);
-    object.addModule("vma", pkg(object.builder, vk_root_file));
+    object.addModule("vma", package);
 }
 
 pub fn linkWithoutModule(object: *LibExeObjStep, mode: std.builtin.Mode, target: std.zig.CrossTarget) void {

@@ -13,7 +13,7 @@ pub fn range(comptime start: usize, comptime end: anytype) [end - start]@TypeOf(
     comptime var r = [1]@TypeOf(start){start} ** (end - start);
 
     comptime {
-        inline for (r) |val, i| {
+        inline for (r, 0..) |val, i| {
             r[i] = val + i;
         }
     }

@@ -201,6 +201,7 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_vulkan.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_glfw.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
+    exe.addCSourceFile("modules/graphics/lib/ufbx/ufbx.c", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
@@ -211,6 +212,7 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib/imgui");
     exe.addIncludePath("modules/graphics/lib/imgui/backends");
     exe.addIncludePath("modules/graphics/lib");
+    exe.addIncludePath("modules/graphics/lib/ufbx/");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
     linkSpng(b, exe);
@@ -267,7 +269,7 @@ pub fn createGameExecutable(
     var runName = try std.fmt.allocPrint(allocator, "run-{s}", .{name});
     defer allocator.free(mainFilePath);
 
-    vma_build.link(exe, "zig-cache/vk.zig", mode, target);
+    vma_build.link(exe, gen.package, mode, target, b);
     exe.addModule("vulkan", gen.package);
 
     const objViewer_run_cmd = exe.run();

@@ -70,16 +70,16 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 1000) : (i += 1) {
+        while (i < 100) : (i += 1) {
             graphics.debugLine(
-                .{ .x = -1000, .y = 0, .z = -1000 + i * 5 },
-                .{ .x = 1000, .y = 0, .z = -1000 + i * 5 },
+                .{ .x = -100, .y = 0, .z = -100 + i * 5 },
+                .{ .x = 100, .y = 0, .z = -100 + i * 5 },
                 .{},
             );
 
             graphics.debugLine(
-                .{ .x = -1000 + i * 5, .y = 0, .z = -1000 },
-                .{ .x = -1000 + i * 5, .y = 0, .z = 1000 },
+                .{ .x = -100 + i * 5, .y = 0, .z = -100 },
+                .{ .x = -100 + i * 5, .y = 0, .z = 100 },
                 .{},
             );
         }
@@ -148,6 +148,10 @@ pub const GameContext = struct {
             .material_name = core.MakeName("mat_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
+
+        var scene = try graphics.ufbx.loadFbx("content/meshes/fpsArms_magnum.fbx");
+        scene.printAllNodes();
+        defer scene.deinit();
 
         gGame = self;
     }

@@ -230,7 +230,7 @@ pub const GpuPipeDataBuilder = struct {
         rv.descriptorSetLayout = try gc.vkd.createDescriptorSetLayout(gc.dev, &setInfo, null);
         core.graphics_log("finalizing build", .{});
 
-        for (rv.descriptorSets) |_, frameId| {
+        for (rv.descriptorSets, 0..) |_, frameId| {
             var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = gc.descriptorPool,
                 .descriptor_set_count = 1,
@@ -249,7 +249,7 @@ pub const GpuPipeDataBuilder = struct {
 
             core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{ binding.buffers.len, bindingId, bindingInfo.finalObjectSize * bindingInfo.objectCount, bindingInfo.finalObjectSize });
 
-            for (binding.buffers) |*buffer, frameId| {
+            for (binding.buffers, 0..) |*buffer, frameId| {
                 var usageFlags: vk.BufferUsageFlags = .{};
                 var memoryFlags: vma.MemoryUsage = .unknown;
                 var descriptorType: vk.DescriptorType = .sampler;

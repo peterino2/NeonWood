@@ -193,7 +193,7 @@ pub const SceneSystem = struct {
     }
 
     pub fn updateTransforms(self: *@This()) void {
-        for (self.objects.denseItems(._repr)) |*repr, i| {
+        for (self.objects.denseItems(._repr), 0..) |*repr, i| {
             var settings = self.objects.readDense(i, .settings);
             if (settings.sceneMode == .moveable) {
                 var posRot = self.objects.readDense(i, .posRot);

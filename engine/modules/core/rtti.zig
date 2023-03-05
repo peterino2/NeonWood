@@ -182,7 +182,7 @@ test "test rtti data" {
     types[0].init_func(std.testing.allocator, @ptrCast(*anyopaque, &x));
     types[1].init_func(std.testing.allocator, @ptrCast(*anyopaque, &y));
 
-    for (types) |t, i| {
+    for (types, 0..) |t, i| {
         std.debug.print("{d}: {s} (0x{x})\n", .{ i, t.typeName.utf8, t.typeName.hash });
     }
 
