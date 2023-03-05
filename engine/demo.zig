@@ -65,12 +65,12 @@ pub const GameContext = struct {
         }
         self.cameraTime += deltaTime;
 
-        self.camera.translate(self.movementInput.fmul(0.1));
+        self.camera.translate(self.movementInput.fmul(30.0).fmul(@floatCast(f32, deltaTime)));
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 100) : (i += 1) {
+        while (i < 0) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -100, .y = 0, .z = -100 + i * 5 },
                 .{ .x = 100, .y = 0, .z = -100 + i * 5 },
@@ -149,9 +149,9 @@ pub const GameContext = struct {
             .init_transform = core.zm.translation(0, -15, 0),
         });
 
-        var scene = try graphics.ufbx.loadFbx("content/meshes/fpsArms_magnum.fbx");
-        scene.printAllNodes();
-        defer scene.deinit();
+        // var scene = try graphics.ufbx.loadFbx("content/meshes/fpsArms_magnum.fbx");
+        // scene.printAllNodes();
+        // defer scene.deinit();
 
         gGame = self;
     }

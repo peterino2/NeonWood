@@ -1341,6 +1341,7 @@ pub const NeonVkContext = struct {
             1,
             1000000000,
         );
+
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
     }
 
@@ -1500,6 +1501,8 @@ pub const NeonVkContext = struct {
 
             std.time.sleep(1000 * 1000);
         }
+
+        self.firstFrame = false;
     }
 
     const PollEventsJob = struct {
