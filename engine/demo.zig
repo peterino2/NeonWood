@@ -17,6 +17,12 @@ const testimage2 = "content/textures/texture_sample.png";
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRef("Mesh", "m_empire", "content/meshes/lost_empire.obj"),
+    assets.MakeImportRef("Texture", "m_texture", testimage1),
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a0", testimage1),
     assets.MakeImportRef("Texture", "a0", testimage1),
 };
 
@@ -56,7 +62,7 @@ pub const GameContext = struct {
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
         if (!self.assetReady) {
-            const texName = core.MakeName("a0");
+            const texName = core.MakeName("m_texture");
             if (self.gc.textures.contains(texName.hash)) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
@@ -148,10 +154,6 @@ pub const GameContext = struct {
             .material_name = core.MakeName("mat_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
-
-        // var scene = try graphics.ufbx.loadFbx("content/meshes/fpsArms_magnum.fbx");
-        // scene.printAllNodes();
-        // defer scene.deinit();
 
         gGame = self;
     }

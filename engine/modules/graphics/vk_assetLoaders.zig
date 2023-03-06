@@ -1,8 +1,6 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const ufbx = @import("ufbx.zig");
-
 const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const vk_utils = @import("vk_utils.zig");
