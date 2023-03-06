@@ -22,3 +22,6 @@
 [submodule "engine/modules/core/lib/zig-spng"]
 	path = engine/modules/core/lib/zig-spng
 	url = https://github.com/peterino2/zig-spng
+[submodule "engine/modules/graphics/lib/zig-assimp"]
+	path = engine/modules/graphics/lib/zig-assimp
+	url = https://github.com/peterino2/zig-assimp.git
