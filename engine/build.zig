@@ -201,7 +201,6 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_vulkan.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/backends/imgui_impl_glfw.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
-    exe.addCSourceFile("modules/graphics/lib/ufbx/ufbx.c", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
@@ -212,7 +211,6 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib/imgui");
     exe.addIncludePath("modules/graphics/lib/imgui/backends");
     exe.addIncludePath("modules/graphics/lib");
-    exe.addIncludePath("modules/graphics/lib/ufbx/");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
     linkSpng(b, exe);
@@ -225,14 +223,16 @@ pub fn createGameExecutable(
         exe.linkSystemLibrary("pthread");
     }
     exe.linkSystemLibrary("m");
+
     exe.addOptions("game_build_opts", options);
 
-    if (mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe) {
-        if (enable_tracy) {
-            std.debug.print("\n\n !! enable_tracy will be ignored for release-* builds\n\n", .{});
-        }
-        zigTracy.link(b, exe, null);
-    } else if (enable_tracy) {
+    // if (mode == .ReleaseFast or mode == .ReleaseSmall or mode == .ReleaseSafe) {
+    //     if (enable_tracy) {
+    //         std.debug.print("\n\n !! enable_tracy will be ignored for release-* builds\n\n", .{});
+    //     }
+    //     zigTracy.link(b, exe, null);
+    // } else if (enable_tracy) {
+    if (enable_tracy) {
         std.debug.print("\n\nenabling tracy\n\n", .{});
         zigTracy.link(b, exe, "modules/core/lib/Zig-Tracy/tracy-0.7.8/");
     } else {

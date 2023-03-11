@@ -71,7 +71,7 @@ pub const GameContext = struct {
         }
         self.cameraTime += deltaTime;
 
-        self.camera.translate(self.movementInput.fmul(30.0).fmul(@floatCast(f32, deltaTime)));
+        self.camera.translate(self.movementInput.fmul(30.0).normalize().fmul(@floatCast(f32, deltaTime)));
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
@@ -174,8 +174,8 @@ pub fn main() anyerror!void {
     assets.start_module();
     defer assets.shutdown_module();
 
-    // audio.start_module();
-    // defer audio.shutdown_module();
+    audio.start_module();
+    defer audio.shutdown_module();
 
     graphics.start_module();
     defer graphics.shutdown_module();

@@ -18,7 +18,7 @@ pub fn start_module() void {
     gSoundLoader.* = soundEngine.SoundLoader.init(gSoundEngine);
 
     assets.gAssetSys.registerLoader(gSoundLoader) catch unreachable;
-    gSoundEngine.loadSound(core.MakeName("s_test"), "content/audio/engineTick.wav", .{}) catch unreachable;
+    gSoundEngine.loadSound(core.MakeName("s_test"), "content/sounds/engineTick.wav", .{}) catch unreachable;
 }
 
 pub fn shutdown_module() void {}

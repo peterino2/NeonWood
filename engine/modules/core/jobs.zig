@@ -1,6 +1,7 @@
 const std = @import("std");
 const Atomic = std.atomic.Atomic;
 const core = @import("../core.zig");
+const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
@@ -87,10 +88,8 @@ pub const JobWorker = struct {
         self.* = .{
             .allocator = allocator,
             .workerThread = try std.Thread.spawn(.{}, @This().workerThreadFunc, .{self}),
+            .workerId = workerNumber,
         };
-        var printed = try std.fmt.allocPrint(allocator, "WorkerThread_{d}", .{workerNumber});
-        defer allocator.free(printed);
-        try self.workerThread.setName(printed);
 
         return self;
     }
@@ -106,6 +105,10 @@ pub const JobWorker = struct {
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
+        var printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
+        defer self.allocator.free(printed);
+        tracy.SetThreadName(@ptrCast([*:0]u8, printed.ptr));
+
         while (!self.shouldDie.load(.Acquire)) {
             if (self.currentJobContext != null) {
                 self.busy.store(true, .SeqCst);

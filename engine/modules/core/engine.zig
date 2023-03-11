@@ -120,6 +120,8 @@ pub const Engine = struct {
 
             pub fn func(ctx: @This(), job: *core.JobContext) void {
                 _ = job;
+
+                tracy.SetThreadName("Systems Thread");
                 while (!ctx.engine.exitSignal) {
                     ctx.engine.tick();
                 }

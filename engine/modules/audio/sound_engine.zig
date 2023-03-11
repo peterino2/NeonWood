@@ -41,7 +41,7 @@ pub const SoundLoader = struct {
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, properties: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
         core.engine_log("loading sound asset {s}", .{properties.?.path});
         self.engine.loadSound(assetRef.name, properties.?.path, .{
-            .volume = assetRef.properties.soundVolume,
+            .volume = properties.?.soundVolume,
         }) catch {
             core.engine_log("unable to load sound {s}", .{assetRef.name.utf8});
         };
