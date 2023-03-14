@@ -1,6 +1,5 @@
 const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
-//pub const neonwood = @import("neonwood");
 
 const core = neonwood.core;
 const graphics = neonwood.graphics;
@@ -18,12 +17,6 @@ const testimage2 = "content/textures/texture_sample.png";
 const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRef("Mesh", "m_empire", "content/meshes/lost_empire.obj"),
     assets.MakeImportRef("Texture", "m_texture", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
-    assets.MakeImportRef("Texture", "a0", testimage1),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -108,7 +101,8 @@ pub const GameContext = struct {
 
         var dockspace_flags: c_int = c.ImGuiDockNodeFlags_None;
         var window_flags: c_int = c.ImGuiWindowFlags_MenuBar | c.ImGuiWindowFlags_NoDocking;
-        window_flags |= c.ImGuiWindowFlags_NoTitleBar | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus;
+        window_flags |= c.ImGuiWindowFlags_NoTitleBar | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoResize;
+        window_flags |= c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus;
         window_flags |= c.ImGuiWindowFlags_NoBackground;
 
         if (c.igBegin("DockSpace Demo", null, window_flags)) {
@@ -127,7 +121,7 @@ pub const GameContext = struct {
 
         if (self.debugOpen) {
             if (c.igBegin("Debug Menu", &self.debugOpen, 0)) {
-                c.igText("hello motherfucker");
+                c.igText("Sample Text");
 
                 if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
                     core.engine_logs("I have been pressed!");

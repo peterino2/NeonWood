@@ -1,0 +1,948 @@
+const std = @import("std");
+
+// Mixed mode implementation agnostic UI library
+//
+// Intended for use with real time applications.
+// This file only contains the core layout engine and events pump for the IO processor.
+//
+// Actual hook up of the IO Processor and graphics is done elsewhere.
+
+pub fn dupeString(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
+    var dupe = try allocator.alloc(u8, string.len);
+
+    std.mem.copy(u8, dupe, string);
+
+    return dupe;
+}
+
+// ==== FileLog ====
+pub const FileLog = struct {
+    buffer: std.ArrayList(u8),
+    allocator: std.mem.Allocator,
+    fileName: []u8,
+
+    pub fn init(allocator: std.mem.Allocator, fileName: []const u8) !@This() {
+        return .{
+            .buffer = std.ArrayList(u8).init(allocator),
+            .allocator = allocator,
+            .fileName = try dupeString(allocator, fileName),
+        };
+    }
+
+    pub fn write(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
+        var writer = self.buffer.writer();
+        try writer.print(fmt, args);
+    }
+
+    pub fn writeOut(self: @This()) !void {
+        const cwd = std.fs.cwd();
+        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
+        defer self.allocator.free(ofile);
+        try cwd.makePath("Saved");
+        try cwd.writeFile(ofile, self.buffer.items);
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.free(self.fileName);
+        self.buffer.deinit();
+    }
+};
+// ==== FileLog ====
+
+// ========================= Color =========================
+
+pub const Color = struct {
+    r: f32 = 0,
+    g: f32 = 0,
+    b: f32 = 0,
+    a: f32 = 1.0,
+
+    pub const Red = fromRGB(0xFF0000);
+    pub const Yellow = fromRGB(0xFFFF00);
+    pub const Orange = fromRGB(0xFF5500);
+    pub const Green = fromRGB(0x00FF00);
+    pub const Blue = fromRGB(0x0000FF);
+    pub const Cyan = fromRGB(0x00FFFF);
+    pub const Magenta = fromRGB(0xFF00FF);
+    pub const SlateGrey = fromRGB(0x141414);
+
+    pub fn intoRGBA(self: @This()) Color32 {
+        return ((@floatToInt(u32, self.r) * 0xFF) << 24) |
+            ((@floatToInt(u32, self.g) & 0xFF) << 16) |
+            ((@floatToInt(u32, self.b) & 0xFF) << 8) |
+            ((@floatToInt(u32, self.a) & 0xFF));
+    }
+
+    pub fn fromRGB2(r: anytype, g: anytype, b: anytype) @This() {
+        return @This(){ .r = r, .g = g, .b = b, .a = 1.0 };
+    }
+
+    pub fn fromRGBA2(r: anytype, g: anytype, b: anytype, a: anytype) @This() {
+        return @This(){ .r = r, .g = g, .b = b, .a = a };
+    }
+
+    pub fn fromRGB(rgb: u32) @This() {
+        return @This(){
+            .r = @intToFloat(f32, (rgb >> 16) & 0xFF),
+            .g = @intToFloat(f32, (rgb >> 8) & 0xFF),
+            .b = @intToFloat(f32, (rgb) & 0xFF),
+            .a = 1.0,
+        };
+    }
+
+    pub fn fromRGBA(rgba: u32) @This() {
+        return @This(){
+            .r = @intToFloat(f32, (rgba >> 24) & 0xFF),
+            .g = @intToFloat(f32, (rgba >> 16) & 0xFF),
+            .b = @intToFloat(f32, (rgba >> 8) & 0xFF),
+            .a = @intToFloat(f32, (rgba) & 0xFF),
+        };
+    }
+};
+
+// Color style used for my text editor
+pub const BurnStyle = struct {
+    pub const Comment = Color.fromRGB(0x90c480);
+    pub const Normal = Color.fromRGB(0xe2e2e5);
+    pub const Highlight1 = Color.fromRGB(0x90c480);
+    pub const Highlight2 = Color.fromRGB(0x75e1eb);
+    pub const Highlight3 = Color.fromRGB(0xff9900);
+    pub const Bright1 = Color.fromRGB(0xfaf4c6);
+    pub const Bright2 = Color.fromRGB(0xffff00);
+    pub const Statement = Color.fromRGB(0xff00f2);
+    pub const LineTerminal = Color.fromRGB(0x87aefa);
+};
+
+// RGBA format for color
+pub const Color32 = u32;
+
+// ========================= Localization ======================
+pub const HashStr = struct {
+    utf8: []const u8,
+    hash: u32,
+
+    pub fn fromUtf8(source: []const u8) @This() {
+        var hash: u32 = 5381;
+
+        for (source) |c| {
+            hash = @mulWithOverflow(hash, 33)[0];
+            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+        }
+
+        var self = .{
+            .utf8 = source,
+            .hash = hash,
+        };
+        return self;
+    }
+};
+
+pub fn MakeHash(comptime utf8: []const u8) HashStr {
+    @setEvalBranchQuota(100000);
+    return comptime HashStr.fromUtf8(utf8);
+}
+
+pub var gLocDbRef: ?*anyopaque = null;
+pub var gLocDbInterface: *LocDbInterface = undefined;
+
+pub const LocDbErrors = error{
+    OutOfMemory,
+    UnableToSetLocalization,
+    UnknownError,
+};
+
+pub const LocDbInterface = struct {
+
+    // Fetches the localized version of the string if it exists
+    setLocalization: *const fn (*anyopaque, HashStr) LocDbErrors!void,
+    getLocalized: *const fn (*anyopaque, u32) ?[]const u8,
+    createEntry: *const fn (*anyopaque, u32, []const u8) LocDbErrors!u32,
+
+    pub fn from(comptime TargetType: type) void {
+        const W = struct {
+            pub fn getLocalized(pointer: *anyopaque, key: u32) ?[]const u8 {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                return ptr.getLocalized(key);
+            }
+
+            pub fn createEntry(pointer: *anyopaque, key: u32, source: []const u8) LocDbErrors!u32 {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                try ptr.createEntry(key, source);
+            }
+        };
+
+        return @This(){
+            .getLocalized = W.getLocalized,
+            .createEntry = W.createEntry,
+        };
+    }
+};
+
+pub fn setupLocDb(ref: *anyopaque, interface: *LocDbInterface) void {
+    gLocDbRef = ref;
+    gLocDbInterface = interface;
+}
+
+// Anything display should probably be utilizing Text instead of just a normal []const u8,
+pub const LocText = struct {
+    utf8: []const u8,
+    localized: ?[]const u8 = null,
+    locKey: u32 = 0,
+
+    pub fn getRead(self: @This()) []const u8 {
+        if (self.localized) |localized| {
+            return localized;
+        }
+
+        if (gLocDbRef) |locdb| {
+            return gLocDbInterface.getLocalized(locdb, self.locKey).?;
+        }
+
+        return self.utf8;
+    }
+
+    pub fn get(self: *@This()) []const u8 {
+        if (self.localized) |localized| {
+            return localized;
+        }
+
+        if (gLocDbRef) |locdb| {
+            self.localized = gLocDbInterface.getLocalized(locdb, self.locKey);
+            return self.localized.?;
+        }
+
+        return self.utf8;
+    }
+
+    pub fn fromUtf8(text: []const u8) @This() {
+        return .{
+            .utf8 = text,
+        };
+    }
+};
+
+// text construction macro
+pub fn Text(comptime utf8: []const u8) LocText {
+    return LocText.fromUtf8(utf8);
+}
+
+// ========================================== /End Localization ==========================
+
+// ========================================== Ring Queue =========================
+pub const RingQueueError = error{
+    QueueIsFull,
+    QueueIsEmpty,
+    AllocSizeTooSmall,
+};
+
+// managed version of the ringqueue, includes a mutex
+pub fn RingQueue(comptime T: type) type {
+    return struct {
+        const _InnerType = RingQueueU(T);
+
+        queue: _InnerType,
+        allocator: std.mem.Allocator,
+        mutex: std.Thread.Mutex = .{},
+
+        pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
+            var newSelf = @This(){
+                .queue = try _InnerType.init(allocator, size),
+                .allocator = allocator,
+                .mutex = .{},
+            };
+
+            return newSelf;
+        }
+
+        pub fn pushLocked(self: *@This(), newValue: T) RingQueueError!void {
+            self.mutex.lock();
+            try self.queue.push(newValue);
+            defer self.mutex.unlock();
+        }
+
+        // only call this if you have locked already
+        pub fn popFromUnlocked(self: *@This()) ?T {
+            return self.queue.pop();
+        }
+
+        pub fn lock(self: *@This()) void {
+            self.mutex.lock();
+        }
+
+        pub fn unlock(self: *@This()) void {
+            self.mutex.unlock();
+        }
+
+        pub fn popFromLocked(self: *@This()) ?T {
+            try self.mutex.lock();
+            defer self.mutex.unlock();
+            const val = self.queue.pop();
+            return val;
+        }
+
+        pub fn count(self: @This()) usize {
+            return self.queue.count();
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.queue.deinit();
+        }
+    };
+}
+
+// tail points to next free
+// head points to next one to read
+// unmanaged ring queue
+pub fn RingQueueU(comptime T: type) type {
+    return struct {
+        buffer: []T = undefined,
+        head: usize = 0, // resets upon resizes
+        tail: usize = 0, // resets upon resizes
+
+        pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
+            var self = @This(){
+                .buffer = try allocator.alloc(T, size + 1),
+            };
+
+            return self;
+        }
+
+        pub fn push(self: *@This(), value: T) RingQueueError!void {
+            const next = (self.tail + 1) % self.buffer.len;
+
+            if (next == self.head) {
+                return error.QueueIsFull;
+            }
+            self.buffer[self.tail] = value;
+            self.tail = next;
+        }
+
+        pub fn pushFront(self: *@This(), value: T) !void {
+            var iHead = @intCast(isize, self.head) - 1;
+
+            if (iHead < 0) {
+                iHead = @intCast(isize, self.buffer.len) + iHead;
+            }
+
+            if (iHead == @intCast(isize, self.tail)) {
+                return error.QueueIsFull;
+            }
+
+            self.head = @intCast(usize, iHead);
+            self.buffer[self.head] = value;
+        }
+
+        pub fn count(self: @This()) usize {
+            if (self.head == self.tail)
+                return 0;
+
+            if (self.head < self.tail)
+                return self.tail - self.head;
+
+            // head > tail means we looped around.
+            return (self.buffer.len - self.head) + self.tail;
+        }
+
+        pub fn pop(self: *@This()) ?T {
+            if (self.head == self.tail)
+                return null;
+
+            var r = self.buffer[self.head];
+            self.head = ((self.head + 1) % self.buffer.len);
+
+            return r;
+        }
+
+        pub fn peek(self: *@This()) ?*T {
+            return self.at(0);
+        }
+
+        pub fn peekBack(self: @This()) ?*T {
+            return self.atBack(1);
+        }
+
+        // reference an element at an offset from the back of the queue
+        // similar to python's negative number syntax.
+        // gets you an element at an offset from the tail.
+        // given the way the tail works, this will return null on zero
+        pub fn atBack(self: @This(), offset: usize) ?*T {
+            const c = self.count();
+
+            if (offset > c or offset == 0) {
+                return null;
+            }
+
+            var x: isize = @intCast(isize, self.tail) - @intCast(isize, offset);
+
+            if (x < 0) {
+                x = @intCast(isize, self.buffer.len) + x;
+            }
+
+            return &self.buffer[@intCast(usize, x)];
+        }
+
+        pub fn at(self: *@This(), offset: usize) ?*T {
+            const c = self.count();
+
+            if (c == 0) {
+                return null;
+            }
+
+            if (offset >= c) {
+                return null;
+            }
+
+            var index = (self.head + offset) % self.buffer.len;
+
+            return &self.buffer[index];
+        }
+
+        // returns the number of elements this buffer can hold.
+        // you should rarely ever need to use this.
+        pub fn capacity(self: *@This()) usize {
+            return self.buffer.len - 1;
+        }
+
+        pub fn resize(self: *@This(), allocator: std.mem.Allocator, size: usize) !void {
+            const c = self.count();
+
+            // new size needs to be greater than current size by 1, tail always points to an empty
+            if (c >= size) {
+                return error.AllocSizeTooSmall;
+            }
+
+            var buffer: []T = try allocator.alloc(T, size + 1);
+            var index: usize = 0;
+
+            while (self.pop()) |v| {
+                buffer[index] = v;
+                index += 1;
+            }
+
+            allocator.free(self.buffer);
+
+            self.buffer = buffer;
+            self.head = 0;
+            self.tail = index;
+        }
+
+        pub fn isEmpty(self: @This()) bool {
+            return self.head == self.tail;
+        }
+
+        pub fn empty(self: *@This()) void {
+            self.head = 0;
+            self.tail = 0;
+        }
+
+        pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+            allocator.free(self.buffer);
+        }
+    };
+}
+
+// ========================================== End Of RingQueue ==================================
+
+// ========================================== Dynamic pool ===============================
+pub fn DynamicPool(comptime T: type) type {
+    return struct {
+        pub const Handle = u32;
+
+        allocator: std.mem.Allocator,
+        active: std.ArrayListUnmanaged(?T),
+        dead: std.ArrayListUnmanaged(Handle),
+
+        pub fn init(allocator: std.mem.Allocator) @This() {
+            return .{
+                .allocator = allocator,
+                .active = .{},
+                .dead = .{},
+            };
+        }
+
+        pub fn new(self: *@This(), initVal: T) !Handle {
+            if (self.dead.items.len > 0) {
+                const revivedIndex = @intCast(Handle, self.dead.items.len - 1);
+
+                try assertf(
+                    revivedIndex < self.dead.items.len,
+                    "tried to revive index {d} which does not exist in pool of size {d}",
+                    .{ revivedIndex, self.active.items.len },
+                );
+
+                self.active.items[revivedIndex] = initVal;
+                self.dead.shrinkRetainingCapacity(revivedIndex);
+                return revivedIndex;
+            }
+
+            try self.active.append(self.allocator, initVal);
+            return @intCast(Handle, self.active.items.len - 1);
+        }
+
+        pub fn isValid(self: @This(), handle: Handle) bool {
+            if (handle >= self.active.items.len) {}
+        }
+
+        pub fn get(self: *@This(), handle: Handle) ?*T {
+            if (handle >= self.active.items.len) {
+                return null;
+            }
+
+            return &(self.active.items[handle].?);
+        }
+
+        pub fn getRead(self: @This(), handle: Handle) ?*const T {
+            if (handle >= self.active.items.len) {
+                return null;
+            }
+
+            return &(self.active.items[handle].?);
+        }
+
+        pub fn destroy(self: *@This(), destroyHandle: Handle) void {
+            self.active.items[destroyHandle] = null;
+            self.dead.append(self.allocator, destroyHandle) catch unreachable;
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.active.deinit(self.allocator);
+            self.dead.deinit(self.allocator);
+        }
+    };
+}
+
+test "dynamic pool test" {
+    const TestStruct = struct {
+        value1: u32 = 0,
+        value4: u32 = 0,
+        value2: u32 = 0,
+        value3: u32 = 0,
+    };
+
+    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
+    defer dynPool.deinit();
+
+    {
+        // insert some objects objects
+        var count: u32 = 1000000;
+        while (count > 0) : (count -= 1) {
+            _ = try dynPool.new(.{});
+        }
+
+        // Insert 1 randomly add and delete objects another million objects in groups
+        var prng = std.rand.DefaultPrng.init(0x1234);
+        var rand = prng.random();
+
+        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
+
+        count = 1000000;
+        while (count > 0) : (count -= 1) {
+            const index = rand.int(u32) % 5;
+            var i: u32 = 0;
+            while (i < index) : (i += 1) {
+                workBuffer[i] = try dynPool.new(.{});
+            }
+
+            i = 0;
+            while (i < index) : (i += 1) {
+                dynPool.get(workBuffer[i]).?.*.value1 = 2;
+                dynPool.destroy(workBuffer[i]);
+            }
+        }
+
+        std.debug.print("\ndynPoolSize = {d}\n", .{dynPool.active.items.len});
+    }
+}
+
+// ===================================  End of Dynamic pool =========================
+
+// =============== Vector2 ==================
+pub const Vector2 = struct {
+    x: f32 = 0,
+    y: f32 = 0,
+
+    pub inline fn dot(self: @This(), o: @This()) f32 {
+        return std.math.sqrt(self.x * o.x + self.y * o.y);
+    }
+
+    pub inline fn sub(self: @This(), o: @This()) @This() {
+        return .{ .x = self.x - o.x, .y = self.y - o.y };
+    }
+
+    pub inline fn add(self: @This(), o: @This()) @This() {
+        return .{ .x = self.x + o.x, .y = self.y + o.y };
+    }
+
+    pub inline fn mul(self: @This(), o: @This()) @This() {
+        return .{ .x = self.x * o.x, .y = self.y * o.y };
+    }
+
+    pub inline fn fmul(self: @This(), o: anytype) @This() {
+        return .{ .x = self.x * @floatCast(f32, o), .y = self.y * @floatCast(o, f32) };
+    }
+
+    pub inline fn fadd(self: @This(), o: anytype) @This() {
+        return .{ .x = self.x + @floatCast(f32, o), .y = self.y + @floatCast(o, f32) };
+    }
+
+    pub inline fn fsub(self: @This(), o: anytype) @This() {
+        return .{ .x = self.x - @floatCast(f32, o), .y = self.y - @floatCast(o, f32) };
+    }
+};
+
+// =================== End of Vector2 =======================
+
+fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
+    if (!eval) {
+        std.debug.print("[Error]: " ++ fmt, args);
+        return error.AssertFailure;
+    }
+}
+
+pub var gPapyrusContext: PapyrusContext = undefined;
+pub var gPapyrusIsInitialized: bool = false;
+
+pub const PapyrusEvent = struct {};
+
+pub const PapyrusAnchorNode = enum {
+    // zig fmt: off
+    Free,       // Anchored to 0,0 absolute on the screen
+    TopLeft,    // Anchored such that 0,0 corresponds to the top left corner of the parent node
+    MidLeft,    // Anchored such that 0,0 corresponds to the left edge midpoint of the parent node
+    BotLeft,    // Anchored such that 0,0 corresponds to the bottom left corner of the parent node
+    TopMiddle,  // Anchored such that 0,0 corresponds to the top edge midpoint of the parent node
+    MidMiddle,  // Anchored such that 0,0 corresponds to the center of the parent node
+    BotMiddle,  // Anchored such that 0,0 corresponds to the bottom edge midpoint of the parent node
+    TopRight,   // Anchored such that 0,0 corresponds to the top right corner of the parent node
+    MidRight,   // Anchored such that 0,0 corresponds to the right edge midpoint of the parent node
+    BotRight,   // Anchored such that 0,0 corresponds to the bottom right corner of the parent node
+    DockLeft,   // Docked into it's parent node such that it takes up half of the container on the left
+    DockTop,    // Docked into it's parent node such that it takes up half of the container on the top
+    DockRight,  // Docked into it's parent node such that it takes up half of the container on the right
+    DockBot,    // Docked into it's parent node such that it takes up half of the container on the bottom
+    // zig fmt: on
+};
+
+pub const PapyrusHitTestability = enum {
+    Testable,
+    NotTestable,
+};
+
+pub const PapyrusState = enum {
+    Visible,
+    Collapsed,
+    Hidden,
+};
+
+pub const PapyrusParentFillMode = enum {
+    // zig fmt: off
+    None,       // Size will be absolute as specified by content
+    FillX,  // Size will scale to X scaling of the parent (relative to reference)
+    FillY,  // Size will scale to Y scaling of the parent (relative to reference)
+    FillXY, // Size will scale to both X and Y of the parent (relative to reference)
+    // zig fmt: on
+};
+
+pub const NodeProperty_Slot = struct {
+    layoutMode: enum { FreeForm, VerticalMajor, HorizontalMajor } = .VerticalMajor,
+};
+
+pub const NodeProperty_Button = struct {
+    textSignal: LocText,
+    onPressedSignal: u32,
+    genericListener: u32,
+};
+
+pub const NodeProperty_Text = struct {
+    onPressedSignal: u32,
+    genericListener: u32,
+};
+
+pub const NodePropertiesBag = union(enum(u8)) {
+    Slot: NodeProperty_Slot,
+    DisplayText: NodeProperty_Text,
+    Button: NodeProperty_Button,
+};
+
+pub const NodePadding = union(enum(u8)) {
+    topLeft: Vector2,
+    botLeft: Vector2,
+    all: f32,
+    allSides: [2]Vector2,
+};
+
+pub const PapyrusBorderStyle = enum {
+    None,
+    Solid,
+    Dashes,
+};
+
+pub const PapyrusNodeStyle = struct {
+    border: PapyrusBorderStyle = .None,
+    hasTitle: bool = false,
+    color: Color = Color.SlateGrey,
+};
+
+pub const PapyrusNode = struct {
+    text: LocText = Text("hello world"),
+
+    parent: u32 = 0, // 0 corresponds to true root
+
+    // all children of the same parent operate as a doubly linked list
+    child: u32 = 0,
+    end: u32 = 0,
+    next: u32 = 0, //
+    prev: u32 = 0,
+
+    anchor: PapyrusAnchorNode = .Free,
+    fill: PapyrusParentFillMode = .FillXY,
+
+    // Not sure what's the best way to go about this
+    // Resolutions and scalings are a real dick-weed.
+    // DPI awareness and content scaling is also a huge problem.
+    baseSize: Vector2 = .{ .x = 0, .y = 0 },
+    basePos: Vector2 = .{ .x = 0, .y = 0 },
+
+    padding: NodePadding = .{ .all = 0 },
+    state: PapyrusState = .Visible,
+    hittest: PapyrusHitTestability = .Testable,
+    dockingPolicy: enum { Dockable, NotDockable } = .Dockable,
+
+    // standard styling options that all nodes have
+    style: PapyrusNodeStyle = .{},
+
+    nodeType: NodePropertiesBag,
+
+    pub fn getSize(self: @This(), ctx: PapyrusContext) Vector2 {
+        _ = ctx;
+        _ = self;
+        return .{};
+    }
+
+    pub fn evaluatePosition(self: @This(), ctx: PapyrusContext) Vector2 {
+        _ = ctx;
+        _ = self;
+        return .{};
+    }
+};
+
+pub const PapyrusRef = u32;
+
+pub const PapyrusFont = struct {
+    name: HashStr,
+};
+
+pub const PapyrusContext = struct {
+
+    // Papyrus is wrapped by an arena allocator
+    allocator: std.mem.Allocator,
+    nodes: DynamicPool(PapyrusNode),
+    fonts: std.ArrayList(PapyrusFont),
+
+    pub fn init(backingAllocator: std.mem.Allocator) !@This() {
+        var self = .{
+            .allocator = backingAllocator,
+            .nodes = DynamicPool(PapyrusNode).init(backingAllocator),
+            .fonts = std.ArrayList(PapyrusFont).init(backingAllocator),
+        };
+
+        // constructing the root node
+        _ = try self.nodes.new(.{
+            .text = Text("root"),
+            .parent = 0,
+            .anchor = .TopLeft,
+            .nodeType = .{ .Slot = .{} },
+        });
+
+        return self;
+    }
+
+    // converts a handle to a node pointer
+    // invalid after AddNode
+    pub fn get(self: *@This(), handle: u32) *PapyrusNode {
+        return self.nodes.get(handle).?;
+    }
+
+    pub fn getRead(self: @This(), handle: u32) *const PapyrusNode {
+        return self.nodes.getRead(handle).?;
+    }
+
+    fn newNode(self: *@This(), node: PapyrusNode) !u32 {
+        return try self.nodes.new(node);
+    }
+
+    pub fn addSlot(self: *@This(), parent: u32) !u32 {
+        var slotNode = PapyrusNode{ .nodeType = .{ .Slot = .{} } };
+        var slot = try self.newNode(slotNode);
+
+        try self.setParent(slot, parent);
+
+        return slot;
+    }
+
+    pub fn setParent(self: *@This(), node: u32, parent: u32) !void {
+        var parentNode = self.nodes.get(parent).?;
+        var thisNode = self.nodes.get(node).?;
+
+        // if we have a previous parent, remove ourselves
+        if (thisNode.*.parent != 0) {
+            // remove myself from that parent.
+            var oldParentNode = self.nodes.get(thisNode.*.parent).?;
+
+            // special case for when we're the first child element
+            if (oldParentNode.*.child == node) {
+                oldParentNode.*.child = thisNode.next;
+            } else {
+                // otherwise remove ourselves from the linked list
+                self.nodes.get(thisNode.prev).?.*.next = thisNode.next;
+            }
+        }
+
+        // assign ourselves the new parent
+        self.nodes.get(node).?.*.parent = parent;
+
+        if (parentNode.*.child == 0) {
+            parentNode.*.child = node;
+        } else {
+            self.nodes.get(parentNode.*.end).?.*.next = node;
+            thisNode.*.prev = parentNode.*.end;
+        }
+
+        parentNode.*.end = node;
+    }
+
+    // helper functions for a whole bunch of shit
+    pub fn addButton(self: *@This(), text: LocText) !u32 {
+        var button = NodeProperty_Button{ .text = text };
+        return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
+    }
+
+    pub fn deleteNodeAndChildren(self: *@This()) !u32 {
+        _ = self;
+    }
+
+    pub fn tick(self: *@This(), deltaTime: f32) void {
+        _ = self;
+        _ = deltaTime;
+    }
+
+    pub fn printTree(self: @This(), root: u32) void {
+        std.debug.print("\n ==== tree ==== \n", .{});
+        self.printTreeInner(root, 0);
+        std.debug.print(" ==== /tree ====   \n\n", .{});
+    }
+
+    fn printTreeInner(self: @This(), root: u32, indentLevel: u32) void {
+        var i: u32 = 0;
+        while (i < indentLevel) : (i += 1) {
+            std.debug.print(" ", .{});
+        }
+
+        const node = self.getRead(root);
+        std.debug.print("> {s}\n", .{node.text.getRead()});
+
+        var next = node.child;
+        while (next != 0) {
+            self.printTreeInner(next, indentLevel + 1);
+            next = self.getRead(next).*.next;
+        }
+    }
+
+    pub fn writeTree(self: @This(), root: u32, outFile: []const u8) !void {
+        var log = try FileLog.init(self.allocator, outFile);
+        defer log.deinit();
+
+        try log.write("digraph G {{\n", .{});
+        try self.writeTreeInner(root, &log);
+        try log.write("}}\n", .{});
+
+        try log.writeOut();
+    }
+
+    fn writeTreeInner(self: @This(), root: u32, log: *FileLog) !void {
+        var node = self.getRead(root);
+        try log.write("  {s}->{s}", .{ self.getRead(node.parent).text.getRead(), node.text.getRead() });
+
+        var next = node.child;
+        while (next != 0) {
+            try self.writeTreeInner(next, log);
+            next = self.getRead(next).*.next;
+        }
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.nodes.deinit();
+    }
+};
+
+pub fn getContext() *PapyrusContext {
+    try assertf(gPapyrusIsInitialized == true, "Unable to initialize Papyrus, already initialized", .{});
+    return &gPapyrusContext;
+}
+
+pub fn initialize(allocator: std.mem.Allocator) !*PapyrusContext {
+    try assertf(gPapyrusIsInitialized == false, "Unable to initialize Papyrus, already initialized", .{});
+    gPapyrusIsInitialized = true;
+    gPapyrusContext = try PapyrusContext.init(allocator);
+    return &gPapyrusContext;
+}
+
+pub fn deinitialize() void {
+    gPapyrusContext.deinit();
+}
+
+test "initialize papyrus" {
+    var ctx = try initialize(std.testing.allocator);
+    _ = ctx;
+    defer deinitialize();
+}
+
+test "primitive widgets demo" {
+    var ctx = try PapyrusContext.init(std.testing.allocator);
+    defer ctx.deinit();
+
+    std.debug.print(
+        "\nsizeof PapyrusNode={d} for a game with 10k widgets, memory usage = {d}M, {d}K\n",
+        .{ @sizeOf(PapyrusNode), @sizeOf(PapyrusNode) * 10_000 / 1024 / 1024, (@sizeOf(PapyrusNode) * 10_000 % (1024 * 1024)) / 1024 },
+    );
+
+    // example implementation of something mid-sized in this ui.
+    {
+        // This adds a default slot to the ui library
+        // Slots can have children and can set up a few policies such as docking, etc...
+        // by default this slot will be free
+        var slot = try ctx.addSlot(0);
+
+        // generally the access pattern will be something like this, using a handle
+        // we can modify the values of the object
+        // setup the slot to be a dockable that takes up the whole screen
+        ctx.get(slot).*.dockingPolicy = .Dockable;
+        ctx.get(slot).*.fill = .FillXY;
+        ctx.get(slot).*.anchor = .TopLeft;
+        ctx.get(slot).*.state = .Visible;
+        ctx.get(slot).*.hittest = .Testable;
+        ctx.get(slot).*.style.border = .Solid;
+        ctx.get(slot).*.style.color = Color.Red;
+        ctx.get(slot).*.text = Text("slot1");
+
+        var slot2 = try ctx.addSlot(slot);
+        ctx.get(slot2).*.text = Text("slot2");
+
+        var slot3 = try ctx.addSlot(slot);
+        ctx.get(slot3).*.text = Text("slot3");
+
+        var slot4 = try ctx.addSlot(slot2);
+        ctx.get(slot4).*.text = Text("slot4");
+
+        try ctx.writeTree(0, "test.viz");
+        var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", "Saved/test.viz", "-o", "Saved/test.png" }, std.testing.allocator);
+        try childProc.spawn();
+    }
+
+    // - A text block
+    // - A rectangle widget
+    //      - With PNG based widget styles
+    // - Image widget
+    // - A simple moveable window
+    // DPI and a bunch of other things.
+}

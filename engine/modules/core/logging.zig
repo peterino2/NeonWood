@@ -85,6 +85,11 @@ pub const FileLog = struct {
         try cwd.makePath("Saved");
         try cwd.writeFile(ofile, self.buffer.items);
     }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.free(self.fileName);
+        self.buffer.deinit();
+    }
 };
 
 pub const LoggerSys = struct {

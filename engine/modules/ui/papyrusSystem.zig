@@ -65,22 +65,6 @@ pub const PapyrusSubystem = struct {
     pub fn uiTick(self: *@This(), deltaTime: f64) void {
         _ = self;
         _ = deltaTime;
-
-        // var drawList = c.igGetBackgroundDrawList_Nil();
-        // c.ImDrawList_AddQuad(
-        //     drawList,
-        //     .{ .x = 100, .y = 100 },
-        //     .{ .x = 200, .y = 100 },
-        //     .{ .x = 200, .y = 200 },
-        //     .{ .x = 100, .y = 200 },
-        //     0xFF000011,
-        //     2.0,
-        // );
-
-        // for (self.widgets.dense.items(.widget)) |*widget, i|
-        // {
-        //
-        // }
     }
 
     pub fn deinit(self: *@This()) void {
