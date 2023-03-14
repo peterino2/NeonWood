@@ -29,6 +29,7 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     core.gEngine.run();
 
     _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
+    _ = c.glfwSetMouseButtonCallback(graphics.getContext().window, mouseInputCallback);
 
     while (!core.gEngine.exitSignal) {
         graphics.getContext().pollEventsFunc();
@@ -39,6 +40,10 @@ pub fn run_no_input(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{});
     try gameContext.prepare_game();
 
+    _ = c.glfwSetKeyCallback(graphics.getContext().window, inputCallback);
+    _ = c.glfwSetCursorPosCallback(graphics.getContext().window, mousePositionCallback);
+    _ = c.glfwSetMouseButtonCallback(graphics.getContext().window, mouseInputCallback);
+
     // run the game
     core.gEngine.run();
 
@@ -47,11 +52,26 @@ pub fn run_no_input(comptime T: type) !void {
     }
 }
 
+// These are Imgui callbacks that need to be rejigged
+// glfwSetWindowFocusCallback(vd->Window, ImGui_ImplGlfw_WindowFocusCallback);
+// glfwSetCursorEnterCallback(vd->Window, ImGui_ImplGlfw_CursorEnterCallback);
+// glfwSetCursorPosCallback(vd->Window, ImGui_ImplGlfw_CursorPosCallback);
+// glfwSetMouseButtonCallback(vd->Window, ImGui_ImplGlfw_MouseButtonCallback);
+// glfwSetScrollCallback(vd->Window, ImGui_ImplGlfw_ScrollCallback);
+// glfwSetKeyCallback(vd->Window, ImGui_ImplGlfw_KeyCallback);
+// glfwSetCharCallback(vd->Window, ImGui_ImplGlfw_CharCallback);
+// glfwSetWindowCloseCallback(vd->Window, ImGui_ImplGlfw_WindowCloseCallback);
+// glfwSetWindowPosCallback(vd->Window, ImGui_ImplGlfw_WindowPosCallback);
+// glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
+
+pub fn mousePositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    c.cImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+}
+
+pub fn mouseInputCallback(window: ?*c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    c.cImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+}
+
 pub fn inputCallback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = key;
-    _ = window;
-    _ = scancode;
-    _ = mods;
-    _ = action;
-    _ = mods;
+    c.cImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 }

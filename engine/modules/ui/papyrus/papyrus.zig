@@ -7,9 +7,15 @@ const std = @import("std");
 //
 // Actual hook up of the IO Processor and graphics is done elsewhere.
 
+// =================== todo =======================
+// Next things to do:
+//  - create state render from the node hierarchy.
+//  - need to create a layout description
+// ================================================
+
 // Bmp software renderer
-// This is a backend agnostic testing renderer which just renders frames to a bmp file.
-// Used for testing layouts and rendering
+// This is a backend agnostic testing renderer which just renders outlines to a bmp file
+// Used for testing Layouts
 
 const BmpRenderer = struct {
     const FileHeader = extern struct {
@@ -36,51 +42,49 @@ const BmpRenderer = struct {
     allocator: std.mem.Allocator,
     extents: Vector2i = .{ .x = 1920, .y = 1080 },
     outFile: []const u8 = "Saved/Render.bmp",
+    pixelBuffer: []u8,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{ .allocator = allocator };
+    pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
+        var pixelBuffer = try allocator.alloc(u8, @intCast(usize, resolution.x * resolution.y * 3));
+        std.mem.set(u8, pixelBuffer, 0x8);
+        return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extents = resolution };
     }
 
-    pub fn drawRectangle(buffer: []u8, extents: Vector2i, topLeft: Vector2i, size: Vector2i, r: u8, g: u8, b: u8) void {
+    pub fn drawRectangle(self: *@This(), style: enum { Filled, Line }, topLeft: Vector2i, size: Vector2i, r: u8, g: u8, b: u8) void {
         var i: i32 = 0;
         while (i < size.y) : (i += 1) {
             const row = i + topLeft.y;
             {
                 const col = topLeft.x;
-                const pixelOffset = @intCast(usize, row * extents.x + col);
+                const pixelOffset = @intCast(usize, row * self.extents.x + col);
 
-                buffer[pixelOffset * 3 + 2] = r;
-                buffer[pixelOffset * 3 + 1] = g;
-                buffer[pixelOffset * 3 + 0] = b;
+                self.pixelBuffer[pixelOffset * 3 + 2] = r;
+                self.pixelBuffer[pixelOffset * 3 + 1] = g;
+                self.pixelBuffer[pixelOffset * 3 + 0] = b;
             }
 
-            if (i == 0 or i == size.y - 1) {
+            if (i == 0 or i == size.y - 1 or style == .Filled) {
                 var col: i32 = topLeft.x + 1;
                 while (col < topLeft.x + size.x - 1) : (col += 1) {
-                    const pixelOffset = @intCast(usize, row * extents.x + col);
-                    buffer[pixelOffset * 3 + 2] = r;
-                    buffer[pixelOffset * 3 + 1] = g;
-                    buffer[pixelOffset * 3 + 0] = b;
+                    const pixelOffset = @intCast(usize, row * self.extents.x + col);
+                    self.pixelBuffer[pixelOffset * 3 + 2] = r;
+                    self.pixelBuffer[pixelOffset * 3 + 1] = g;
+                    self.pixelBuffer[pixelOffset * 3 + 0] = b;
                 }
             }
 
             {
                 const col = topLeft.x + size.x;
-                const pixelOffset = @intCast(usize, row * extents.x + col);
+                const pixelOffset = @intCast(usize, row * self.extents.x + col);
 
-                buffer[pixelOffset * 3 + 2] = r;
-                buffer[pixelOffset * 3 + 1] = g;
-                buffer[pixelOffset * 3 + 0] = b;
+                self.pixelBuffer[pixelOffset * 3 + 2] = r;
+                self.pixelBuffer[pixelOffset * 3 + 1] = g;
+                self.pixelBuffer[pixelOffset * 3 + 0] = b;
             }
         }
     }
 
     pub fn writeOut(self: @This()) !void {
-        var pixelBuffer = try self.allocator.alloc(u8, @intCast(usize, self.extents.x * self.extents.y * 3));
-        std.mem.set(u8, pixelBuffer, 0x8);
-        drawRectangle(pixelBuffer, self.extents, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
-
-        defer self.allocator.free(pixelBuffer);
         var header: FileHeader = .{
             .rsvd0 = 0,
             .filesize = @intCast(u32, self.extents.x * self.extents.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
@@ -107,16 +111,17 @@ const BmpRenderer = struct {
         var writer = logFile.writer();
         try writer.writeAll(std.mem.asBytes(&header));
         try writer.writeAll(std.mem.asBytes(&info));
-        try writer.writeAll(pixelBuffer);
+        try writer.writeAll(self.pixelBuffer);
     }
 
     pub fn deinit(self: *@This()) void {
-        _ = self;
+        self.allocator.free(self.pixelBuffer);
     }
 };
 
 test "write bmp file" {
-    var renderer = BmpRenderer.init(std.testing.allocator);
+    var renderer = try BmpRenderer.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
+    renderer.drawRectangle(.Line, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
     defer renderer.deinit();
     try renderer.writeOut();
 }

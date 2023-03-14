@@ -40,6 +40,15 @@ void SetupImguiColors();
 
 void setFontScale(int newWidth, int newHeight);
 
+void cImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused);        // Since 1.84
+void cImGui_ImplGlfw_CursorEnterCallback(GLFWwindow* window, int entered);        // Since 1.84
+void cImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y);   // Since 1.87
+void cImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+void cImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+void cImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void cImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c);
+void cImGui_ImplGlfw_MonitorCallback(GLFWmonitor* monitor, int event);
+
 #ifdef __cplusplus
 }
 #endif

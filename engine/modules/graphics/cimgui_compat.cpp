@@ -43,6 +43,41 @@ extern "C" void cImGui_vk_SetMinImageCount(uint32_t min_image_count)
     ImGui_ImplVulkan_SetMinImageCount(min_image_count);
 }
 
+
+extern "C" void cImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused){
+    ImGui_ImplGlfw_WindowFocusCallback(window, focused); 
+}       
+
+extern "C" void cImGui_ImplGlfw_CursorEnterCallback(GLFWwindow* window, int entered){
+    ImGui_ImplGlfw_CursorEnterCallback(window, entered);
+}
+
+extern "C" void cImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y){
+    ImGui_ImplGlfw_CursorPosCallback(window, x, y);
+}
+
+extern "C" void cImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods){
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action ,mods);
+}
+
+extern "C" void cImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset){
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+}
+
+extern "C" void cImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods){
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+}
+
+extern "C" void cImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c){
+    ImGui_ImplGlfw_CharCallback(window, c);
+}
+
+extern "C" void cImGui_ImplGlfw_MonitorCallback(GLFWmonitor* monitor, int event){
+     cImGui_ImplGlfw_MonitorCallback(monitor, event);
+}
+
+
+
 // we setup the style in C because there's a lot of styles online and they're easier to copy paste into c
 extern "C" void SetupImguiColors ()
 {

@@ -36,6 +36,8 @@ pub const GameContext = struct {
     cameraHorizontalRotationMat: core.Mat,
     cameraTime: f64 = 0.0,
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0),
+    eulerX: f32 = 0,
+    eulerY: f32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
@@ -62,9 +64,16 @@ pub const GameContext = struct {
                 self.assetReady = true;
             }
         }
+        var xpos: f64 = 0;
+        var ypos: f64 = 0;
+        c.glfwGetCursorPos(graphics.getContext().window, &xpos, &ypos);
         self.cameraTime += deltaTime;
+        self.camera.rotation = core.zm.quatFromRollPitchYaw(self.eulerY, 0, 0);
+        self.cameraHorizontalRotationMat = core.zm.matFromRollPitchYaw(0, self.eulerX, 0);
 
-        self.camera.translate(self.movementInput.normalize().fmul(10.0).fmul(@floatCast(f32, deltaTime)));
+        var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
+
+        self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@floatCast(f32, deltaTime)));
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
@@ -130,6 +139,9 @@ pub const GameContext = struct {
             }
             c.igEnd();
         }
+
+        var showDemo: bool = true;
+        c.igShowDemoWindow(&showDemo);
     }
 
     pub fn prepare_game(self: *Self) !void {
@@ -181,16 +193,31 @@ pub fn main() anyerror!void {
     core.gEngine.run();
 
     _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
+    _ = c.glfwSetCursorPosCallback(graphics.getContext().window, mousePositionCallback);
 
     while (!core.gEngine.exitSignal) {
         graphics.getContext().pollEventsFunc();
     }
 }
 
+pub fn mousePositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    c.cImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+
+    var dx = @floatCast(f32, xpos - (@intToFloat(f32, graphics.getContext().extent.width) / 2));
+    var dy = @floatCast(f32, ypos - (@intToFloat(f32, graphics.getContext().extent.height) / 2));
+
+    gGame.eulerX += dx / 1920;
+    gGame.eulerY += dy / 1080;
+
+    c.glfwSetCursorPos(
+        graphics.getContext().window,
+        @intToFloat(f64, graphics.getContext().extent.width / 2),
+        @intToFloat(f64, graphics.getContext().extent.height / 2),
+    );
+}
+
 pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = window;
-    _ = scancode;
-    _ = mods;
+    c.cImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 
     // Todo turn these into an events pump
 

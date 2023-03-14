@@ -1741,7 +1741,7 @@ pub const NeonVkContext = struct {
     pub fn pollEventsFunc(_: @This()) void {
         var z1 = tracy.ZoneN(@src(), "Polling glfw envents");
         defer z1.End();
-        c.glfwWaitEvents();
+        c.glfwPollEvents();
     }
 
     fn destroy_framebuffers(self: *Self) !void {
@@ -2566,6 +2566,7 @@ pub const NeonVkContext = struct {
         self.extent = .{ .width = 1600, .height = 900 };
         self.windowName = @ptrCast([*c]const u8, gWindowName);
 
+        // c.glfwWindowHint(c.GLFW_DECORATED, 0);
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
 
         self.window = c.glfwCreateWindow(
@@ -2584,6 +2585,9 @@ pub const NeonVkContext = struct {
             .height = h,
             .pixels = pixels,
         };
+        if (c.glfwRawMouseMotionSupported() != 0)
+            c.glfwSetInputMode(self.window, c.GLFW_RAW_MOUSE_MOTION, c.GLFW_TRUE);
+
         debug_struct("loaded image: ", iconImage);
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         c.glfwSetWindowAspectRatio(self.window, 16, 9);

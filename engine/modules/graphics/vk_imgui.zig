@@ -69,7 +69,6 @@ pub const NeonVkImGui = struct {
 
         var imguiInit = c.ImGui_ImplVulkan_InitInfo{
             .Instance = vkCast(c.VkInstance, ctx.instance),
-            ////.Instance = @ptrCast(c.VkInstance, @intToPtr(*anyopaque, @enumToInt(ctx.instance))),
             .PhysicalDevice = vkCast(c.VkPhysicalDevice, ctx.physicalDevice),
             .Device = vkCast(c.VkDevice, ctx.dev),
             .QueueFamily = ctx.graphicsQueue.family,
@@ -89,7 +88,6 @@ pub const NeonVkImGui = struct {
         _ = c.cImGui_vk_CreateFontsTexture(vkCast(c.VkCommandBuffer, ctx.uploadContext.commandBuffer));
         try ctx.finish_upload_context(&ctx.uploadContext);
         _ = c.cImGui_vk_DestroyFontUploadObjects();
-
         _ = c.SetupImguiColors();
 
         c.setFontScale(@intCast(c_int, ctx.actual_extent.width), @intCast(c_int, ctx.actual_extent.height));
@@ -105,7 +103,6 @@ pub const NeonVkImGui = struct {
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
 
         c.cImGui_vk_Shutdown();
-        // ... fuck... do i have to revert it
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
     }
 };
