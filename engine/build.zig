@@ -318,6 +318,11 @@ pub fn build(b: *std.build.Builder) void {
 
     const mode = b.standardOptimizeOption(.{});
 
+    _ = createGameExecutable(target, b, "ui", "ui.zig", enable_tracy, options, mode) catch |e| {
+        std.debug.print("error: {any}", .{e});
+        unreachable;
+    };
+
     _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options, mode) catch |e| {
         std.debug.print("error: {any}", .{e});
         unreachable;

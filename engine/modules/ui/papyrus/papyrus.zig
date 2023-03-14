@@ -7,6 +7,94 @@ const std = @import("std");
 //
 // Actual hook up of the IO Processor and graphics is done elsewhere.
 
+// Bmp software renderer
+// This is a backend agnostic testing renderer which just renders frames to a bmp file.
+// Used for testing layouts and rendering
+
+const BmpRenderer = struct {
+    const FileHeader = extern struct {
+        sig0: [2]u8 = .{ 'B', 'M' },
+        filesize: u32 align(1) = 0,
+        rsvd0: u32 align(1) = 0,
+        pixelArrayOffset: u32 align(1) = 0,
+    };
+
+    const Windows31Info = extern struct {
+        headerSize: u32 align(1) = @sizeOf(@This()),
+        width: u32 align(1) = 0,
+        height: u32 align(1) = 0,
+        planes: u16 align(1) = 1,
+        bitsPerPixel: u16 align(1) = 24,
+        compression: u32 align(1) = 0,
+        imageSize: u32 align(1) = 0,
+        yPixelPerMeter: u32 align(1) = 0,
+        xPixelPerMeter: u32 align(1) = 0,
+        numColorsPallete: u32 align(1) = 0,
+        mostImpColor: u32 align(1) = 0,
+    };
+
+    allocator: std.mem.Allocator,
+    extents: Vector2i = .{ .x = 1920, .y = 1080 },
+    outFile: []const u8 = "Saved/Render.bmp",
+
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn writeOut(self: @This()) !void {
+        var pixelBuffer = try self.allocator.alloc(u8, @intCast(usize, self.extents.x * self.extents.y * 3));
+        defer self.allocator.free(pixelBuffer);
+        var header: FileHeader = .{
+            .rsvd0 = 0,
+            .filesize = @intCast(u32, self.extents.x * self.extents.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
+            .pixelArrayOffset = @sizeOf(FileHeader) + @sizeOf(Windows31Info),
+        };
+
+        var info: Windows31Info = .{
+            .planes = 1,
+            .bitsPerPixel = 24,
+            .compression = 0,
+            .numColorsPallete = 0,
+            .mostImpColor = 0,
+            .xPixelPerMeter = 0x130B,
+            .yPixelPerMeter = 0x130B,
+            .width = @intCast(u32, self.extents.x),
+            .height = @intCast(u32, self.extents.y),
+            .imageSize = @intCast(u32, self.extents.x * self.extents.y * 3),
+        };
+
+        const cwd = std.fs.cwd();
+        cwd.makePath("Saved") catch unreachable;
+        var logFile = try cwd.createFile(self.outFile, .{});
+        defer logFile.close();
+        var writer = logFile.writer();
+        try writer.writeAll(std.mem.asBytes(&header));
+        try writer.writeAll(std.mem.asBytes(&info));
+        try writer.writeAll(pixelBuffer);
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+};
+
+test "write bmp file" {
+    var renderer = BmpRenderer.init(std.testing.allocator);
+    defer renderer.deinit();
+    try renderer.writeOut();
+}
+
+fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFile: []const u8) !void {
+    var sourceFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{vizFile});
+    defer allocator.free(sourceFile);
+
+    var imageFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{pngFile});
+    defer allocator.free(imageFile);
+
+    var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
+    try childProc.spawn();
+}
+
 pub fn dupeString(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
     var dupe = try allocator.alloc(u8, string.len);
 
@@ -462,16 +550,16 @@ pub fn DynamicPool(comptime T: type) type {
 
         pub fn new(self: *@This(), initVal: T) !Handle {
             if (self.dead.items.len > 0) {
-                const revivedIndex = @intCast(Handle, self.dead.items.len - 1);
+                const revivedIndex = @intCast(Handle, self.dead.items[self.dead.items.len - 1]);
 
                 try assertf(
-                    revivedIndex < self.dead.items.len,
-                    "tried to revive index {d} which does not exist in pool of size {d}",
+                    revivedIndex < self.active.items.len,
+                    "tried to revive index {d} which does not exist in pool of size {d}\n",
                     .{ revivedIndex, self.active.items.len },
                 );
 
                 self.active.items[revivedIndex] = initVal;
-                self.dead.shrinkRetainingCapacity(revivedIndex);
+                self.dead.shrinkRetainingCapacity(self.dead.items.len - 1);
                 return revivedIndex;
             }
 
@@ -485,6 +573,10 @@ pub fn DynamicPool(comptime T: type) type {
 
         pub fn get(self: *@This(), handle: Handle) ?*T {
             if (handle >= self.active.items.len) {
+                return null;
+            }
+
+            if (self.active.items[handle] == null) {
                 return null;
             }
 
@@ -556,7 +648,17 @@ test "dynamic pool test" {
 
 // ===================================  End of Dynamic pool =========================
 
-// =============== Vector2 ==================
+// =============== Vectors ==================
+
+pub const Vector2i = struct {
+    x: i32 = 0,
+    y: i32 = 0,
+
+    pub fn add(self: @This(), o: @This()) @This() {
+        return .{ .x = self.x + o.x, .y = self.y + o.y };
+    }
+};
+
 pub const Vector2 = struct {
     x: f32 = 0,
     y: f32 = 0,
@@ -599,7 +701,7 @@ fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
     }
 }
 
-pub var gPapyrusContext: PapyrusContext = undefined;
+pub var gPapyrusContext: *PapyrusContext = undefined;
 pub var gPapyrusIsInitialized: bool = false;
 
 pub const PapyrusEvent = struct {};
@@ -683,9 +785,11 @@ pub const PapyrusNodeStyle = struct {
     color: Color = Color.SlateGrey,
 };
 
+// this is going to follow a pretty object-oriented-like user facing api
 pub const PapyrusNode = struct {
-    text: LocText = Text("hello world"),
+    ctx: *PapyrusContext,
 
+    text: LocText = Text("hello world"),
     parent: u32 = 0, // 0 corresponds to true root
 
     // all children of the same parent operate as a doubly linked list
@@ -697,8 +801,11 @@ pub const PapyrusNode = struct {
     anchor: PapyrusAnchorNode = .Free,
     fill: PapyrusParentFillMode = .FillXY,
 
-    // Not sure what's the best way to go about this
-    // Resolutions and scalings are a real dick-weed.
+    // Not sure what's the best way to go about this.
+    // I want to provide good design time metrics
+    // which can scale into good runtime metrics
+
+    // Resolutions and scalings are a real headspinner
     // DPI awareness and content scaling is also a huge problem.
     baseSize: Vector2 = .{ .x = 0, .y = 0 },
     basePos: Vector2 = .{ .x = 0, .y = 0 },
@@ -713,14 +820,7 @@ pub const PapyrusNode = struct {
 
     nodeType: NodePropertiesBag,
 
-    pub fn getSize(self: @This(), ctx: PapyrusContext) Vector2 {
-        _ = ctx;
-        _ = self;
-        return .{};
-    }
-
-    pub fn evaluatePosition(self: @This(), ctx: PapyrusContext) Vector2 {
-        _ = ctx;
+    pub fn getSize(self: @This()) Vector2 {
         _ = self;
         return .{};
     }
@@ -739,8 +839,10 @@ pub const PapyrusContext = struct {
     nodes: DynamicPool(PapyrusNode),
     fonts: std.ArrayList(PapyrusFont),
 
-    pub fn init(backingAllocator: std.mem.Allocator) !@This() {
-        var self = .{
+    pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
+        var self = try backingAllocator.create(@This());
+
+        self.* = .{
             .allocator = backingAllocator,
             .nodes = DynamicPool(PapyrusNode).init(backingAllocator),
             .fonts = std.ArrayList(PapyrusFont).init(backingAllocator),
@@ -748,6 +850,7 @@ pub const PapyrusContext = struct {
 
         // constructing the root node
         _ = try self.nodes.new(.{
+            .ctx = self,
             .text = Text("root"),
             .parent = 0,
             .anchor = .TopLeft,
@@ -772,7 +875,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addSlot(self: *@This(), parent: u32) !u32 {
-        var slotNode = PapyrusNode{ .nodeType = .{ .Slot = .{} } };
+        var slotNode = PapyrusNode{ .ctx = self, .nodeType = .{ .Slot = .{} } };
         var slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
@@ -781,6 +884,10 @@ pub const PapyrusContext = struct {
     }
 
     pub fn setParent(self: *@This(), node: u32, parent: u32) !void {
+        try assertf(self.nodes.get(parent) != null, "tried to assign node {d} to parent {d} but parent does not exist", .{ node, parent });
+        try assertf(self.nodes.get(node) != null, "tried to assign node {d} to parent {d} but node does not exist", .{ node, parent });
+
+        std.debug.print("assinging node {d} to be child of {d}\n", .{ node, parent });
         var parentNode = self.nodes.get(parent).?;
         var thisNode = self.nodes.get(node).?;
 
@@ -817,8 +924,50 @@ pub const PapyrusContext = struct {
         return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
     }
 
-    pub fn deleteNodeAndChildren(self: *@This()) !u32 {
-        _ = self;
+    pub fn removeFromParent(self: *@This(), node: u32) !void {
+        // this also deletes all children
+        // 1. gather all children.
+        try assertf(node != 0, "removeFromParent CANNOT be called on the root node", .{});
+
+        var killList = std.ArrayList(u32).init(self.allocator);
+        defer killList.deinit();
+        self.walkNodesToRemove(node, &killList) catch {
+            for (killList.items) |n| {
+                std.debug.print("{d}, ", .{n});
+            }
+            return error.BadWalk;
+        };
+
+        var thisNode = self.getRead(node);
+        self.get(thisNode.next).prev = thisNode.prev;
+        self.get(thisNode.prev).next = thisNode.next;
+
+        {
+            var parent = self.get(thisNode.parent);
+
+            if (parent.child == node) {
+                parent.child = thisNode.next;
+            }
+
+            if (parent.end == node) {
+                parent.end = thisNode.prev;
+            }
+        }
+
+        for (killList.items) |killed| {
+            self.nodes.destroy(killed);
+        }
+    }
+
+    fn walkNodesToRemove(self: @This(), root: u32, killList: *std.ArrayList(u32)) !void {
+        try killList.append(root);
+
+        var next = self.getRead(root).child;
+
+        while (next != 0) {
+            try self.walkNodesToRemove(next, killList);
+            next = self.getRead(next).next;
+        }
     }
 
     pub fn tick(self: *@This(), deltaTime: f32) void {
@@ -839,7 +988,7 @@ pub const PapyrusContext = struct {
         }
 
         const node = self.getRead(root);
-        std.debug.print("> {s}\n", .{node.text.getRead()});
+        std.debug.print("> {d}: {s}\n", .{ root, node.text.getRead() });
 
         var next = node.child;
         while (next != 0) {
@@ -872,19 +1021,20 @@ pub const PapyrusContext = struct {
 
     pub fn deinit(self: *@This()) void {
         self.nodes.deinit();
+        self.allocator.destroy(self);
     }
 };
 
 pub fn getContext() *PapyrusContext {
     try assertf(gPapyrusIsInitialized == true, "Unable to initialize Papyrus, already initialized", .{});
-    return &gPapyrusContext;
+    return gPapyrusContext;
 }
 
 pub fn initialize(allocator: std.mem.Allocator) !*PapyrusContext {
     try assertf(gPapyrusIsInitialized == false, "Unable to initialize Papyrus, already initialized", .{});
     gPapyrusIsInitialized = true;
-    gPapyrusContext = try PapyrusContext.init(allocator);
-    return &gPapyrusContext;
+    gPapyrusContext = try PapyrusContext.create(allocator);
+    return gPapyrusContext;
 }
 
 pub fn deinitialize() void {
@@ -897,8 +1047,8 @@ test "initialize papyrus" {
     defer deinitialize();
 }
 
-test "primitive widgets demo" {
-    var ctx = try PapyrusContext.init(std.testing.allocator);
+test "hierarchy test" {
+    var ctx = try PapyrusContext.create(std.testing.allocator);
     defer ctx.deinit();
 
     std.debug.print(
@@ -912,31 +1062,40 @@ test "primitive widgets demo" {
         // Slots can have children and can set up a few policies such as docking, etc...
         // by default this slot will be free
         var slot = try ctx.addSlot(0);
-
-        // generally the access pattern will be something like this, using a handle
-        // we can modify the values of the object
-        // setup the slot to be a dockable that takes up the whole screen
-        ctx.get(slot).*.dockingPolicy = .Dockable;
-        ctx.get(slot).*.fill = .FillXY;
-        ctx.get(slot).*.anchor = .TopLeft;
-        ctx.get(slot).*.state = .Visible;
-        ctx.get(slot).*.hittest = .Testable;
-        ctx.get(slot).*.style.border = .Solid;
-        ctx.get(slot).*.style.color = Color.Red;
-        ctx.get(slot).*.text = Text("slot1");
+        ctx.get(slot).text = Text("slot1");
 
         var slot2 = try ctx.addSlot(slot);
-        ctx.get(slot2).*.text = Text("slot2");
+        ctx.get(slot2).text = Text("slot2");
 
         var slot3 = try ctx.addSlot(slot);
-        ctx.get(slot3).*.text = Text("slot3");
+        ctx.get(slot3).text = Text("slot3");
+
+        var slot5 = try ctx.addSlot(slot);
+        ctx.get(slot5).text = Text("slot5");
 
         var slot4 = try ctx.addSlot(slot2);
-        ctx.get(slot4).*.text = Text("slot4");
+        ctx.get(slot4).text = Text("slot4");
 
-        try ctx.writeTree(0, "test.viz");
-        var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", "Saved/test.viz", "-o", "Saved/test.png" }, std.testing.allocator);
-        try childProc.spawn();
+        std.debug.print("hierarchy before removing slot2\n", .{});
+        try ctx.writeTree(0, "before.viz");
+        try grapvizDotToPng(std.testing.allocator, "before.viz", "before.png");
+        ctx.printTree(0);
+
+        try ctx.removeFromParent(slot2);
+        ctx.printTree(0);
+        ctx.get(try ctx.addSlot(slot3)).text = Text("slot7");
+        ctx.printTree(0);
+
+        var x = try ctx.addSlot(slot3);
+
+        ctx.get(x).text = Text("slot8");
+        ctx.get(try ctx.addSlot(x)).text = Text("slot9");
+        ctx.get(try ctx.addSlot(x)).text = Text("slot10");
+
+        std.debug.print("hierarchy after removing slot2\n", .{});
+        ctx.printTree(0);
+        try ctx.writeTree(0, "after.viz");
+        try grapvizDotToPng(std.testing.allocator, "after.viz", "after.png");
     }
 
     // - A text block

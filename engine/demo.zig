@@ -64,21 +64,21 @@ pub const GameContext = struct {
         }
         self.cameraTime += deltaTime;
 
-        self.camera.translate(self.movementInput.fmul(30.0).normalize().fmul(@floatCast(f32, deltaTime)));
+        self.camera.translate(self.movementInput.normalize().fmul(10.0).fmul(@floatCast(f32, deltaTime)));
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 0) : (i += 1) {
+        while (i < 100000) : (i += 1) {
             graphics.debugLine(
-                .{ .x = -100, .y = 0, .z = -100 + i * 5 },
-                .{ .x = 100, .y = 0, .z = -100 + i * 5 },
+                .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
+                .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
                 .{},
             );
 
             graphics.debugLine(
-                .{ .x = -100 + i * 5, .y = 0, .z = -100 },
-                .{ .x = -100 + i * 5, .y = 0, .z = 100 },
+                .{ .x = -1000 + i * 10, .y = 0, .z = -1000 },
+                .{ .x = -1000 + i * 10, .y = 0, .z = 1000 },
                 .{},
             );
         }

@@ -22,6 +22,8 @@ pub const mesh = @import("graphics/mesh.zig");
 pub const Mesh = mesh.Mesh;
 pub const Texture = texture.Texture;
 
+pub const imguiUtils = @import("graphics/igUtils.zig");
+
 pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
 
 pub const PixelPos = vk_renderer.PixelPos;

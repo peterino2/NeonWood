@@ -184,6 +184,7 @@ pub const LoggerSys = struct {
 
     pub fn deinit(self: *@This()) void {
         self.allocator.free(self.logFilePath);
+        self.logFile.close();
     }
 
     pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {
