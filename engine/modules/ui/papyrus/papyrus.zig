@@ -41,8 +41,45 @@ const BmpRenderer = struct {
         return .{ .allocator = allocator };
     }
 
+    pub fn drawRectangle(buffer: []u8, extents: Vector2i, topLeft: Vector2i, size: Vector2i, r: u8, g: u8, b: u8) void {
+        var i: i32 = 0;
+        while (i < size.y) : (i += 1) {
+            const row = i + topLeft.y;
+            {
+                const col = topLeft.x;
+                const pixelOffset = @intCast(usize, row * extents.x + col);
+
+                buffer[pixelOffset * 3 + 2] = r;
+                buffer[pixelOffset * 3 + 1] = g;
+                buffer[pixelOffset * 3 + 0] = b;
+            }
+
+            if (i == 0 or i == size.y - 1) {
+                var col: i32 = topLeft.x + 1;
+                while (col < topLeft.x + size.x - 1) : (col += 1) {
+                    const pixelOffset = @intCast(usize, row * extents.x + col);
+                    buffer[pixelOffset * 3 + 2] = r;
+                    buffer[pixelOffset * 3 + 1] = g;
+                    buffer[pixelOffset * 3 + 0] = b;
+                }
+            }
+
+            {
+                const col = topLeft.x + size.x;
+                const pixelOffset = @intCast(usize, row * extents.x + col);
+
+                buffer[pixelOffset * 3 + 2] = r;
+                buffer[pixelOffset * 3 + 1] = g;
+                buffer[pixelOffset * 3 + 0] = b;
+            }
+        }
+    }
+
     pub fn writeOut(self: @This()) !void {
         var pixelBuffer = try self.allocator.alloc(u8, @intCast(usize, self.extents.x * self.extents.y * 3));
+        std.mem.set(u8, pixelBuffer, 0x8);
+        drawRectangle(pixelBuffer, self.extents, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
+
         defer self.allocator.free(pixelBuffer);
         var header: FileHeader = .{
             .rsvd0 = 0,
