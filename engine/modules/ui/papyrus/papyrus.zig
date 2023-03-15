@@ -12,7 +12,12 @@ const c = @cImport({
 
 // =================== todo =======================
 // Next things to do:
+//  - note because of the way I do storage and pooling, it's possible to do a straightup memhash
+//  on the entire pool of nodes to check if state has changed at all.
 //  - create state render from the node hierarchy.
+//      - quickly traverse through all nodes and push out a structure of where all the bounds are.
+//      - sort nodes into a proper draw order.
+//      - walk through all nodes and parse their current state,
 //  - need to create a layout description
 // ================================================
 
@@ -1129,8 +1134,6 @@ pub const PapyrusNode = struct {
     }
 };
 
-pub const PapyrusRef = u32;
-
 pub const PapyrusFont = struct {
     name: HashStr,
     atlas: *FontAtlas,
@@ -1141,17 +1144,28 @@ pub const PapyrusContext = struct {
     // Papyrus is wrapped by an arena allocator
     allocator: std.mem.Allocator,
     nodes: DynamicPool(PapyrusNode),
-    fonts: std.ArrayList(PapyrusFont),
+    fonts: std.AutoHashMap(u32, PapyrusFont),
+    fallbackFont: PapyrusFont,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
+        const fallbackFontName: []const u8 = "ProggyClean";
+        const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
+
         var self = try backingAllocator.create(@This());
 
         self.* = .{
             .allocator = backingAllocator,
             .nodes = DynamicPool(PapyrusNode).init(backingAllocator),
-            .fonts = std.ArrayList(PapyrusFont).init(backingAllocator),
+            .fonts = std.AutoHashMap(u32, PapyrusFont).init(backingAllocator),
+            .fallbackFont = PapyrusFont{
+                .name = HashStr.fromUtf8(fallbackFontName),
+                .atlas = try backingAllocator.create(FontAtlas),
+            },
         };
+
+        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 32);
+        try self.fonts.put(self.fallbackFont.name.hash, self.fallbackFont);
 
         // constructing the root node
         _ = try self.nodes.new(.{
@@ -1163,6 +1177,17 @@ pub const PapyrusContext = struct {
         });
 
         return self;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        var iter = self.fonts.iterator();
+        while (iter.next()) |i| {
+            i.value_ptr.atlas.deinit();
+            self.allocator.destroy(i.value_ptr.atlas);
+        }
+        self.fonts.deinit();
+        self.nodes.deinit();
+        self.allocator.destroy(self);
     }
 
     // converts a handle to a node pointer
@@ -1331,11 +1356,6 @@ pub const PapyrusContext = struct {
             try self.writeTreeInner(next, log);
             next = self.getRead(next).*.next;
         }
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.nodes.deinit();
-        self.allocator.destroy(self);
     }
 };
 
