@@ -18,9 +18,54 @@ const c = @cImport({
 
 // Bmp software renderer
 // This is a backend agnostic testing renderer which just renders outlines to a bmp file
-// Used for testing Layouts
+// Used for testing Layouts.
 
 const BmpRenderer = struct {
+    allocator: std.mem.Allocator,
+    ui: *PapyrusContext,
+    extent: Vector2i,
+    r: BmpWriter,
+    outFile: []const u8 = "Saved/frame.bmp",
+
+    pub fn init(allocator: std.mem.Allocator, ui: *PapyrusContext, extent: Vector2i) !@This() {
+        return .{
+            .allocator = allocator,
+            .ui = ui,
+            .extent = extent,
+            .r = try BmpWriter.init(allocator, extent),
+        };
+    }
+
+    pub fn setRenderFile(self: *@This(), outFile: []const u8) void {
+        self.outFile = outFile;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.r.deinit();
+    }
+
+    pub fn render(self: *@This()) !void {
+        _ = self;
+    }
+};
+
+test "Testing a render" {
+    var ctx = try PapyrusContext.create(std.testing.allocator);
+    defer ctx.deinit();
+
+    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
+    defer rend.deinit();
+    rend.setRenderFile("Saved/frame.bmp");
+
+    var panel = try ctx.addPanel(0);
+    ctx.get(panel).style.border = .Solid;
+    ctx.get(panel).size = .{ .x = 300, .y = 400 };
+    ctx.get(panel).pos = .{ .x = 100, .y = 300 };
+
+    try rend.render();
+}
+
+const BmpWriter = struct {
     const FileHeader = extern struct {
         sig0: [2]u8 = .{ 'B', 'M' },
         filesize: u32 align(1) = 0,
@@ -43,28 +88,32 @@ const BmpRenderer = struct {
     };
 
     allocator: std.mem.Allocator,
-    extents: Vector2i = .{ .x = 1920, .y = 1080 },
+    extent: Vector2i = .{ .x = 1920, .y = 1080 },
     pixelBuffer: []u8,
 
     pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
         var pixelBuffer = try allocator.alloc(u8, @intCast(usize, resolution.x * resolution.y * 3));
         std.mem.set(u8, pixelBuffer, 0x8);
-        return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extents = resolution };
+        return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
+    }
+
+    pub fn clear(self: *@This()) void {
+        std.mem.set(u8, self.pixelBuffer, 0x8);
     }
 
     pub fn drawRectangle(self: *@This(), style: enum { Filled, Line }, topLeft: Vector2i, size: Vector2i, r: u8, g: u8, b: u8) void {
         var i: i32 = 0;
         while (i < size.y) : (i += 1) {
             const row = i + topLeft.y;
-            if (row < 0 or row >= self.extents.y) {
+            if (row < 0 or row >= self.extent.y) {
                 continue;
             }
-            const flippedRow = self.extents.y - row - 1;
+            const flippedRow = self.extent.y - row - 1;
 
             {
                 const col = topLeft.x;
-                if (col >= 0 and col < self.extents.x) {
-                    const pixelOffset = @intCast(usize, flippedRow * self.extents.x + col);
+                if (col >= 0 and col < self.extent.x) {
+                    const pixelOffset = @intCast(usize, flippedRow * self.extent.x + col);
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -75,10 +124,10 @@ const BmpRenderer = struct {
             if (i == 0 or i == size.y - 1 or style == .Filled) {
                 var col: i32 = topLeft.x + 1;
                 while (col < topLeft.x + size.x) : (col += 1) {
-                    if (col < 0 or col >= self.extents.x) {
+                    if (col < 0 or col >= self.extent.x) {
                         continue;
                     }
-                    const pixelOffset = @intCast(usize, (flippedRow) * self.extents.x + col);
+                    const pixelOffset = @intCast(usize, (flippedRow) * self.extent.x + col);
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -88,8 +137,8 @@ const BmpRenderer = struct {
 
             {
                 const col = topLeft.x + size.x;
-                if (col >= 0 and col < self.extents.x) {
-                    const pixelOffset = @intCast(usize, flippedRow * self.extents.x + col);
+                if (col >= 0 and col < self.extent.x) {
+                    const pixelOffset = @intCast(usize, flippedRow * self.extent.x + col);
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -102,7 +151,7 @@ const BmpRenderer = struct {
     pub fn writeOut(self: @This(), outFile: []const u8) !void {
         var header: FileHeader = .{
             .rsvd0 = 0,
-            .filesize = @intCast(u32, self.extents.x * self.extents.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
+            .filesize = @intCast(u32, self.extent.x * self.extent.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
             .pixelArrayOffset = @sizeOf(FileHeader) + @sizeOf(Windows31Info),
         };
 
@@ -114,9 +163,9 @@ const BmpRenderer = struct {
             .mostImpColor = 0,
             .xPixelPerMeter = 0x130B,
             .yPixelPerMeter = 0x130B,
-            .width = @intCast(u32, self.extents.x),
-            .height = @intCast(u32, self.extents.y),
-            .imageSize = @intCast(u32, self.extents.x * self.extents.y * 3),
+            .width = @intCast(u32, self.extent.x),
+            .height = @intCast(u32, self.extent.y),
+            .imageSize = @intCast(u32, self.extent.x * self.extent.y * 3),
         };
 
         const cwd = std.fs.cwd();
@@ -154,6 +203,8 @@ const FontAtlas = struct {
     glyphMetrics: [256]Vector2i = undefined,
     glyphBox0: [256]Vector2i = undefined,
     glyphBox1: [256]Vector2i = undefined,
+
+    glyphCoordinates: [256][2]Vector2 = undefined,
 
     // creates a font atlas from
     pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
@@ -216,6 +267,19 @@ const FontAtlas = struct {
             var col: i32 = 0;
             var row: i32 = 0;
 
+            // get floating point coordinates for rendering to opengl/vulkan
+            // get top left coordinates
+            self.glyphCoordinates[ch][0] = .{
+                .x = @intToFloat(f32, tl.x) / @intToFloat(f32, self.atlasSize.x),
+                .y = @intToFloat(f32, tl.y) / @intToFloat(f32, self.atlasSize.y),
+            };
+
+            // get bottom right coordinates
+            self.glyphCoordinates[ch][1] = .{
+                .x = @intToFloat(f32, tl.x + self.glyphMetrics[ch].x) / @intToFloat(f32, self.atlasSize.x),
+                .y = @intToFloat(f32, tl.y + self.glyphMetrics[ch].y) / @intToFloat(f32, self.atlasSize.y),
+            };
+
             while (row < maxRow) : (row += 1) {
                 col = 0;
                 while (col < maxCol) : (col += 1) {
@@ -230,14 +294,14 @@ const FontAtlas = struct {
     }
 
     pub fn dumpBufferToFile(self: *@This(), fileName: []const u8) !void {
-        var renderer = try BmpRenderer.init(std.testing.allocator, self.atlasSize);
+        var renderer = try BmpWriter.init(std.testing.allocator, self.atlasSize);
         var row: i32 = 0;
         var col: i32 = 0;
-        while (row < renderer.extents.y) : (row += 1) {
+        while (row < renderer.extent.y) : (row += 1) {
             col = 0;
-            while (col < renderer.extents.x) : (col += 1) {
-                const pixelOffset = @intCast(usize, (renderer.extents.x * (row)) + col);
-                const pixelOffset2 = @intCast(usize, (renderer.extents.x * (self.atlasSize.y - row - 1)) + col);
+            while (col < renderer.extent.x) : (col += 1) {
+                const pixelOffset = @intCast(usize, (renderer.extent.x * (row)) + col);
+                const pixelOffset2 = @intCast(usize, (renderer.extent.x * (self.atlasSize.y - row - 1)) + col);
                 renderer.pixelBuffer[pixelOffset * 3 + 0] = self.atlasBuffer.?[pixelOffset2];
                 renderer.pixelBuffer[pixelOffset * 3 + 1] = self.atlasBuffer.?[pixelOffset2];
                 renderer.pixelBuffer[pixelOffset * 3 + 2] = self.atlasBuffer.?[pixelOffset2];
@@ -246,7 +310,6 @@ const FontAtlas = struct {
 
         var ch: u32 = 0;
         while (ch < 256) : (ch += 1) {
-            std.debug.print("{any}\n", .{self.glyphBox1[ch]});
             renderer.drawRectangle(
                 .Line,
                 .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y - try std.math.absInt(self.glyphBox0[ch].y) },
@@ -255,8 +318,6 @@ const FontAtlas = struct {
                 255,
                 0,
             );
-            //renderer.drawRectangle(.Line, .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y }, .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) }, 255, 255, 0);
-            // renderer.drawRectangle(.Line, .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = 0 }, self.glyphMetrics[ch], 255, 0, 0);
         }
 
         try renderer.writeOut(fileName);
@@ -264,7 +325,6 @@ const FontAtlas = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        std.debug.print("\nmax: shutting down\n", .{});
         if (self.atlasBuffer != null) {
             self.allocator.free(self.atlasBuffer.?);
         }
@@ -273,7 +333,7 @@ const FontAtlas = struct {
 };
 
 test "basic bmp renderer test" {
-    var renderer = try BmpRenderer.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
+    var renderer = try BmpWriter.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
     renderer.drawRectangle(.Line, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
     defer renderer.deinit();
 
@@ -305,7 +365,7 @@ test "basic bmp renderer test" {
     // while (row >= 0) : (row -= 1) {
     //     var col: i32 = 0;
     //     while (col < width) : (col += 1) {
-    //         const pixelOffset = @intCast(usize, (topLeft.y - row) * (renderer.extents.x) + col + topLeft.x);
+    //         const pixelOffset = @intCast(usize, (topLeft.y - row) * (renderer.extent.x) + col + topLeft.x);
     //         const energy = bitmap[@intCast(usize, @intCast(i32, row * width) + col)];
     //         if (energy > 50) {
     //             renderer.pixelBuffer[pixelOffset * 3 + 2] = 0;
@@ -998,10 +1058,15 @@ pub const NodeProperty_Text = struct {
     genericListener: u32,
 };
 
+pub const NodeProperty_Panel = struct {
+    internalLayout: u32 = 0,
+};
+
 pub const NodePropertiesBag = union(enum(u8)) {
     Slot: NodeProperty_Slot,
     DisplayText: NodeProperty_Text,
     Button: NodeProperty_Button,
+    Panel: NodeProperty_Panel,
 };
 
 pub const NodePadding = union(enum(u8)) {
@@ -1045,8 +1110,8 @@ pub const PapyrusNode = struct {
 
     // Resolutions and scalings are a real headspinner
     // DPI awareness and content scaling is also a huge problem.
-    baseSize: Vector2 = .{ .x = 0, .y = 0 },
-    basePos: Vector2 = .{ .x = 0, .y = 0 },
+    size: Vector2 = .{ .x = 0, .y = 0 },
+    pos: Vector2 = .{ .x = 0, .y = 0 },
 
     padding: NodePadding = .{ .all = 0 },
     state: PapyrusState = .Visible,
@@ -1068,6 +1133,7 @@ pub const PapyrusRef = u32;
 
 pub const PapyrusFont = struct {
     name: HashStr,
+    atlas: *FontAtlas,
 };
 
 pub const PapyrusContext = struct {
@@ -1076,6 +1142,7 @@ pub const PapyrusContext = struct {
     allocator: std.mem.Allocator,
     nodes: DynamicPool(PapyrusNode),
     fonts: std.ArrayList(PapyrusFont),
+    extent: Vector2i = .{ .x = 1920, .y = 1080 },
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         var self = try backingAllocator.create(@This());
@@ -1115,6 +1182,15 @@ pub const PapyrusContext = struct {
     pub fn addSlot(self: *@This(), parent: u32) !u32 {
         var slotNode = PapyrusNode{ .ctx = self, .nodeType = .{ .Slot = .{} } };
         var slot = try self.newNode(slotNode);
+
+        try self.setParent(slot, parent);
+
+        return slot;
+    }
+
+    pub fn addPanel(self: *@This(), parent: u32) !u32 {
+        var slotNode = PapyrusNode{ .ctx = self, .nodeType = .{ .Panel = .{} } };
+        var slot = try self.nodes.new(slotNode);
 
         try self.setParent(slot, parent);
 
@@ -1339,11 +1415,4 @@ test "hierarchy test" {
     {
         ctx.tick(0.0016);
     }
-
-    // - A text block
-    // - A rectangle widget
-    //      - With PNG based widget styles
-    // - Image widget
-    // - A simple moveable window
-    // DPI and a bunch of other things.
 }

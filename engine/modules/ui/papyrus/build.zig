@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     main_tests.linkLibC();
+    main_tests.linkLibCpp();
     main_tests.addCSourceFile("compat.cpp", &.{""});
     main_tests.addIncludePath("./");
     const test_step = b.step("test", "Run library tests");
