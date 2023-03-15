@@ -1,4 +1,7 @@
 const std = @import("std");
+const c = @cImport({
+    @cInclude("stb_ttf.h");
+});
 
 // Mixed mode implementation agnostic UI library
 //
@@ -41,7 +44,6 @@ const BmpRenderer = struct {
 
     allocator: std.mem.Allocator,
     extents: Vector2i = .{ .x = 1920, .y = 1080 },
-    outFile: []const u8 = "Saved/Render.bmp",
     pixelBuffer: []u8,
 
     pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
@@ -54,19 +56,30 @@ const BmpRenderer = struct {
         var i: i32 = 0;
         while (i < size.y) : (i += 1) {
             const row = i + topLeft.y;
+            if (row < 0 or row >= self.extents.y) {
+                continue;
+            }
+            const flippedRow = self.extents.y - row - 1;
+
             {
                 const col = topLeft.x;
-                const pixelOffset = @intCast(usize, row * self.extents.x + col);
+                if (col >= 0 and col < self.extents.x) {
+                    const pixelOffset = @intCast(usize, flippedRow * self.extents.x + col);
 
-                self.pixelBuffer[pixelOffset * 3 + 2] = r;
-                self.pixelBuffer[pixelOffset * 3 + 1] = g;
-                self.pixelBuffer[pixelOffset * 3 + 0] = b;
+                    self.pixelBuffer[pixelOffset * 3 + 2] = r;
+                    self.pixelBuffer[pixelOffset * 3 + 1] = g;
+                    self.pixelBuffer[pixelOffset * 3 + 0] = b;
+                }
             }
 
             if (i == 0 or i == size.y - 1 or style == .Filled) {
                 var col: i32 = topLeft.x + 1;
-                while (col < topLeft.x + size.x - 1) : (col += 1) {
-                    const pixelOffset = @intCast(usize, row * self.extents.x + col);
+                while (col < topLeft.x + size.x) : (col += 1) {
+                    if (col < 0 or col >= self.extents.x) {
+                        continue;
+                    }
+                    const pixelOffset = @intCast(usize, (flippedRow) * self.extents.x + col);
+
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
                     self.pixelBuffer[pixelOffset * 3 + 0] = b;
@@ -75,16 +88,18 @@ const BmpRenderer = struct {
 
             {
                 const col = topLeft.x + size.x;
-                const pixelOffset = @intCast(usize, row * self.extents.x + col);
+                if (col >= 0 and col < self.extents.x) {
+                    const pixelOffset = @intCast(usize, flippedRow * self.extents.x + col);
 
-                self.pixelBuffer[pixelOffset * 3 + 2] = r;
-                self.pixelBuffer[pixelOffset * 3 + 1] = g;
-                self.pixelBuffer[pixelOffset * 3 + 0] = b;
+                    self.pixelBuffer[pixelOffset * 3 + 2] = r;
+                    self.pixelBuffer[pixelOffset * 3 + 1] = g;
+                    self.pixelBuffer[pixelOffset * 3 + 0] = b;
+                }
             }
         }
     }
 
-    pub fn writeOut(self: @This()) !void {
+    pub fn writeOut(self: @This(), outFile: []const u8) !void {
         var header: FileHeader = .{
             .rsvd0 = 0,
             .filesize = @intCast(u32, self.extents.x * self.extents.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
@@ -106,7 +121,7 @@ const BmpRenderer = struct {
 
         const cwd = std.fs.cwd();
         cwd.makePath("Saved") catch unreachable;
-        var logFile = try cwd.createFile(self.outFile, .{});
+        var logFile = try cwd.createFile(outFile, .{});
         defer logFile.close();
         var writer = logFile.writer();
         try writer.writeAll(std.mem.asBytes(&header));
@@ -119,11 +134,192 @@ const BmpRenderer = struct {
     }
 };
 
-test "write bmp file" {
+fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
+    var file = try std.fs.cwd().openFile(filename, .{});
+    const filesize = (try file.stat()).size;
+    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
+    try file.reader().readNoEof(buffer);
+    return buffer;
+}
+
+const FontAtlas = struct {
+    font: c.stbtt_fontinfo = undefined,
+    allocator: std.mem.Allocator,
+    fileContent: []u8,
+    filePath: []const u8,
+    atlasBuffer: ?[]u8,
+    fontSize: f32,
+    atlasSize: Vector2i = .{},
+    glyphMax: Vector2i = .{},
+    glyphMetrics: [256]Vector2i = undefined,
+    glyphBox0: [256]Vector2i = undefined,
+    glyphBox1: [256]Vector2i = undefined,
+
+    // creates a font atlas from
+    pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
+        var self = @This(){
+            .allocator = allocator,
+            .filePath = file,
+            .fileContent = try loadFileAlloc(file, 8, allocator),
+            .atlasBuffer = null,
+            .fontSize = fontSize,
+        };
+
+        _ = c.stbtt_InitFont(&self.font, self.fileContent.ptr, c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0));
+
+        try self.createAtlas();
+
+        return self;
+    }
+
+    fn createAtlas(self: *@This()) !void {
+        std.debug.print("\ncreating Atlas\n", .{});
+        const glyphCount = 256;
+        var glyphs: [glyphCount][*c]u8 = undefined;
+        var max: Vector2i = .{};
+
+        var ch: u32 = 0;
+
+        while (ch < glyphCount) : (ch += 1) {
+            glyphs[ch] = c.stbtt_GetCodepointBitmap(&self.font, 0, c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize), @intCast(c_int, ch), &self.glyphMetrics[ch].x, &self.glyphMetrics[ch].y, 0, 0);
+
+            if (self.glyphMetrics[ch].x > max.x)
+                max.x = self.glyphMetrics[ch].x;
+
+            if (self.glyphMetrics[ch].y > max.y)
+                max.y = self.glyphMetrics[ch].y;
+
+            c.stbtt_GetGlyphBitmapBox(
+                &self.font,
+                @intCast(c_int, ch),
+                0,
+                c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+                &self.glyphBox0[ch].x,
+                &self.glyphBox0[ch].y,
+                &self.glyphBox1[ch].x,
+                &self.glyphBox1[ch].y,
+            );
+        }
+
+        self.glyphMax = max;
+        // allocate the atlasBuffer, just a linear strip
+        self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) * 2 };
+        self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
+        std.mem.set(u8, self.atlasBuffer.?, 0x0);
+
+        // write bitmaps into the atlas buffer
+        ch = 0;
+        while (ch < glyphCount) : (ch += 1) {
+            const tl = Vector2i{ .x = @intCast(i32, ch) * (max.x + 1), .y = 0 };
+            const maxCol = self.glyphMetrics[ch].x;
+            const maxRow = self.glyphMetrics[ch].y;
+            var col: i32 = 0;
+            var row: i32 = 0;
+
+            while (row < maxRow) : (row += 1) {
+                col = 0;
+                while (col < maxCol) : (col += 1) {
+                    const pixelOffset = @intCast(usize, ((row + tl.y) * self.atlasSize.x) + (col + tl.x));
+                    self.atlasBuffer.?[pixelOffset] = glyphs[ch][@intCast(usize, (row * maxCol) + col)];
+                }
+            }
+        }
+
+        std.debug.print("\nmax:{d} x {d}\n", .{ max.x, max.y });
+        std.debug.print("\nextent: {x} x {x}\n", .{ self.atlasSize.x, self.atlasSize.y });
+    }
+
+    pub fn dumpBufferToFile(self: *@This(), fileName: []const u8) !void {
+        var renderer = try BmpRenderer.init(std.testing.allocator, self.atlasSize);
+        var row: i32 = 0;
+        var col: i32 = 0;
+        while (row < renderer.extents.y) : (row += 1) {
+            col = 0;
+            while (col < renderer.extents.x) : (col += 1) {
+                const pixelOffset = @intCast(usize, (renderer.extents.x * (row)) + col);
+                const pixelOffset2 = @intCast(usize, (renderer.extents.x * (self.atlasSize.y - row - 1)) + col);
+                renderer.pixelBuffer[pixelOffset * 3 + 0] = self.atlasBuffer.?[pixelOffset2];
+                renderer.pixelBuffer[pixelOffset * 3 + 1] = self.atlasBuffer.?[pixelOffset2];
+                renderer.pixelBuffer[pixelOffset * 3 + 2] = self.atlasBuffer.?[pixelOffset2];
+            }
+        }
+
+        var ch: u32 = 0;
+        while (ch < 256) : (ch += 1) {
+            std.debug.print("{any}\n", .{self.glyphBox1[ch]});
+            renderer.drawRectangle(
+                .Line,
+                .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y - try std.math.absInt(self.glyphBox0[ch].y) },
+                .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) },
+                255,
+                255,
+                0,
+            );
+            //renderer.drawRectangle(.Line, .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y }, .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) }, 255, 255, 0);
+            // renderer.drawRectangle(.Line, .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = 0 }, self.glyphMetrics[ch], 255, 0, 0);
+        }
+
+        try renderer.writeOut(fileName);
+        defer renderer.deinit();
+    }
+
+    pub fn deinit(self: *@This()) void {
+        std.debug.print("\nmax: shutting down\n", .{});
+        if (self.atlasBuffer != null) {
+            self.allocator.free(self.atlasBuffer.?);
+        }
+        self.allocator.free(self.fileContent);
+    }
+};
+
+test "basic bmp renderer test" {
     var renderer = try BmpRenderer.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
     renderer.drawRectangle(.Line, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
     defer renderer.deinit();
-    try renderer.writeOut();
+
+    var timer = try std.time.Timer.start();
+
+    const startTime = timer.read();
+    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ShareTechMono-Regular.ttf", 36);
+    try atlas.dumpBufferToFile("Saved/atlas.bmp");
+    defer atlas.deinit();
+
+    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ProggyClean.ttf", 36);
+    try atlas2.dumpBufferToFile("Saved/ProggyClean.bmp");
+    defer atlas2.deinit();
+
+    // var font: c.stbtt_fontinfo = undefined;
+    // const ch: u8 = 'a';
+    // var fileContents = try loadFileAlloc("fonts/ShareTechMono-Regular.ttf", 8, std.testing.allocator);
+    // defer std.testing.allocator.free(fileContents);
+
+    // _ = c.stbtt_InitFont(&font, fileContents.ptr, c.stbtt_GetFontOffsetForIndex(fileContents.ptr, 0));
+    // var height: c_int = 0;
+    // var width: c_int = 0;
+
+    // var bitmap: [*c]u8 = c.stbtt_GetCodepointBitmap(&font, 0, c.stbtt_ScaleForPixelHeight(&font, 100), ch, &width, &height, 0, 0);
+
+    // var topLeft = Vector2i{ .x = 510, .y = 210 };
+
+    // var row: i32 = height - 1;
+    // while (row >= 0) : (row -= 1) {
+    //     var col: i32 = 0;
+    //     while (col < width) : (col += 1) {
+    //         const pixelOffset = @intCast(usize, (topLeft.y - row) * (renderer.extents.x) + col + topLeft.x);
+    //         const energy = bitmap[@intCast(usize, @intCast(i32, row * width) + col)];
+    //         if (energy > 50) {
+    //             renderer.pixelBuffer[pixelOffset * 3 + 2] = 0;
+    //             renderer.pixelBuffer[pixelOffset * 3 + 1] = energy;
+    //             renderer.pixelBuffer[pixelOffset * 3 + 0] = 0;
+    //         }
+    //     }
+    // }
+
+    const endTime = timer.read();
+    const duration = (@intToFloat(f64, endTime - startTime) / 1000000000);
+    std.debug.print(" duration: {d}\n", .{duration});
+
+    try renderer.writeOut("Saved/test.bmp");
 }
 
 fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFile: []const u8) !void {
@@ -254,9 +450,9 @@ pub const HashStr = struct {
     pub fn fromUtf8(source: []const u8) @This() {
         var hash: u32 = 5381;
 
-        for (source) |c| {
+        for (source) |ch| {
             hash = @mulWithOverflow(hash, 33)[0];
-            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+            hash = @addWithOverflow(hash, @intCast(u32, ch))[0];
         }
 
         var self = .{
@@ -496,9 +692,9 @@ pub fn RingQueueU(comptime T: type) type {
         // gets you an element at an offset from the tail.
         // given the way the tail works, this will return null on zero
         pub fn atBack(self: @This(), offset: usize) ?*T {
-            const c = self.count();
+            const cnt = self.count();
 
-            if (offset > c or offset == 0) {
+            if (offset > cnt or offset == 0) {
                 return null;
             }
 
@@ -512,9 +708,9 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn at(self: *@This(), offset: usize) ?*T {
-            const c = self.count();
+            const cnt = self.count();
 
-            if (c == 0) {
+            if (cnt == 0) {
                 return null;
             }
 
@@ -534,10 +730,10 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn resize(self: *@This(), allocator: std.mem.Allocator, size: usize) !void {
-            const c = self.count();
+            const cnt = self.count();
 
             // new size needs to be greater than current size by 1, tail always points to an empty
-            if (c >= size) {
+            if (cnt >= size) {
                 return error.AllocSizeTooSmall;
             }
 
@@ -1138,6 +1334,10 @@ test "hierarchy test" {
         ctx.printTree(0);
         try ctx.writeTree(0, "after.viz");
         try grapvizDotToPng(std.testing.allocator, "after.viz", "after.png");
+    }
+
+    {
+        ctx.tick(0.0016);
     }
 
     // - A text block
