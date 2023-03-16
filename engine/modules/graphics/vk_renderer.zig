@@ -1263,6 +1263,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn getNextSwapImage(self: *Self) !u32 {
+        var z1 = tracy.ZoneN(@src(), "Acquiring Next image");
         var image_index = (try self.vkd.acquireNextImageKHR(
             self.dev,
             self.swapchain,
@@ -1270,6 +1271,7 @@ pub const NeonVkContext = struct {
             self.extraSemaphore,
             .null_handle,
         )).image_index;
+        z1.End();
 
         std.mem.swap(
             vk.Semaphore,
@@ -1739,8 +1741,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn pollEventsFunc(_: @This()) void {
-        var z1 = tracy.ZoneN(@src(), "Polling glfw envents");
-        defer z1.End();
         c.glfwPollEvents();
     }
 
@@ -2539,7 +2539,7 @@ pub const NeonVkContext = struct {
             }
         }
 
-        self.presentMode = .fifo_khr;
+        // self.presentMode = .mailbox_khr;
         //self.presentMode = .mailbox_khr;
     }
 

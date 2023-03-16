@@ -5,6 +5,7 @@ const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
 const assets = @import("../assets.zig");
 const resources = @import("resources");
+const tracy = core.tracy;
 const gpd = graphics.gpu_pipe_data;
 
 pub const DebugLine = struct {
@@ -180,12 +181,15 @@ pub const DebugDrawSubsystem = struct {
 
     // Renderer Ineterface Implementation
     pub fn preDraw(self: *@This(), frameId: usize) void {
+        var zone = tracy.ZoneN(@src(), "Debug draw renderer");
+        defer zone.End();
+
         const count: usize = self.debugDraws.count();
         var offset: usize = 0;
         while (offset < count) : (offset += 1) {
-            var primitive = self.debugDraws.at(offset).?;
-            var transform = primitive.resolve();
-            var color = primitive.color;
+            const primitive = self.debugDraws.at(offset).?;
+            const transform = primitive.resolve();
+            const color = primitive.color;
 
             var object = &self.mappedBuffers[frameId].objects[offset];
             object.*.color = color;

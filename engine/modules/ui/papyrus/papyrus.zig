@@ -91,7 +91,7 @@ test "Testing a render" {
     ctx.get(panel).style.border = .Solid;
     ctx.get(panel).style.backgroundColor = BurnStyle.SlateGrey;
     ctx.get(panel).style.foregroundColor = BurnStyle.Normal;
-    ctx.get(panel).style.borderColor = BurnStyle.Bright1;
+    ctx.get(panel).style.borderColor = BurnStyle.DarkComment;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
     ctx.get(panel).size = .{ .x = 400, .y = 400 };
 
@@ -146,30 +146,38 @@ const BmpWriter = struct {
 
                 const energy = atlas.atlasBuffer.?[pixelOffset];
                 if (energy > 128) {
-                    self.pixelBuffer[pixelOffset2 * 3 + 0] = @floatToInt(u8, @intToFloat(f32, energy) * color.r);
+                    self.pixelBuffer[pixelOffset2 * 3 + 0] = @floatToInt(u8, @intToFloat(f32, energy) * color.b);
                     self.pixelBuffer[pixelOffset2 * 3 + 1] = @floatToInt(u8, @intToFloat(f32, energy) * color.g);
-                    self.pixelBuffer[pixelOffset2 * 3 + 2] = @floatToInt(u8, @intToFloat(f32, energy) * color.b);
+                    self.pixelBuffer[pixelOffset2 * 3 + 2] = @floatToInt(u8, @intToFloat(f32, energy) * color.r);
                 }
             }
         }
     }
 
+    // This renderer does not do proper layouts.
     pub fn drawText(self: *@This(), atlas: *const FontAtlas, topLeft: Vector2i, text: LocText, color: Color) void {
         // blit each character from the atlas onto the thing
         const str = text.getRead();
 
+        var accum: i32 = 0;
         for (str, 0..) |ch, i| {
+            _ = i;
             const box = atlas.glyphBox1[ch];
             std.debug.print("{any}\n", .{box});
             self.addChar(
                 atlas,
                 topLeft.add(.{
-                    .x = (atlas.glyphStride + 1) * @intCast(i32, i),
+                    .x = accum,
+                    //.x = (atlas.glyphStride) * @intCast(i32, i),
                     .y = @floatToInt(i32, atlas.fontSize),
                 }).add(.{ .x = box.x, .y = box.y }),
                 ch,
                 color,
             );
+            accum += box.x + atlas.glyphMetrics[ch].x;
+            if (ch == ' ') {
+                accum += atlas.glyphStride;
+            }
         }
     }
 
@@ -588,6 +596,7 @@ pub const Color = struct {
 // Color style used for my text editor
 pub const BurnStyle = struct {
     pub const Comment = Color.fromRGB(0x90c480);
+    pub const DarkComment = Color.fromRGB(0x243120);
     pub const Normal = Color.fromRGB(0xe2e2e5);
     pub const Highlight1 = Color.fromRGB(0x90c480);
     pub const Highlight2 = Color.fromRGB(0x75e1eb);
@@ -597,6 +606,7 @@ pub const BurnStyle = struct {
     pub const Statement = Color.fromRGB(0xff00f2);
     pub const LineTerminal = Color.fromRGB(0x87aefa);
     pub const SlateGrey = Color.fromRGB(0x141414);
+    pub const DarkSlateGrey = Color.fromRGB(0x101010);
 };
 
 // RGBA format for color
@@ -1253,7 +1263,7 @@ pub const PapyrusContext = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "ProggyClean";
-        const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
+        const fallbackFontFile: []const u8 = "fonts/ShareTechMono-Regular.ttf";
 
         var self = try backingAllocator.create(@This());
 
@@ -1479,7 +1489,7 @@ pub const PapyrusContext = struct {
                         .Text = .{
                             .tl = n.pos.add(.{ .x = 3, .y = 1 }),
                             .text = Text("panel window"),
-                            .color = BurnStyle.SlateGrey,
+                            .color = BurnStyle.Highlight1,
                         },
                     } });
                 },
