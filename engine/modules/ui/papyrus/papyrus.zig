@@ -50,7 +50,31 @@ const BmpRenderer = struct {
     }
 
     pub fn render(self: *@This()) !void {
-        _ = self;
+        self.r.clear();
+        var drawList = try self.ui.assembleDrawList();
+        defer drawList.deinit();
+
+        var i: u32 = 0;
+        while (i < drawList.items.len) : (i += 1) {
+            const cmd = drawList.items[i];
+            switch (cmd.primitive) {
+                .Rect => |rect| {
+                    var tl = Vector2i.fromVector2(rect.tl);
+                    var size = Vector2i.fromVector2(rect.size);
+                    const border = ColorRGBA8.fromColor(rect.borderColor);
+                    const bg = ColorRGBA8.fromColor(rect.backgroundColor);
+
+                    self.r.drawRectangle(.Line, tl, size, border.r, border.g, border.b);
+                    self.r.drawRectangle(.Filled, tl.add(Vector2i{ .x = 1, .y = 1 }), size.add(.{ .x = -2, .y = -2 }), bg.r, bg.g, bg.b);
+                },
+                .Text => |t| {
+                    var tl = Vector2i.fromVector2(t.tl);
+                    self.r.drawText(self.ui.fallbackFont.atlas, tl, t.text, t.color);
+                },
+            }
+        }
+
+        try self.r.writeOut(self.outFile);
     }
 };
 
@@ -61,11 +85,15 @@ test "Testing a render" {
     var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
     defer rend.deinit();
     rend.setRenderFile("Saved/frame.bmp");
+    try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
     var panel = try ctx.addPanel(0);
     ctx.get(panel).style.border = .Solid;
-    ctx.get(panel).size = .{ .x = 300, .y = 400 };
+    ctx.get(panel).style.backgroundColor = BurnStyle.SlateGrey;
+    ctx.get(panel).style.foregroundColor = BurnStyle.Normal;
+    ctx.get(panel).style.borderColor = BurnStyle.Bright1;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
+    ctx.get(panel).size = .{ .x = 400, .y = 400 };
 
     try rend.render();
 }
@@ -104,6 +132,45 @@ const BmpWriter = struct {
 
     pub fn clear(self: *@This()) void {
         std.mem.set(u8, self.pixelBuffer, 0x8);
+    }
+
+    pub fn addChar(self: *@This(), atlas: *const FontAtlas, pos: Vector2i, ch: u8, color: Color) void {
+        const metrics = atlas.glyphMetrics[ch];
+
+        var row: i32 = 0;
+        while (row < metrics.y) : (row += 1) {
+            var col: i32 = 0;
+            while (col < metrics.x) : (col += 1) {
+                const pixelOffset = @intCast(usize, (atlas.glyphStride * ch) + col + row * atlas.atlasSize.x);
+                const pixelOffset2 = @intCast(usize, ((self.extent.y - pos.y - row) * self.extent.x) + pos.x + col);
+
+                const energy = atlas.atlasBuffer.?[pixelOffset];
+                if (energy > 128) {
+                    self.pixelBuffer[pixelOffset2 * 3 + 0] = @floatToInt(u8, @intToFloat(f32, energy) * color.r);
+                    self.pixelBuffer[pixelOffset2 * 3 + 1] = @floatToInt(u8, @intToFloat(f32, energy) * color.g);
+                    self.pixelBuffer[pixelOffset2 * 3 + 2] = @floatToInt(u8, @intToFloat(f32, energy) * color.b);
+                }
+            }
+        }
+    }
+
+    pub fn drawText(self: *@This(), atlas: *const FontAtlas, topLeft: Vector2i, text: LocText, color: Color) void {
+        // blit each character from the atlas onto the thing
+        const str = text.getRead();
+
+        for (str, 0..) |ch, i| {
+            const box = atlas.glyphBox1[ch];
+            std.debug.print("{any}\n", .{box});
+            self.addChar(
+                atlas,
+                topLeft.add(.{
+                    .x = (atlas.glyphStride + 1) * @intCast(i32, i),
+                    .y = @floatToInt(i32, atlas.fontSize),
+                }).add(.{ .x = box.x, .y = box.y }),
+                ch,
+                color,
+            );
+        }
     }
 
     pub fn drawRectangle(self: *@This(), style: enum { Filled, Line }, topLeft: Vector2i, size: Vector2i, r: u8, g: u8, b: u8) void {
@@ -205,9 +272,15 @@ const FontAtlas = struct {
     fontSize: f32,
     atlasSize: Vector2i = .{},
     glyphMax: Vector2i = .{},
+    glyphStride: i32 = 0,
     glyphMetrics: [256]Vector2i = undefined,
     glyphBox0: [256]Vector2i = undefined,
     glyphBox1: [256]Vector2i = undefined,
+    ascent: i32 = 0,
+    descent: i32 = 0,
+    scale: f32 = 0,
+    lineGap: i32 = 0,
+    baseline: i32 = 0,
 
     glyphCoordinates: [256][2]Vector2 = undefined,
 
@@ -236,8 +309,12 @@ const FontAtlas = struct {
 
         var ch: u32 = 0;
 
+        self.scale = c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize);
+        self.baseline = @floatToInt(i32, self.scale * @intToFloat(f32, self.ascent));
+
+        // c.stbtt_GetFontVMetrics(&self.font, &self.ascent, &self.descent, &self.lineGap);
         while (ch < glyphCount) : (ch += 1) {
-            glyphs[ch] = c.stbtt_GetCodepointBitmap(&self.font, 0, c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize), @intCast(c_int, ch), &self.glyphMetrics[ch].x, &self.glyphMetrics[ch].y, 0, 0);
+            glyphs[ch] = c.stbtt_GetCodepointBitmap(&self.font, 0, c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize), @intCast(c_int, ch), &self.glyphMetrics[ch].x, &self.glyphMetrics[ch].y, &self.glyphBox1[ch].x, &self.glyphBox1[ch].y);
 
             if (self.glyphMetrics[ch].x > max.x)
                 max.x = self.glyphMetrics[ch].x;
@@ -245,21 +322,22 @@ const FontAtlas = struct {
             if (self.glyphMetrics[ch].y > max.y)
                 max.y = self.glyphMetrics[ch].y;
 
-            c.stbtt_GetGlyphBitmapBox(
-                &self.font,
-                @intCast(c_int, ch),
-                0,
-                c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-                &self.glyphBox0[ch].x,
-                &self.glyphBox0[ch].y,
-                &self.glyphBox1[ch].x,
-                &self.glyphBox1[ch].y,
-            );
+            // c.stbtt_GetGlyphBitmapBox(
+            //     &self.font,
+            //     @intCast(c_int, ch),
+            //     0,
+            //     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+            //     &self.glyphBox0[ch].x,
+            //     &self.glyphBox0[ch].y,
+            //     &self.glyphBox1[ch].x,
+            //     &self.glyphBox1[ch].y,
+            // );
         }
 
         self.glyphMax = max;
         // allocate the atlasBuffer, just a linear strip
         self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) * 2 };
+        self.glyphStride = max.x + 1;
         self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
         std.mem.set(u8, self.atlasBuffer.?, 0x0);
 
@@ -313,17 +391,17 @@ const FontAtlas = struct {
             }
         }
 
-        var ch: u32 = 0;
-        while (ch < 256) : (ch += 1) {
-            renderer.drawRectangle(
-                .Line,
-                .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y - try std.math.absInt(self.glyphBox0[ch].y) },
-                .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) },
-                255,
-                255,
-                0,
-            );
-        }
+        // var ch: u32 = 0;
+        // while (ch < 256) : (ch += 1) {
+        //     renderer.drawRectangle(
+        //         .Line,
+        //         .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y - try std.math.absInt(self.glyphBox0[ch].y) },
+        //         .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) },
+        //         255,
+        //         255,
+        //         0,
+        //     );
+        // }
 
         try renderer.writeOut(fileName);
         defer renderer.deinit();
@@ -442,6 +520,23 @@ pub const FileLog = struct {
 
 // ========================= Color =========================
 
+pub const ColorRGBA8 = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+
+    pub fn fromColor(o: Color) @This() {
+        std.debug.print("{any}\n", .{o});
+        return .{
+            .r = @floatToInt(u8, std.math.clamp(o.r, 0, 1.0) * 255),
+            .g = @floatToInt(u8, std.math.clamp(o.g, 0, 1.0) * 255),
+            .b = @floatToInt(u8, std.math.clamp(o.b, 0, 1.0) * 255),
+            .a = @floatToInt(u8, std.math.clamp(o.a, 0, 1.0) * 255),
+        };
+    }
+};
+
 pub const Color = struct {
     r: f32 = 0,
     g: f32 = 0,
@@ -455,7 +550,6 @@ pub const Color = struct {
     pub const Blue = fromRGB(0x0000FF);
     pub const Cyan = fromRGB(0x00FFFF);
     pub const Magenta = fromRGB(0xFF00FF);
-    pub const SlateGrey = fromRGB(0x141414);
 
     pub fn intoRGBA(self: @This()) Color32 {
         return ((@floatToInt(u32, self.r) * 0xFF) << 24) |
@@ -474,19 +568,19 @@ pub const Color = struct {
 
     pub fn fromRGB(rgb: u32) @This() {
         return @This(){
-            .r = @intToFloat(f32, (rgb >> 16) & 0xFF),
-            .g = @intToFloat(f32, (rgb >> 8) & 0xFF),
-            .b = @intToFloat(f32, (rgb) & 0xFF),
+            .r = @intToFloat(f32, (rgb >> 16) & 0xFF) / 255,
+            .g = @intToFloat(f32, (rgb >> 8) & 0xFF) / 255,
+            .b = @intToFloat(f32, (rgb) & 0xFF) / 255,
             .a = 1.0,
         };
     }
 
     pub fn fromRGBA(rgba: u32) @This() {
         return @This(){
-            .r = @intToFloat(f32, (rgba >> 24) & 0xFF),
-            .g = @intToFloat(f32, (rgba >> 16) & 0xFF),
-            .b = @intToFloat(f32, (rgba >> 8) & 0xFF),
-            .a = @intToFloat(f32, (rgba) & 0xFF),
+            .r = @intToFloat(f32, (rgba >> 24) & 0xFF) / 255,
+            .g = @intToFloat(f32, (rgba >> 16) & 0xFF) / 255,
+            .b = @intToFloat(f32, (rgba >> 8) & 0xFF) / 255,
+            .a = @intToFloat(f32, (rgba) & 0xFF) / 255,
         };
     }
 };
@@ -502,6 +596,7 @@ pub const BurnStyle = struct {
     pub const Bright2 = Color.fromRGB(0xffff00);
     pub const Statement = Color.fromRGB(0xff00f2);
     pub const LineTerminal = Color.fromRGB(0x87aefa);
+    pub const SlateGrey = Color.fromRGB(0x141414);
 };
 
 // RGBA format for color
@@ -960,6 +1055,14 @@ pub const Vector2i = struct {
     pub fn add(self: @This(), o: @This()) @This() {
         return .{ .x = self.x + o.x, .y = self.y + o.y };
     }
+
+    pub fn sub(self: @This(), o: @This()) @This() {
+        return .{ .x = self.x - o.x, .y = self.y - o.y };
+    }
+
+    pub fn fromVector2(o: Vector2) @This() {
+        return .{ .x = @floatToInt(i32, o.x), .y = @floatToInt(i32, o.y) };
+    }
 };
 
 pub const Vector2 = struct {
@@ -1090,7 +1193,9 @@ pub const PapyrusBorderStyle = enum {
 pub const PapyrusNodeStyle = struct {
     border: PapyrusBorderStyle = .None,
     hasTitle: bool = false,
-    color: Color = Color.SlateGrey,
+    foregroundColor: Color = BurnStyle.Normal,
+    backgroundColor: Color = BurnStyle.SlateGrey,
+    borderColor: Color = BurnStyle.Bright2,
 };
 
 // this is going to follow a pretty object-oriented-like user facing api
@@ -1140,8 +1245,6 @@ pub const PapyrusFont = struct {
 };
 
 pub const PapyrusContext = struct {
-
-    // Papyrus is wrapped by an arena allocator
     allocator: std.mem.Allocator,
     nodes: DynamicPool(PapyrusNode),
     fonts: std.AutoHashMap(u32, PapyrusFont),
@@ -1164,7 +1267,7 @@ pub const PapyrusContext = struct {
             },
         };
 
-        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 32);
+        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 16);
         try self.fonts.put(self.fallbackFont.name.hash, self.fallbackFont);
 
         // constructing the root node
@@ -1313,6 +1416,80 @@ pub const PapyrusContext = struct {
         _ = self;
         _ = deltaTime;
     }
+
+    // ============================= Rendering and Layout ==================
+
+    pub const DrawCommand = struct {
+        node: u32,
+        primitive: union(enum(u8)) {
+            Rect: struct {
+                tl: Vector2,
+                size: Vector2,
+                borderColor: Color,
+                backgroundColor: Color,
+            },
+            Text: struct {
+                tl: Vector2,
+                text: LocText,
+                color: Color,
+            },
+        },
+    };
+    pub const DrawList = std.ArrayList(DrawCommand);
+    const DrawOrderList = std.ArrayList(u32);
+
+    fn assembleDrawOrderListForNode(self: @This(), node: u32, list: *DrawOrderList) !void {
+        var next: u32 = self.getRead(node).child;
+        while (next != 0) : (next = self.getRead(next).next) {
+            try list.append(next);
+            try self.assembleDrawOrderListForNode(next, list);
+        }
+    }
+
+    fn assembleDrawList(self: *@This()) !DrawList {
+        var drawOrder: DrawOrderList = DrawOrderList.init(self.allocator);
+        defer drawOrder.deinit();
+        try self.assembleDrawOrderListForNode(0, &drawOrder);
+
+        var drawList = DrawList.init(self.allocator);
+
+        for (drawOrder.items) |node| {
+            var n = self.getRead(node);
+            switch (n.nodeType) {
+                .Panel => {
+                    try drawList.append(.{ .node = node, .primitive = .{
+                        .Rect = .{
+                            .tl = n.pos,
+                            .size = n.size,
+                            .borderColor = n.style.borderColor,
+                            .backgroundColor = n.style.backgroundColor,
+                        },
+                    } });
+
+                    try drawList.append(.{ .node = node, .primitive = .{
+                        .Rect = .{
+                            .tl = n.pos,
+                            .size = .{ .x = n.size.x, .y = 24 },
+                            .borderColor = n.style.borderColor,
+                            .backgroundColor = n.style.borderColor,
+                        },
+                    } });
+
+                    try drawList.append(.{ .node = node, .primitive = .{
+                        .Text = .{
+                            .tl = n.pos.add(.{ .x = 3, .y = 1 }),
+                            .text = Text("panel window"),
+                            .color = BurnStyle.SlateGrey,
+                        },
+                    } });
+                },
+                .Slot, .DisplayText, .Button => {},
+            }
+        }
+
+        return drawList;
+    }
+    //
 
     pub fn printTree(self: @This(), root: u32) void {
         std.debug.print("\n ==== tree ==== \n", .{});
