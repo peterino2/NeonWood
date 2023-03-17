@@ -1742,6 +1742,7 @@ pub const NeonVkContext = struct {
 
     pub fn pollEventsFunc(_: @This()) void {
         c.glfwPollEvents();
+        //c.glfwWaitEvents();
     }
 
     fn destroy_framebuffers(self: *Self) !void {
@@ -2539,8 +2540,7 @@ pub const NeonVkContext = struct {
             }
         }
 
-        // self.presentMode = .mailbox_khr;
-        //self.presentMode = .mailbox_khr;
+        self.presentMode = .fifo_khr;
     }
 
     pub fn get_layer_extensions(self: *Self) ![]const vk.LayerProperties {

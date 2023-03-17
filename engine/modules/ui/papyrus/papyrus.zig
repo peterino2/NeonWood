@@ -88,12 +88,19 @@ test "Testing a render" {
     try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
     var panel = try ctx.addPanel(0);
-    ctx.get(panel).style.border = .Solid;
+    ctx.get(panel).nodeType.Panel.border = .Solid;
     ctx.get(panel).style.backgroundColor = BurnStyle.SlateGrey;
     ctx.get(panel).style.foregroundColor = BurnStyle.Normal;
     ctx.get(panel).style.borderColor = BurnStyle.DarkComment;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
     ctx.get(panel).size = .{ .x = 400, .y = 400 };
+
+    var panel2 = try ctx.addPanel(0);
+    ctx.get(panel2).text = Text("wanker window");
+    ctx.get(panel2).nodeType.Panel.hasTitle = true;
+    ctx.get(panel2).style = ctx.get(panel).style;
+    ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
+    ctx.get(panel2).size = .{ .x = 400, .y = 400 };
 
     try rend.render();
 }
@@ -1178,6 +1185,8 @@ pub const NodeProperty_Text = struct {
 
 pub const NodeProperty_Panel = struct {
     internalLayout: u32 = 0,
+    border: PapyrusBorderStyle = .None,
+    hasTitle: bool = false,
 };
 
 pub const NodePropertiesBag = union(enum(u8)) {
@@ -1201,8 +1210,6 @@ pub const PapyrusBorderStyle = enum {
 };
 
 pub const PapyrusNodeStyle = struct {
-    border: PapyrusBorderStyle = .None,
-    hasTitle: bool = false,
     foregroundColor: Color = BurnStyle.Normal,
     backgroundColor: Color = BurnStyle.SlateGrey,
     borderColor: Color = BurnStyle.Bright2,
@@ -1466,7 +1473,7 @@ pub const PapyrusContext = struct {
         for (drawOrder.items) |node| {
             var n = self.getRead(node);
             switch (n.nodeType) {
-                .Panel => {
+                .Panel => |panel| {
                     try drawList.append(.{ .node = node, .primitive = .{
                         .Rect = .{
                             .tl = n.pos,
@@ -1476,22 +1483,24 @@ pub const PapyrusContext = struct {
                         },
                     } });
 
-                    try drawList.append(.{ .node = node, .primitive = .{
-                        .Rect = .{
-                            .tl = n.pos,
-                            .size = .{ .x = n.size.x, .y = 24 },
-                            .borderColor = n.style.borderColor,
-                            .backgroundColor = n.style.borderColor,
-                        },
-                    } });
+                    if (panel.hasTitle) {
+                        try drawList.append(.{ .node = node, .primitive = .{
+                            .Rect = .{
+                                .tl = n.pos,
+                                .size = .{ .x = n.size.x, .y = 24 },
+                                .borderColor = n.style.borderColor,
+                                .backgroundColor = n.style.borderColor,
+                            },
+                        } });
 
-                    try drawList.append(.{ .node = node, .primitive = .{
-                        .Text = .{
-                            .tl = n.pos.add(.{ .x = 3, .y = 1 }),
-                            .text = Text("panel window"),
-                            .color = BurnStyle.Highlight1,
-                        },
-                    } });
+                        try drawList.append(.{ .node = node, .primitive = .{
+                            .Text = .{
+                                .tl = n.pos.add(.{ .x = 3, .y = 1 }),
+                                .text = n.text,
+                                .color = BurnStyle.Highlight1,
+                            },
+                        } });
+                    }
                 },
                 .Slot, .DisplayText, .Button => {},
             }
