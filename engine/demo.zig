@@ -48,7 +48,7 @@ pub const GameContext = struct {
 
         self.camera.rotation = core.zm.quatFromRollPitchYaw(core.radians(30.0), core.radians(0.0), 0.0);
         self.camera.fov = 70.0;
-        self.camera.position = .{ .x = 0.0, .y = 7, .z = 0 };
+        self.camera.position = .{ .x = 0.0, .y = 6.5, .z = 0 };
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
@@ -208,6 +208,7 @@ pub fn mousePositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callc
 
     gGame.eulerX += dx / 1920;
     gGame.eulerY += dy / 1080;
+    gGame.eulerY = std.math.clamp(gGame.eulerY, core.radians(-90.0), core.radians(90.0));
 
     c.glfwSetCursorPos(
         graphics.getContext().window,

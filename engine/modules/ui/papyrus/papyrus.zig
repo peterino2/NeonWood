@@ -31,6 +31,7 @@ const BmpRenderer = struct {
     extent: Vector2i,
     r: BmpWriter,
     outFile: []const u8 = "Saved/frame.bmp",
+    baseColor: ColorRGBA8 = ColorRGBA8.fromHex(0x080808ff),
 
     pub fn init(allocator: std.mem.Allocator, ui: *PapyrusContext, extent: Vector2i) !@This() {
         return .{
@@ -50,7 +51,7 @@ const BmpRenderer = struct {
     }
 
     pub fn render(self: *@This()) !void {
-        self.r.clear();
+        self.r.clear(self.baseColor);
         var drawList = try self.ui.assembleDrawList();
         defer drawList.deinit();
 
@@ -83,24 +84,32 @@ test "Testing a render" {
     defer ctx.deinit();
 
     var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
+    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
     defer rend.deinit();
     rend.setRenderFile("Saved/frame.bmp");
     try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
     var panel = try ctx.addPanel(0);
     ctx.get(panel).nodeType.Panel.border = .Solid;
-    ctx.get(panel).style.backgroundColor = BurnStyle.SlateGrey;
-    ctx.get(panel).style.foregroundColor = BurnStyle.Normal;
-    ctx.get(panel).style.borderColor = BurnStyle.DarkComment;
+    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
+    ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
+    ctx.get(panel).style.borderColor = ModernStyle.GreyDark;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
     ctx.get(panel).size = .{ .x = 400, .y = 400 };
 
-    var panel2 = try ctx.addPanel(0);
+    var panel2 = try ctx.addPanel(panel);
     ctx.get(panel2).text = Text("wanker window");
     ctx.get(panel2).nodeType.Panel.hasTitle = true;
     ctx.get(panel2).style = ctx.get(panel).style;
     ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
     ctx.get(panel2).size = .{ .x = 400, .y = 400 };
+
+    var panel3 = try ctx.addPanel(panel2);
+    ctx.get(panel3).text = Text("panel 3");
+    ctx.get(panel3).nodeType.Panel.hasTitle = true;
+    ctx.get(panel3).style = ctx.get(panel).style;
+    ctx.get(panel3).pos = .{ .x = 1200, .y = 300 };
+    ctx.get(panel3).size = .{ .x = 400, .y = 400 };
 
     try rend.render();
 }
@@ -137,8 +146,15 @@ const BmpWriter = struct {
         return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
     }
 
-    pub fn clear(self: *@This()) void {
-        std.mem.set(u8, self.pixelBuffer, 0x8);
+    pub fn clear(self: *@This(), color: ColorRGBA8) void {
+        //std.mem.set(u8, self.pixelBuffer, 0x8);
+
+        var i: u32 = 0;
+        while (i < self.pixelBuffer.len) : (i += 3) {
+            self.pixelBuffer[i + 2] = color.r;
+            self.pixelBuffer[i + 1] = color.g;
+            self.pixelBuffer[i + 0] = color.b;
+        }
     }
 
     pub fn addChar(self: *@This(), atlas: *const FontAtlas, pos: Vector2i, ch: u8, color: Color) void {
@@ -161,7 +177,6 @@ const BmpWriter = struct {
         }
     }
 
-    // This renderer does not do proper layouts.
     pub fn drawText(self: *@This(), atlas: *const FontAtlas, topLeft: Vector2i, text: LocText, color: Color) void {
         // blit each character from the atlas onto the thing
         const str = text.getRead();
@@ -170,7 +185,6 @@ const BmpWriter = struct {
         for (str, 0..) |ch, i| {
             _ = i;
             const box = atlas.glyphBox1[ch];
-            std.debug.print("{any}\n", .{box});
             self.addChar(
                 atlas,
                 topLeft.add(.{
@@ -536,10 +550,19 @@ pub const FileLog = struct {
 // ========================= Color =========================
 
 pub const ColorRGBA8 = struct {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    r: u8 = 0x0,
+    g: u8 = 0x0,
+    b: u8 = 0x0,
+    a: u8 = 0xff,
+
+    pub fn fromHex(hex: u32) @This() {
+        return .{
+            .r = @intCast(u8, (hex >> 24) & 0xFF),
+            .g = @intCast(u8, (hex >> 16) & 0xFF),
+            .b = @intCast(u8, (hex >> 8) & 0xFF),
+            .a = @intCast(u8, (hex) & 0xFF),
+        };
+    }
 
     pub fn fromColor(o: Color) @This() {
         std.debug.print("{any}\n", .{o});
@@ -614,6 +637,17 @@ pub const BurnStyle = struct {
     pub const LineTerminal = Color.fromRGB(0x87aefa);
     pub const SlateGrey = Color.fromRGB(0x141414);
     pub const DarkSlateGrey = Color.fromRGB(0x101010);
+};
+
+// Color Style generated from some website
+pub const ModernStyle = struct {
+    pub const Grey = Color.fromRGB(0x333348);
+    pub const GreyLight = Color.fromRGB(0x44445F);
+    pub const GreyDark = Color.fromRGB(0x222230);
+    pub const Yellow = Color.fromRGB(0xf0cc56);
+    pub const Orange = Color.fromRGB(0xcf5c36);
+    pub const BrightGrey = Color.fromRGB(0x90a9b7);
+    pub const Blue = Color.fromRGB(0x3c91e6);
 };
 
 // RGBA format for color
@@ -1240,7 +1274,9 @@ pub const PapyrusNode = struct {
     size: Vector2 = .{ .x = 0, .y = 0 },
     pos: Vector2 = .{ .x = 0, .y = 0 },
 
+    // padding is the external
     padding: NodePadding = .{ .all = 0 },
+
     state: PapyrusState = .Visible,
     hittest: PapyrusHitTestability = .Testable,
     dockingPolicy: enum { Dockable, NotDockable } = .Dockable,
