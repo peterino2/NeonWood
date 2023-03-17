@@ -79,6 +79,26 @@ const BmpRenderer = struct {
     }
 };
 
+test "Testing a fullscreen render" {
+    var ctx = try PapyrusContext.create(std.testing.allocator);
+    defer ctx.deinit();
+
+    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
+    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
+    defer rend.deinit();
+    rend.setRenderFile("Saved/frame_fs.bmp");
+
+    var panel = try ctx.addPanel(0);
+    ctx.get(panel).nodeType.Panel.border = .Solid;
+    ctx.get(panel).nodeType.Panel.hasTitle = true;
+    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
+    ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
+    ctx.get(panel).style.borderColor = ModernStyle.GreyDark;
+    ctx.get(panel).pos = .{ .x = 0, .y = 0 };
+    ctx.get(panel).size = .{ .x = 1920, .y = 1080 };
+    try rend.render();
+}
+
 test "Testing a render" {
     var ctx = try PapyrusContext.create(std.testing.allocator);
     defer ctx.deinit();
