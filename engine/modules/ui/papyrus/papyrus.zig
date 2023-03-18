@@ -187,12 +187,22 @@ const BmpWriter = struct {
                 const pixelOffset = @intCast(usize, (atlas.glyphStride * ch) + col + row * atlas.atlasSize.x);
                 const pixelOffset2 = @intCast(usize, ((self.extent.y - pos.y - row) * self.extent.x) + pos.x + col);
 
-                const energy = atlas.atlasBuffer.?[pixelOffset];
-                if (energy > 128) {
-                    self.pixelBuffer[pixelOffset2 * 3 + 0] = @floatToInt(u8, @intToFloat(f32, energy) * color.b);
-                    self.pixelBuffer[pixelOffset2 * 3 + 1] = @floatToInt(u8, @intToFloat(f32, energy) * color.g);
-                    self.pixelBuffer[pixelOffset2 * 3 + 2] = @floatToInt(u8, @intToFloat(f32, energy) * color.r);
-                }
+                const alpha = @intToFloat(f32, atlas.atlasBuffer.?[pixelOffset]) / 255;
+                const old = Color.fromRGB2(
+                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 2]) / 255,
+                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 1]) / 255,
+                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 0]) / 255,
+                );
+
+                const new = ColorRGBA8{
+                    .r = @floatToInt(u8, 255 * (alpha * color.r + (1 - alpha) * old.r)),
+                    .g = @floatToInt(u8, 255 * (alpha * color.g + (1 - alpha) * old.g)),
+                    .b = @floatToInt(u8, 255 * (alpha * color.r + (1 - alpha) * old.b)),
+                };
+
+                self.pixelBuffer[pixelOffset2 * 3 + 2] = new.r;
+                self.pixelBuffer[pixelOffset2 * 3 + 1] = new.g;
+                self.pixelBuffer[pixelOffset2 * 3 + 0] = new.b;
             }
         }
     }
@@ -1271,8 +1281,6 @@ pub const PapyrusNodeStyle = struct {
 
 // this is going to follow a pretty object-oriented-like user facing api
 pub const PapyrusNode = struct {
-    ctx: *PapyrusContext,
-
     text: LocText = Text("hello world"),
     parent: u32 = 0, // 0 corresponds to true root
 
@@ -1326,7 +1334,7 @@ pub const PapyrusContext = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "ProggyClean";
-        const fallbackFontFile: []const u8 = "fonts/ShareTechMono-Regular.ttf";
+        const fallbackFontFile: []const u8 = "fonts/ComicMono.ttf";
 
         var self = try backingAllocator.create(@This());
 
@@ -1340,12 +1348,11 @@ pub const PapyrusContext = struct {
             },
         };
 
-        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 16);
+        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
         try self.fonts.put(self.fallbackFont.name.hash, self.fallbackFont);
 
         // constructing the root node
         _ = try self.nodes.new(.{
-            .ctx = self,
             .text = Text("root"),
             .parent = 0,
             .anchor = .TopLeft,
@@ -1381,7 +1388,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addSlot(self: *@This(), parent: u32) !u32 {
-        var slotNode = PapyrusNode{ .ctx = self, .nodeType = .{ .Slot = .{} } };
+        var slotNode = PapyrusNode{ .nodeType = .{ .Slot = .{} } };
         var slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
@@ -1390,7 +1397,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addPanel(self: *@This(), parent: u32) !u32 {
-        var slotNode = PapyrusNode{ .ctx = self, .nodeType = .{ .Panel = .{} } };
+        var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{} } };
         var slot = try self.nodes.new(slotNode);
 
         try self.setParent(slot, parent);
