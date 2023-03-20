@@ -10,16 +10,46 @@ const c = @cImport({
 //
 // Actual hook up of the IO Processor and graphics is done elsewhere.
 
-// =================== todo =======================
-// Next things to do:
-//  - note because of the way I do storage and pooling, it's possible to do a straightup memhash
-//  on the entire pool of nodes to check if state has changed at all.
-//  - create state render from the node hierarchy.
-//      - quickly traverse through all nodes and push out a structure of where all the bounds are.
-//      - sort nodes into a proper draw order.
-//      - walk through all nodes and parse their current state,
-//  - need to create a layout description
-// ================================================
+// =================================== Document: How should the layout engine work ===========================
+//
+// In terms of goals I want to be able to support both screen space proportional UIs as well as UIs for
+// creating general purpose applications.
+//
+//
+// Notes on some other applications like remedybg.
+//
+// - Panels are either free floating or docked
+// - Their position is described as an anchor offset
+// - Elements have a minimum size which they are happy to shrink to.
+//
+// Docked:
+// - when docked, the panel's size layout is described as a percentage of their parent's docking space
+// - Text should stay the same and not proportionally follow the window.
+// - Images and image based layouts should.
+//
+// Free:
+//
+// - Their size is absolute, and their position is relative to the reference anchor.
+//
+// Text:
+// - Text should build their geometry requirements ahead of time, and only be looked up when we're ready to render.
+// - For a given length of text and a maximum width, we should be able to figure out it's height requirements.
+//
+// Tasks:
+//  - Panel Layout
+//      - internal layout:
+//          - free:
+//          - grid:
+//          - verticalList:
+//          - horizontalList:
+//
+//  - Layout algorithm
+//      - for each node
+//          - get parent context
+//          - create current layout context
+//          - call into sub layout function with current context
+//
+// =================================== /Document: How should the layout engine work ===========================
 
 // Bmp software renderer
 // This is a backend agnostic testing renderer which just renders outlines to a bmp file
@@ -52,8 +82,16 @@ const BmpRenderer = struct {
 
     pub fn render(self: *@This()) !void {
         self.r.clear(self.baseColor);
-        var drawList = try self.ui.assembleDrawList();
+
+        var timer = try std.time.Timer.start();
+        const tstart = timer.read();
+
+        var drawList = try self.ui.makeDrawList();
         defer drawList.deinit();
+
+        const tend = timer.read();
+        const duration = (@intToFloat(f64, tend - tstart) / 1000);
+        std.debug.print(" drawList Assembly: {d}us\n", .{duration});
 
         var i: u32 = 0;
         while (i < drawList.items.len) : (i += 1) {
@@ -78,61 +116,6 @@ const BmpRenderer = struct {
         try self.r.writeOut(self.outFile);
     }
 };
-
-test "Testing a fullscreen render" {
-    var ctx = try PapyrusContext.create(std.testing.allocator);
-    defer ctx.deinit();
-
-    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
-    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
-    defer rend.deinit();
-    rend.setRenderFile("Saved/frame_fs.bmp");
-
-    var panel = try ctx.addPanel(0);
-    ctx.get(panel).nodeType.Panel.border = .Solid;
-    ctx.get(panel).nodeType.Panel.hasTitle = true;
-    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
-    ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
-    ctx.get(panel).style.borderColor = ModernStyle.GreyDark;
-    ctx.get(panel).pos = .{ .x = 0, .y = 0 };
-    ctx.get(panel).size = .{ .x = 1920, .y = 1080 };
-    try rend.render();
-}
-
-test "Testing a render" {
-    var ctx = try PapyrusContext.create(std.testing.allocator);
-    defer ctx.deinit();
-
-    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
-    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
-    defer rend.deinit();
-    rend.setRenderFile("Saved/frame.bmp");
-    try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
-
-    var panel = try ctx.addPanel(0);
-    ctx.get(panel).nodeType.Panel.border = .Solid;
-    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
-    ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
-    ctx.get(panel).style.borderColor = ModernStyle.GreyDark;
-    ctx.get(panel).pos = .{ .x = 100, .y = 300 };
-    ctx.get(panel).size = .{ .x = 400, .y = 400 };
-
-    var panel2 = try ctx.addPanel(panel);
-    ctx.get(panel2).text = Text("wanker window");
-    ctx.get(panel2).nodeType.Panel.hasTitle = true;
-    ctx.get(panel2).style = ctx.get(panel).style;
-    ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
-    ctx.get(panel2).size = .{ .x = 400, .y = 400 };
-
-    var panel3 = try ctx.addPanel(panel2);
-    ctx.get(panel3).text = Text("panel 3");
-    ctx.get(panel3).nodeType.Panel.hasTitle = true;
-    ctx.get(panel3).style = ctx.get(panel).style;
-    ctx.get(panel3).pos = .{ .x = 1200, .y = 300 };
-    ctx.get(panel3).size = .{ .x = 400, .y = 400 };
-
-    try rend.render();
-}
 
 const BmpWriter = struct {
     const FileHeader = extern struct {
@@ -167,8 +150,6 @@ const BmpWriter = struct {
     }
 
     pub fn clear(self: *@This(), color: ColorRGBA8) void {
-        //std.mem.set(u8, self.pixelBuffer, 0x8);
-
         var i: u32 = 0;
         while (i < self.pixelBuffer.len) : (i += 3) {
             self.pixelBuffer[i + 2] = color.r;
@@ -335,12 +316,10 @@ const FontAtlas = struct {
     glyphMetrics: [256]Vector2i = undefined,
     glyphBox0: [256]Vector2i = undefined,
     glyphBox1: [256]Vector2i = undefined,
-    ascent: i32 = 0,
-    descent: i32 = 0,
     scale: f32 = 0,
-    lineGap: i32 = 0,
-    baseline: i32 = 0,
+    lineSize: f32 = 0,
 
+    meshes: [256][4]Vector2 = undefined,
     glyphCoordinates: [256][2]Vector2 = undefined,
 
     // creates a font atlas from
@@ -361,7 +340,6 @@ const FontAtlas = struct {
     }
 
     fn createAtlas(self: *@This()) !void {
-        std.debug.print("\ncreating Atlas\n", .{});
         const glyphCount = 256;
         var glyphs: [glyphCount][*c]u8 = undefined;
         var max: Vector2i = .{};
@@ -369,36 +347,35 @@ const FontAtlas = struct {
         var ch: u32 = 0;
 
         self.scale = c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize);
-        self.baseline = @floatToInt(i32, self.scale * @intToFloat(f32, self.ascent));
 
-        // c.stbtt_GetFontVMetrics(&self.font, &self.ascent, &self.descent, &self.lineGap);
         while (ch < glyphCount) : (ch += 1) {
-            glyphs[ch] = c.stbtt_GetCodepointBitmap(&self.font, 0, c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize), @intCast(c_int, ch), &self.glyphMetrics[ch].x, &self.glyphMetrics[ch].y, &self.glyphBox1[ch].x, &self.glyphBox1[ch].y);
+            glyphs[ch] = c.stbtt_GetCodepointBitmap(
+                &self.font,
+                0,
+                c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+                @intCast(c_int, ch),
+                &self.glyphMetrics[ch].x,
+                &self.glyphMetrics[ch].y,
+                &self.glyphBox1[ch].x,
+                &self.glyphBox1[ch].y,
+            );
 
-            if (self.glyphMetrics[ch].x > max.x)
+            if (self.glyphMetrics[ch].x > max.x) {
                 max.x = self.glyphMetrics[ch].x;
+            }
 
             if (self.glyphMetrics[ch].y > max.y)
                 max.y = self.glyphMetrics[ch].y;
-
-            // c.stbtt_GetGlyphBitmapBox(
-            //     &self.font,
-            //     @intCast(c_int, ch),
-            //     0,
-            //     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-            //     &self.glyphBox0[ch].x,
-            //     &self.glyphBox0[ch].y,
-            //     &self.glyphBox1[ch].x,
-            //     &self.glyphBox1[ch].y,
-            // );
         }
 
         self.glyphMax = max;
         // allocate the atlasBuffer, just a linear strip
-        self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) * 2 };
+        self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) };
         self.glyphStride = max.x + 1;
         self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
         std.mem.set(u8, self.atlasBuffer.?, 0x0);
+
+        std.debug.print("creating atlas: {s}\n", .{self.filePath});
 
         // write bitmaps into the atlas buffer
         ch = 0;
@@ -429,10 +406,37 @@ const FontAtlas = struct {
                     self.atlasBuffer.?[pixelOffset] = glyphs[ch][@intCast(usize, (row * maxCol) + col)];
                 }
             }
-        }
 
-        std.debug.print("\nmax:{d} x {d}\n", .{ max.x, max.y });
-        std.debug.print("\nextent: {x} x {x}\n", .{ self.atlasSize.x, self.atlasSize.y });
+            // const xSize = @intToFloat(f32, self.glyphMetrics[ch].x); // * self.scale;
+            // const ySize = @intToFloat(f32, self.glyphMetrics[ch].y); // * self.scale;
+            // const xOff = @intToFloat(f32, self.glyphBox1[ch].x); // * self.scale;
+            // const yOff = @intToFloat(f32, self.glyphBox1[ch].y); // * self.scale;
+
+            const xSize = @intToFloat(f32, self.glyphMetrics[ch].x) * self.scale;
+            const ySize = @intToFloat(f32, self.glyphMetrics[ch].y) * self.scale;
+            const xOff = @intToFloat(f32, self.glyphBox1[ch].x) * self.scale;
+            const yOff = @intToFloat(f32, self.glyphBox1[ch].y) * self.scale;
+
+            // create an appropriately proportioned mesh based on the scale.
+            self.meshes[ch][0] = .{ .x = xOff, .y = ySize + yOff }; // TL
+            self.meshes[ch][1] = .{ .x = xSize + xOff, .y = ySize + yOff }; // TR
+            self.meshes[ch][2] = .{ .x = xSize + xOff, .y = 0 + yOff }; // BR
+            self.meshes[ch][3] = .{ .x = xOff, .y = yOff }; // BL
+            std.debug.print("{d} [{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}]\n", .{
+                @intCast(u8, ch),
+                self.meshes[ch][0].x,
+                self.meshes[ch][0].y,
+
+                self.meshes[ch][1].x,
+                self.meshes[ch][1].y,
+
+                self.meshes[ch][2].x,
+                self.meshes[ch][2].y,
+
+                self.meshes[ch][3].x,
+                self.meshes[ch][3].y,
+            });
+        }
     }
 
     pub fn dumpBufferToFile(self: *@This(), fileName: []const u8) !void {
@@ -450,18 +454,6 @@ const FontAtlas = struct {
             }
         }
 
-        // var ch: u32 = 0;
-        // while (ch < 256) : (ch += 1) {
-        //     renderer.drawRectangle(
-        //         .Line,
-        //         .{ .x = @intCast(i32, ch) * (self.glyphMax.x + 1), .y = self.glyphMetrics[ch].y - try std.math.absInt(self.glyphBox0[ch].y) },
-        //         .{ .x = self.glyphMetrics[ch].x, .y = try std.math.absInt(self.glyphBox0[ch].y) },
-        //         255,
-        //         255,
-        //         0,
-        //     );
-        // }
-
         try renderer.writeOut(fileName);
         defer renderer.deinit();
     }
@@ -473,56 +465,6 @@ const FontAtlas = struct {
         self.allocator.free(self.fileContent);
     }
 };
-
-test "basic bmp renderer test" {
-    var renderer = try BmpWriter.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
-    renderer.drawRectangle(.Line, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
-    defer renderer.deinit();
-
-    var timer = try std.time.Timer.start();
-
-    const startTime = timer.read();
-    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ShareTechMono-Regular.ttf", 36);
-    try atlas.dumpBufferToFile("Saved/atlas.bmp");
-    defer atlas.deinit();
-
-    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ProggyClean.ttf", 36);
-    try atlas2.dumpBufferToFile("Saved/ProggyClean.bmp");
-    defer atlas2.deinit();
-
-    // var font: c.stbtt_fontinfo = undefined;
-    // const ch: u8 = 'a';
-    // var fileContents = try loadFileAlloc("fonts/ShareTechMono-Regular.ttf", 8, std.testing.allocator);
-    // defer std.testing.allocator.free(fileContents);
-
-    // _ = c.stbtt_InitFont(&font, fileContents.ptr, c.stbtt_GetFontOffsetForIndex(fileContents.ptr, 0));
-    // var height: c_int = 0;
-    // var width: c_int = 0;
-
-    // var bitmap: [*c]u8 = c.stbtt_GetCodepointBitmap(&font, 0, c.stbtt_ScaleForPixelHeight(&font, 100), ch, &width, &height, 0, 0);
-
-    // var topLeft = Vector2i{ .x = 510, .y = 210 };
-
-    // var row: i32 = height - 1;
-    // while (row >= 0) : (row -= 1) {
-    //     var col: i32 = 0;
-    //     while (col < width) : (col += 1) {
-    //         const pixelOffset = @intCast(usize, (topLeft.y - row) * (renderer.extent.x) + col + topLeft.x);
-    //         const energy = bitmap[@intCast(usize, @intCast(i32, row * width) + col)];
-    //         if (energy > 50) {
-    //             renderer.pixelBuffer[pixelOffset * 3 + 2] = 0;
-    //             renderer.pixelBuffer[pixelOffset * 3 + 1] = energy;
-    //             renderer.pixelBuffer[pixelOffset * 3 + 0] = 0;
-    //         }
-    //     }
-    // }
-
-    const endTime = timer.read();
-    const duration = (@intToFloat(f64, endTime - startTime) / 1000000000);
-    std.debug.print(" duration: {d}\n", .{duration});
-
-    try renderer.writeOut("Saved/test.bmp");
-}
 
 fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFile: []const u8) !void {
     var sourceFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{vizFile});
@@ -595,7 +537,6 @@ pub const ColorRGBA8 = struct {
     }
 
     pub fn fromColor(o: Color) @This() {
-        std.debug.print("{any}\n", .{o});
         return .{
             .r = @floatToInt(u8, std.math.clamp(o.r, 0, 1.0) * 255),
             .g = @floatToInt(u8, std.math.clamp(o.g, 0, 1.0) * 255),
@@ -611,6 +552,7 @@ pub const Color = struct {
     b: f32 = 0,
     a: f32 = 1.0,
 
+    pub const White = fromRGB(0xFFFFFF);
     pub const Red = fromRGB(0xFF0000);
     pub const Yellow = fromRGB(0xFFFF00);
     pub const Orange = fromRGB(0xFF5500);
@@ -736,11 +678,17 @@ pub const LocDbInterface = struct {
                 var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
                 try ptr.createEntry(key, source);
             }
+
+            pub fn setLocalization(pointer: *anyopaque, name: HashStr) LocDbErrors!void {
+                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                try ptr.setLocalization(name);
+            }
         };
 
         return @This(){
             .getLocalized = W.getLocalized,
             .createEntry = W.createEntry,
+            .setLocalization = W.setLocalization,
         };
     }
 };
@@ -1082,52 +1030,7 @@ pub fn DynamicPool(comptime T: type) type {
     };
 }
 
-test "dynamic pool test" {
-    const TestStruct = struct {
-        value1: u32 = 0,
-        value4: u32 = 0,
-        value2: u32 = 0,
-        value3: u32 = 0,
-    };
-
-    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
-    defer dynPool.deinit();
-
-    {
-        // insert some objects objects
-        var count: u32 = 1000000;
-        while (count > 0) : (count -= 1) {
-            _ = try dynPool.new(.{});
-        }
-
-        // Insert 1 randomly add and delete objects another million objects in groups
-        var prng = std.rand.DefaultPrng.init(0x1234);
-        var rand = prng.random();
-
-        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
-
-        count = 1000000;
-        while (count > 0) : (count -= 1) {
-            const index = rand.int(u32) % 5;
-            var i: u32 = 0;
-            while (i < index) : (i += 1) {
-                workBuffer[i] = try dynPool.new(.{});
-            }
-
-            i = 0;
-            while (i < index) : (i += 1) {
-                dynPool.get(workBuffer[i]).?.*.value1 = 2;
-                dynPool.destroy(workBuffer[i]);
-            }
-        }
-
-        std.debug.print("\ndynPoolSize = {d}\n", .{dynPool.active.items.len});
-    }
-}
-
 // ===================================  End of Dynamic pool =========================
-
-// =============== Vectors ==================
 
 pub const Vector2i = struct {
     x: i32 = 0,
@@ -1149,6 +1052,8 @@ pub const Vector2i = struct {
 pub const Vector2 = struct {
     x: f32 = 0,
     y: f32 = 0,
+
+    pub const Ones = @This(){ .x = 1, .y = 1 };
 
     pub inline fn dot(self: @This(), o: @This()) f32 {
         return std.math.sqrt(self.x * o.x + self.y * o.y);
@@ -1177,9 +1082,11 @@ pub const Vector2 = struct {
     pub inline fn fsub(self: @This(), o: anytype) @This() {
         return .{ .x = self.x - @floatCast(f32, o), .y = self.y - @floatCast(o, f32) };
     }
-};
 
-// =================== End of Vector2 =======================
+    pub fn fromVector2i(o: anytype) @This() {
+        return .{ .x = @intToFloat(f32, o.x), .y = @intToFloat(f32, o.x) };
+    }
+};
 
 fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
     if (!eval) {
@@ -1205,10 +1112,15 @@ pub const PapyrusAnchorNode = enum {
     TopRight,   // Anchored such that 0,0 corresponds to the top right corner of the parent node
     MidRight,   // Anchored such that 0,0 corresponds to the right edge midpoint of the parent node
     BotRight,   // Anchored such that 0,0 corresponds to the bottom right corner of the parent node
-    DockLeft,   // Docked into it's parent node such that it takes up half of the container on the left
-    DockTop,    // Docked into it's parent node such that it takes up half of the container on the top
-    DockRight,  // Docked into it's parent node such that it takes up half of the container on the right
-    DockBot,    // Docked into it's parent node such that it takes up half of the container on the bottom
+    // zig fmt: on
+};
+
+pub const PapyrusFillMode = enum {
+    // zig fmt: off
+    None,       // Size will be absolute as specified by content
+    FillX,  // Size will scale to X scaling of the parent (relative to reference), if set, then the size value of x will be interpreted as a percentage of the parent
+    FillY,  // Size will scale to Y scaling of the parent (relative to reference), if set, then the size value of y will be interpreted as a percentage of the parent
+    FillXY, // Size will scale to both X and Y of the parent (relative to reference), if set, then the size value of both x and y will be interpreted as a percentage of the parent
     // zig fmt: on
 };
 
@@ -1223,17 +1135,10 @@ pub const PapyrusState = enum {
     Hidden,
 };
 
-pub const PapyrusParentFillMode = enum {
-    // zig fmt: off
-    None,       // Size will be absolute as specified by content
-    FillX,  // Size will scale to X scaling of the parent (relative to reference)
-    FillY,  // Size will scale to Y scaling of the parent (relative to reference)
-    FillXY, // Size will scale to both X and Y of the parent (relative to reference)
-    // zig fmt: on
-};
+pub const ChildLayout = enum { Free, Vertical, Horizontal };
 
 pub const NodeProperty_Slot = struct {
-    layoutMode: enum { FreeForm, VerticalMajor, HorizontalMajor } = .VerticalMajor,
+    layoutMode: ChildLayout = .Free,
 };
 
 pub const NodeProperty_Button = struct {
@@ -1243,13 +1148,14 @@ pub const NodeProperty_Button = struct {
 };
 
 pub const NodeProperty_Text = struct {
-    onPressedSignal: u32,
-    genericListener: u32,
+    pos: Vector2,
+    size: Vector2,
+    font: PapyrusFont,
 };
 
 pub const NodeProperty_Panel = struct {
-    internalLayout: u32 = 0,
-    border: PapyrusBorderStyle = .None,
+    titleColor: Color = Color.White,
+    layoutMode: ChildLayout = .Free, // when set to anything other than free, we will override anchors from inferior nodes.
     hasTitle: bool = false,
 };
 
@@ -1265,12 +1171,6 @@ pub const NodePadding = union(enum(u8)) {
     botLeft: Vector2,
     all: f32,
     allSides: [2]Vector2,
-};
-
-pub const PapyrusBorderStyle = enum {
-    None,
-    Solid,
-    Dashes,
 };
 
 pub const PapyrusNodeStyle = struct {
@@ -1290,8 +1190,7 @@ pub const PapyrusNode = struct {
     next: u32 = 0, //
     prev: u32 = 0,
 
-    anchor: PapyrusAnchorNode = .Free,
-    fill: PapyrusParentFillMode = .FillXY,
+    zOrder: i32 = 0, // higher order goes first
 
     // Not sure what's the best way to go about this.
     // I want to provide good design time metrics
@@ -1301,6 +1200,8 @@ pub const PapyrusNode = struct {
     // DPI awareness and content scaling is also a huge problem.
     size: Vector2 = .{ .x = 0, .y = 0 },
     pos: Vector2 = .{ .x = 0, .y = 0 },
+    anchor: PapyrusAnchorNode = .TopLeft,
+    fill: PapyrusFillMode = .None,
 
     // padding is the external
     padding: NodePadding = .{ .all = 0 },
@@ -1355,7 +1256,6 @@ pub const PapyrusContext = struct {
         _ = try self.nodes.new(.{
             .text = Text("root"),
             .parent = 0,
-            .anchor = .TopLeft,
             .nodeType = .{ .Slot = .{} },
         });
 
@@ -1373,12 +1273,21 @@ pub const PapyrusContext = struct {
         self.allocator.destroy(self);
     }
 
+    pub fn getPanel(self: *@This(), handle: u32) *NodeProperty_Panel {
+        return &(self.nodes.get(handle).?.nodeType.Panel);
+    }
+
+    pub fn getText(self: *@This(), handle: u32) *NodeProperty_Text {
+        return &(self.nodes.get(handle).?.nodeType.DisplayText);
+    }
+
     // converts a handle to a node pointer
     // invalid after AddNode
     pub fn get(self: *@This(), handle: u32) *PapyrusNode {
         return self.nodes.get(handle).?;
     }
 
+    // gets a node as read only
     pub fn getRead(self: @This(), handle: u32) *const PapyrusNode {
         return self.nodes.getRead(handle).?;
     }
@@ -1396,8 +1305,25 @@ pub const PapyrusContext = struct {
         return slot;
     }
 
+    pub fn addText(self: *@This(), parent: u32, text: []const u8) !u32 {
+        var slotNode = PapyrusNode{ .text = LocText.fromUtf8(text), .nodeType = .{ .DisplayText = .{
+            .pos = .{},
+            .size = .{},
+            .font = self.fallbackFont,
+        } } };
+        var slot = try self.newNode(slotNode);
+
+        try self.setParent(slot, parent);
+
+        return slot;
+    }
+
     pub fn addPanel(self: *@This(), parent: u32) !u32 {
         var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{} } };
+
+        if (parent == 0) {
+            slotNode.anchor = .Free;
+        }
         var slot = try self.nodes.new(slotNode);
 
         try self.setParent(slot, parent);
@@ -1409,7 +1335,6 @@ pub const PapyrusContext = struct {
         try assertf(self.nodes.get(parent) != null, "tried to assign node {d} to parent {d} but parent does not exist", .{ node, parent });
         try assertf(self.nodes.get(node) != null, "tried to assign node {d} to parent {d} but node does not exist", .{ node, parent });
 
-        std.debug.print("assinging node {d} to be child of {d}\n", .{ node, parent });
         var parentNode = self.nodes.get(parent).?;
         var thisNode = self.nodes.get(node).?;
 
@@ -1526,31 +1451,127 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn assembleDrawList(self: *@This()) !DrawList {
+    fn assembleDrawOrderList(self: @This(), list: *DrawOrderList) !void {
+        var rootNodes = std.ArrayList(u32).init(self.allocator);
+        defer rootNodes.deinit();
+
+        var next: u32 = self.getRead(0).child;
+        while (next != 0) : (next = self.getRead(next).next) {
+            try rootNodes.append(next);
+        }
+
+        const SortFunc = struct {
+            pub fn lessThan(ctx: PapyrusContext, lhs: u32, rhs: u32) bool {
+                return ctx.getRead(lhs).zOrder < ctx.getRead(rhs).zOrder;
+            }
+        };
+
+        std.sort.sort(
+            u32,
+            rootNodes.items,
+            self,
+            SortFunc.lessThan,
+        );
+
+        for (rootNodes.items) |rootNode| {
+            try list.append(rootNode);
+            try self.assembleDrawOrderListForNode(rootNode, list);
+        }
+    }
+
+    const PosSize = struct {
+        pos: Vector2,
+        size: Vector2,
+    };
+
+    fn resolveAnchoredPosition(parent: PosSize, node: *const PapyrusNode) Vector2 {
+        switch (node.anchor) {
+            .Free => {
+                return node.pos;
+            },
+            .TopLeft => {
+                return parent.pos.add(node.pos);
+            },
+            .MidLeft => {
+                return parent.pos.add(.{ .y = parent.size.y / 2 }).add(node.pos);
+            },
+            .BotLeft => {
+                return parent.pos.add(.{ .y = parent.size.y }).add(node.pos);
+            },
+            .TopMiddle => {
+                return parent.pos.add(.{ .x = parent.size.x / 2 }).add(node.pos);
+            },
+            .MidMiddle => {
+                return parent.pos.add(.{ .x = parent.size.x / 2, .y = parent.size.y / 2 }).add(node.pos);
+            },
+            .BotMiddle => {
+                return parent.pos.add(.{ .x = parent.size.x / 2, .y = parent.size.y }).add(node.pos);
+            },
+            .TopRight => {
+                return parent.pos.add(.{ .x = parent.size.x }).add(node.pos);
+            },
+            .MidRight => {
+                return parent.pos.add(.{ .x = parent.size.x, .y = parent.size.y / 2 }).add(node.pos);
+            },
+            .BotRight => {
+                return parent.pos.add(.{ .x = parent.size.x, .y = parent.size.y }).add(node.pos);
+            },
+        }
+    }
+
+    fn resolveAnchoredSize(parent: PosSize, node: *const PapyrusNode) Vector2 {
+        switch (node.fill) {
+            .None => {
+                return node.size;
+            },
+            .FillX => {
+                return .{ .x = node.size.x * parent.size.x, .y = node.size.y };
+            },
+            .FillY => {
+                return .{ .x = node.size.x, .y = node.size.y * parent.size.y };
+            },
+            .FillXY => {
+                return node.size.mul(parent.size);
+            },
+        }
+    }
+
+    pub fn makeDrawList(self: *@This()) !DrawList {
         var drawOrder: DrawOrderList = DrawOrderList.init(self.allocator);
         defer drawOrder.deinit();
-        try self.assembleDrawOrderListForNode(0, &drawOrder);
+        try self.assembleDrawOrderList(&drawOrder);
+
+        var layout = std.AutoHashMap(u32, PosSize).init(self.allocator);
+        defer layout.deinit();
+
+        try layout.put(0, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
 
         var drawList = DrawList.init(self.allocator);
 
         for (drawOrder.items) |node| {
             var n = self.getRead(node);
+
+            var parentInfo = layout.get(n.parent).?;
+
+            var resolvedPos = resolveAnchoredPosition(parentInfo, n);
+            var resolvedSize = resolveAnchoredSize(parentInfo, n);
+
             switch (n.nodeType) {
                 .Panel => |panel| {
-                    try drawList.append(.{ .node = node, .primitive = .{
-                        .Rect = .{
-                            .tl = n.pos,
-                            .size = n.size,
-                            .borderColor = n.style.borderColor,
-                            .backgroundColor = n.style.backgroundColor,
-                        },
-                    } });
-
                     if (panel.hasTitle) {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
-                                .tl = n.pos,
-                                .size = .{ .x = n.size.x, .y = 24 },
+                                .tl = resolvedPos.add(.{ .y = 24 }),
+                                .size = resolvedSize.sub(.{ .y = 24 }),
+                                .borderColor = n.style.borderColor,
+                                .backgroundColor = n.style.backgroundColor,
+                            },
+                        } });
+
+                        try drawList.append(.{ .node = node, .primitive = .{
+                            .Rect = .{
+                                .tl = resolvedPos,
+                                .size = .{ .x = resolvedSize.x, .y = 24 },
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.borderColor,
                             },
@@ -1558,20 +1579,49 @@ pub const PapyrusContext = struct {
 
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Text = .{
-                                .tl = n.pos.add(.{ .x = 3, .y = 1 }),
+                                .tl = resolvedPos.add(.{ .x = 3, .y = 1 }),
                                 .text = n.text,
-                                .color = BurnStyle.Highlight1,
+                                .color = panel.titleColor,
                             },
                         } });
+
+                        try layout.put(node, .{
+                            .pos = resolvedPos.add(.{ .y = 24 }).add(Vector2.Ones),
+                            .size = resolvedSize.sub(.{ .y = -24 }).add(Vector2.Ones),
+                        });
+                    } else {
+                        try drawList.append(.{ .node = node, .primitive = .{
+                            .Rect = .{
+                                .tl = resolvedPos,
+                                .size = resolvedSize,
+                                .borderColor = n.style.borderColor,
+                                .backgroundColor = n.style.backgroundColor,
+                            },
+                        } });
+
+                        try layout.put(node, .{
+                            .pos = resolvedPos.add(Vector2.Ones),
+                            .size = resolvedSize.add(Vector2.Ones),
+                        });
                     }
                 },
-                .Slot, .DisplayText, .Button => {},
+                .DisplayText => |txt| {
+                    var render = try layoutTextBox(
+                        self.allocator,
+                        resolvedSize,
+                        n.text.getRead(),
+                        txt.font.atlas,
+                        .WrapLimited,
+                    );
+
+                    defer render.deinit();
+                },
+                .Slot, .Button => {},
             }
         }
 
         return drawList;
     }
-    //
 
     pub fn printTree(self: @This(), root: u32) void {
         std.debug.print("\n ==== tree ==== \n", .{});
@@ -1616,6 +1666,60 @@ pub const PapyrusContext = struct {
             next = self.getRead(next).*.next;
         }
     }
+
+    // ============
+    pub const TextLayoutMode = enum {
+        Wrap,
+        NoWrap,
+        WrapLimited,
+    };
+
+    pub const TextRender = struct {
+        size: Vector2,
+        geometry: std.ArrayList(Vector2),
+        uv: std.ArrayList(Vector2),
+
+        pub fn init(allocator: std.mem.Allocator, baseSize: Vector2) @This() {
+            return .{
+                .size = baseSize,
+                .geometry = std.ArrayList(Vector2).init(allocator),
+                .uv = std.ArrayList(Vector2).init(allocator),
+            };
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.geometry.deinit();
+            self.uv.deinit();
+        }
+    };
+
+    // Layouts a out a textbox from the text and the font given.
+    pub fn layoutTextBox(
+        allocator: std.mem.Allocator,
+        size: Vector2,
+        text: []const u8,
+        font: *FontAtlas,
+        wrap: TextLayoutMode,
+    ) !TextRender {
+        const verticalAdvance = font.glyphMax.y;
+        var rendered = TextRender.init(allocator, size);
+        var ch: u32 = 0;
+
+        while (ch < text.len) : (ch += 1) {
+            try rendered.geometry.append(font.meshes[text[ch]][0]);
+            try rendered.geometry.append(font.meshes[text[ch]][1]);
+            try rendered.geometry.append(font.meshes[text[ch]][2]);
+            try rendered.geometry.append(font.meshes[text[ch]][3]);
+
+            try rendered.uv.append(font.glyphCoordinates[text[ch]][0]);
+            try rendered.uv.append(font.glyphCoordinates[text[ch]][1]);
+        }
+
+        _ = verticalAdvance;
+        _ = wrap;
+
+        return rendered;
+    }
 };
 
 pub fn getContext() *PapyrusContext {
@@ -1634,10 +1738,47 @@ pub fn deinitialize() void {
     gPapyrusContext.deinit();
 }
 
-test "initialize papyrus" {
-    var ctx = try initialize(std.testing.allocator);
-    _ = ctx;
-    defer deinitialize();
+// ========================  unit tests for papyrus ==========================
+
+test "dynamic pool test" {
+    const TestStruct = struct {
+        value1: u32 = 0,
+        value4: u32 = 0,
+        value2: u32 = 0,
+        value3: u32 = 0,
+    };
+
+    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
+    defer dynPool.deinit();
+
+    {
+        // insert some objects objects
+        var count: u32 = 1000000;
+        while (count > 0) : (count -= 1) {
+            _ = try dynPool.new(.{});
+        }
+
+        // Insert 1 randomly add and delete objects another million objects in groups
+        var prng = std.rand.DefaultPrng.init(0x1234);
+        var rand = prng.random();
+
+        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
+
+        count = 1000000;
+        while (count > 0) : (count -= 1) {
+            const index = rand.int(u32) % 5;
+            var i: u32 = 0;
+            while (i < index) : (i += 1) {
+                workBuffer[i] = try dynPool.new(.{});
+            }
+
+            i = 0;
+            while (i < index) : (i += 1) {
+                dynPool.get(workBuffer[i]).?.*.value1 = 2;
+                dynPool.destroy(workBuffer[i]);
+            }
+        }
+    }
 }
 
 test "hierarchy test" {
@@ -1645,7 +1786,7 @@ test "hierarchy test" {
     defer ctx.deinit();
 
     std.debug.print(
-        "\nsizeof PapyrusNode={d} for a game with 10k widgets, memory usage = {d}M, {d}K\n",
+        "\nsizeof PapyrusNode={d} for a context with 10k widgets, memory usage = {d}M, {d}K\n",
         .{ @sizeOf(PapyrusNode), @sizeOf(PapyrusNode) * 10_000 / 1024 / 1024, (@sizeOf(PapyrusNode) * 10_000 % (1024 * 1024)) / 1024 },
     );
 
@@ -1669,15 +1810,11 @@ test "hierarchy test" {
         var slot4 = try ctx.addSlot(slot2);
         ctx.get(slot4).text = Text("slot4");
 
-        std.debug.print("hierarchy before removing slot2\n", .{});
         try ctx.writeTree(0, "before.viz");
         try grapvizDotToPng(std.testing.allocator, "before.viz", "before.png");
-        ctx.printTree(0);
 
         try ctx.removeFromParent(slot2);
-        ctx.printTree(0);
         ctx.get(try ctx.addSlot(slot3)).text = Text("slot7");
-        ctx.printTree(0);
 
         var x = try ctx.addSlot(slot3);
 
@@ -1685,13 +1822,178 @@ test "hierarchy test" {
         ctx.get(try ctx.addSlot(x)).text = Text("slot9");
         ctx.get(try ctx.addSlot(x)).text = Text("slot10");
 
-        std.debug.print("hierarchy after removing slot2\n", .{});
-        ctx.printTree(0);
         try ctx.writeTree(0, "after.viz");
         try grapvizDotToPng(std.testing.allocator, "after.viz", "after.png");
     }
 
+    ctx.tick(0.0016);
+}
+
+test "Testing a fullscreen render" {
+    var ctx = try PapyrusContext.create(std.testing.allocator);
+    defer ctx.deinit();
+
+    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
+    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
+    defer rend.deinit();
+    rend.setRenderFile("Saved/frame_fs00.bmp");
+
+    var panel = try ctx.addPanel(0);
+    ctx.getPanel(panel).hasTitle = true;
+    ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
+    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
+    ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
+    ctx.get(panel).style.borderColor = ModernStyle.Yellow;
+    ctx.get(panel).pos = .{ .x = 1920 / 4 - 300, .y = 1080 / 4 };
+    ctx.get(panel).size = .{ .x = 1920 / 2, .y = 1080 / 2 };
+
     {
-        ctx.tick(0.0016);
+        var panel2 = try ctx.addPanel(panel);
+        ctx.getPanel(panel2).hasTitle = false;
+        ctx.get(panel2).style = ctx.getRead(panel).style;
+        ctx.get(panel2).anchor = .TopLeft;
+        ctx.get(panel2).fill = .FillXY;
+        ctx.get(panel2).pos = .{ .x = 1, .y = 1 };
+        ctx.get(panel2).size = .{ .x = 0.80, .y = 0.80 };
+        ctx.getPanel(panel2).titleColor = ModernStyle.GreyDark;
+    }
+
+    var panel2 = try ctx.addPanel(panel);
+    {
+        ctx.getPanel(panel2).hasTitle = false;
+        ctx.get(panel2).style = ctx.getRead(panel).style;
+        ctx.get(panel2).anchor = .TopRight;
+        ctx.get(panel2).fill = .FillY;
+        ctx.get(panel2).pos = .{ .x = -105, .y = 1 };
+        ctx.get(panel2).size = .{ .x = 100, .y = 0.9 };
+        ctx.getPanel(panel2).titleColor = ModernStyle.GreyDark;
+
+        // add some text to this panel
+        const text = try ctx.addText(panel, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
+        ctx.get(text).style.foregroundColor = ModernStyle.Orange;
+        ctx.get(text).pos = .{ .x = 32, .y = 32 };
+        ctx.get(text).size = .{ .x = 300, .y = 400 };
+    }
+
+    {
+        var panel3 = try ctx.addPanel(panel2);
+        ctx.getPanel(panel3).hasTitle = true;
+        ctx.getPanel(panel3).titleColor = ModernStyle.GreyDark;
+        ctx.get(panel3).style = ctx.getRead(panel).style;
+        ctx.get(panel3).anchor = .TopLeft;
+        ctx.get(panel3).fill = .FillXY;
+        ctx.get(panel3).pos = .{ .x = 0, .y = 25 };
+        ctx.get(panel3).size = .{ .x = 0.9, .y = 0.9 };
+    }
+
+    try rend.render();
+
+    rend.setRenderFile("Saved/frame_fs01.bmp");
+    ctx.get(panel).pos = ctx.get(panel).pos.add(.{ .x = 300 });
+    try rend.render();
+
+    rend.setRenderFile("Saved/frame_fs02.bmp");
+    ctx.get(panel).size = ctx.get(panel).size.add(.{ .x = 300, .y = 200 });
+    try rend.render();
+}
+
+test "Testing a render" {
+    var ctx = try PapyrusContext.create(std.testing.allocator);
+    defer ctx.deinit();
+
+    var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
+    rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
+    defer rend.deinit();
+    rend.setRenderFile("Saved/frame.bmp");
+    try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
+
+    var panel = try ctx.addPanel(0);
+    ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
+    ctx.get(panel).style.foregroundColor = ModernStyle.GreyDark;
+    ctx.get(panel).style.borderColor = ModernStyle.Yellow;
+    ctx.get(panel).pos = .{ .x = 100, .y = 300 };
+    ctx.get(panel).size = .{ .x = 400, .y = 400 };
+
+    var panel2 = try ctx.addPanel(0);
+    ctx.get(panel2).text = Text("wanker window");
+    ctx.getPanel(panel2).hasTitle = true;
+    ctx.get(panel2).style = ctx.get(panel).style;
+    ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
+    ctx.get(panel2).size = .{ .x = 400, .y = 400 };
+
+    var panel3 = try ctx.addPanel(0);
+    ctx.get(panel3).text = Text("panel 3");
+    ctx.getPanel(panel3).hasTitle = true;
+    ctx.get(panel3).style = ctx.get(panel).style;
+    ctx.get(panel3).pos = .{ .x = 1200, .y = 300 };
+    ctx.get(panel3).size = .{ .x = 400, .y = 400 };
+
+    try rend.render();
+}
+
+test "basic bmp renderer test" {
+    var renderer = try BmpWriter.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
+
+    renderer.drawRectangle(.Line, .{ .x = 500, .y = 200 }, .{ .x = 700, .y = 500 }, 255, 255, 0);
+    renderer.drawRectangle(.Filled, .{}, .{ .x = 420, .y = 69 * 10 }, 69, 42, 69);
+
+    defer renderer.deinit();
+
+    var timer = try std.time.Timer.start();
+
+    const startTime = timer.read();
+    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ShareTechMono-Regular.ttf", 36);
+    try atlas.dumpBufferToFile("Saved/atlas.bmp");
+    defer atlas.deinit();
+
+    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ProggyClean.ttf", 36);
+    try atlas2.dumpBufferToFile("Saved/ProggyClean.bmp");
+    defer atlas2.deinit();
+
+    const endTime = timer.read();
+    const duration = (@intToFloat(f64, endTime - startTime) / 1000000000);
+    std.debug.print(" duration: {d}\n", .{duration});
+
+    try renderer.writeOut("Saved/test.bmp");
+}
+
+test "dynamic pool test" {
+    const TestStruct = struct {
+        value1: u32 = 0,
+        value4: u32 = 0,
+        value2: u32 = 0,
+        value3: u32 = 0,
+    };
+
+    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
+    defer dynPool.deinit();
+
+    {
+        // insert some objects objects
+        var count: u32 = 1000000;
+        while (count > 0) : (count -= 1) {
+            _ = try dynPool.new(.{});
+        }
+
+        // Insert 1 randomly add and delete objects another million objects in groups
+        var prng = std.rand.DefaultPrng.init(0x1234);
+        var rand = prng.random();
+
+        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
+
+        count = 1000000;
+        while (count > 0) : (count -= 1) {
+            const index = rand.int(u32) % 5;
+            var i: u32 = 0;
+            while (i < index) : (i += 1) {
+                workBuffer[i] = try dynPool.new(.{});
+            }
+
+            i = 0;
+            while (i < index) : (i += 1) {
+                dynPool.get(workBuffer[i]).?.*.value1 = 2;
+                dynPool.destroy(workBuffer[i]);
+            }
+        }
     }
 }
