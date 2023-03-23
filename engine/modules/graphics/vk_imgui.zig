@@ -57,10 +57,10 @@ pub const NeonVkImGui = struct {
         var io: *c.ImGuiIO = c.igGetIO();
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
         io.*.ConfigFlags |= c.ImGuiConfigFlags_DockingEnable;
-        // io.*.ConfigFlags |= c.ImGuiConfigFlags_ViewportsEnable;
+
         var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "modules/ui/papyrus/fonts/ShareTechMono-Regular.ttf", 14, null, null);
         _ = font;
-        _ = c.ImGui_ImplGlfw_InitForVulkan(ctx.window, true);
+        _ = c.ImGui_ImplGlfw_InitForVulkan(@ptrCast(*c.GLFWwindow, ctx.platformInstance.window), true);
 
         var style = c.igGetStyle();
         c.igStyleColorsDark(style);

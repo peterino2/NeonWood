@@ -45,7 +45,7 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    nw.start_everything("NeonWood: imgui demo");
+    try nw.start_everything("NeonWood: imgui demo");
     defer nw.shutdown_everything();
     try nw.run_no_input(GameContext);
 }

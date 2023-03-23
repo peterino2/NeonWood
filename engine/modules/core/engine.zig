@@ -8,6 +8,7 @@ const core = @import("../core.zig");
 const jobs = @import("jobs.zig");
 const tracy = core.tracy;
 const trace = @import("trace.zig");
+const platform = @import("../platform.zig");
 
 const TracesContext = trace.TracesContext;
 const Name = names.Name;
@@ -91,12 +92,14 @@ pub const Engine = struct {
         return newObjectPtr;
     }
 
-    pub fn tick(self: *@This()) void {
+    pub fn tick(self: *@This()) !void {
         tracy.FrameMark();
         tracy.FrameMarkStart("frame");
         const newTime = time.getEngineTime();
         self.deltaTime = newTime - self.lastEngineTime;
         self.frameNumber += 1;
+
+        try platform.getInstance().processEvents(self.frameNumber);
 
         for (self.eventors.items) |*objectRef| {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;
@@ -114,7 +117,7 @@ pub const Engine = struct {
         tracy.FrameMarkEnd("frame");
     }
 
-    pub fn run(self: *@This()) void {
+    pub fn run(self: *@This()) !void {
         const L = struct {
             engine: *Engine,
 
@@ -123,11 +126,11 @@ pub const Engine = struct {
 
                 tracy.SetThreadName("Systems Thread");
                 while (!ctx.engine.exitSignal) {
-                    ctx.engine.tick();
+                    ctx.engine.tick() catch unreachable;
                 }
             }
         };
-        core.dispatchJob(L{ .engine = self }) catch unreachable;
+        try core.dispatchJob(L{ .engine = self });
     }
 
     pub fn exit(self: *@This()) void {

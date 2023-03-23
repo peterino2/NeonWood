@@ -7,6 +7,8 @@ pub usingnamespace @import("graphics/debug_draws.zig");
 pub const gpu_pipe_data = @import("graphics/gpu_pipe_data.zig");
 pub const vkinit = @import("graphics/vk_init.zig");
 pub const c = vk_renderer.c;
+pub const vk_allocator = @import("graphics/vk_allocator.zig");
+pub const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 pub const NeonVkPipelineBuilder = vk_renderer.NeonVkPipelineBuilder;
 pub const NeonVkContext = vk_renderer.NeonVkContext;
 pub const vk_ui = @import("graphics/vk_imgui.zig");
@@ -79,6 +81,7 @@ pub fn start_module() void {
 
 pub fn shutdown_module() void {
     gImgui.deinit();
+    debug_draw.deinit() catch unreachable;
     vk_renderer.gContext.deinit();
     engine_logs("graphics module shutting down...");
 }

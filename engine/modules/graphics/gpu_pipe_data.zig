@@ -13,6 +13,7 @@ const NeonVkContext = graphics.NeonVkContext;
 const NeonVkBuffer = graphics.NeonVkBuffer;
 const p2a = core.p_to_a;
 
+const NeonVkAllocator = graphics.NeonVkAllocator;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // so.. given a single descriptor set:
@@ -55,7 +56,7 @@ pub const GpuMappingRaw = struct {
     allocation: vma.Allocation,
 
     pub fn unmap(self: *@This(), gc: *NeonVkContext) void {
-        gc.vmaAllocator.unmapMemory(self.allocation);
+        gc.vkAllocator.vmaAllocator.unmapMemory(self.allocation);
     }
 };
 
@@ -75,7 +76,7 @@ pub const GpuPipeDataBinding = struct {
         // maps buffers for these bindings, one for each frame
         var rv = try gc.allocator.alloc(GpuMappingData(MappingType), self.buffers.len);
         while (frameIndex < self.buffers.len) : (frameIndex += 1) {
-            var data = try gc.vmaAllocator.mapMemory(self.buffers[frameIndex].allocation, MappingType);
+            var data = try gc.vkAllocator.vmaAllocator.mapMemory(self.buffers[frameIndex].allocation, MappingType);
             var mapping: []MappingType = undefined;
             mapping.ptr = @ptrCast([*]MappingType, data);
             mapping.len = self.objectCount;
@@ -96,9 +97,9 @@ pub const GpuPipeDataBinding = struct {
         return rv;
     }
 
-    pub fn deinit(self: *@This(), vmaAllocator: vma.Allocator) void {
+    pub fn deinit(self: *@This(), vkAllocator: *NeonVkAllocator) void {
         for (self.buffers) |*buffers| {
-            buffers.deinit(vmaAllocator);
+            buffers.deinit(vkAllocator);
         }
     }
 };
@@ -139,7 +140,7 @@ pub const GpuPipeData = struct {
     // pub fn unmapAll(self: *@This(), mappings: anytype);
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator, gc: *NeonVkContext) void {
         for (self.bindings) |*binding| {
-            binding.deinit(gc.vmaAllocator);
+            binding.deinit(gc.vkAllocator);
         }
         allocator.free(self.bindings);
     }
@@ -271,6 +272,7 @@ pub const GpuPipeDataBuilder = struct {
                     bindingInfo.finalObjectSize * bindingInfo.objectCount,
                     usageFlags,
                     memoryFlags,
+                    "GPU binding buffer creation " ++ @src().fn_name,
                 );
 
                 var bufferInfo = vk.DescriptorBufferInfo{

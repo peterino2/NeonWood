@@ -139,6 +139,7 @@ pub const DebugDrawSubsystem = struct {
 
     pub fn createPipeData(self: *@This()) !void {
         var dataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
+        defer dataBuilder.deinit();
         dataBuilder.setObjectCount(objectCount);
         try dataBuilder.addBufferBinding(DebugPrimitiveGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
         self.pipeData = try dataBuilder.build();
@@ -281,6 +282,10 @@ pub fn init_debug_draw_subsystem() !void {
     gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = false });
     try gDebugDrawSys.prepareSubsystem(graphics.getContext());
     try graphics.registerRendererPlugin(gDebugDrawSys);
+}
+
+pub fn deinit() !void {
+    gDebugDrawSys.deinit();
 }
 
 pub const DebugDrawParams = struct {

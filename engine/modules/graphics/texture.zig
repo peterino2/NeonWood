@@ -19,7 +19,7 @@ pub const Texture = struct {
 
     pub fn deinit(self: *@This(), ctx: *NeonVkContext) !void {
         ctx.vkd.destroyImageView(ctx.dev, self.imageView, null);
-        self.image.deinit(ctx.vmaAllocator);
+        self.image.deinit(ctx.vkAllocator);
     }
 
     pub fn getDimensions(self: @This()) PixelPos {

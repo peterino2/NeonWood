@@ -96,7 +96,7 @@ pub const Mesh = struct {
     }
 
     pub fn deinit(self: *Mesh, ctx: *NeonVkContext) void {
-        self.buffer.deinit(ctx.vmaAllocator);
+        self.buffer.deinit(ctx.vkAllocator);
     }
 };
 

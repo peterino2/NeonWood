@@ -5,9 +5,11 @@ const vma = @import("vma");
 const vk = @import("vulkan");
 const obj_loader = @import("lib/objLoader/obj_loader.zig");
 const vkinit = @import("vk_init.zig");
+const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
 
-const spng = core.spng;
+const image = @import("../image.zig");
+const PngContents = image.PngContents;
 
 const p2a = core.p_to_a;
 const ObjMesh = obj_loader.ObjMesh;
@@ -16,48 +18,24 @@ const Vectorf = core.Vectorf;
 const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
+const NumFrames = vk_constants.NUM_FRAMES;
+const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
-pub const PngContents = struct {
-    path: []const u8,
-    pixels: []u8,
-    size: core.Vector2u,
-    allocator: std.mem.Allocator,
+const NeonVkObjectDataGpu = vk_renderer.NeonVkObjectDataGpu;
 
-    pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
-        var pngFileContents = try core.loadFileAlloc(filePath, 8, allocator);
-        var decoder = try spng.SpngContext.newDecoder();
-        defer decoder.deinit();
-
-        try decoder.setBuffer(pngFileContents);
-        const header = try decoder.getHeader();
-
-        var imageSize = @intCast(usize, header.width * header.height * 4);
-        core.graphics_log("loaded png {s}, dimensions={d}x{d}", .{ filePath, header.width, header.height });
-        var pixels: []u8 = try allocator.alloc(u8, imageSize);
-        var len = try decoder.decode(pixels, spng.SPNG_FMT_RGBA8, spng.SPNG_DECODE_TRNS);
-        try core.assertf(len == pixels.len, "decoded pixel size not buffer size {d} != {d}", .{ len, pixels.len });
-
-        return PngContents{
-            .path = try core.dupe(u8, allocator, filePath),
-            .pixels = pixels,
-            .size = .{ .x = header.width, .y = header.height },
-            .allocator = allocator,
-        };
-    }
-
-    pub fn stagePixels(self: @This(), ctx: *NeonVkContext) !NeonVkBuffer {
-        var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly);
-        const data = try ctx.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
-        @memcpy(data, @ptrCast([*]const u8, self.pixels), self.pixels.len);
-        ctx.vmaAllocator.unmapMemory(stagingBuffer.allocation);
-        return stagingBuffer;
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.allocator.free(self.path);
-        self.allocator.free(self.pixels);
-    }
+const NeonVkSpriteDataGpu = struct {
+    // tl, tr, br, bl running clockwise
+    position: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
+    size: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
 };
+
+pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
+    var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
+    const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
+    @memcpy(data, @ptrCast([*]const u8, self.pixels), self.pixels.len);
+    ctx.vkAllocator.vmaAllocator.unmapMemory(stagingBuffer.allocation);
+    return stagingBuffer;
+}
 
 pub const LoadAndStageImage = struct {
     stagingBuffer: NeonVkBuffer,
@@ -79,7 +57,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     var pngContents = try PngContents.init(ctx.allocator, filePath);
 
-    var stagingBuffer = try pngContents.stagePixels(ctx);
+    var stagingBuffer = try stagePixels(pngContents, ctx);
 
     var imageExtent = vk.Extent3D{
         .width = @intCast(u32, pngContents.size.x),
@@ -97,13 +75,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
         .usage = .gpuOnly,
     };
 
-    var result = try ctx.vmaAllocator.createImage(imgCreateInfo, imgAllocInfo);
-    var newImage = NeonVkImage{
-        .image = result.image,
-        .allocation = result.allocation,
-        .pixelWidth = imageExtent.width,
-        .pixelHeight = imageExtent.height,
-    };
+    var newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
 
     pngContents.deinit();
 
@@ -207,3 +179,77 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
     }
     try ctx.finish_upload_context(&ctx.uploadContext);
 }
+
+// this creates decriptors for sprites
+pub fn create_sprite_descriptors(self: *NeonVkContext) !void {
+
+    // 1. create bindings and set layout
+    var bindings = [_]vk.DescriptorSetLayoutBinding{
+        vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0),
+    };
+
+    var setLayoutCreateInfo = vk.DescriptorSetLayoutCreateInfo{
+        .flags = .{},
+        .binding_count = bindings.len,
+        .p_bindings = @ptrCast([*]const vk.DescriptorSetLayoutBinding, &bindings),
+    };
+
+    self.spriteDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setLayoutCreateInfo, null);
+
+    // create SSBOs for the actual type
+    var i: usize = 0;
+    while (i < NumFrames) : (i += 1) {
+        self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * vk_constants.MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu, "Staging buffer");
+
+        var spriteDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = self.descriptorPool,
+            .descriptor_set_count = 1,
+            .p_set_layouts = p2a(&self.spriteDescriptorLayout),
+        };
+
+        try self.vkd.allocateDescriptorSets(
+            self.dev,
+            &spriteDescriptorSetAllocInfo,
+            @ptrCast([*]vk.DescriptorSet, &self.frameData[i].spriteDescriptorSet),
+        );
+
+        var spriteInfo = vk.DescriptorBufferInfo{
+            .buffer = self.frameData[i].spriteBuffer.buffer,
+            .offset = 0,
+            .range = @sizeOf(NeonVkSpriteDataGpu) * vk_constants.MAX_OBJECTS,
+        };
+
+        var spriteWrite = vkinit.writeDescriptorSet(
+            .storage_buffer,
+            self.frameData[i].spriteDescriptorSet,
+            &spriteInfo,
+            0,
+        );
+
+        var spriteSetWrites = [_]@TypeOf(spriteWrite){spriteWrite};
+        self.vkd.updateDescriptorSets(self.dev, 1, &spriteSetWrites, 0, undefined);
+    }
+}
+
+pub fn upload_sprite_data(self: *NeonVkContext) !void {
+    const allocation = self.frameData[self.nextFrameIndex].spriteBuffer.allocation;
+    var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+    var ssbo: []NeonVkSpriteDataGpu = undefined;
+    ssbo.ptr = @ptrCast([*]NeonVkSpriteDataGpu, data);
+    ssbo.len = MAX_OBJECTS;
+
+    var i: usize = 0;
+    while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.len) : (i += 1) {
+        ssbo[i].position = core.zm.mul(
+            self.renderObjectSet.items(.renderObject)[i].transform,
+            core.zm.Vec{ 0.0, 0.0, 0.0, 0.0 },
+        );
+        ssbo[i].size = .{ .x = 1.0, .y = 1.0 };
+    }
+
+    self.vkAllocator.vmaAllocator.unmapMemory(allocation);
+}
+
+// Upload Contexts stuff
+
+// Mesh uploading utilities

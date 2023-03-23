@@ -200,6 +200,10 @@ pub const LoggerSys = struct {
     }
 };
 
+pub fn forceFlush() void {
+    gLoggerSys.?.flushWriteBuffer() catch unreachable;
+}
+
 pub fn setupLogging(engine: *core.Engine) !void {
     gLoggerSys = try engine.createObject(LoggerSys, .{
         .responds_to_events = true,

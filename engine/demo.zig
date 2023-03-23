@@ -2,6 +2,7 @@ const std = @import("std");
 pub const neonwood = @import("modules/neonwood.zig");
 
 const core = neonwood.core;
+const platform = neonwood.platform;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
@@ -64,9 +65,20 @@ pub const GameContext = struct {
                 self.assetReady = true;
             }
         }
-        var xpos: f64 = 0;
-        var ypos: f64 = 0;
-        c.glfwGetCursorPos(graphics.getContext().window, &xpos, &ypos);
+
+        const position = platform.getInstance().getCursorPosition();
+        var dx = @floatCast(f32, position.x - (@floatCast(f32, lastXPos)));
+        var dy = @floatCast(f32, position.y - (@floatCast(f32, lastYPos)));
+
+        if (!platform.getInstance().cursorEnabled) {
+            self.eulerX += dx / 1920;
+            self.eulerY += dy / 1080;
+            self.eulerY = std.math.clamp(gGame.eulerY, core.radians(-90.0), core.radians(90.0));
+        }
+
+        lastXPos = position.x;
+        lastYPos = position.y;
+
         self.cameraTime += deltaTime;
         self.camera.rotation = core.zm.quatFromRollPitchYaw(self.eulerY, 0, 0);
         self.cameraHorizontalRotationMat = core.zm.matFromRollPitchYaw(0, self.eulerX, 0);
@@ -170,12 +182,12 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    graphics.setWindowName("NeonWood: imgui demo");
-
     engine_log("Starting up", .{});
 
     core.start_module();
     defer core.shutdown_module();
+
+    try platform.start_module(std.heap.c_allocator, "Neonwood: flyaround demo", null);
 
     assets.start_module();
     defer assets.shutdown_module();
@@ -189,32 +201,26 @@ pub fn main() anyerror!void {
     var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
     try gameContext.prepare_game();
 
-    // run the game
-    core.gEngine.run();
+    try core.gEngine.run();
 
-    _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
-    _ = c.glfwSetCursorPosCallback(graphics.getContext().window, mousePositionCallback);
+    _ = c.glfwSetKeyCallback(@ptrCast(?*c.GLFWwindow, platform.getInstance().window), input_callback);
+    try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
     while (!core.gEngine.exitSignal) {
-        graphics.getContext().pollEventsFunc();
+        neonwood.platform.getInstance().pollEvents();
     }
 }
 
-pub fn mousePositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    c.cImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+var lastXPos: f64 = 0;
+var lastYPos: f64 = 0;
 
-    var dx = @floatCast(f32, xpos - (@intToFloat(f32, graphics.getContext().extent.width) / 2));
-    var dy = @floatCast(f32, ypos - (@intToFloat(f32, graphics.getContext().extent.height) / 2));
-
-    gGame.eulerX += dx / 1920;
-    gGame.eulerY += dy / 1080;
-    gGame.eulerY = std.math.clamp(gGame.eulerY, core.radians(-90.0), core.radians(90.0));
-
-    c.glfwSetCursorPos(
-        graphics.getContext().window,
-        @intToFloat(f64, graphics.getContext().extent.width / 2),
-        @intToFloat(f64, graphics.getContext().extent.height / 2),
-    );
+pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    _ = window;
+    _ = xpos;
+    _ = ypos;
+    // c.cImGui_ImplGlfw_CursorPosCallback(@ptrCast(?*c.GLFWwindow, window), xpos, ypos);
+    var t1 = core.tracy.ZoneN(@src(), "Movement Callback");
+    defer t1.End();
 }
 
 pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
@@ -243,6 +249,10 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
         if (key == c.GLFW_KEY_D) {
             gGame.movementInput.x += 1;
         }
+
+        if (key == c.GLFW_KEY_LEFT_ALT) {
+            platform.getInstance().setCursorEnabled(false);
+        }
     }
     if (action == c.GLFW_RELEASE) {
         if (key == c.GLFW_KEY_W) {
@@ -259,6 +269,9 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
 
         if (key == c.GLFW_KEY_D) {
             gGame.movementInput.x -= 1;
+        }
+        if (key == c.GLFW_KEY_LEFT_ALT) {
+            platform.getInstance().setCursorEnabled(true);
         }
     }
 

@@ -94,7 +94,7 @@ pub const TextureLoader = struct {
                 var image = assetReady.stagingResults.image;
 
                 vk_utils.submit_copy_from_staging(gc, stagingBuffer, image) catch return error.UnknownStatePanic;
-                stagingBuffer.deinit(gc.vmaAllocator);
+                stagingBuffer.deinit(gc.vkAllocator);
 
                 var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
                 var imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;

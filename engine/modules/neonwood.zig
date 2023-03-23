@@ -2,23 +2,27 @@ pub const core = @import("core.zig");
 pub const graphics = @import("graphics.zig");
 pub const assets = @import("assets.zig");
 pub const audio = @import("audio.zig");
+pub const platform = @import("platform.zig");
+
+const std = @import("std");
 
 const c = graphics.c;
 
-pub fn start_everything(windowName: []const u8) void {
+pub fn start_everything(windowName: []const u8) !void {
     graphics.setWindowName(windowName);
     core.engine_log("Starting up", .{});
     core.start_module();
+    try platform.start_module(std.heap.c_allocator, windowName, null);
     assets.start_module();
     audio.start_module();
     graphics.start_module();
 }
 
 pub fn shutdown_everything() void {
-    defer core.shutdown_module();
-    defer assets.shutdown_module();
-    defer audio.shutdown_module();
-    defer graphics.shutdown_module();
+    graphics.shutdown_module();
+    audio.shutdown_module();
+    assets.shutdown_module();
+    core.shutdown_module();
 }
 
 pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
@@ -28,8 +32,8 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     // run the game
     core.gEngine.run();
 
-    _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
-    _ = c.glfwSetMouseButtonCallback(graphics.getContext().window, mouseInputCallback);
+    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
+    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     while (!core.gEngine.exitSignal) {
         graphics.getContext().pollEventsFunc();
@@ -40,15 +44,15 @@ pub fn run_no_input(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{});
     try gameContext.prepare_game();
 
-    _ = c.glfwSetKeyCallback(graphics.getContext().window, inputCallback);
-    _ = c.glfwSetCursorPosCallback(graphics.getContext().window, mousePositionCallback);
-    _ = c.glfwSetMouseButtonCallback(graphics.getContext().window, mouseInputCallback);
+    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
+    _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
+    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     // run the game
-    core.gEngine.run();
+    try core.gEngine.run();
 
     while (!core.gEngine.exitSignal) {
-        graphics.getContext().pollEventsFunc();
+        platform.getInstance().pollEvents();
     }
 }
 
@@ -64,14 +68,14 @@ pub fn run_no_input(comptime T: type) !void {
 // glfwSetWindowPosCallback(vd->Window, ImGui_ImplGlfw_WindowPosCallback);
 // glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
 
-pub fn mousePositionCallback(window: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    c.cImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    c.cImGui_ImplGlfw_CursorPosCallback(@ptrCast(?*c.GLFWwindow, window), xpos, ypos);
 }
 
-pub fn mouseInputCallback(window: ?*c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    c.cImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    c.cImGui_ImplGlfw_MouseButtonCallback(@ptrCast(?*c.GLFWwindow, window), button, action, mods);
 }
 
-pub fn inputCallback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    c.cImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    c.cImGui_ImplGlfw_KeyCallback(@ptrCast(?*c.GLFWwindow, window), key, scancode, action, mods);
 }

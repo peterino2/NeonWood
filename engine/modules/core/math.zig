@@ -267,6 +267,7 @@ pub const Vector2f = Vector2Type(f32);
 pub const Vector2 = Vector2Type(f64);
 
 pub const Vector2i = Vector2Type(i32);
+pub const Vector2c = Vector2Type(c_int);
 pub const Vector2u = Vector2Type(u32);
 pub const Vector2l = Vector2Type(i64);
 

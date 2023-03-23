@@ -193,7 +193,6 @@ pub fn createGameExecutable(
 
     exe.install();
     exe.linkLibC();
-    exe.addCSourceFile("modules/core/lib/stb/stb_impl.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_demo.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_draw.cpp", cflags.items);
@@ -204,8 +203,10 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
+
     exe.addIncludePath("modules/core/lib");
     exe.addIncludePath("modules/audio/lib");
+    exe.addIncludePath("modules/platform/lib");
     exe.addIncludePath("modules/graphics/lib/vulkan_inc");
     exe.addIncludePath("modules/graphics/lib/cimgui");
     exe.addIncludePath("modules/graphics/lib/imgui");
@@ -213,6 +214,7 @@ pub fn createGameExecutable(
     exe.addIncludePath("modules/graphics/lib");
     exe.addIncludePath("modules/graphics");
     exe.addLibraryPath("modules/graphics/lib");
+    exe.addLibraryPath("modules/platform/lib");
     linkSpng(b, exe);
 
     if (target.getOs().tag == .windows) {
