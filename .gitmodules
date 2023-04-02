@@ -7,9 +7,6 @@
 [submodule "engine/modules\\graphics\\lib\\cimgui"]
 	path = engine/modules/graphics/lib/cimgui
 	url = https://github.com/peterino2/cimgui.git
-[submodule "engine/modules/core/lib/Zig-Tracy"]
-	path = engine/modules/core/lib/Zig-Tracy
-	url = https://github.com/SpexGuy/Zig-Tracy.git
 [submodule "engine/modules/audio/lib/miniaudio"]
 	path = engine/modules/audio/lib/miniaudio
 	url = https://github.com/mackron/miniaudio.git

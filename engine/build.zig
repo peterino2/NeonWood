@@ -50,7 +50,7 @@ pub const ResourceGenStep = struct {
         }) catch unreachable;
 
         self.* = .{
-            .step = Step.init(.custom, "resources", builder.allocator, make),
+            .step = Step.init(.{ .id = .custom, .name = "resources", .makeFn = make, .owner = builder }),
             .shader_step = vkgen.ShaderCompileStep.init(builder, &[_][]const u8{ "glslc", "--target-env=vulkan1.2" }, "shaders"),
             .builder = builder,
             .package = builder.createModule(.{
@@ -135,7 +135,7 @@ pub const ResourceGenStep = struct {
         cwd.writeFile(ofile, hashAsString) catch unreachable;
     }
 
-    fn make(step: *Step) !void {
+    fn make(step: *Step, _: *std.Progress.Node) !void {
         const self = @fieldParentPtr(ResourceGenStep, "step", step);
         const cwd = std.fs.cwd();
 
