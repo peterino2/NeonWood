@@ -3,7 +3,7 @@ const vkgen = @import("modules/graphics/lib/vulkan-zig/generator/index.zig");
 const vma_build = @import("modules/graphics/lib/zig-vma/vma_build.zig");
 const Step = std.build.Step;
 const Builder = std.build.Builder;
-const zigTracy = @import("modules/core/lib/Zig-Tracy/build_tracy.zig");
+const zigTracy = @import("modules/core/lib/zig_tracy/build_tracy.zig");
 const spng_build = @import("modules/core/lib/zig-spng/build.zig");
 const shaders_folder = "modules/graphics/shaders/";
 
@@ -267,6 +267,11 @@ pub fn createGameExecutable(
     res.addShader("debug_vert", shaders_folder ++ "debug.vert");
     res.addShader("debug_frag", shaders_folder ++ "debug.frag");
     exe.addModule("resources", res.package);
+
+    const res2 = ResourceGenStep.init(b, "papyrusRes.zig");
+    res2.addShader("papyrus_vert", "modules/ui/papyrus/shaders/papyrus_vk.vert");
+    res2.addShader("papyrus_frag", "modules/ui/papyrus/shaders/papyrus_vk.frag");
+    exe.addModule("papyrusRes", res2.package);
 
     var runName = try std.fmt.allocPrint(allocator, "run-{s}", .{name});
     defer allocator.free(mainFilePath);

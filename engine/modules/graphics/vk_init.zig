@@ -50,7 +50,6 @@ pub fn commandPoolCreateInfo(
 }
 
 pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
-
     var info = vk.SubmitInfo{
         .wait_semaphore_count = 0,
         .signal_semaphore_count = 0,
@@ -82,7 +81,7 @@ pub fn imageCreateInfo(
         .sharing_mode = .exclusive,
         .queue_family_index_count = 0,
         .p_queue_family_indices = undefined,
-        .initial_layout = .@"undefined",
+        .initial_layout = .undefined,
         .image_type = .@"2d",
         .format = format,
         .extent = extent,

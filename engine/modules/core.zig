@@ -5,7 +5,7 @@ pub usingnamespace @import("core/engineTime.zig");
 pub usingnamespace @import("core/rtti.zig");
 pub usingnamespace @import("core/jobs.zig");
 pub const engine = @import("core/engine.zig");
-pub const tracy = @import("core/lib/Zig-Tracy/tracy.zig");
+pub const tracy = @import("core/lib/zig_tracy/tracy.zig");
 pub const zm = @import("core/lib/zmath/zmath.zig");
 pub usingnamespace @import("core/lib/p2/algorithm.zig");
 const algorithm = @import("core/lib/p2/algorithm.zig");

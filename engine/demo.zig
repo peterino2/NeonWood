@@ -3,6 +3,7 @@ pub const neonwood = @import("modules/neonwood.zig");
 
 const core = neonwood.core;
 const platform = neonwood.platform;
+const ui = neonwood.ui;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
@@ -16,7 +17,14 @@ const testimage2 = "content/textures/texture_sample.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
-    assets.MakeImportRef("Mesh", "m_empire", "content/meshes/lost_empire.obj"),
+    assets.MakeImportRefOptions(
+        "Mesh",
+        "m_empire",
+        .{
+            .path = "content/meshes/lost_empire.obj",
+            .textureUseBlockySampler = false,
+        },
+    ),
     assets.MakeImportRef("Texture", "m_texture", testimage1),
 };
 
@@ -197,6 +205,9 @@ pub fn main() anyerror!void {
 
     graphics.start_module();
     defer graphics.shutdown_module();
+
+    try ui.start_module(std.heap.c_allocator);
+    defer ui.shutdown_module();
 
     var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
     try gameContext.prepare_game();

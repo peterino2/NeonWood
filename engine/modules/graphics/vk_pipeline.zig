@@ -86,6 +86,19 @@ pub const NeonVkPipelineBuilder = struct {
 
     descriptorLayouts: ArrayList(vk.DescriptorSetLayout),
 
+    // a seperate more convenient version of the default one
+    pub fn initFromContext(ctx: *NeonVkContext, vert_resource: anytype, frag_resource: anytype) !@This() {
+        return try NeonVkPipelineBuilder.init(
+            ctx.dev,
+            ctx.vkd,
+            ctx.allocator,
+            vert_resource.len,
+            @ptrCast([*]const u32, @alignCast(4, &vert_resource)),
+            frag_resource.len,
+            @ptrCast([*]const u32, @alignCast(4, &frag_resource)),
+        );
+    }
+
     // call after all parameters are good to go.
     pub fn build(self: *NeonVkPipelineBuilder, renderPass: vk.RenderPass) !?vk.Pipeline {
         var pvsci = vk.PipelineViewportStateCreateInfo{

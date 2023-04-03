@@ -13,6 +13,7 @@ pub const AssetPropertiesBag = asset_references.AssetPropertiesBag;
 pub const AssetReferenceSys = asset_references.AssetReferenceSys;
 
 pub const MakeImportRef = asset_references.MakeImportRef;
+pub const MakeImportRefOptions = asset_references.MakeImportRefOptions;
 
 pub const AsyncAssetJobContext = asset_jobs.AsyncAssetJobContext;
 

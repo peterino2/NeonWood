@@ -676,6 +676,7 @@ pub const NeonVkContext = struct {
         var image = stagingResults.image;
 
         var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
+        imageViewCreate.subresource_range.level_count = 5;
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
         var newTexture = try self.allocator.create(Texture);
 
@@ -1142,6 +1143,7 @@ pub const NeonVkContext = struct {
         self.blockySampler = try self.vkd.createSampler(self.dev, &samplerCreateInfo, null);
 
         var linearCreateSample = vkinit.samplerCreateInfo(.linear, null);
+        linearCreateSample.mipmap_mode = .linear;
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
         try self.create_mesh_material();

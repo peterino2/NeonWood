@@ -3,6 +3,7 @@ pub const graphics = @import("graphics.zig");
 pub const assets = @import("assets.zig");
 pub const audio = @import("audio.zig");
 pub const platform = @import("platform.zig");
+pub const ui = @import("ui.zig");
 
 const std = @import("std");
 
@@ -16,6 +17,7 @@ pub fn start_everything(windowName: []const u8) !void {
     assets.start_module();
     audio.start_module();
     graphics.start_module();
+    try ui.start_module(std.heap.c_allocator);
 }
 
 pub fn shutdown_everything() void {

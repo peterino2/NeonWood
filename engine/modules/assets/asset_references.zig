@@ -7,13 +7,23 @@ pub const AssetImportReference = struct {
     properties: AssetPropertiesBag,
 };
 
-pub fn MakeImportRef(comptime assetType: []const u8, comptime name: []const u8, comptime path: []const u8) AssetImportReference {
+pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) AssetImportReference {
     return .{
         .assetRef = .{
-            .assetType = core.MakeName(assetType),
-            .name = core.MakeName(name),
+            .assetType = core.Name.fromUtf8(assetType),
+            .name = core.Name.fromUtf8(name),
         },
         .properties = .{ .path = path },
+    };
+}
+
+pub fn MakeImportRefOptions(assetType: []const u8, name: []const u8, properties: AssetPropertiesBag) AssetImportReference {
+    return .{
+        .assetRef = .{
+            .assetType = core.Name.fromUtf8(assetType),
+            .name = core.Name.fromUtf8(name),
+        },
+        .properties = properties,
     };
 }
 
