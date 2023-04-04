@@ -93,9 +93,9 @@ pub const NeonVkPipelineBuilder = struct {
             ctx.vkd,
             ctx.allocator,
             vert_resource.len,
-            @ptrCast([*]const u32, @alignCast(4, &vert_resource)),
+            @ptrCast([*]const u32, @alignCast(8, &vert_resource)),
             frag_resource.len,
-            @ptrCast([*]const u32, @alignCast(4, &frag_resource)),
+            @ptrCast([*]const u32, @alignCast(8, &frag_resource)),
         );
     }
 

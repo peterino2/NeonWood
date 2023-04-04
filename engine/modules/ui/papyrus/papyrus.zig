@@ -1235,6 +1235,10 @@ pub const PapyrusContext = struct {
     fallbackFont: PapyrusFont,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
 
+    // internals
+    _drawOrder: DrawOrderList,
+    _layout: std.AutoHashMap(u32, PosSize),
+
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "ProggyClean";
         const fallbackFontFile: []const u8 = "fonts/ComicMono.ttf";
@@ -1249,6 +1253,8 @@ pub const PapyrusContext = struct {
                 .name = HashStr.fromUtf8(fallbackFontName),
                 .atlas = try backingAllocator.create(FontAtlas),
             },
+            ._drawOrder = DrawOrderList.init(backingAllocator),
+            ._layout = std.AutoHashMap(u32, PosSize).init(backingAllocator),
         };
 
         self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
@@ -1270,8 +1276,11 @@ pub const PapyrusContext = struct {
             i.value_ptr.atlas.deinit();
             self.allocator.destroy(i.value_ptr.atlas);
         }
+
         self.fonts.deinit();
         self.nodes.deinit();
+        self._drawOrder.deinit();
+        self._layout.deinit();
         self.allocator.destroy(self);
     }
 
@@ -1539,9 +1548,11 @@ pub const PapyrusContext = struct {
     }
 
     pub fn makeDrawList(self: *@This()) !DrawList {
-        var drawOrder: DrawOrderList = DrawOrderList.init(self.allocator);
-        defer drawOrder.deinit();
-        try self.assembleDrawOrderList(&drawOrder);
+        // do not re allocate these, instead use a preallocated pool
+        self._drawOrder.clearRetainingCapacity();
+        self._layout.clearRetainingCapacity();
+
+        try self.assembleDrawOrderList(&self._drawOrder);
 
         var layout = std.AutoHashMap(u32, PosSize).init(self.allocator);
         defer layout.deinit();
@@ -1550,7 +1561,7 @@ pub const PapyrusContext = struct {
 
         var drawList = DrawList.init(self.allocator);
 
-        for (drawOrder.items) |node| {
+        for (self._drawOrder.items) |node| {
             var n = self.getRead(node);
 
             var parentInfo = layout.get(n.parent).?;

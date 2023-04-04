@@ -6,6 +6,8 @@ const NeonVkContext = graphics.NeonVkContext;
 const gpd = graphics.gpu_pipe_data;
 
 const papyrusRes = @import("papyrusRes");
+const papyrus = @import("papyrus.ziendDrawg");
+const PapyrusContext = papyrus.PapyrusContext;
 
 // vulkan based reference renderer
 // this is just a sample integration
@@ -14,6 +16,22 @@ const papyrusRes = @import("papyrusRes");
 
 // converts the emitted draw commands from the papyrus system into
 // rendering draws for a vulkan instance
+//
+// usage:
+//
+// Initialize to a NeonVkContext (TODO, make a vulkan agnostic version)
+//
+// try VkRenderer.beginDraw();
+//
+// drawList = papyrusContext.makeDrawList();
+// defer drawList.deinit();
+//
+// for (drawList.items) |cmd|
+// {
+//      VkRenderer.drawCommand(cmd)
+// }
+//
+// try VkRendere.endDraw();
 
 gc: *NeonVkContext,
 allocator: std.mem.Allocator,
@@ -55,11 +73,16 @@ pub fn preparePipeline(self: *@This()) !void {
     self.pipeData = try spriteDataBuilder.build();
     defer spriteDataBuilder.deinit();
 
-    var builder = try graphics.NeonVkPipelineBuilder.initFromContext(
-        self.gc,
-        papyrusRes.papyrus_vert,
-        papyrusRes.papyrus_frag,
+    var builder = try graphics.NeonVkPipelineBuilder.init(
+        self.gc.dev,
+        self.gc.vkd,
+        self.gc.allocator,
+        papyrusRes.papyrus_vert.len,
+        @ptrCast([*]const u32, &papyrusRes.papyrus_vert),
+        papyrusRes.papyrus_frag.len,
+        @ptrCast([*]const u32, &papyrusRes.papyrus_frag),
     );
+
     defer builder.deinit();
 
     try builder.add_mesh_description();
@@ -79,6 +102,20 @@ pub fn preparePipeline(self: *@This()) !void {
     try self.gc.add_material(material);
 
     self.material = material;
+}
+
+pub fn beingDraw(self: *@This()) !void {
+    // bind the descriptors for the thing.
+    _ = self;
+}
+
+pub fn drawCommand(self: *@This(), papyrusCmd: PapyrusContext.DrawCommand) !void {
+    _ = papyrusCmd;
+    _ = self;
+}
+
+pub fn endDraw(self: *@This()) !void {
+    _ = self;
 }
 
 pub fn deinit(self: *@This()) void {

@@ -7,15 +7,19 @@ const papyrus = @import("papyrus/papyrus.zig");
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
 renderer: Renderer,
+papyrusCtx: *papyrus.PapyrusContext,
 
 pub const NeonObjectTable = core.RttiData.from(@This());
+pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
 pub fn init(allocator: std.mem.Allocator) @This() {
-    core.ui_log("papyrus subsystem initialized", .{});
+    var papyrusCtx = papyrus.initialize(allocator) catch unreachable;
+    core.ui_log("papyrus subsystem initializing @0x{*}", .{papyrusCtx});
     return .{
         .allocator = allocator,
         .renderer = undefined,
         .gc = undefined,
+        .papyrusCtx = papyrusCtx,
     };
 }
 

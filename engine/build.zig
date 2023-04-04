@@ -203,9 +203,11 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
     exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
+    exe.addCSourceFile("modules/ui/papyrus/compat.cpp", &.{""});
 
     exe.addIncludePath("modules/core/lib");
     exe.addIncludePath("modules/audio/lib");
+    exe.addIncludePath("modules/ui/papyrus");
     exe.addIncludePath("modules/platform/lib");
     exe.addIncludePath("modules/graphics/lib/vulkan_inc");
     exe.addIncludePath("modules/graphics/lib/cimgui");
