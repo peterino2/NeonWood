@@ -75,8 +75,9 @@ pub fn imageCreateInfo(
     format: vk.Format,
     usageFlags: vk.ImageUsageFlags,
     extent: vk.Extent3D,
+    mipLevel: u32, // should default to 1
 ) vk.ImageCreateInfo {
-    var dimg_create = vk.ImageCreateInfo{
+    var img_create = vk.ImageCreateInfo{
         .flags = .{},
         .sharing_mode = .exclusive,
         .queue_family_index_count = 0,
@@ -85,7 +86,7 @@ pub fn imageCreateInfo(
         .image_type = .@"2d",
         .format = format,
         .extent = extent,
-        .mip_levels = 1,
+        .mip_levels = mipLevel,
         .array_layers = 1,
         .samples = .{
             .@"1_bit" = true,
@@ -93,13 +94,14 @@ pub fn imageCreateInfo(
         .tiling = .optimal,
         .usage = usageFlags,
     };
-    return dimg_create;
+    return img_create;
 }
 
 pub fn imageViewCreateInfo(
     format: vk.Format,
     image: vk.Image,
     aspectFlags: vk.ImageAspectFlags,
+    mipLevel: u32,
 ) vk.ImageViewCreateInfo {
     var ivci = vk.ImageViewCreateInfo{
         .flags = .{},
@@ -110,7 +112,7 @@ pub fn imageViewCreateInfo(
         .subresource_range = .{
             .aspect_mask = aspectFlags,
             .base_mip_level = 0,
-            .level_count = 1,
+            .level_count = mipLevel,
             .base_array_layer = 0,
             .layer_count = 1,
         },

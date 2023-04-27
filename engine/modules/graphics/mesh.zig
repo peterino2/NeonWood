@@ -5,13 +5,13 @@ const vma = @import("vma");
 const vk = @import("vulkan");
 const obj_loader = @import("lib/objLoader/obj_loader.zig");
 
+const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
 const Vector2f = core.Vector2f;
 const LinearColor = core.LinearColor;
 const NeonVkContext = vk_renderer.NeonVkContext;
-const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
 const debug_struct = core.debug_struct;
 
@@ -20,6 +20,88 @@ pub const Vertex = struct {
     normal: Vectorf,
     color: LinearColor,
     uv: Vector2f,
+};
+
+pub const IndexBuffer = struct {
+    buffer: NeonVkBuffer,
+    indices: []const u32,
+    allocator: std.mem.Allocator,
+
+    pub fn uploadIndexBuffer(gc: *NeonVkContext, indices: []const u32, allocator: std.mem.Allocator) !@This() {
+        var self = @This(){
+            .buffer = undefined,
+            .indices = indices,
+            .allocator = allocator,
+        };
+
+        self.indices = try allocator.dupe(u32, indices);
+
+        const bufferSize = indices.len * @sizeOf(u32);
+
+        var bci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{ .transfer_src_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var vmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .cpuOnly,
+        };
+
+        var allocatedBuffer = try gc.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name);
+        defer allocatedBuffer.deinit(gc.vkAllocator);
+
+        {
+            var data = try gc.vkAllocator.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
+            @memcpy(data, @ptrCast([*]const u8, indices.ptr), bufferSize);
+            gc.vkAllocator.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
+        }
+
+        // GPU sided buffer
+
+        var gpuBci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{ .transfer_dst_bit = true, .index_buffer_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var gpuVmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .gpuOnly,
+        };
+
+        self.buffer = try gc.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name);
+        try gc.start_upload_context(&gc.uploadContext);
+        {
+            var copy = vk.BufferCopy{
+                .dst_offset = 0,
+                .src_offset = 0,
+                .size = bufferSize,
+            };
+
+            const cmd = gc.uploadContext.commandBuffer;
+            core.graphics_log("Starting command copy buffer", .{});
+
+            gc.vkd.cmdCopyBuffer(
+                cmd,
+                allocatedBuffer.buffer,
+                self.buffer.buffer,
+                1,
+                @ptrCast([*]const vk.BufferCopy, &copy),
+            );
+        }
+
+        try gc.finish_upload_context(&gc.uploadContext);
+
+        return self;
+    }
 };
 
 pub const Mesh = struct {

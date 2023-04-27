@@ -250,7 +250,7 @@ pub const PapyrusSubsystem = struct {
         zone.Name("papyrus animation");
         defer zone.End();
 
-        for (self.spriteObjects.dense.items(.activeAnims)) |*anim, i| {
+        for (self.spriteObjects.dense.items(.activeAnims), 0..) |*anim, i| {
             var zanim = tracy.Zone(@src());
             zanim.Name("papyrus animation update anim");
             defer zanim.End();
@@ -270,7 +270,7 @@ pub const PapyrusSubsystem = struct {
 
     pub fn preDraw(self: *@This(), frameId: usize) void {
         // 1. update animation data in the PapyrusPerFrameData
-        for (self.spriteObjects.dense.items(.sprite)) |*dense, i| {
+        for (self.spriteObjects.dense.items(.sprite), 0..) |*dense, i| {
             const spriteObject: *PapyrusSprite = dense;
 
             if (!spriteObject.dirty)
@@ -379,7 +379,7 @@ pub const PapyrusImageSubsystem = struct {
     pub fn uploadImageData(self: *@This(), frameId: usize) void {
         var gpuObjects = self.mappedBuffers[frameId].objects;
         var extent = self.gc.actual_extent;
-        for (self.objects.dense.items(.image)) |image, i| {
+        for (self.objects.dense.items(.image), 0..) |image, i| {
             var position = image.position;
             var screenRatio = core.Vector2f{ .x = 1.0, .y = @intToFloat(f32, extent.height) / @intToFloat(f32, extent.width) };
             if (screenRatio.x > screenRatio.y) {
@@ -424,7 +424,7 @@ pub const PapyrusImageSubsystem = struct {
         vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
         vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&mesh.buffer.buffer), core.p_to_a(&offset));
 
-        for (self.objects.dense.items(.image)) |image, i| {
+        for (self.objects.dense.items(.image), 0..) |image, i| {
             var textureSet = image.textureSet;
             vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(textureSet), 0, undefined);
             vkd.cmdDraw(cmd, @intCast(u32, mesh.vertices.items.len), 1, 0, @intCast(u32, i));

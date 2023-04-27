@@ -422,22 +422,22 @@ const FontAtlas = struct {
             self.meshes[ch][1] = .{ .x = xSize + xOff, .y = ySize + yOff }; // TR
             self.meshes[ch][2] = .{ .x = xSize + xOff, .y = 0 + yOff }; // BR
             self.meshes[ch][3] = .{ .x = xOff, .y = yOff }; // BL
-            std.debug.print("{d} {d} {d} [{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}]\n", .{
-                @intCast(u8, ch),
-                self.fontSize,
-                1 / self.scale,
-                self.meshes[ch][0].x,
-                self.meshes[ch][0].y,
+            // std.debug.print("{d} {d} {d} [{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}]\n", .{
+            //     @intCast(u8, ch),
+            //     self.fontSize,
+            //     1 / self.scale,
+            //     self.meshes[ch][0].x,
+            //     self.meshes[ch][0].y,
 
-                self.meshes[ch][1].x,
-                self.meshes[ch][1].y,
+            //     self.meshes[ch][1].x,
+            //     self.meshes[ch][1].y,
 
-                self.meshes[ch][2].x,
-                self.meshes[ch][2].y,
+            //     self.meshes[ch][2].x,
+            //     self.meshes[ch][2].y,
 
-                self.meshes[ch][3].x,
-                self.meshes[ch][3].y,
-            });
+            //     self.meshes[ch][3].x,
+            //     self.meshes[ch][3].y,
+            // });
         }
     }
 

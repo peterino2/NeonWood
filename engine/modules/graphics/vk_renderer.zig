@@ -672,10 +672,15 @@ pub const NeonVkContext = struct {
     pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
         var stagingResults = try vk_utils.load_and_stage_image_from_file(self, texturePath);
         defer stagingResults.stagingBuffer.deinit(self.vkAllocator);
-        try vk_utils.submit_copy_from_staging(self, stagingResults.stagingBuffer, stagingResults.image);
+        try vk_utils.submit_copy_from_staging(self, stagingResults.stagingBuffer, stagingResults.image, stagingResults.mipLevel);
         var image = stagingResults.image;
 
-        var imageViewCreate = vkinit.imageViewCreateInfo(.r8g8b8a8_srgb, image.image, .{ .color_bit = true });
+        var imageViewCreate = vkinit.imageViewCreateInfo(
+            .r8g8b8a8_srgb,
+            image.image,
+            .{ .color_bit = true },
+            stagingResults.mipLevel,
+        );
         imageViewCreate.subresource_range.level_count = 5;
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
         var newTexture = try self.allocator.create(Texture);
@@ -2432,6 +2437,14 @@ pub const NeonVkContext = struct {
         }
 
         // self.presentMode = .mailbox_khr;
+    }
+
+    pub fn registerRendererPlugin(self: *@This(), value: anytype) !void {
+        var ref = RendererInterfaceRef{
+            .ptr = value,
+            .vtable = &@TypeOf(value.*).RendererInterfaceVTable,
+        };
+        try self.rendererPlugins.append(self.allocator, ref);
     }
 
     pub fn get_layer_extensions(self: *Self) ![]const vk.LayerProperties {

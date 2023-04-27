@@ -23,12 +23,15 @@ const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 const NeonVkObjectDataGpu = vk_renderer.NeonVkObjectDataGpu;
 
+const transitions = @import("vk_transitions.zig");
+
 const NeonVkSpriteDataGpu = struct {
     // tl, tr, br, bl running clockwise
     position: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
     size: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
 };
 
+// Takes the contents of a png file and transfers the pixel contents to a staged buffer
 pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
     var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
     const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
@@ -40,6 +43,7 @@ pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
 pub const LoadAndStageImage = struct {
     stagingBuffer: NeonVkBuffer,
     image: NeonVkImage,
+    mipLevel: u32,
 };
 
 pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
@@ -68,7 +72,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
         .sampled_bit = true,
         .transfer_dst_bit = true,
-    }, imageExtent);
+    }, imageExtent, 1);
 
     var imgAllocInfo = vma.AllocationCreateInfo{
         .requiredFlags = .{},
@@ -82,48 +86,19 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     return .{
         .stagingBuffer = stagingBuffer,
         .image = newImage,
+        .mipLevel = std.math.log2(std.math.max(imageExtent.width, imageExtent.height)) + 1,
     };
 }
 
-pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage) !void {
+pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage, mipLevel: u32) !void {
     var z1 = tracy.ZoneN(@src(), "submitting copy from staging buffer");
     defer z1.End();
     try ctx.start_upload_context(&ctx.uploadContext);
     {
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
         var cmd = ctx.uploadContext.commandBuffer;
-        var range = vk.ImageSubresourceRange{
-            .aspect_mask = .{ .color_bit = true },
-            .base_mip_level = 0,
-            .level_count = 1,
-            .base_array_layer = 0,
-            .layer_count = 1,
-        };
 
-        var imageBarrier_toTransfer = vk.ImageMemoryBarrier{
-            .old_layout = .undefined,
-            .new_layout = .transfer_dst_optimal,
-            .image = newImage.image,
-            .subresource_range = range,
-            .src_access_mask = .{},
-            .dst_access_mask = .{
-                .transfer_write_bit = true,
-            },
-            .src_queue_family_index = 0,
-            .dst_queue_family_index = 0,
-        };
-        ctx.vkd.cmdPipelineBarrier(
-            cmd,
-            .{ .top_of_pipe_bit = true },
-            .{ .transfer_bit = true },
-            .{},
-            0,
-            undefined,
-            0,
-            undefined,
-            1,
-            p2a(&imageBarrier_toTransfer),
-        );
+        transitions.into_transferDst(ctx.vkd, cmd, newImage.image, mipLevel);
 
         var copyRegion = vk.BufferImageCopy{
             .buffer_offset = 0,
@@ -136,7 +111,11 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
                 .base_array_layer = 0,
                 .layer_count = 1,
             },
-            .image_extent = .{ .width = newImage.pixelWidth, .height = newImage.pixelHeight, .depth = 1 },
+            .image_extent = .{
+                .width = newImage.pixelWidth,
+                .height = newImage.pixelHeight,
+                .depth = 1,
+            },
         };
 
         ctx.vkd.cmdCopyBufferToImage(
@@ -148,33 +127,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             p2a(&copyRegion),
         );
 
-        var imageBarrier_toReadable = vk.ImageMemoryBarrier{
-            .old_layout = .transfer_dst_optimal,
-            .new_layout = .shader_read_only_optimal,
-            .image = newImage.image,
-            .subresource_range = range,
-            .src_access_mask = .{
-                .transfer_write_bit = true,
-            },
-            .dst_access_mask = .{
-                .shader_read_bit = false,
-            },
-            .src_queue_family_index = 0,
-            .dst_queue_family_index = 0,
-        };
-
-        ctx.vkd.cmdPipelineBarrier(
-            cmd,
-            .{ .transfer_bit = true },
-            .{ .fragment_shader_bit = true },
-            .{},
-            0,
-            undefined,
-            0,
-            undefined,
-            1,
-            p2a(&imageBarrier_toReadable),
-        );
+        transitions.transferDst_into_shaderReadOnly(ctx.vkd, cmd, newImage.image, mipLevel);
         z2.End();
     }
     try ctx.finish_upload_context(&ctx.uploadContext);
@@ -249,7 +202,3 @@ pub fn upload_sprite_data(self: *NeonVkContext) !void {
 
     self.vkAllocator.vmaAllocator.unmapMemory(allocation);
 }
-
-// Upload Contexts stuff
-
-// Mesh uploading utilities

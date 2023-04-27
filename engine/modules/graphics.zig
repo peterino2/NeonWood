@@ -22,6 +22,7 @@ pub const texture = @import("graphics/texture.zig");
 pub const debug_draw = @import("graphics/debug_draws.zig");
 pub const mesh = @import("graphics/mesh.zig");
 pub const Mesh = mesh.Mesh;
+pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
 pub const imguiUtils = @import("graphics/igUtils.zig");

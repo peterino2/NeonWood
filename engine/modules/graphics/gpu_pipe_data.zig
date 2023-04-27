@@ -190,7 +190,7 @@ pub const GpuPipeDataBuilder = struct {
     ) !void {
         var gc = self.gc;
         var binding = vkinit.descriptorSetLayoutBinding(descriptorType, stageFlags, self.currentBinding);
-        core.graphics_log("builder adding additional binding {any} {any} objectSize = {d}", .{ descriptorType, stageFlags, @sizeOf(BindingType) });
+        // core.graphics_log("builder adding additional binding {any} {any} objectSize = {d}", .{ descriptorType, stageFlags, @sizeOf(BindingType) });
         try self.bindings.append(self.allocator, binding);
 
         var objCount: usize = 1;

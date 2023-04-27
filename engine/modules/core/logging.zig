@@ -86,6 +86,22 @@ pub const FileLog = struct {
         try cwd.writeFile(ofile, self.buffer.items);
     }
 
+    pub fn makeGraphViz(self: @This()) !void {
+        try self.writeOut();
+
+        var srcFile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
+        var oFile = try std.fmt.allocPrint(self.allocator, "{s}.png", .{srcFile});
+
+        defer self.allocator.free(srcFile);
+        defer self.allocator.free(oFile);
+
+        var childProc = std.ChildProcess.init(
+            &.{ "dot", "-Tpng", srcFile, "-o", srcFile },
+            std.heap.c_allocator,
+        );
+        try childProc.spawn();
+    }
+
     pub fn deinit(self: *@This()) void {
         self.allocator.free(self.fileName);
         self.buffer.deinit();
