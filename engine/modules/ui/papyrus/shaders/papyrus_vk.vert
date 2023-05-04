@@ -31,14 +31,13 @@ void main()
     float alpha = objectBuffer.objects[gl_BaseInstance].alpha;
     //float zLevel = objectBuffer.objects[gl_BaseInstance].zLevel;
 
-    vec2 finalPos = imagePosition;// + anchor;
+    vec2 finalPos = imagePosition - anchor * imageSize * scale / 2;
 
 	outColor = vec3(alpha, vColor.y, vColor.z);
 	//outColor = vec3(vColor.x, vColor.y, vColor.z);
     gl_Position = vec4(
         finalPos.x + ( vPosition.x * imageSize.x * scale.x), 
         finalPos.y + (-vPosition.y * imageSize.y * scale.y),
-        // lmao.. i have got to set up OID at some point
         vPosition.z, 1.0
         );
         //1.0); 

@@ -190,8 +190,9 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     self.ssboCount = 0;
 
-    for (drawList) |drawCmd| {
-        var tl = core.Vector2f{ .x = -0.5, .y = -0.5 };
+    for (drawList.items) |drawCmd| {
+        _ = drawCmd;
+        var tl = core.Vector2f{ .x = 0.0, .y = 0.0 };
         var size = core.Vector2f{ .x = 0.5, .y = 0.5 };
         gpuObjects[self.ssboCount] = PapyrusImageGpu{
             .topLeft = tl,
