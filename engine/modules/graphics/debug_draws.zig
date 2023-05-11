@@ -142,7 +142,7 @@ pub const DebugDrawSubsystem = struct {
         defer dataBuilder.deinit();
         dataBuilder.setObjectCount(objectCount);
         try dataBuilder.addBufferBinding(DebugPrimitiveGpu, .storage_buffer, .{ .vertex_bit = true }, .storageBuffer);
-        self.pipeData = try dataBuilder.build();
+        self.pipeData = try dataBuilder.build("debug draws");
         self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, DebugPrimitiveGpu, 0);
     }
 

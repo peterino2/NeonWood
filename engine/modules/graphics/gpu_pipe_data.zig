@@ -224,7 +224,7 @@ pub const GpuPipeDataBuilder = struct {
         self.currentBinding += 1;
     }
 
-    pub fn build(self: *@This()) !GpuPipeData {
+    pub fn build(self: *@This(), comptime buildName: []const u8) !GpuPipeData {
         var rv = try GpuPipeData.init(self.allocator, self.bindings.items.len, self.frameCount);
         var gc: *NeonVkContext = self.gc;
         var setInfo = vk.DescriptorSetLayoutCreateInfo{ .binding_count = @intCast(u32, self.bindings.items.len), .flags = .{}, .p_bindings = self.bindings.items.ptr };
@@ -272,7 +272,7 @@ pub const GpuPipeDataBuilder = struct {
                     bindingInfo.finalObjectSize * bindingInfo.objectCount,
                     usageFlags,
                     memoryFlags,
-                    "GPU binding buffer creation " ++ @src().fn_name,
+                    "GPU binding buffer creation " ++ @src().fn_name ++ ": " ++ buildName,
                 );
 
                 var bufferInfo = vk.DescriptorBufferInfo{

@@ -220,6 +220,21 @@ pub const NeonVkPipelineBuilder = struct {
         self.plci.?.p_set_layouts = self.descriptorLayouts.items.ptr;
     }
 
+    pub fn add_push_constant_custom(self: *NeonVkPipelineBuilder, comptime PushConstant: type) !void {
+        if (self.plci == null) {
+            self.plci = default_pipeline_layout();
+        }
+
+        self.pushConstantRange = vk.PushConstantRange{
+            .offset = 0,
+            .size = @sizeOf(PushConstant),
+            .stage_flags = .{ .vertex_bit = true, .fragment_bit = true },
+        };
+
+        self.plci.?.push_constant_range_count = 1;
+        self.plci.?.p_push_constant_ranges = p2a(&(self.pushConstantRange.?));
+    }
+
     pub fn add_push_constant(self: *NeonVkPipelineBuilder) !void {
         if (self.plci == null) {
             self.plci = default_pipeline_layout();

@@ -25,6 +25,10 @@ ssboCount: u32 = 1,
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
+pub const PapyrusPushConstant = struct {
+    extent: core.Vector2f,
+};
+
 pub const PapyrusImageGpu = struct {
     topLeft: core.Vector2f,
     size: core.Vector2f,
@@ -32,8 +36,10 @@ pub const PapyrusImageGpu = struct {
     scale: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
     alpha: f32 = 1.0,
     //zLevel: f32 = 0.5,
-    pad: [12]u8 = std.mem.zeroes([12]u8),
+    baseColor: core.LinearColor = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
 };
+
+pub const PapyrusImageGpuSSBO = extern struct {};
 
 pub fn init(allocator: std.mem.Allocator) @This() {
     var papyrusCtx = papyrus.initialize(allocator) catch unreachable;
@@ -100,10 +106,10 @@ fn setupMeshes(self: *@This()) !void {
 
     var indexBuffer: [6]u32 = undefined;
 
-    self.quad.vertices.items[0].position = .{ .x = 0.5, .y = 0.5, .z = 0 };
-    self.quad.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0 };
-    self.quad.vertices.items[2].position = .{ .x = -0.5, .y = -0.5, .z = 0 };
-    self.quad.vertices.items[3].position = .{ .x = -0.5, .y = 0.5, .z = 0 };
+    self.quad.vertices.items[0].position = .{ .x = 1, .y = 1, .z = 0 };
+    self.quad.vertices.items[1].position = .{ .x = 1, .y = -1, .z = 0 };
+    self.quad.vertices.items[2].position = .{ .x = -1, .y = -1, .z = 0 };
+    self.quad.vertices.items[3].position = .{ .x = -1, .y = 1, .z = 0 };
 
     indexBuffer[0] = 0;
     indexBuffer[1] = 1;
@@ -139,7 +145,7 @@ pub fn preparePipeline(self: *@This()) !void {
         .{ .vertex_bit = true, .fragment_bit = true },
         .storageBuffer,
     );
-    self.pipeData = try spriteDataBuilder.build();
+    self.pipeData = try spriteDataBuilder.build("Papyrus");
     defer spriteDataBuilder.deinit();
 
     var builder = try graphics.NeonVkPipelineBuilder.init(
@@ -158,6 +164,7 @@ pub fn preparePipeline(self: *@This()) !void {
     try builder.add_layout(self.pipeData.descriptorSetLayout);
     try builder.add_layout(self.gc.singleTextureSetLayout);
     try builder.add_depth_stencil();
+    try builder.add_push_constant_custom(PapyrusPushConstant);
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
     var material = try self.gc.allocator.create(graphics.Material);
@@ -190,16 +197,39 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     self.ssboCount = 0;
 
+    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+        .topLeft = .{ .x = 0, .y = 400 },
+        .size = .{ .x = 200, .y = 200 },
+    };
+    self.ssboCount += 1;
+
     for (drawList.items) |drawCmd| {
         _ = drawCmd;
-        var tl = core.Vector2f{ .x = 0.0, .y = 0.0 };
-        var size = core.Vector2f{ .x = 0.5, .y = 0.5 };
+        var tl = core.Vector2f{ .x = 200, .y = 200 };
+        var size = core.Vector2f{ .x = 200, .y = 200 };
         gpuObjects[self.ssboCount] = PapyrusImageGpu{
             .topLeft = tl,
             .size = size,
         };
         self.ssboCount += 1;
     }
+    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+        .topLeft = .{ .x = 400, .y = 400 },
+        .size = .{ .x = 200, .y = 200 },
+    };
+    self.ssboCount += 1;
+
+    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+        .topLeft = .{ .x = 600, .y = 200 },
+        .size = .{ .x = 200, .y = 200 },
+    };
+    self.ssboCount += 1;
+
+    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+        .topLeft = .{ .x = 800, .y = 400 },
+        .size = .{ .x = 200, .y = 200 },
+    };
+    self.ssboCount += 1;
 }
 
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
@@ -211,13 +241,23 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     {
         var size: u64 = 0;
 
-        // bind
+        var constants = PapyrusPushConstant{
+            .extent = .{
+                .x = @intToFloat(f32, self.gc.extent.width),
+                .y = @intToFloat(f32, self.gc.extent.height),
+            },
+        };
+
+        self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
         self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-        self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
         self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&size));
         self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
 
-        self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, 0);
+        var index: u32 = 0;
+        while (index < self.ssboCount) : (index += 1) {
+            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+            self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
+        }
     }
 
     // 1. get the draw list

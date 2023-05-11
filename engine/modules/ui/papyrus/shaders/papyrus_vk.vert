@@ -6,7 +6,7 @@ layout (location = 1) in vec3 vNormal;
 layout (location = 2) in vec4 vColor;
 layout (location = 3) in vec2 vTexCoord;
 
-layout (location = 0) out vec3 outColor;
+layout (location = 0) out vec4 outColor;
 layout (location = 1) out vec2 texCoord;
 
 struct ImageRenderData {
@@ -15,12 +15,18 @@ struct ImageRenderData {
     vec2 anchorPoint;
     vec2 scale;
     float alpha;
+	vec4 baseColor;
     // float zLevel;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer ImageBufferObjects {
     ImageRenderData objects[];
 } objectBuffer;
+
+layout (push_constant) uniform constants 
+{
+	vec2 extent;
+} PushConstants;
 
 void main()
 {
@@ -29,15 +35,18 @@ void main()
     vec2 anchor = objectBuffer.objects[gl_BaseInstance].anchorPoint;
     vec2 scale = objectBuffer.objects[gl_BaseInstance].scale;
     float alpha = objectBuffer.objects[gl_BaseInstance].alpha;
+	vec4 baseColor = objectBuffer.objects[gl_BaseInstance].baseColor;
+
+	vec2 finalSize = (imageSize / PushConstants.extent);
     //float zLevel = objectBuffer.objects[gl_BaseInstance].zLevel;
 
-    vec2 finalPos = imagePosition - anchor * imageSize * scale / 2;
+    vec2 finalPos = ((imagePosition / PushConstants.extent) * 2 - 1) - anchor * finalSize * scale;
 
-	outColor = vec3(alpha, vColor.y, vColor.z);
+	outColor = baseColor;
 	//outColor = vec3(vColor.x, vColor.y, vColor.z);
     gl_Position = vec4(
-        finalPos.x + ( vPosition.x * imageSize.x * scale.x), 
-        finalPos.y + (-vPosition.y * imageSize.y * scale.y),
+        finalPos.x + ( vPosition.x * finalSize.x * scale.x), 
+        finalPos.y + (-vPosition.y * finalSize.y * scale.y),
         vPosition.z, 1.0
         );
         //1.0); 

@@ -33,15 +33,66 @@ pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator:
     return buffer;
 }
 
+pub const ShaderReflectStep = struct {
+    step: Step,
+    builder: *Builder,
+    shader_step: *vkgen.ShaderCompileStep,
+    outPath: []const u8,
+
+    pub fn init(builder: *Builder, reflectedStructOut: []const u8) *@This() {
+        const self = builder.allocator.create(@This()) catch unreachable;
+
+        const full_out_path = std.fs.path.join(builder.allocator, &[_][]const u8{
+            builder.cache_root.path.?,
+            reflectedStructOut,
+        }) catch unreachable;
+
+        self.* = .{
+            .step = Step.init(.{ .id = .custom, .name = "resources", .makeFn = make, .owner = builder }),
+            .outPath = full_out_path,
+            .builder = builder,
+            .shader_step = undefined,
+        };
+
+        return self;
+    }
+
+    fn make(step: *Step, _: *std.Progress.Node) !void {
+        const self = @fieldParentPtr(ShaderReflectStep, "step", step);
+        var allocator = self.builder.allocator;
+
+        for (self.shader_step.shaders.items) |shaderInfo| {
+            var parser = std.json.Parser.init(self.builder.allocator, false);
+            defer parser.deinit();
+            const jsonDeets = try loadFileAlloc(shaderInfo.reflected_path, 1, allocator);
+            var tree = parser.parse(jsonDeets) catch |e| {
+                std.debug.print("warning!!!:  unable to load json file {s} {any}\n", .{ shaderInfo.reflected_path, e });
+                continue;
+            };
+            defer tree.deinit();
+        }
+
+        // const self = @fieldParentPtr(ShaderReflectStep, "step", step);
+        // const cwd = std.fs.cwd();
+        // const dir = std.fs.path.dirname(self.outPath);
+
+        // const cwd = std.fs.cwd();
+        // const dir = std.fs.path.dirname(self.output_file.path.?).?;
+        // try cwd.makePath(dir);
+        // try cwd.writeFile(self.output_file.path.?, self.resources.items);
+    }
+};
+
 pub const ResourceGenStep = struct {
     step: Step,
     shader_step: *vkgen.ShaderCompileStep,
+    shader_reflect_step: *ShaderReflectStep,
     builder: *Builder,
     package: *std.build.Module,
     output_file: std.build.GeneratedFile,
     resources: std.ArrayList(u8),
 
-    pub fn init(builder: *Builder, out: []const u8) *ResourceGenStep {
+    pub fn init(builder: *Builder, out: []const u8, reflectedOut: []const u8) *ResourceGenStep {
         const self = builder.allocator.create(ResourceGenStep) catch unreachable;
         const full_out_path = std.fs.path.join(builder.allocator, &[_][]const u8{
             // builder.build_root.path.?,
@@ -52,6 +103,7 @@ pub const ResourceGenStep = struct {
         self.* = .{
             .step = Step.init(.{ .id = .custom, .name = "resources", .makeFn = make, .owner = builder }),
             .shader_step = vkgen.ShaderCompileStep.init(builder, &[_][]const u8{ "glslc", "--target-env=vulkan1.2" }, "shaders"),
+            .shader_reflect_step = ShaderReflectStep.init(builder, reflectedOut),
             .builder = builder,
             .package = builder.createModule(.{
                 .source_file = .{ .generated = &self.output_file },
@@ -63,7 +115,10 @@ pub const ResourceGenStep = struct {
             .resources = std.ArrayList(u8).init(builder.allocator),
         };
 
+        self.shader_reflect_step.shader_step = self.shader_step;
         self.step.dependOn(&self.shader_step.step);
+        self.shader_reflect_step.step.dependOn(&self.shader_step.step);
+        self.step.dependOn(&self.shader_reflect_step.step);
         return self;
     }
 
@@ -252,7 +307,7 @@ pub fn createGameExecutable(
         exe.linkSystemLibrary("vulkan");
     }
 
-    const res = ResourceGenStep.init(b, "resources.zig");
+    const res = ResourceGenStep.init(b, "resources.zig", "resources_structs.zig");
     res.addShader("triangle_vert", shaders_folder ++ "triangle.vert");
     res.addShader("triangle_frag", shaders_folder ++ "triangle.frag");
     res.addShader("triangle_mesh_vert", shaders_folder ++ "triangle_mesh.vert");
@@ -270,7 +325,7 @@ pub fn createGameExecutable(
     res.addShader("debug_frag", shaders_folder ++ "debug.frag");
     exe.addModule("resources", res.package);
 
-    const res2 = ResourceGenStep.init(b, "papyrusRes.zig");
+    const res2 = ResourceGenStep.init(b, "papyrusRes.zig", "papyrusRes_structs.zig");
     res2.addShader("papyrus_vert", "modules/ui/papyrus/shaders/papyrus_vk.vert");
     res2.addShader("papyrus_frag", "modules/ui/papyrus/shaders/papyrus_vk.frag");
     exe.addModule("papyrusRes", res2.package);
@@ -306,6 +361,7 @@ pub fn build(b: *std.build.Builder) void {
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
+
     const target = b.standardTargetOptions(.{});
 
     const options = b.addOptions();
@@ -332,10 +388,10 @@ pub fn build(b: *std.build.Builder) void {
         unreachable;
     };
 
-    _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options, mode) catch |e| {
-        std.debug.print("error: {any}", .{e});
-        unreachable;
-    };
+    // _ = createGameExecutable(target, b, "demo", "demo.zig", enable_tracy, options, mode) catch |e| {
+    //     std.debug.print("error: {any}", .{e});
+    //     unreachable;
+    // };
 
     if (perf_tests) {
         _ = createGameExecutable(target, b, "jobTest", "jobTest.zig", enable_tracy, options, mode) catch |e| {
