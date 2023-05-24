@@ -35,7 +35,10 @@ const NeonVkSpriteDataGpu = struct {
 pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
     var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
     const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
-    @memcpy(data, @ptrCast([*]const u8, self.pixels), self.pixels.len);
+    var dataSlice: []u8 = undefined;
+    dataSlice.ptr = data;
+    dataSlice.len = self.pixels.len;
+    @memcpy(dataSlice, self.pixels);
     ctx.vkAllocator.vmaAllocator.unmapMemory(stagingBuffer.allocation);
     return stagingBuffer;
 }

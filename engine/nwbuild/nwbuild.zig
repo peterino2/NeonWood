@@ -12,6 +12,9 @@ const ui = @import("../modules/ui/build.zig");
 
 const SpirvGenerator = graphics.spirvReflect.SpirvGenerator;
 
+const vkgen = @import("../modules/graphics/lib/vulkan-zig/generator/index.zig");
+const vma_build = @import("../modules/graphics/lib/zig-vma/vma_build.zig");
+
 pub fn loadFileAlloc(allocator: std.mem.Allocator, filename: []const u8) []const u8 {
     var file = try std.fs.cwd().openFile(filename, .{});
     const filesize = (try file.stat()).size;
@@ -31,9 +34,9 @@ pub const NwBuildSystem = struct {
     cflags: std.ArrayList([]const u8),
     enginePath: []const u8,
     opts: BuildSystemOpts,
-    generator: SpirvGenerator,
+    spirvGen: SpirvGenerator,
     options: *std.build.OptionsStep,
-    enable_tracy: bool,
+    enableTracy: bool,
 
     pub fn init(
         b: *std.build.Builder,
@@ -50,7 +53,7 @@ pub const NwBuildSystem = struct {
         options.addOption(bool, "validation_layers", b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
         //
-        const enable_tracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
+        const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
         self.* = @This(){
             .b = b,
@@ -59,12 +62,12 @@ pub const NwBuildSystem = struct {
             .cflags = std.ArrayList([]const u8).init(b.allocator),
             .enginePath = b.fmt("{s}", .{enginePath}),
             .opts = opts,
-            .generator = SpirvGenerator.init(b, .{
+            .spirvGen = SpirvGenerator.init(b, .{
                 .target = target,
                 .optimize = optimize,
                 .repoPath = "modules/graphics/lib/spirv-reflect-zig/src",
             }),
-            .enable_tracy = enable_tracy,
+            .enableTracy = enableTracy,
             .options = options,
         };
 
@@ -99,6 +102,7 @@ pub const NwBuildSystem = struct {
 
         self.b.installArtifact(exe);
         exe.linkLibC();
+        exe.linkLibCpp();
 
         exe.addOptions("game_build_opts", self.options);
 
@@ -110,16 +114,15 @@ pub const NwBuildSystem = struct {
             exe.linkSystemLibrary("pthread");
         }
         exe.linkSystemLibrary("m");
+        self.generateVulkan(exe);
 
-        assets.addLibs(self.b, exe, "modules/assets", self.cflags.items);
-        audio.addLibs(self.b, exe, "modules/audio", self.cflags.items);
-        core.addLibs(self.b, exe, "modules/core", self.cflags.items);
-        game.addLibs(self.b, exe, "modules/game", self.cflags.items);
-        graphics.addLibs(self.b, exe, "modules/graphics", self.cflags.items);
-        platform.addLibs(self.b, exe, "modules/platform", self.cflags.items);
-        ui.addLibs(self.b, exe, "modules/ui", self.cflags.items);
-
-        self.addDefaultIncludeDirs(exe);
+        assets.addLib(self.b, exe, "modules/assets", self.cflags.items);
+        audio.addLib(self.b, exe, "modules/audio", self.cflags.items);
+        core.addLib(self.b, exe, "modules/core", self.cflags.items, self.enableTracy);
+        game.addLib(self.b, exe, "modules/game", self.cflags.items);
+        graphics.addLib(self.b, exe, "modules/graphics", self.cflags.items);
+        platform.addLib(self.b, exe, "modules/platform", self.cflags.items);
+        ui.addLib(self.b, exe, "modules/ui", self.cflags.items);
 
         const runCmd = self.b.addRunArtifact(exe);
         runCmd.step.dependOn(self.b.getInstallStep());
@@ -130,6 +133,35 @@ pub const NwBuildSystem = struct {
         const runStep = self.b.step(name, description);
         runStep.dependOn(&runCmd.step);
 
+        self.addShader(exe, "triangle_mesh_vert", "modules/graphics/shaders/triangle_mesh.vert");
+        self.addShader(exe, "triangle_mesh_frag", "modules/graphics/shaders/triangle_mesh.frag");
+
+        self.addShader(exe, "debug_vert", "modules/graphics/shaders/debug.vert");
+        self.addShader(exe, "debug_frag", "modules/graphics/shaders/debug.frag");
+
+        self.addShader(exe, "papyrus_vk_vert", "modules/ui/papyrus/shaders/papyrus_vk.vert");
+        self.addShader(exe, "papyrus_vk_frag", "modules/ui/papyrus/shaders/papyrus_vk.frag");
+
         return exe;
+    }
+
+    pub fn generateVulkan(self: *@This(), exe: *std.build.CompileStep) void {
+        if (self.target.getOs().tag == .windows) {
+            exe.addObjectFile("modules/graphics/lib/zig-vma/test/vulkan-1.lib");
+        } else {
+            exe.linkSystemLibrary("vulkan");
+        }
+
+        // generate the vulkan package
+        const gen = vkgen.VkGenerateStep.init(self.b, "modules/graphics/lib/vk.xml", "vk.zig");
+
+        exe.addModule("glslTypes", self.spirvGen.glslTypes);
+        vma_build.link(exe, gen.package, self.optimize, self.target, self.b);
+        exe.addModule("vulkan", gen.package);
+    }
+
+    pub fn addShader(self: *@This(), exe: *std.build.CompileStep, name: []const u8, path: []const u8) void {
+        var shader = self.spirvGen.shader(path, name, .{ .embedFile = true });
+        exe.addModule(name, shader);
     }
 };

@@ -1,7 +1,7 @@
 const std = @import("std");
 pub const spirvReflect = @import("lib/spirv-reflect-zig/build.zig");
 
-pub fn addLib(b: std.Build, exe: std.build.LibExeObjStep, comptime pathPrefix: []const u8, cflags: []const []const u8) void {
+pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime pathPrefix: []const u8, cflags: []const []const u8) void {
     _ = b;
     exe.addCSourceFile(pathPrefix ++ "/lib/imgui/imgui.cpp", cflags);
     exe.addCSourceFile(pathPrefix ++ "/lib/imgui/imgui_demo.cpp", cflags);

@@ -3,9 +3,10 @@ const std = @import("std");
 const spng = @import("lib/zig-spng/build.zig");
 const zigTracy = @import("lib/zig_tracy/build_tracy.zig");
 
-pub fn addLib(b: std.Build, exe: std.build.LibExeObjStep, comptime packagePath: []const u8, cflags: []const []const u8, enableTracy: bool) void {
+pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath: []const u8, cflags: []const []const u8, enableTracy: bool) void {
+    _ = cflags;
     exe.addIncludePath(packagePath ++ "/lib");
-    spng.linkSpng(b, exe, packagePath ++ "/lib/zig-spng", cflags);
+    spng.addLib(b, exe, packagePath ++ "/lib/zig-spng");
 
     if (enableTracy) {
         std.debug.print("\n\nenabling tracy\n\n", .{});

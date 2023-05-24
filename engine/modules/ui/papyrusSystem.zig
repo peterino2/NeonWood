@@ -3,7 +3,8 @@ const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
 const papyrus = @import("papyrus/papyrus.zig");
-const papyrusRes = @import("papyrusRes");
+const papyrus_vk_vert = @import("papyrus_vk_vert");
+const papyrus_vk_frag = @import("papyrus_vk_frag");
 const vk = @import("vulkan");
 const tracy = core.tracy;
 
@@ -152,10 +153,10 @@ pub fn preparePipeline(self: *@This()) !void {
         self.gc.dev,
         self.gc.vkd,
         self.gc.allocator,
-        papyrusRes.papyrus_vert.len,
-        @ptrCast([*]const u32, &papyrusRes.papyrus_vert),
-        papyrusRes.papyrus_frag.len,
-        @ptrCast([*]const u32, &papyrusRes.papyrus_frag),
+        papyrus_vk_vert.spirv.len,
+        @ptrCast([*]const u32, &papyrus_vk_vert.spirv),
+        papyrus_vk_frag.spirv.len,
+        @ptrCast([*]const u32, &papyrus_vk_frag.spirv),
     );
 
     defer builder.deinit();

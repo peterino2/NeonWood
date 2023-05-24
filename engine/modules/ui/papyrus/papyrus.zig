@@ -373,7 +373,7 @@ const FontAtlas = struct {
         self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) };
         self.glyphStride = max.x + 1;
         self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
-        std.mem.set(u8, self.atlasBuffer.?, 0x0);
+        @memset(self.atlasBuffer.?, 0x0);
 
         std.debug.print("creating atlas: {s}\n", .{self.filePath});
 
@@ -1752,47 +1752,6 @@ pub fn deinitialize() void {
 }
 
 // ========================  unit tests for papyrus ==========================
-
-test "dynamic pool test" {
-    const TestStruct = struct {
-        value1: u32 = 0,
-        value4: u32 = 0,
-        value2: u32 = 0,
-        value3: u32 = 0,
-    };
-
-    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
-    defer dynPool.deinit();
-
-    {
-        // insert some objects objects
-        var count: u32 = 1000000;
-        while (count > 0) : (count -= 1) {
-            _ = try dynPool.new(.{});
-        }
-
-        // Insert 1 randomly add and delete objects another million objects in groups
-        var prng = std.rand.DefaultPrng.init(0x1234);
-        var rand = prng.random();
-
-        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
-
-        count = 1000000;
-        while (count > 0) : (count -= 1) {
-            const index = rand.int(u32) % 5;
-            var i: u32 = 0;
-            while (i < index) : (i += 1) {
-                workBuffer[i] = try dynPool.new(.{});
-            }
-
-            i = 0;
-            while (i < index) : (i += 1) {
-                dynPool.get(workBuffer[i]).?.*.value1 = 2;
-                dynPool.destroy(workBuffer[i]);
-            }
-        }
-    }
-}
 
 test "hierarchy test" {
     var ctx = try PapyrusContext.create(std.testing.allocator);

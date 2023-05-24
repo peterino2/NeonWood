@@ -10,5 +10,6 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false);
 
     var system = nwbuild.NwBuildSystem.init(b, target, optimize, .{});
-    _ = system.addProgram("simple", "simple.zig", "This is a simple test program for the new build system");
+    var demo = system.addProgram("demo", "demo.zig", "simple flyover demo");
+    _ = demo;
 }

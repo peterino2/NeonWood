@@ -1,6 +1,9 @@
 const std = @import("std");
 const vk = @import("vulkan");
-const resources = @import("resources");
+
+const triangle_mesh_vert = @import("triangle_mesh_vert");
+const triangle_mesh_frag = @import("triangle_mesh_frag");
+
 pub const c = @import("c.zig");
 const graphics = @import("../graphics.zig");
 const vma = @import("vma");
@@ -400,9 +403,6 @@ pub const NeonVkContext = struct {
     depthFormat: vk.Format,
     depthImage: NeonVkImage,
     depthImageView: vk.ImageView,
-
-    static_triangle_pipeline: vk.Pipeline,
-    static_colored_triangle_pipeline: vk.Pipeline,
 
     vmaFunctions: vma.VulkanFunctions,
     // vmaAllocator: vma.Allocator,
@@ -957,7 +957,16 @@ pub const NeonVkContext = struct {
 
         {
             var data = try self.vkAllocator.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
-            @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), bufferSize);
+
+            var dataSlice: []u8 = undefined;
+            dataSlice.ptr = data;
+            dataSlice.len = bufferSize;
+
+            var inputSlice: []const u8 = undefined;
+            inputSlice.ptr = @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr);
+            inputSlice.len = bufferSize;
+
+            @memcpy(data, inputSlice);
             self.vkAllocator.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
         }
 
@@ -1022,7 +1031,15 @@ pub const NeonVkContext = struct {
         var data = try self.vkAllocator.vmaAllocator.mapMemory(buffer.allocation, u8);
         defer self.vkAllocator.vmaAllocator.unmapMemory(buffer.allocation);
 
-        @memcpy(data, @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr), size);
+        var dataSlice: []u8 = undefined;
+        dataSlice.ptr = data;
+        dataSlice.len = size;
+
+        var inputSlice: []const u8 = undefined;
+        inputSlice.ptr = @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr);
+        inputSlice.len = size;
+
+        @memcpy(data, inputSlice);
 
         return buffer;
     }
@@ -1058,10 +1075,10 @@ pub const NeonVkContext = struct {
             self.dev,
             self.vkd,
             self.allocator,
-            resources.triangle_mesh_vert.len,
-            @ptrCast([*]const u32, &resources.triangle_mesh_vert),
-            resources.default_lit_frag.len,
-            @ptrCast([*]const u32, &resources.default_lit_frag),
+            triangle_mesh_vert.spirv.len,
+            @ptrCast([*]const u32, &triangle_mesh_vert.spirv),
+            triangle_mesh_frag.spirv.len,
+            @ptrCast([*]const u32, &triangle_mesh_frag.spirv),
         );
         defer pipeline_builder.deinit();
 
@@ -1113,37 +1130,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_pipelines(self: *Self) !void {
-        var static_tri_builder = try NeonVkPipelineBuilder.init(
-            self.dev,
-            self.vkd,
-            self.allocator,
-            resources.triangle_vert_static.len,
-            @ptrCast([*]const u32, &resources.triangle_vert_static),
-            resources.triangle_frag_static.len,
-            @ptrCast([*]const u32, &resources.triangle_frag_static),
-        );
-
-        try static_tri_builder.init_triangle_pipeline(self.actual_extent);
-        try static_tri_builder.add_depth_stencil();
-        self.static_triangle_pipeline = (try static_tri_builder.build(self.renderPass)).?;
-        self.vkd.destroyPipelineLayout(self.dev, static_tri_builder.pipelineLayout, null);
-        defer static_tri_builder.deinit();
-
-        var colored_tri_b = try NeonVkPipelineBuilder.init(
-            self.dev,
-            self.vkd,
-            self.allocator,
-            resources.triangle_vert_colored.len,
-            @ptrCast([*]const u32, &resources.triangle_vert_colored),
-            resources.triangle_frag_colored.len,
-            @ptrCast([*]const u32, &resources.triangle_frag_colored),
-        );
-        try colored_tri_b.init_triangle_pipeline(self.actual_extent);
-        try colored_tri_b.add_depth_stencil();
-        self.static_colored_triangle_pipeline = (try colored_tri_b.build(self.renderPass)).?;
-        self.vkd.destroyPipelineLayout(self.dev, colored_tri_b.pipelineLayout, null);
-        defer colored_tri_b.deinit();
-
         var samplerCreateInfo = vkinit.samplerCreateInfo(.nearest, null);
         self.blockySampler = try self.vkd.createSampler(self.dev, &samplerCreateInfo, null);
 
@@ -1152,42 +1138,8 @@ pub const NeonVkContext = struct {
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
         try self.create_mesh_material();
-        // try self.create_sprite_material();
 
         core.graphics_logs("Finishing up pipeline creation");
-    }
-
-    pub fn create_sprite_material(self: *Self) !void {
-
-        // Create basically the same material as the mesh pipeline
-        core.graphics_logs("creating sprite material");
-        var spritePipelineBuilder = try NeonVkPipelineBuilder.init(
-            self.dev,
-            self.vkd,
-            self.allocator,
-            resources.triangle_mesh_vert.len,
-            @ptrCast([*]const u32, resources.triangle_mesh_vert),
-            resources.default_lit_frag.len,
-            @ptrCast([*]const u32, resources.default_lit_frag),
-        );
-        defer spritePipelineBuilder.deinit();
-
-        // leverages the same mesh desription
-        try spritePipelineBuilder.add_mesh_description();
-        try spritePipelineBuilder.init_triangle_pipeline(self.actual_extent);
-        try spritePipelineBuilder.add_push_constant();
-        try spritePipelineBuilder.add_layout(self.globalDescriptorLayout);
-        try spritePipelineBuilder.add_layout(self.spriteObjectDescriptorLayout);
-        try spritePipelineBuilder.add_layout(self.singleTextureSetLayout);
-        try spritePipelineBuilder.add_depth_stencil();
-        try spritePipelineBuilder.init_triangle_pipeline(self.actual_extent);
-
-        var material = Material{
-            .pipeline = (try spritePipelineBuilder.build(self.renderPass)).?,
-            .layout = spritePipelineBuilder.pipelineLayout,
-        };
-
-        try self.materials.put(self.allocator, core.MakeName("mat_sprite"), material);
     }
 
     pub fn shouldExit(self: Self) !bool {
@@ -1258,7 +1210,16 @@ pub const NeonVkContext = struct {
         };
 
         var z3 = tracy.ZoneN(@src(), "Uploading");
-        @memcpy(data, @ptrCast([*]const u8, &cameraData), @sizeOf(NeonVkCameraDataGpu));
+
+        var dataSlice: []u8 = undefined;
+        dataSlice.ptr = data;
+        dataSlice.len = @sizeOf(NeonVkCameraDataGpu);
+
+        var inputSlice: []const u8 = undefined;
+        inputSlice.ptr = @ptrCast([*]const u8, &cameraData);
+        inputSlice.len = @sizeOf(NeonVkCameraDataGpu);
+
+        @memcpy(dataSlice, inputSlice);
         z3.End();
 
         var z4 = tracy.ZoneN(@src(), "unmapping");
@@ -1520,7 +1481,15 @@ pub const NeonVkContext = struct {
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
 
-        @memcpy(data + startOffset, @ptrCast([*]const u8, &self.sceneDataGpu), @sizeOf(@TypeOf(self.sceneDataGpu)));
+        var dataSlice: []u8 = undefined;
+        dataSlice.ptr = data + startOffset;
+        dataSlice.len = @sizeOf(@TypeOf(self.sceneDataGpu));
+
+        var inputSlice: []const u8 = undefined;
+        inputSlice.ptr = @ptrCast([*]const u8, &self.sceneDataGpu);
+        inputSlice.len = dataSlice.len;
+
+        @memcpy(dataSlice, inputSlice);
 
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
     }
@@ -2481,11 +2450,6 @@ pub const NeonVkContext = struct {
         self.commandBufferFences.deinit();
     }
 
-    pub fn destroy_pipelines(self: *Self) !void {
-        self.vkd.destroyPipeline(self.dev, self.static_triangle_pipeline, null);
-        self.vkd.destroyPipeline(self.dev, self.static_colored_triangle_pipeline, null);
-    }
-
     pub fn destroy_renderpass(self: *Self) !void {
         self.vkd.destroyRenderPass(self.dev, self.renderPass, null);
     }
@@ -2561,7 +2525,6 @@ pub const NeonVkContext = struct {
     pub fn deinit(self: *Self) void {
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
-        self.destroy_pipelines() catch return;
         self.destroy_renderpass() catch return;
         self.destroy_syncs() catch return;
         self.destroy_renderobjects() catch return;

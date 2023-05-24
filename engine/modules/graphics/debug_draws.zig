@@ -4,7 +4,8 @@ const vk = @import("vulkan");
 const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
 const assets = @import("../assets.zig");
-const resources = @import("resources");
+const debug_vert = @import("debug_vert");
+const debug_frag = @import("debug_frag");
 const tracy = core.tracy;
 const gpd = graphics.gpu_pipe_data;
 
@@ -152,10 +153,10 @@ pub const DebugDrawSubsystem = struct {
             gc.dev,
             gc.vkd,
             gc.allocator,
-            resources.debug_vert.len,
-            @ptrCast([*]const u32, &resources.debug_vert),
-            resources.debug_frag.len,
-            @ptrCast([*]const u32, &resources.debug_frag),
+            debug_vert.spirv.len,
+            @ptrCast([*]const u32, &debug_vert.spirv),
+            debug_frag.spirv.len,
+            @ptrCast([*]const u32, &debug_frag.spirv),
         );
         defer pipelineBuilder.deinit();
 

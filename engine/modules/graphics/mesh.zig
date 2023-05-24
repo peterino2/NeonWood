@@ -57,7 +57,15 @@ pub const IndexBuffer = struct {
 
         {
             var data = try gc.vkAllocator.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
-            @memcpy(data, @ptrCast([*]const u8, indices.ptr), bufferSize);
+            var dataSlice: []u8 = undefined;
+            dataSlice.ptr = data;
+            dataSlice.len = bufferSize;
+
+            var iSlice: []const u8 = undefined;
+            iSlice.ptr = @ptrCast([*]const u8, indices.ptr);
+            iSlice.len = bufferSize;
+
+            @memcpy(dataSlice, iSlice);
             gc.vkAllocator.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
         }
 
