@@ -2185,7 +2185,7 @@ pub const NeonVkContext = struct {
             }
         };
 
-        std.sort.sort(
+        std.sort.insertion(
             u32,
             self.renderObjectsByMaterial.items,
             self,

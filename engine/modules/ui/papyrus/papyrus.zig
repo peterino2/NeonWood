@@ -1477,7 +1477,7 @@ pub const PapyrusContext = struct {
             }
         };
 
-        std.sort.sort(
+        std.sort.insertion(
             u32,
             rootNodes.items,
             self,
