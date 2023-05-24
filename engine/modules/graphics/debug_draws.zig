@@ -21,23 +21,10 @@ pub const DebugLine = struct {
         var mat1 = core.zm.matFromRollPitchYaw(0, 0, ay);
         var mat2 = core.zm.rotationY(axz);
         var len = delta.length();
-        //var r = core.zm.matFromRollPitchYaw(d.x * std.math.pi, d.z * std.math.pi, d.y * std.math.pi);
-        //var r = core.zm.quatFromRollPitchYaw(d.x, d.z, d.y);
-        //var r = core.zm.lookToRh(0, self.start.toZm(), );
-        //var r = core.zm.mul(core.radians(90.0), 0), core.zm.lookToLh(self.start.toZm(), self.end.normalize().toZm(), core.Vectorf.new(0, 1, 0).toZm()));
-        //var anglex = d.x
-        //var r = core.matFromEulerAngles(d.x, d.y, d.z);
-        //var r = core.zm.lookAtRh();
-
-        //var len = delta.length();
         return core.zm.mul(core.zm.mul(
             core.zm.mul(mat1, mat2),
             core.zm.scaling(len, len, len),
         ), core.zm.translationV(self.start.toZm()));
-        //core.zm.scaling(len,len,len),);//mul(
-        //core.zm.mul(core.zm.scaling(len, len, len), r);
-        //core.zm.translationV(self.start.toZm()),
-        //);
     }
 };
 
@@ -84,9 +71,11 @@ pub const DebugPrimitive = struct {
     duration: f32 = 0.0,
 
     pub fn resolve(self: @This()) core.Transform {
+        _ = self;
         comptime core.assert(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize);
 
-        return core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
+        return core.zm.identity();
+        //core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
     }
 };
 
