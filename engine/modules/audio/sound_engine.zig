@@ -11,19 +11,19 @@ const tracy = core.tracy;
 const c = @import("c.zig");
 
 pub fn sound_log(comptime fmt: []const u8, args: anytype) void {
-    std.debug.print("[SOUND     ]: " ++ fmt ++ "\n", args);
+    core.printInner("[SOUND     ]: " ++ fmt ++ "\n", args);
 }
 
 pub fn sound_logs(comptime fmt: []const u8) void {
-    std.debug.print("[SOUND     ]: " ++ fmt ++ "\n", .{});
+    core.printInner("[SOUND     ]: " ++ fmt ++ "\n", .{});
 }
 
 pub fn sound_err(comptime fmt: []const u8, args: anytype) void {
-    std.debug.print("[SOUND     ]: ERROR!! " ++ fmt ++ "\n", args);
+    core.printInner("[SOUND     ]: ERROR!! " ++ fmt ++ "\n", args);
 }
 
 pub fn sound_errs(comptime fmt: []const u8) void {
-    std.debug.print("[SOUND     ]: ERROR!!" ++ fmt ++ "\n", .{});
+    core.printInner("[SOUND     ]: ERROR!!" ++ fmt ++ "\n", .{});
 }
 
 pub const SoundLoader = struct {

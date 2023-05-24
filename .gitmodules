@@ -25,3 +25,6 @@
 [submodule "engine/modules/game/zig-halcyon"]
 	path = engine/modules/game/zig-halcyon
 	url = https://github.com/peterino2/zig-halcyon.git
+[submodule "engine/modules/graphics/lib/spirv-reflect-zig"]
+	path = engine/modules/graphics/lib/spirv-reflect-zig
+	url = git@github.com:peterino2/spirv-reflect-zig.git

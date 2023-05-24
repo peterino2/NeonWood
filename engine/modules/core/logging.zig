@@ -4,7 +4,7 @@ const tracy = core.tracy;
 
 var gLoggerSys: ?*LoggerSys = null;
 
-fn printInner(comptime fmt: []const u8, args: anytype) void {
+pub fn printInner(comptime fmt: []const u8, args: anytype) void {
     if (gLoggerSys) |loggerSys| {
         loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);
     } else {
