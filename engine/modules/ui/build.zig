@@ -4,4 +4,5 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath
     _ = b;
     _ = cflags;
     exe.addIncludePath(packagePath ++ "/papyrus/");
+    exe.addCSourceFile(packagePath ++ "/papyrus/compat.cpp", &.{""});
 }

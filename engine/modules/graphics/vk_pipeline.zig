@@ -154,11 +154,11 @@ pub const NeonVkPipelineBuilder = struct {
             core.graphics_logs("configuring with a valid set of stencil information");
             gpci.p_depth_stencil_state = &(self.pdsci.?);
         }
-        //debug_struct("building with pvisci: ", self.pvisci);
+        debug_struct("building with pvisci: ", self.pvisci);
 
         var pipeline: vk.Pipeline = undefined;
 
-        _ = self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline)) catch return null;
+        _ = try self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline));
 
         return pipeline;
     }

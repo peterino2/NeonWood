@@ -5,4 +5,5 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath
     _ = cflags;
 
     exe.addIncludePath(packagePath ++ "/lib");
+    exe.addLibraryPath(packagePath ++ "/lib");
 }

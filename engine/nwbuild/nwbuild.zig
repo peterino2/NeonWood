@@ -134,7 +134,7 @@ pub const NwBuildSystem = struct {
         runStep.dependOn(&runCmd.step);
 
         self.addShader(exe, "triangle_mesh_vert", "modules/graphics/shaders/triangle_mesh.vert");
-        self.addShader(exe, "triangle_mesh_frag", "modules/graphics/shaders/triangle_mesh.frag");
+        self.addShader(exe, "default_lit", "modules/graphics/shaders/default_lit.frag");
 
         self.addShader(exe, "debug_vert", "modules/graphics/shaders/debug.vert");
         self.addShader(exe, "debug_frag", "modules/graphics/shaders/debug.frag");

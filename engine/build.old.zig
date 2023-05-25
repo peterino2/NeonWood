@@ -58,19 +58,7 @@ pub const ShaderReflectStep = struct {
     }
 
     fn make(step: *Step, _: *std.Progress.Node) !void {
-        const self = @fieldParentPtr(ShaderReflectStep, "step", step);
-        var allocator = self.builder.allocator;
-
-        for (self.shader_step.shaders.items) |shaderInfo| {
-            var parser = std.json.Parser.init(self.builder.allocator, false);
-            defer parser.deinit();
-            const jsonDeets = try loadFileAlloc(shaderInfo.reflected_path, 1, allocator);
-            var tree = parser.parse(jsonDeets) catch |e| {
-                std.debug.print("warning!!!:  unable to load json file {s} {any}\n", .{ shaderInfo.reflected_path, e });
-                continue;
-            };
-            defer tree.deinit();
-        }
+        _ = step;
 
         // const self = @fieldParentPtr(ShaderReflectStep, "step", step);
         // const cwd = std.fs.cwd();
@@ -246,7 +234,7 @@ pub fn createGameExecutable(
         .optimize = mode,
     });
 
-    exe.install();
+    b.installArtifact(exe);
     exe.linkLibC();
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_demo.cpp", cflags.items);
@@ -257,7 +245,7 @@ pub fn createGameExecutable(
     exe.addCSourceFile("modules/graphics/lib/imgui/imgui_widgets.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/lib/cimgui/cimgui.cpp", cflags.items);
     exe.addCSourceFile("modules/graphics/cimgui_compat.cpp", cflags.items);
-    exe.addCSourceFile("modules/audio/miniaudio.c", cflags.items);
+    exe.addCSourceFile("modules/audio/miniaudio.cpp", cflags.items);
     exe.addCSourceFile("modules/ui/papyrus/compat.cpp", &.{""});
 
     exe.addIncludePath("modules/core/lib");
@@ -336,7 +324,7 @@ pub fn createGameExecutable(
     vma_build.link(exe, gen.package, mode, target, b);
     exe.addModule("vulkan", gen.package);
 
-    const objViewer_run_cmd = exe.run();
+    const objViewer_run_cmd = b.addRunArtifact(exe);
     objViewer_run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         objViewer_run_cmd.addArgs(args);

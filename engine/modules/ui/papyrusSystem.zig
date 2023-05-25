@@ -154,9 +154,9 @@ pub fn preparePipeline(self: *@This()) !void {
         self.gc.vkd,
         self.gc.allocator,
         papyrus_vk_vert.spirv.len,
-        @ptrCast([*]const u32, &papyrus_vk_vert.spirv),
+        @ptrCast([*]const u32, @alignCast(4, papyrus_vk_vert.spirv)),
         papyrus_vk_frag.spirv.len,
-        @ptrCast([*]const u32, &papyrus_vk_frag.spirv),
+        @ptrCast([*]const u32, @alignCast(4, papyrus_vk_frag.spirv)),
     );
 
     defer builder.deinit();

@@ -2,7 +2,7 @@ const std = @import("std");
 const vk = @import("vulkan");
 
 const triangle_mesh_vert = @import("triangle_mesh_vert");
-const triangle_mesh_frag = @import("triangle_mesh_frag");
+const default_lit = @import("default_lit");
 
 pub const c = @import("c.zig");
 const graphics = @import("../graphics.zig");
@@ -1065,8 +1065,7 @@ pub const NeonVkContext = struct {
     }
 
     fn create_mesh_material(self: *Self) !void {
-        // Creates teh standard mesh pipeline, this pipeline is statically stored as
-        // mat_mesh
+        // Creates the standard mesh pipeline, this pipeline is statically stored as
         core.graphics_logs("Creating mesh pipeline");
 
         // Initialize the pipeline with the default triangle mesh shader
@@ -1076,9 +1075,9 @@ pub const NeonVkContext = struct {
             self.vkd,
             self.allocator,
             triangle_mesh_vert.spirv.len,
-            @ptrCast([*]const u32, &triangle_mesh_vert.spirv),
-            triangle_mesh_frag.spirv.len,
-            @ptrCast([*]const u32, &triangle_mesh_frag.spirv),
+            @ptrCast([*]const u32, @alignCast(4, triangle_mesh_vert.spirv)),
+            default_lit.spirv.len,
+            @ptrCast([*]const u32, @alignCast(4, default_lit.spirv)),
         );
         defer pipeline_builder.deinit();
 
@@ -1104,7 +1103,11 @@ pub const NeonVkContext = struct {
             .descriptor_set_count = 1,
             .p_set_layouts = p2a(&self.singleTextureSetLayout),
         };
-        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &material.textureSet));
+        try self.vkd.allocateDescriptorSets(
+            self.dev,
+            &allocInfo,
+            @ptrCast([*]vk.DescriptorSet, &material.textureSet),
+        );
 
         // --------- set up the image
         var imageBufferInfo = vk.DescriptorImageInfo{
@@ -1755,6 +1758,7 @@ pub const NeonVkContext = struct {
         rpci.p_dependencies = &dependencies;
         // debug_struct("rpci", rpci);
 
+        core.graphics_log("initializing renderpass", .{});
         self.renderPass = try self.vkd.createRenderPass(self.dev, &rpci, null);
     }
 

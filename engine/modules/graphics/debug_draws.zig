@@ -75,7 +75,7 @@ pub const DebugPrimitive = struct {
         comptime core.assert(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize);
 
         return core.zm.identity();
-        //core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
+        //return core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
     }
 };
 
@@ -143,9 +143,9 @@ pub const DebugDrawSubsystem = struct {
             gc.vkd,
             gc.allocator,
             debug_vert.spirv.len,
-            @ptrCast([*]const u32, &debug_vert.spirv),
+            @ptrCast([*]const u32, @alignCast(4, debug_vert.spirv)),
             debug_frag.spirv.len,
-            @ptrCast([*]const u32, &debug_frag.spirv),
+            @ptrCast([*]const u32, @alignCast(4, debug_frag.spirv)),
         );
         defer pipelineBuilder.deinit();
 
