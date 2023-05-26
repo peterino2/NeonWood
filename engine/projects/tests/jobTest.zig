@@ -83,6 +83,7 @@ const GameContext = struct {
 
     pub fn tick(self: *Self, deltaTime: f64) void {
         self.timeElapsed += deltaTime;
+        std.debug.print("ticking\n", .{});
 
         core.traceFmtDefault("ticking!", .{}) catch unreachable;
 
@@ -144,13 +145,14 @@ const GameContext = struct {
                 var d = @bitCast(u1, self.complete[i]);
                 std.debug.print("{d}", .{d});
             }
-            std.debug.print("\n", .{});
+            std.debug.print("shutting down due to count loaded full\n", .{});
 
             core.gEngine.tracesContext.defaultTrace.printTraceStats(self.allocator);
             core.gEngine.exit();
         }
 
         if (self.wakeCount <= 0) {
+            std.debug.print("shutting down due to wake count zero\n", .{});
             core.gEngine.exit();
         }
     }
@@ -165,6 +167,8 @@ pub fn main() anyerror!void {
     core.start_module();
     defer core.shutdown_module();
 
+    try neonwood.platform.start_module(std.heap.c_allocator, "jobTest", null);
+
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });
     try game.prepare();
@@ -172,4 +176,6 @@ pub fn main() anyerror!void {
 
     // run the game
     try core.gEngine.run();
+
+    while (!core.gEngine.exitSignal) {}
 }
