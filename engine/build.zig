@@ -10,6 +10,9 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false);
 
     var system = nwbuild.NwBuildSystem.init(b, target, optimize, .{});
-    var demo = system.addProgram("demo", "demo.zig", "simple flyover demo");
-    _ = demo;
+    _ = system.addGame("demo", "simple flyover demo");
+    _ = system.addGame("uiSample", "sample UI program");
+
+    _ = system.addTest("jobTest");
+    _ = system.addTest("sparse_set_perf");
 }

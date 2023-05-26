@@ -87,6 +87,14 @@ pub const NwBuildSystem = struct {
         }
     }
 
+    pub fn addTest(self: *@This(), comptime name: []const u8) *std.build.LibExeObjStep {
+        return self.addProgram(name, "projects/tests/" ++ name ++ ".zig", "a test");
+    }
+
+    pub fn addGame(self: *@This(), comptime name: []const u8, comptime description: []const u8) *std.build.LibExeObjStep {
+        return self.addProgram(name, "projects/" ++ name ++ "/main.zig", description);
+    }
+
     pub fn addProgram(
         self: *@This(),
         comptime name: []const u8,
@@ -95,10 +103,16 @@ pub const NwBuildSystem = struct {
     ) *std.build.LibExeObjStep {
         const exe = self.b.addExecutable(.{
             .name = name,
-            .root_source_file = .{ .path = mainFile },
+            .root_source_file = .{ .path = "root.zig" },
             .target = self.target,
             .optimize = self.optimize,
         });
+
+        const mainModule = self.b.addModule(
+            name,
+            .{ .source_file = .{ .path = mainFile } },
+        );
+        exe.addModule("main", mainModule);
 
         self.b.installArtifact(exe);
         exe.linkLibC();
@@ -130,7 +144,10 @@ pub const NwBuildSystem = struct {
             runCmd.addArgs(args);
         }
 
-        const runStep = self.b.step(name, description);
+        const buildStep = self.b.step(name, description);
+        buildStep.dependOn(&exe.step);
+
+        const runStep = self.b.step(self.b.fmt("run-{s}", .{name}), description);
         runStep.dependOn(&runCmd.step);
 
         self.addShader(exe, "triangle_mesh_vert", "modules/graphics/shaders/triangle_mesh.vert");

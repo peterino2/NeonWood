@@ -1,1 +1,0 @@
-zig build -fstage1 -Dtracy

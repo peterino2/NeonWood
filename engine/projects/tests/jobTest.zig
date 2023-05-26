@@ -1,5 +1,5 @@
 const std = @import("std");
-const neonwood = @import("modules/neonwood.zig");
+const neonwood = @import("root").neonwood;
 const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
@@ -15,7 +15,6 @@ const AsyncAssetJobContext = assets.AyncAssetJobContext;
 const MakeName = core.MakeName;
 const mul = core.zm.mul;
 const JobContext = core.JobContext;
-const JobWorker = core.JobWorker;
 const JobManager = core.JobManager;
 
 var gGame: *GameContext = undefined;
@@ -31,7 +30,6 @@ const GameContext = struct {
     wakeCount: u32 = 100,
     jobContext: JobContext,
     timeTilWake: f64 = 2.0,
-    jobWorker: *JobWorker,
     count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
     complete: [jobTestCount]bool = std.mem.zeroes([jobTestCount]bool),
     timeElapsed: f64 = 0.0,
@@ -40,11 +38,8 @@ const GameContext = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
             .allocator = allocator,
-            .jobWorker = JobWorker.init(allocator) catch unreachable,
             .jobContext = undefined,
         };
-
-        self.jobWorker.workerId = 0xffff;
 
         return self;
     }
@@ -176,5 +171,5 @@ pub fn main() anyerror!void {
     defer game.shutdown();
 
     // run the game
-    core.gEngine.run();
+    try core.gEngine.run();
 }

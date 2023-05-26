@@ -1,6 +1,5 @@
 const std = @import("std");
-pub const neonwood = @import("modules/neonwood.zig");
-//pub const neonwood = @import("neonwood");
+pub const neonwood = @import("root").neonwood;
 
 const core = neonwood.core;
 const graphics = neonwood.graphics;
@@ -9,19 +8,19 @@ const engine_log = core.engine_log;
 const c = graphics.c;
 var gGame: *GameContext = undefined;
 
-const testimage = "lost_empire-RGBA";
-const testimage2 = "texture_sample";
+const testimage1 = "content/textures/lost_empire-RGBA.png";
 
 // Asset loader
-const AssetReferences = [_]assets.AssetRef{
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d0"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d1"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d2"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_d3"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d0"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d1"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d2"), .path = "content/textures/" ++ testimage ++ ".png" },
-    .{ .assetType = core.MakeName("Texture"), .name = core.MakeName("a_5d3"), .path = "content/textures/" ++ testimage ++ ".png" },
+const AssetReferences = [_]assets.AssetImportReference{
+    assets.MakeImportRef("Texture", "a0", testimage1),
+    assets.MakeImportRef("Texture", "a1", testimage1),
+    assets.MakeImportRef("Texture", "a2", testimage1),
+    assets.MakeImportRef("Texture", "a3", testimage1),
+
+    assets.MakeImportRef("Texture", "a4", testimage1),
+    assets.MakeImportRef("Texture", "a5", testimage1),
+    assets.MakeImportRef("Texture", "a6", testimage1),
+    assets.MakeImportRef("Texture", "a7", testimage1),
 };
 
 // Primarily a test file that exists to create a simple application for

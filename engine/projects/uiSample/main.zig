@@ -1,5 +1,5 @@
 const std = @import("std");
-const nw = @import("modules/neonwood.zig");
+const nw = @import("root").neonwood;
 
 const assets = nw.assets;
 const c = nw.graphics.c;
@@ -45,7 +45,7 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    try nw.start_everything("NeonWood: imgui demo");
+    try nw.start_everything("NeonWood: ui");
     defer nw.shutdown_everything();
     try nw.run_no_input(GameContext);
 }

@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const neonwood = @import("modules/neonwood.zig");
+pub const neonwood = @import("root").neonwood;
 
 const core = neonwood.core;
 const platform = neonwood.platform;

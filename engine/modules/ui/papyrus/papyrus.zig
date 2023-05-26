@@ -145,7 +145,7 @@ const BmpWriter = struct {
 
     pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
         var pixelBuffer = try allocator.alloc(u8, @intCast(usize, resolution.x * resolution.y * 3));
-        std.mem.set(u8, pixelBuffer, 0x8);
+        @memset(pixelBuffer, 0x8);
         return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
     }
 
@@ -439,6 +439,10 @@ const FontAtlas = struct {
             //     self.meshes[ch][3].y,
             // });
         }
+
+        // for (glyphs) |glyphBmp| {
+        //     c.stbtt_FreeBitmap(glyphBmp);
+        // }
     }
 
     pub fn dumpBufferToFile(self: *@This(), fileName: []const u8) !void {
@@ -1968,4 +1972,56 @@ test "dynamic pool test" {
             }
         }
     }
+}
+
+test "sdf texture generation" {
+    var allocator = std.testing.allocator;
+    var font: c.stbtt_fontinfo = undefined;
+
+    var fileContent = try loadFileAlloc("fonts/ComicMono.ttf", 8, allocator);
+
+    _ = c.stbtt_InitFont(&font, fileContent.ptr, c.stbtt_GetFontOffsetForIndex(fileContent.ptr, 0));
+
+    var width: c_int = 0;
+    var height: c_int = 0;
+    var xoff: c_int = 0;
+    var yoff: c_int = 0;
+
+    var pixels = c.stbtt_GetCodepointSDF(
+        &font,
+        0,
+        c.stbtt_ScaleForPixelHeight(&font, 22),
+        @intCast(c_int, 'a'),
+        5,
+        180,
+        36,
+        &width,
+        &height,
+        &xoff,
+        &yoff,
+    );
+    _ = pixels;
+
+    //const stbtt_fontinfo *info,
+    //float scale,
+    //int codepoint,
+    //int padding,
+    //unsigned char onedge_value,
+    //float pixel_dist_scale,
+    //int *width,
+    //int *height,
+    //int *xoff,
+    //int *yoff;
+    //
+    //glyphs[ch] = c.stbtt_GetCodepointBitmap(
+    //    &self.font,
+    //    0,
+    //    c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+    //    @intCast(c_int, ch),
+    //    &self.glyphMetrics[ch].x,
+    //    &self.glyphMetrics[ch].y,
+    //    &self.glyphBox1[ch].x,
+    //    &self.glyphBox1[ch].y,
+    //);
+
 }
