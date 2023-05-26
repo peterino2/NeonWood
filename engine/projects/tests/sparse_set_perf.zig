@@ -2,9 +2,6 @@ const std = @import("std");
 const neonwood = @import("root").neonwood;
 const core = neonwood.core;
 
-// const TestSize = 100000;
-// const AccessCount = 200000000;
-
 pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: comptime_int) !void {
     var allocator = std.heap.c_allocator;
     var prng = std.rand.DefaultPrng.init(12348);
@@ -76,7 +73,6 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
     {
         const startTime = timer.read();
         while (i < AccessCount) : (i += 1) {
-            // const id = rand.int(usize) % TestSize;
             testSet.get(handlesList.items[i % TestSize], .obj).?.*.touchCount += 1;
         }
         const endTime = timer.read();

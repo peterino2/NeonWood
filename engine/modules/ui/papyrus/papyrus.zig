@@ -149,6 +149,22 @@ const BmpWriter = struct {
         return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
     }
 
+    pub fn blitBlackWhite(self: *@This(), pixels: []const u8, width: i32, height: i32, xPos: i32, yPos: i32) void {
+        var x: i32 = 0;
+        var y: i32 = 0;
+
+        while (y < height) : (y += 1) {
+            x = 0;
+            while (x < width) : (x += 1) {
+                const i = (x + xPos + (@intCast(i32, self.extent.y) - y - yPos) * @intCast(i32, self.extent.x)) * 3;
+                const clamped = @intCast(usize, std.math.max(i, 0));
+                self.pixelBuffer[clamped + 0] = pixels[@intCast(usize, y * width + x)];
+                self.pixelBuffer[clamped + 1] = pixels[@intCast(usize, y * width + x)];
+                self.pixelBuffer[clamped + 2] = pixels[@intCast(usize, y * width + x)];
+            }
+        }
+    }
+
     pub fn clear(self: *@This(), color: ColorRGBA8) void {
         var i: u32 = 0;
         while (i < self.pixelBuffer.len) : (i += 3) {
@@ -1979,6 +1995,7 @@ test "sdf texture generation" {
     var font: c.stbtt_fontinfo = undefined;
 
     var fileContent = try loadFileAlloc("fonts/ComicMono.ttf", 8, allocator);
+    defer allocator.free(fileContent);
 
     _ = c.stbtt_InitFont(&font, fileContent.ptr, c.stbtt_GetFontOffsetForIndex(fileContent.ptr, 0));
 
@@ -1989,8 +2006,7 @@ test "sdf texture generation" {
 
     var pixels = c.stbtt_GetCodepointSDF(
         &font,
-        0,
-        c.stbtt_ScaleForPixelHeight(&font, 22),
+        c.stbtt_ScaleForPixelHeight(&font, 50),
         @intCast(c_int, 'a'),
         5,
         180,
@@ -2000,7 +2016,23 @@ test "sdf texture generation" {
         &xoff,
         &yoff,
     );
-    _ = pixels;
+
+    var writer = try BmpWriter.init(std.testing.allocator, .{ .x = 1980, .y = 1080 });
+    defer writer.deinit();
+
+    var pixelSlice: []const u8 = undefined;
+    pixelSlice.ptr = pixels;
+    pixelSlice.len = @intCast(usize, width * height);
+
+    writer.blitBlackWhite(pixelSlice, @intCast(i32, width), @intCast(i32, height), 32, 32);
+    std.debug.print("\n{d}x{d}\n", .{ width, height });
+
+    try writer.writeOut("Saved/sdf_single_char.bmp");
+
+    // const stbtt_fontinfo *info,
+    // float scale,
+    // int codepoint,
+    // int padding, unsigned char onedge_value, float pixel_dist_scale, int *width, int *height, int *xoff, int *yoff
 
     //const stbtt_fontinfo *info,
     //float scale,
