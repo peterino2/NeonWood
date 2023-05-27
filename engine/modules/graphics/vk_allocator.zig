@@ -42,14 +42,26 @@ pub const NeonVkImage = struct {
     }
 };
 
-pub const AllocationEvent = union {
+pub const AllocationEvent = union(enum) {
     allocate: struct {
         alloc: usize,
         tag: []const u8,
     },
     destroy: struct {
         alloc: usize,
+        tag: []const u8,
     },
+
+    pub fn print(self: @This()) void {
+        switch (self) {
+            .allocate => |allocate| {
+                core.graphics_log("allocate @{d} - {s}", .{ allocate.alloc, allocate.tag });
+            },
+            .destroy => |destroy| {
+                core.graphics_log("destroy @{d} - {s}", .{ destroy.alloc, destroy.tag });
+            },
+        }
+    }
 };
 
 pub const NeonVkAllocator = struct {
@@ -59,6 +71,65 @@ pub const NeonVkAllocator = struct {
     liveAllocations: std.ArrayList(LiveAlloc),
 
     const LiveAlloc = struct { allocation: usize, tag: []const u8 };
+
+    pub fn createStagingBuffer(
+        self: *@This(),
+        bufferSize: u32,
+        comptime tag: []const u8,
+    ) !NeonVkBuffer {
+        var bci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{ .transfer_src_bit = true },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var vmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .cpuOnly,
+        };
+
+        return self.createBuffer(bci, vmaCreateInfo, tag);
+    }
+
+    pub fn createGpuBuffer(
+        self: *@This(),
+        bufferSize: u32,
+        options: struct {
+            index_buffer_bit: bool = false,
+            vertex_buffer_bit: bool = false,
+            uniform_texel_buffer_bit: bool = false,
+            storage_texel_buffer_bit: bool = false,
+            uniform_buffer_bit: bool = false,
+            storage_buffer_bit: bool = false,
+            indirect_buffer_bit: bool = false,
+        },
+        comptime tag: []const u8,
+    ) !NeonVkBuffer {
+        var bci = vk.BufferCreateInfo{
+            .flags = .{},
+            .size = bufferSize,
+            .usage = .{
+                .transfer_dst_bit = true,
+                .index_buffer_bit = options.index_buffer_bit,
+                .vertex_buffer_bit = options.vertex_buffer_bit,
+                .uniform_buffer_bit = options.uniform_buffer_bit,
+                .storage_buffer_bit = options.storage_buffer_bit,
+            },
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        var vmaCreateInfo = vma.AllocationCreateInfo{
+            .flags = .{},
+            .usage = .gpuOnly,
+        };
+
+        return self.createBuffer(bci, vmaCreateInfo, tag);
+    }
 
     pub fn create(
         vmaAllocatorCreateInfo: vma.AllocatorCreateInfo,
@@ -110,6 +181,7 @@ pub const NeonVkAllocator = struct {
 
         self.eventsList.append(.{ .destroy = .{
             .alloc = @enumToInt(allocation),
+            .tag = live.tag,
         } }) catch unreachable;
     }
 
@@ -162,7 +234,7 @@ pub const NeonVkAllocator = struct {
 
     pub fn printEventsLog(self: @This()) void {
         for (self.eventsList.items) |item| {
-            _ = item;
+            item.print();
         }
     }
 
@@ -177,6 +249,7 @@ pub const NeonVkAllocator = struct {
             core.forceFlush();
             return;
         }
+
         // if there are any live allocations left, print them all out.
         self.vmaAllocator.destroy();
     }

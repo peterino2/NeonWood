@@ -21,6 +21,7 @@ pub fn start_everything(windowName: []const u8) !void {
 }
 
 pub fn shutdown_everything() void {
+    ui.shutdown_module();
     graphics.shutdown_module();
     audio.shutdown_module();
     assets.shutdown_module();

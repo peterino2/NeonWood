@@ -951,8 +951,7 @@ pub const NeonVkContext = struct {
             .usage = .cpuOnly,
         };
 
-        var allocatedBuffer = try self.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name);
-
+        var allocatedBuffer = try self.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ "-- intermediate buffer");
         defer allocatedBuffer.deinit(self.vkAllocator);
 
         {
@@ -985,7 +984,7 @@ pub const NeonVkContext = struct {
             .usage = .gpuOnly,
         };
 
-        uploadedMesh.buffer = try self.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name);
+        uploadedMesh.buffer = try self.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name ++ "-- mesh buffer");
 
         core.graphics_log("Staring upload context", .{});
         try self.start_upload_context(&self.uploadContext);

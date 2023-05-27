@@ -52,7 +52,7 @@ pub const IndexBuffer = struct {
             .usage = .cpuOnly,
         };
 
-        var allocatedBuffer = try gc.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name);
+        var allocatedBuffer = try gc.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ " - upload buffer");
         defer allocatedBuffer.deinit(gc.vkAllocator);
 
         {
@@ -85,7 +85,7 @@ pub const IndexBuffer = struct {
             .usage = .gpuOnly,
         };
 
-        self.buffer = try gc.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name);
+        self.buffer = try gc.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name ++ " - gpu buffer");
         try gc.start_upload_context(&gc.uploadContext);
         {
             var copy = vk.BufferCopy{
@@ -109,6 +109,79 @@ pub const IndexBuffer = struct {
         try gc.finish_upload_context(&gc.uploadContext);
 
         return self;
+    }
+
+    pub fn deinit(self: *@This(), gc: *NeonVkContext) void {
+        self.buffer.deinit(gc.vkAllocator);
+    }
+};
+
+pub const DynamicMesh = struct {
+    allocator: std.mem.Allocator,
+    vertices: std.ArrayListUnmanaged(Vertex),
+
+    indexBuffers: [2]NeonVkBuffer,
+    vertexBuffers: [2]NeonVkBuffer,
+    currentBuffer: usize,
+
+    uploadVertexBuffer: NeonVkBuffer,
+    uploadIndexBuffer: NeonVkBuffer,
+
+    gc: *NeonVkContext,
+
+    pub fn init(gc: *NeonVkContext, allocator: std.mem.Allocator, maxVertexSize: u32) !*@This() {
+        var self = try allocator.create(@This());
+
+        self.allocator = allocator;
+        self.vertices = .{};
+        try self.vertices.resize(allocator, maxVertexSize);
+        self.gc = gc;
+
+        {
+            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(u32), "DynamicMesh.init - index staging");
+            self.uploadVertexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
+
+            inline for (0..2) |i| {
+                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(maxVertexSize * @sizeOf(u32), .{
+                    .index_buffer_bit = true,
+                }, "DynamicMesh.init - gpu indexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
+
+                self.vertexBuffers[i] = try gc.vkAllocator.createGpuBuffer(maxVertexSize * @sizeOf(Vertex), .{
+                    .vertex_buffer_bit = true,
+                }, "DynamicMesh.init - gpu vertexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
+            }
+        }
+
+        return self;
+    }
+
+    pub fn setup(self: *@This()) void {
+        _ = self;
+        // create the vk buffer
+        // create the upload buffer
+        // create the upload context
+        // map upload context pointer
+    }
+
+    pub fn flushBuffer(self: *@This()) void {
+        _ = self;
+        // swap mapped buffers
+        // swap upload buffers
+        // upload back buffer
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.vertices.deinit(self.allocator);
+
+        var vkAllocator = self.gc.vkAllocator;
+
+        self.uploadVertexBuffer.deinit(vkAllocator);
+        self.uploadIndexBuffer.deinit(vkAllocator);
+
+        for (0..self.indexBuffers.len) |i| {
+            self.indexBuffers[i].deinit(vkAllocator);
+            self.vertexBuffers[i].deinit(vkAllocator);
+        }
     }
 };
 

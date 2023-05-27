@@ -5,6 +5,7 @@ const gpd = graphics.gpu_pipe_data;
 const papyrus = @import("papyrus/papyrus.zig");
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");
+const gl = @import("glslTypes");
 const vk = @import("vulkan");
 const tracy = core.tracy;
 
@@ -23,6 +24,8 @@ graphLog: core.FileLog,
 
 ssboCount: u32 = 1,
 
+textMesh: *graphics.DynamicMesh,
+
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
@@ -30,15 +33,15 @@ pub const PapyrusPushConstant = struct {
     extent: core.Vector2f,
 };
 
-pub const PapyrusImageGpu = struct {
-    topLeft: core.Vector2f,
-    size: core.Vector2f,
-    anchorPoint: core.Vector2f = .{ .x = -1.0, .y = -1.0 },
-    scale: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
-    alpha: f32 = 1.0,
-    //zLevel: f32 = 0.5,
-    baseColor: core.LinearColor = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
-};
+pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData; //struct {
+//     topLeft: core.Vector2f,
+//     size: core.Vector2f,
+//     anchorPoint: core.Vector2f = .{ .x = -1.0, .y = -1.0 },
+//     scale: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
+//     alpha: f32 = 1.0,
+//     //zLevel: f32 = 0.5,
+//     baseColor: core.LinearColor = .{ .r = 0.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+// };
 
 pub const PapyrusImageGpuSSBO = extern struct {};
 
@@ -46,10 +49,11 @@ pub fn init(allocator: std.mem.Allocator) @This() {
     var papyrusCtx = papyrus.initialize(allocator) catch unreachable;
     return .{
         .allocator = allocator,
-        .gc = undefined,
+        .gc = graphics.getContext(),
         .papyrusCtx = papyrusCtx,
         .quad = allocator.create(graphics.Mesh) catch unreachable,
         .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
+        .textMesh = undefined,
     };
 }
 
@@ -58,6 +62,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.graphLog.write("digraph G {{\n", .{});
 
     self.gc = gc;
+    self.textMesh = try graphics.DynamicMesh.init(gc, gc.allocator, 4096);
     try self.preparePipeline();
     try self.setupMeshes();
 
@@ -193,42 +198,69 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     var gpuObjects = self.mappedBuffers[frameId].objects;
 
+    var baseColor: gl.vec4 = .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 };
+
     var drawList = try self.papyrusCtx.makeDrawList();
     defer drawList.deinit();
 
     self.ssboCount = 0;
 
     gpuObjects[self.ssboCount] = PapyrusImageGpu{
-        .topLeft = .{ .x = 0, .y = 400 },
-        .size = .{ .x = 200, .y = 200 },
+        .imagePosition = .{ .x = 0, .y = 400 },
+        .imageSize = .{ .x = 200, .y = 200 },
+        .scale = .{ .x = 1.0, .y = 1.0 },
+        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+        .alpha = 1.0,
+        .pad0 = std.mem.zeroes([12]u8),
+        .baseColor = baseColor,
     };
     self.ssboCount += 1;
 
     for (drawList.items) |drawCmd| {
         _ = drawCmd;
-        var tl = core.Vector2f{ .x = 200, .y = 200 };
-        var size = core.Vector2f{ .x = 200, .y = 200 };
+        var tl = gl.vec2{ .x = 200, .y = 200 };
+        var size = gl.vec2{ .x = 200, .y = 200 };
         gpuObjects[self.ssboCount] = PapyrusImageGpu{
-            .topLeft = tl,
-            .size = size,
+            .imagePosition = tl,
+            .imageSize = size,
+            .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+            .scale = .{ .x = 1.0, .y = 1.0 },
+            .alpha = 1.0,
+            .pad0 = std.mem.zeroes([12]u8),
+            .baseColor = baseColor,
         };
         self.ssboCount += 1;
     }
     gpuObjects[self.ssboCount] = PapyrusImageGpu{
-        .topLeft = .{ .x = 400, .y = 400 },
-        .size = .{ .x = 200, .y = 200 },
+        .imagePosition = .{ .x = 400, .y = 400 },
+        .imageSize = .{ .x = 200, .y = 200 },
+        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+        .scale = .{ .x = 1.0, .y = 1.0 },
+        .alpha = 1.0,
+        .pad0 = std.mem.zeroes([12]u8),
+        .baseColor = baseColor,
     };
     self.ssboCount += 1;
 
     gpuObjects[self.ssboCount] = PapyrusImageGpu{
-        .topLeft = .{ .x = 600, .y = 200 },
-        .size = .{ .x = 200, .y = 200 },
+        .imagePosition = .{ .x = 600, .y = 200 },
+        .imageSize = .{ .x = 200, .y = 200 },
+        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+        .scale = .{ .x = 1.0, .y = 1.0 },
+        .alpha = 1.0,
+        .pad0 = std.mem.zeroes([12]u8),
+        .baseColor = baseColor,
     };
     self.ssboCount += 1;
 
     gpuObjects[self.ssboCount] = PapyrusImageGpu{
-        .topLeft = .{ .x = 800, .y = 400 },
-        .size = .{ .x = 200, .y = 200 },
+        .imagePosition = .{ .x = 800, .y = 400 },
+        .imageSize = .{ .x = 200, .y = 200 },
+        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+        .scale = .{ .x = 1.0, .y = 1.0 },
+        .alpha = 1.0,
+        .pad0 = std.mem.zeroes([12]u8),
+        .baseColor = baseColor,
     };
     self.ssboCount += 1;
 }
@@ -266,9 +298,18 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 }
 
 pub fn deinit(self: *@This()) void {
+    core.ui_logs("Shutting down UI");
     for (self.mappedBuffers) |*mapped| {
         mapped.unmap(self.gc);
     }
+    self.quad.deinit(self.gc);
+
+    self.pipeData.deinit(self.allocator, self.gc);
+    self.textMesh.deinit();
+
+    self.indexBuffer.deinit(self.gc);
+    self.allocator.destroy(self.textMesh);
+
     self.papyrusCtx.deinit();
 }
 
