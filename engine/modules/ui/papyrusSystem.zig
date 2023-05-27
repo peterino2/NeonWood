@@ -24,6 +24,8 @@ graphLog: core.FileLog,
 
 ssboCount: u32 = 1,
 
+time: f32 = 0,
+
 textMesh: *graphics.DynamicMesh,
 
 pub const NeonObjectTable = core.RttiData.from(@This());
@@ -131,8 +133,8 @@ fn setupMeshes(self: *@This()) !void {
 }
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
-    _ = self;
-    _ = deltaTime;
+    self.time += @floatCast(f32, deltaTime);
+    self.time = @mod(self.time, 10.0);
 }
 
 pub fn uiTick(self: *@This(), deltaTime: f64) void {
@@ -198,7 +200,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     var gpuObjects = self.mappedBuffers[frameId].objects;
 
-    var baseColor: gl.vec4 = .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 };
+    var baseColor: gl.vec4 = .{ .x = 0.0, .y = std.math.sin(self.time), .z = 1.0, .w = 1.0 };
 
     var drawList = try self.papyrusCtx.makeDrawList();
     defer drawList.deinit();
@@ -227,7 +229,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
             .scale = .{ .x = 1.0, .y = 1.0 },
             .alpha = 1.0,
             .pad0 = std.mem.zeroes([12]u8),
-            .baseColor = baseColor,
+            .baseColor = .{ .x = 0.0, .y = 1.0, .z = 0.0, .w = 1.0 },
         };
         self.ssboCount += 1;
     }
@@ -238,7 +240,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
         .scale = .{ .x = 1.0, .y = 1.0 },
         .alpha = 1.0,
         .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = baseColor,
+        .baseColor = .{ .x = 1.0, .y = 1.0, .z = 0.0, .w = 1.0 },
     };
     self.ssboCount += 1;
 
@@ -249,7 +251,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
         .scale = .{ .x = 1.0, .y = 1.0 },
         .alpha = 1.0,
         .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = baseColor,
+        .baseColor = .{ .x = 1.0, .y = 0.0, .z = 0.0, .w = 1.0 },
     };
     self.ssboCount += 1;
 
@@ -260,7 +262,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
         .scale = .{ .x = 1.0, .y = 1.0 },
         .alpha = 1.0,
         .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = baseColor,
+        .baseColor = .{ .x = 1.0, .y = 0.0, .z = 1.0, .w = 1.0 },
     };
     self.ssboCount += 1;
 }
