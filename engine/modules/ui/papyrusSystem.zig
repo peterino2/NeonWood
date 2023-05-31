@@ -1,10 +1,13 @@
 const std = @import("std");
 const core = @import("../core.zig");
+const assets = @import("../assets.zig");
 const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
 const papyrus = @import("papyrus/papyrus.zig");
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");
+const FontSDF_vert = @import("FontSDF_vert");
+const FontSDF_frag = @import("FontSDF_frag");
 const gl = @import("glslTypes");
 const vk = @import("vulkan");
 const tracy = core.tracy;
@@ -14,6 +17,7 @@ allocator: std.mem.Allocator,
 pipeData: gpd.GpuPipeData = undefined,
 materialName: core.Name = core.MakeName("mat_papyrus"),
 material: *graphics.Material = undefined,
+textMaterial: *graphics.Material = undefined,
 mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
@@ -21,12 +25,23 @@ papyrusCtx: *papyrus.PapyrusContext,
 quad: *graphics.Mesh,
 
 graphLog: core.FileLog,
+fontAtlas: papyrus.FontAtlas = undefined,
 
 ssboCount: u32 = 1,
 
 time: f32 = 0,
 
 textMesh: *graphics.DynamicMesh,
+textPipeData: gpd.GpuPipeData = undefined,
+
+displayDemo: bool = true,
+
+const DrawListEntryInfo = struct {
+    entryType: enum {
+        image,
+        text, // text is an sdf text utilizing a dynamic mesh.
+    },
+};
 
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
@@ -35,17 +50,7 @@ pub const PapyrusPushConstant = struct {
     extent: core.Vector2f,
 };
 
-pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData; //struct {
-//     topLeft: core.Vector2f,
-//     size: core.Vector2f,
-//     anchorPoint: core.Vector2f = .{ .x = -1.0, .y = -1.0 },
-//     scale: core.Vector2f = .{ .x = 1.0, .y = 1.0 },
-//     alpha: f32 = 1.0,
-//     //zLevel: f32 = 0.5,
-//     baseColor: core.LinearColor = .{ .r = 0.0, .g = 1.0, .b = 1.0, .a = 1.0 },
-// };
-
-pub const PapyrusImageGpuSSBO = extern struct {};
+pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData;
 
 pub fn init(allocator: std.mem.Allocator) @This() {
     var papyrusCtx = papyrus.initialize(allocator) catch unreachable;
@@ -56,7 +61,21 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .quad = allocator.create(graphics.Mesh) catch unreachable,
         .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
         .textMesh = undefined,
+        .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 50) catch unreachable,
     };
+}
+
+pub fn prepareFont(self: *@This()) !void {
+    // load with default font size as an SDF
+    var pixels = try self.fontAtlas.makeBitmapRGBA(self.allocator);
+    defer self.allocator.free(pixels);
+    _ = try graphics.createTextureFromPixelsSync(
+        core.MakeName("_t_papyrusFont"),
+        pixels,
+        .{ .x = self.fontAtlas.atlasSize.x, .y = self.fontAtlas.atlasSize.y },
+        self.gc,
+        false,
+    );
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -66,6 +85,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     self.gc = gc;
     self.textMesh = try graphics.DynamicMesh.init(gc, gc.allocator, 4096);
     try self.preparePipeline();
+    try self.prepareFont();
     try self.setupMeshes();
 
     var ctx = self.papyrusCtx;
@@ -142,7 +162,48 @@ pub fn uiTick(self: *@This(), deltaTime: f64) void {
     _ = deltaTime;
 }
 
-pub fn preparePipeline(self: *@This()) !void {
+pub fn buildTextPipeline(self: *@This()) !void {
+    try self.graphLog.write(" setup->buildTextPipeline", .{});
+    var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
+    try gpdBuilder.addBufferBinding(
+        FontSDF_vert.FontInfo,
+        .storage_buffer,
+        .{ .vertex_bit = true, .fragment_bit = true },
+        .storageBuffer,
+    );
+
+    self.textPipeData = try gpdBuilder.build("Papyrus-Text");
+    defer gpdBuilder.deinit();
+
+    var builder = try graphics.NeonVkPipelineBuilder.init(
+        self.gc.dev,
+        self.gc.vkd,
+        self.gc.allocator,
+        FontSDF_vert.spirv.len,
+        @ptrCast([*]const u32, @alignCast(4, FontSDF_vert.spirv)),
+        FontSDF_frag.spirv.len,
+        @ptrCast([*]const u32, @alignCast(4, FontSDF_frag.spirv)),
+    );
+    defer builder.deinit();
+
+    try builder.add_mesh_description();
+    try builder.add_layout(self.textPipeData.descriptorSetLayout);
+    try builder.add_layout(self.gc.singleTextureSetLayout);
+    try builder.add_depth_stencil();
+    try builder.add_push_constant_custom(PapyrusPushConstant);
+    try builder.init_triangle_pipeline(self.gc.actual_extent);
+
+    self.textMaterial = try self.allocator.create(graphics.Material);
+    self.textMaterial.* = graphics.Material{
+        .materialName = self.materialName,
+        .pipeline = (try builder.build(self.gc.renderPass)).?,
+        .layout = builder.pipelineLayout,
+    };
+
+    try self.gc.add_material(self.textMaterial);
+}
+
+pub fn buildImagePipeline(self: *@This()) !void {
     try self.graphLog.write("  setup->preparePipeline\n", .{});
     core.ui_log("pipeline prepare", .{});
 
@@ -184,13 +245,17 @@ pub fn preparePipeline(self: *@This()) !void {
     };
 
     try self.gc.add_material(material);
-
     self.material = material;
 }
 
+pub fn preparePipeline(self: *@This()) !void {
+    try self.buildTextPipeline();
+    try self.buildImagePipeline();
+}
+
 pub fn pushSsbo(self: *@This(), ssbo: PapyrusImageGpu, frameId: usize) !void {
-    var gpuObjects = self.mappedBuffers[frameId].objects;
-    gpuObjects[self.ssboCount] = ssbo;
+    var imagesGpu = self.mappedBuffers[frameId].objects;
+    imagesGpu[self.ssboCount] = ssbo;
     self.ssboCount += 1;
 }
 
@@ -198,7 +263,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     var z = tracy.ZoneN(@src(), "Uploading SSBOs");
     defer z.End();
 
-    var gpuObjects = self.mappedBuffers[frameId].objects;
+    var imagesGpu = self.mappedBuffers[frameId].objects;
 
     var baseColor: gl.vec4 = .{ .x = 0.0, .y = std.math.sin(self.time), .z = 1.0, .w = 1.0 };
 
@@ -207,7 +272,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     self.ssboCount = 0;
 
-    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+    imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 0, .y = 400 },
         .imageSize = .{ .x = 200, .y = 200 },
         .scale = .{ .x = 1.0, .y = 1.0 },
@@ -220,9 +285,9 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     for (drawList.items) |drawCmd| {
         _ = drawCmd;
-        var tl = gl.vec2{ .x = 200, .y = 200 };
-        var size = gl.vec2{ .x = 200, .y = 200 };
-        gpuObjects[self.ssboCount] = PapyrusImageGpu{
+        var tl = gl.vec2{ .x = 2, .y = 402 };
+        var size = gl.vec2{ .x = 196, .y = 196 };
+        imagesGpu[self.ssboCount] = PapyrusImageGpu{
             .imagePosition = tl,
             .imageSize = size,
             .anchorPoint = .{ .x = -1.0, .y = -1.0 },
@@ -233,7 +298,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
         };
         self.ssboCount += 1;
     }
-    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+    imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 400, .y = 400 },
         .imageSize = .{ .x = 200, .y = 200 },
         .anchorPoint = .{ .x = -1.0, .y = -1.0 },
@@ -244,7 +309,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     };
     self.ssboCount += 1;
 
-    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+    imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 600, .y = 200 },
         .imageSize = .{ .x = 200, .y = 200 },
         .anchorPoint = .{ .x = -1.0, .y = -1.0 },
@@ -255,7 +320,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     };
     self.ssboCount += 1;
 
-    gpuObjects[self.ssboCount] = PapyrusImageGpu{
+    imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 800, .y = 400 },
         .imageSize = .{ .x = 200, .y = 200 },
         .anchorPoint = .{ .x = -1.0, .y = -1.0 },
@@ -270,6 +335,10 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
     var z = tracy.ZoneN(@src(), "Papyrus post draw");
     defer z.End();
+
+    if (!self.displayDemo) {
+        return;
+    }
 
     self.uploadSSBOData(frameIndex) catch unreachable;
 
@@ -307,6 +376,7 @@ pub fn deinit(self: *@This()) void {
     self.quad.deinit(self.gc);
 
     self.pipeData.deinit(self.allocator, self.gc);
+    self.textPipeData.deinit(self.allocator, self.gc);
     self.textMesh.deinit();
 
     self.indexBuffer.deinit(self.gc);

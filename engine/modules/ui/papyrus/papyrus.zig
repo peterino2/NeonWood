@@ -319,9 +319,10 @@ fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std
     return buffer;
 }
 
-const FontAtlas = struct {
+pub const FontAtlas = struct {
     font: c.stbtt_fontinfo = undefined,
     allocator: std.mem.Allocator,
+    isSDF: bool = false,
     fileContent: []u8,
     filePath: []const u8,
     atlasBuffer: ?[]u8,
@@ -337,6 +338,36 @@ const FontAtlas = struct {
 
     meshes: [256][4]Vector2 = undefined,
     glyphCoordinates: [256][2]Vector2 = undefined,
+
+    pub fn makeBitmapRGBA(self: @This(), allocator: std.mem.Allocator) ![]u8 {
+        var buf = try allocator.alloc(u8, self.atlasBuffer.?.len * 4);
+
+        for (0..self.atlasBuffer.?.len) |i| {
+            buf[(i * 4) + 0] = self.atlasBuffer.?[i];
+            buf[(i * 4) + 1] = self.atlasBuffer.?[i];
+            buf[(i * 4) + 2] = self.atlasBuffer.?[i];
+            buf[(i * 4) + 3] = 1.0;
+        }
+
+        return buf;
+    }
+
+    pub fn initFromFileSDF(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
+        var self = @This(){
+            .allocator = allocator,
+            .filePath = file,
+            .fileContent = try loadFileAlloc(file, 8, allocator),
+            .atlasBuffer = null,
+            .fontSize = fontSize,
+            .isSDF = true,
+        };
+
+        _ = c.stbtt_InitFont(&self.font, self.fileContent.ptr, c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0));
+
+        try self.createAtlas();
+
+        return self;
+    }
 
     // creates a font atlas from
     pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
@@ -365,16 +396,31 @@ const FontAtlas = struct {
         self.scale = c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize);
 
         while (ch < glyphCount) : (ch += 1) {
-            glyphs[ch] = c.stbtt_GetCodepointBitmap(
-                &self.font,
-                0,
-                c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-                @intCast(c_int, ch),
-                &self.glyphMetrics[ch].x,
-                &self.glyphMetrics[ch].y,
-                &self.glyphBox1[ch].x,
-                &self.glyphBox1[ch].y,
-            );
+            if (self.isSDF) {
+                glyphs[ch] = c.stbtt_GetCodepointSDF(
+                    &self.font,
+                    c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+                    @intCast(c_int, ch),
+                    5,
+                    180,
+                    36,
+                    &self.glyphMetrics[ch].x,
+                    &self.glyphMetrics[ch].y,
+                    &self.glyphBox1[ch].x,
+                    &self.glyphBox1[ch].y,
+                );
+            } else {
+                glyphs[ch] = c.stbtt_GetCodepointBitmap(
+                    &self.font,
+                    0,
+                    c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
+                    @intCast(c_int, ch),
+                    &self.glyphMetrics[ch].x,
+                    &self.glyphMetrics[ch].y,
+                    &self.glyphBox1[ch].x,
+                    &self.glyphBox1[ch].y,
+                );
+            }
 
             if (self.glyphMetrics[ch].x > max.x) {
                 max.x = self.glyphMetrics[ch].x;
@@ -423,11 +469,6 @@ const FontAtlas = struct {
                 }
             }
 
-            // const xSize = @intToFloat(f32, self.glyphMetrics[ch].x); // * self.scale;
-            // const ySize = @intToFloat(f32, self.glyphMetrics[ch].y); // * self.scale;
-            // const xOff = @intToFloat(f32, self.glyphBox1[ch].x); // * self.scale;
-            // const yOff = @intToFloat(f32, self.glyphBox1[ch].y); // * self.scale;
-
             const xSize = @intToFloat(f32, self.glyphMetrics[ch].x) * self.scale;
             const ySize = @intToFloat(f32, self.glyphMetrics[ch].y) * self.scale;
             const xOff = @intToFloat(f32, self.glyphBox1[ch].x) * self.scale;
@@ -438,27 +479,7 @@ const FontAtlas = struct {
             self.meshes[ch][1] = .{ .x = xSize + xOff, .y = ySize + yOff }; // TR
             self.meshes[ch][2] = .{ .x = xSize + xOff, .y = 0 + yOff }; // BR
             self.meshes[ch][3] = .{ .x = xOff, .y = yOff }; // BL
-            // std.debug.print("{d} {d} {d} [{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}][{d:0.2}, {d:0.2}]\n", .{
-            //     @intCast(u8, ch),
-            //     self.fontSize,
-            //     1 / self.scale,
-            //     self.meshes[ch][0].x,
-            //     self.meshes[ch][0].y,
-
-            //     self.meshes[ch][1].x,
-            //     self.meshes[ch][1].y,
-
-            //     self.meshes[ch][2].x,
-            //     self.meshes[ch][2].y,
-
-            //     self.meshes[ch][3].x,
-            //     self.meshes[ch][3].y,
-            // });
         }
-
-        // for (glyphs) |glyphBmp| {
-        //     c.stbtt_FreeBitmap(glyphBmp);
-        // }
     }
 
     pub fn dumpBufferToFile(self: *@This(), fileName: []const u8) !void {
@@ -1990,6 +2011,14 @@ test "dynamic pool test" {
     }
 }
 
+test "sdf fontAtlas generation" {
+    var allocator = std.testing.allocator;
+    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 65);
+    defer atlas.deinit();
+
+    try atlas.dumpBufferToFile("Saved/ComicMonoSDF.bmp");
+}
+
 test "sdf texture generation" {
     var allocator = std.testing.allocator;
     var font: c.stbtt_fontinfo = undefined;
@@ -2028,32 +2057,4 @@ test "sdf texture generation" {
     std.debug.print("\n{d}x{d}\n", .{ width, height });
 
     try writer.writeOut("Saved/sdf_single_char.bmp");
-
-    // const stbtt_fontinfo *info,
-    // float scale,
-    // int codepoint,
-    // int padding, unsigned char onedge_value, float pixel_dist_scale, int *width, int *height, int *xoff, int *yoff
-
-    //const stbtt_fontinfo *info,
-    //float scale,
-    //int codepoint,
-    //int padding,
-    //unsigned char onedge_value,
-    //float pixel_dist_scale,
-    //int *width,
-    //int *height,
-    //int *xoff,
-    //int *yoff;
-    //
-    //glyphs[ch] = c.stbtt_GetCodepointBitmap(
-    //    &self.font,
-    //    0,
-    //    c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-    //    @intCast(c_int, ch),
-    //    &self.glyphMetrics[ch].x,
-    //    &self.glyphMetrics[ch].y,
-    //    &self.glyphBox1[ch].x,
-    //    &self.glyphBox1[ch].y,
-    //);
-
 }

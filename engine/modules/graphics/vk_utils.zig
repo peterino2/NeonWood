@@ -7,6 +7,7 @@ const obj_loader = @import("lib/objLoader/obj_loader.zig");
 const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
+const Texture = @import("texture.zig").Texture;
 
 const image = @import("../image.zig");
 const PngContents = image.PngContents;
@@ -46,8 +47,78 @@ pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
 pub const LoadAndStageImage = struct {
     stagingBuffer: NeonVkBuffer,
     image: NeonVkImage,
-    mipLevel: u32,
+    mipLevel: u32 = 0,
 };
+
+pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {
+    var stagingBuffer = try ctx.create_buffer(pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
+    const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
+    var dataSlice: []u8 = undefined;
+    dataSlice.ptr = data;
+    dataSlice.len = pixels.len;
+    @memcpy(dataSlice, pixels);
+    ctx.vkAllocator.vmaAllocator.unmapMemory(stagingBuffer.allocation);
+    return stagingBuffer;
+}
+
+pub fn createImageInfo(size: core.Vector2i, ctx: *NeonVkContext) !NeonVkImage {
+    var imageExtent = vk.Extent3D{
+        .width = @intCast(u32, size.x),
+        .height = @intCast(u32, size.y),
+        .depth = 1,
+    };
+
+    var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
+        .sampled_bit = true,
+        .transfer_dst_bit = true,
+    }, imageExtent, 1);
+
+    var imgAllocInfo = vma.AllocationCreateInfo{
+        .requiredFlags = .{},
+        .usage = .gpuOnly,
+    };
+
+    return try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
+}
+
+pub fn createTextureFromPixelsSync(
+    textureName: core.Name,
+    pixels: []const u8,
+    size: core.Vector2i,
+    ctx: *NeonVkContext,
+    useBlocky: bool,
+) !struct {
+    texture: *Texture,
+    descriptor: *vk.DescriptorSet,
+} {
+    var stagingBuffer = try stagePixelsRaw(pixels, ctx);
+    var createdImage = try createImageInfo(size, ctx);
+    try submit_copy_from_staging(ctx, stagingBuffer, createdImage, 0);
+
+    stagingBuffer.deinit(ctx.vkAllocator);
+
+    var imageViewCreate = vkinit.imageViewCreateInfo(
+        .r8g8b8a8_srgb,
+        createdImage.image,
+        .{ .color_bit = true },
+        0,
+    );
+
+    var imageView = try ctx.vkd.createImageView(ctx.dev, &imageViewCreate, null);
+    var newTexture = try ctx.allocator.create(Texture);
+
+    newTexture.* = Texture{
+        .image = createdImage,
+        .imageView = imageView,
+    };
+
+    var textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
+        .useBlocky = useBlocky,
+    }) catch unreachable;
+
+    ctx.install_texture_into_registry(textureName, newTexture, textureSet) catch return error.UnknownStatePanic;
+    return .{ .texture = newTexture, .descriptor = textureSet };
+}
 
 pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
     // When you record command buffers, their command pools can only be used from

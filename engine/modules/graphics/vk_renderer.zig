@@ -659,6 +659,7 @@ pub const NeonVkContext = struct {
 
         try self.graph.write("  root->init_primitive_meshes\n", .{});
         try self.init_primitive_meshes();
+        try self.create_white_material(.{ .x = 128, .y = 128 });
 
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut();
@@ -1088,7 +1089,7 @@ pub const NeonVkContext = struct {
         try pipeline_builder.add_depth_stencil();
         try pipeline_builder.init_triangle_pipeline(self.actual_extent);
 
-        const materialName = core.MakeName("mat_mesh");
+        const materialName = core.MakeName("t_mesh");
 
         var material = try self.allocator.create(Material);
         material.* = Material{
@@ -1129,6 +1130,17 @@ pub const NeonVkContext = struct {
 
     pub fn add_material(self: *@This(), material: *Material) !void {
         try self.materials.put(self.allocator, material.materialName.hash, material);
+    }
+
+    pub fn create_white_material(self: *@This(), size: core.Vector2i) !void {
+        // generate a white texture.
+        var pixels = try self.allocator.alloc(u8, @intCast(usize, size.x * size.y * 4));
+        defer self.allocator.free(pixels);
+
+        for (0..@intCast(usize, size.x * size.y * 4)) |i| {
+            pixels[i] = 255;
+        }
+        _ = try vk_utils.createTextureFromPixelsSync(core.MakeName("t_white"), pixels, size, self, false);
     }
 
     pub fn init_pipelines(self: *Self) !void {

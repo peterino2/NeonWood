@@ -29,10 +29,14 @@ pub fn shutdown_module() void {}
 
 pub fn loadList(assetList: anytype) !void {
     for (assetList) |assetImport| {
-        var z1 = core.tracy.ZoneN(@src(), "Loading asset");
-        core.tracy.Message(assetImport.assetRef.name.utf8);
-        core.tracy.Message(assetImport.properties.path);
-        try gAssetSys.loadRef(assetImport.assetRef, assetImport.properties);
-        z1.End();
+        try load(assetImport);
     }
+}
+
+pub fn load(assetImport: AssetImportReference) !void {
+    var z1 = core.tracy.ZoneN(@src(), "Loading asset");
+    core.tracy.Message(assetImport.assetRef.name.utf8);
+    core.tracy.Message(assetImport.properties.path);
+    try gAssetSys.loadRef(assetImport.assetRef, assetImport.properties);
+    z1.End();
 }

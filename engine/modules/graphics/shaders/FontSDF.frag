@@ -5,7 +5,7 @@ layout (location = 1) in vec2 texCoords;
 
 layout (location = 0) out vec4 outFragColor;
 
-layout (set = 1, binding = 0) uniform sampler2D msdf;
+layout (set = 2, binding = 0) uniform sampler2D msdf;
 
 float median(float r, float g, float b) 
 {

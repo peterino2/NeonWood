@@ -6,6 +6,8 @@ layout (location = 1) in vec2 texCoord;
 
 layout (location = 0) out vec4 outFragColor;
 
+layout (set = 2, binding = 0) uniform sampler2D tex;
+
 layout (push_constant) uniform constants 
 {
 	vec2 extent;

@@ -210,6 +210,7 @@ const IOEvent = union(enum(u8)) {
 // pumped functions.
 
 const platform = @import("../platform.zig");
+
 pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     platform.getInstance().eventQueue.pushLocked(.{ .cursorPos = .{ .x = xpos, .y = ypos } }) catch unreachable;
 }

@@ -25,7 +25,7 @@ const AssetReferences = [_]assets.AssetImportReference{
             .textureUseBlockySampler = false,
         },
     ),
-    assets.MakeImportRef("Texture", "m_texture", testimage1),
+    assets.MakeImportRef("Texture", "t_empire", testimage1),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -66,7 +66,7 @@ pub const GameContext = struct {
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
         if (!self.assetReady) {
-            const texName = core.MakeName("m_texture");
+            const texName = core.MakeName("t_empire");
             if (self.gc.textures.contains(texName.hash)) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
@@ -98,7 +98,7 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 0) : (i += 1) {
+        while (i < 1000) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
                 .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
@@ -177,7 +177,7 @@ pub const GameContext = struct {
         self.gc.activateCamera(&self.camera);
         self.objHandle = try self.gc.add_renderobject(.{
             .mesh_name = core.MakeName("m_empire"),
-            .material_name = core.MakeName("mat_mesh"),
+            .material_name = core.MakeName("t_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
 
@@ -253,6 +253,14 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
             gGame.movementInput.z += 1;
         }
 
+        if (key == c.GLFW_KEY_E) {
+            gGame.movementInput.y += 1;
+        }
+
+        if (key == c.GLFW_KEY_Q) {
+            gGame.movementInput.y -= 1;
+        }
+
         if (key == c.GLFW_KEY_A) {
             gGame.movementInput.x += -1;
         }
@@ -272,6 +280,14 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
 
         if (key == c.GLFW_KEY_S) {
             gGame.movementInput.z -= 1;
+        }
+
+        if (key == c.GLFW_KEY_E) {
+            gGame.movementInput.y -= 1;
+        }
+
+        if (key == c.GLFW_KEY_Q) {
+            gGame.movementInput.y += 1;
         }
 
         if (key == c.GLFW_KEY_A) {

@@ -202,7 +202,6 @@ pub const Mesh = struct {
 
     pub fn upload(self: *Mesh, ctx: *NeonVkContext) !void {
         try ctx.stage_and_push_mesh(self);
-        //self.buffer = try ctx.upload_mesh(self);
     }
 
     pub fn load_from_obj_file(self: *Mesh, filename: []const u8) !void {

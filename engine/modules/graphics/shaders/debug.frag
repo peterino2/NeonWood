@@ -17,5 +17,5 @@ layout(set = 0, binding = 1) uniform  SceneData{
 
 void main()
 {
-    outFragColor = vec4(in_color, 1.0);
+    outFragColor = vec4(vec3(in_color.rgb),  5.0*(1.0 - pow(gl_FragCoord.z,3.0)));
 }

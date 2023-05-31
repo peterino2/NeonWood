@@ -26,6 +26,9 @@ pub const DynamicMesh = mesh.DynamicMesh;
 pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
+pub const vk_util = @import("graphics/vk_utils.zig");
+pub const createTextureFromPixelsSync = vk_util.createTextureFromPixelsSync;
+
 pub const imguiUtils = @import("graphics/igUtils.zig");
 
 pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");

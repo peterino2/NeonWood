@@ -57,7 +57,6 @@ const DebugPrimitiveType = enum(u8) {
     line = 0,
     sphere = 1,
     box = 2,
-    count,
 };
 
 pub const DebugPrimitive = struct {
@@ -65,17 +64,27 @@ pub const DebugPrimitive = struct {
         line: DebugLine,
         sphere: DebugSphere,
         box: DebugBox,
-        count: struct {},
     },
     color: core.Vectorf = .{ .x = 0.0, .y = 1.0, .z = 0.0 },
     duration: f32 = 0.0,
 
     pub fn resolve(self: @This()) core.Transform {
-        _ = self;
         comptime core.assert(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize);
 
-        return core.zm.identity();
-        //return core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
+        switch (self.primitive) {
+            .line => |inner| {
+                return inner.resolve(.{});
+            },
+            .sphere => |inner| {
+                return inner.resolve(.{});
+            },
+            .box => |inner| {
+                return inner.resolve(.{});
+            },
+        }
+        unreachable;
+
+        // return core.implement_func_for_tagged_union_nonull(self.primitive, "resolve", core.Transform, .{});
     }
 };
 
@@ -101,7 +110,7 @@ pub const DebugDrawSubsystem = struct {
     // Member functions
     allocator: std.mem.Allocator,
     debugDraws: core.RingQueueU(DebugPrimitive),
-    meshes: [@intCast(usize, @enumToInt(DebugPrimitiveType.count))]*graphics.Mesh = .{ undefined, undefined, undefined },
+    meshes: [@intCast(usize, @enumToInt(DebugPrimitiveType.box) + 1)]*graphics.Mesh = .{ undefined, undefined, undefined },
     gc: *graphics.NeonVkContext = undefined,
     pipeData: gpd.GpuPipeData = undefined,
     mappedBuffers: []gpd.GpuMappingData(DebugPrimitiveGpu) = undefined,
@@ -234,7 +243,6 @@ pub const DebugDrawSubsystem = struct {
                 .line => {
                     mesh = self.meshes[0];
                 },
-                .count => unreachable,
             }
 
             vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&mesh.buffer.buffer), core.p_to_a(&bindOffset));

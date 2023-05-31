@@ -81,4 +81,10 @@ pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action
 
 pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     c.cImGui_ImplGlfw_KeyCallback(@ptrCast(?*c.GLFWwindow, window), key, scancode, action, mods);
+
+    if (action == c.GLFW_PRESS) {
+        if (key == c.GLFW_KEY_W) {
+            ui.getSystem().displayDemo = !ui.getSystem().displayDemo;
+        }
+    }
 }
