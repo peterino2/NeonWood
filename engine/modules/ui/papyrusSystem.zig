@@ -21,6 +21,9 @@ textMaterial: *graphics.Material = undefined,
 mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
+fontTexture: *graphics.Texture = undefined,
+fontTextureDescriptor: *vk.DescriptorSet = undefined,
+
 papyrusCtx: *papyrus.PapyrusContext,
 quad: *graphics.Mesh,
 
@@ -69,13 +72,16 @@ pub fn prepareFont(self: *@This()) !void {
     // load with default font size as an SDF
     var pixels = try self.fontAtlas.makeBitmapRGBA(self.allocator);
     defer self.allocator.free(pixels);
-    _ = try graphics.createTextureFromPixelsSync(
+    var res = try graphics.createTextureFromPixelsSync(
         core.MakeName("_t_papyrusFont"),
         pixels,
         .{ .x = self.fontAtlas.atlasSize.x, .y = self.fontAtlas.atlasSize.y },
         self.gc,
         false,
     );
+
+    self.fontTexture = res.texture;
+    self.fontTextureDescriptor = res.descriptor;
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -359,6 +365,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 
         var index: u32 = 0;
         while (index < self.ssboCount) : (index += 1) {
+            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
             self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
         }
