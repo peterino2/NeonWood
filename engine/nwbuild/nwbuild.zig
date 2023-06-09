@@ -159,8 +159,8 @@ pub const NwBuildSystem = struct {
         self.addShader(exe, "papyrus_vk_vert", "modules/ui/papyrus/shaders/papyrus_vk.vert");
         self.addShader(exe, "papyrus_vk_frag", "modules/ui/papyrus/shaders/papyrus_vk.frag");
 
-        self.addShader(exe, "FontSDF_vert", "modules/graphics/shaders/FontSDF.vert");
-        self.addShader(exe, "FontSDF_frag", "modules/graphics/shaders/FontSDF.frag");
+        self.addShader(exe, "FontSDF_vert", "modules/ui/papyrus/shaders/FontSDF.vert");
+        self.addShader(exe, "FontSDF_frag", "modules/ui/papyrus/shaders/FontSDF.frag");
 
         return exe;
     }
