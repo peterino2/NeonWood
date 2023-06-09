@@ -269,6 +269,12 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
             gGame.movementInput.x += 1;
         }
 
+        if (action == c.GLFW_PRESS) {
+            if (key == c.GLFW_KEY_P) {
+                neonwood.ui.getSystem().displayDemo = !neonwood.ui.getSystem().displayDemo;
+            }
+        }
+
         if (key == c.GLFW_KEY_LEFT_ALT) {
             platform.getInstance().setCursorEnabled(false);
         }
