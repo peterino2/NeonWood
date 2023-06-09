@@ -174,6 +174,7 @@ pub fn uiTick(self: *@This(), deltaTime: f64) void {
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
+    core.ui_log("building text pipeline", .{});
     try self.graphLog.write(" setup->buildTextPipeline", .{});
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     try gpdBuilder.addBufferBinding(
@@ -215,8 +216,8 @@ pub fn buildTextPipeline(self: *@This()) !void {
 }
 
 pub fn buildImagePipeline(self: *@This()) !void {
+    core.ui_log("buildingImagePipeline", .{});
     try self.graphLog.write("  setup->preparePipeline\n", .{});
-    core.ui_log("pipeline prepare", .{});
 
     var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     try spriteDataBuilder.addBufferBinding(
@@ -260,7 +261,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
 }
 
 pub fn preparePipeline(self: *@This()) !void {
-    try self.buildTextPipeline();
+    // try self.buildTextPipeline();
     try self.buildImagePipeline();
 }
 
@@ -360,7 +361,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
         var index: u32 = 0;
         while (index < self.ssboCount) : (index += 1) {
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
-            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
+            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
         }
     }

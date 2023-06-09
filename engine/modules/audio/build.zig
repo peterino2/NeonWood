@@ -4,6 +4,6 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath
     _ = cflags;
     _ = b;
 
-    exe.addCSourceFile(packagePath ++ "/miniaudio.cpp", &.{});
+    exe.addCSourceFile(packagePath ++ "/miniaudio.cpp", &.{"-fno-sanitize=all"});
     exe.addIncludePath(packagePath ++ "/lib");
 }

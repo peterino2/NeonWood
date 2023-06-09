@@ -5,11 +5,12 @@ const tracy = core.tracy;
 var gLoggerSys: ?*LoggerSys = null;
 
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
-    if (gLoggerSys) |loggerSys| {
-        loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);
-    } else {
-        std.debug.print("> " ++ fmt, args);
-    }
+    std.debug.print("> " ++ fmt, args);
+    // if (gLoggerSys) |loggerSys| {
+    //     loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);
+    // } else {
+    //     std.debug.print("> " ++ fmt, args);
+    // }
 }
 
 pub fn game_log(comptime fmt: []const u8, args: anytype) void {

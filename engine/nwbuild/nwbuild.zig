@@ -78,13 +78,14 @@ pub const NwBuildSystem = struct {
         var b = self.b;
 
         try self.cflags.append(b.fmt("-I{s}/modules/core/lib/stb/", .{self.enginePath}));
-        try self.cflags.append(try b.fmt("-fno-sanitize=all", .{}));
 
         if (self.opts.useTracy) {
             try self.cflags.append(try b.fmt("-DTRACY_ENABLE=1", .{}));
             try self.cflags.append(try b.fmt("-DTRACY_HAS_CALLSTACK=0", .{}));
             try self.cflags.append(try b.fmt("-D_Win32_WINNT=0x601", .{}));
         }
+
+        try self.cflags.append(try b.fmt("-fno-sanitize=all", .{}));
     }
 
     pub fn addTest(self: *@This(), comptime name: []const u8) *std.build.LibExeObjStep {
