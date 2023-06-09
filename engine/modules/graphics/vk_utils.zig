@@ -276,3 +276,57 @@ pub fn upload_sprite_data(self: *NeonVkContext) !void {
 
     self.vkAllocator.vmaAllocator.unmapMemory(allocation);
 }
+
+// a highly automated uploading context
+pub const NeonVkUploader = struct {
+    gc: *NeonVkContext,
+    arena: std.heap.ArenaAllocator,
+    allocator: std.mem.Allocator,
+    uploadFence: vk.Fence = undefined,
+    commandPool: vk.CommandPool = undefined,
+    commandBuffer: vk.CommandBuffer = undefined,
+    mutex: std.Thread.Mutex = .{},
+    active: bool = false,
+
+    pub fn init(gc: *NeonVkContext) !@This() {
+        var arena = std.heap.ArenaAllocator.init(gc.allocator);
+        var self = @This(){
+            .arena = arena,
+            .allocator = arena.allocator(),
+            .gc = gc,
+        };
+
+        // create the uploadFence
+        var fci = vk.FenceCreateInfo{
+            .flags = .{ .signaled_bit = false },
+        };
+        self.uploadFence = try self.gc.vkd.createFence(self.gc.dev, &fci, null);
+
+        // create the command pool
+        var cpci = vkinit.commandPoolCreateInfo(@intCast(u32, self.gc.graphicsFamilyIndex), .{ .reset_command_buffer_bit = true });
+        self.commandPool = try self.gc.vkd.createCommandPool(self.gc.dev, &cpci, null);
+
+        // create the command buffer
+        var cbai = vk.CommandBufferAllocateInfo{
+            .command_pool = self.commandPool,
+            .level = vk.CommandBufferLevel.primary,
+            .command_buffer_count = 1,
+        };
+
+        try self.gc.vkd.allocateCommandBuffers(
+            self.gc.dev,
+            &cbai,
+            @ptrCast([*]vk.CommandBuffer, &self.commandBuffer),
+        );
+
+        return self;
+    }
+};
+
+pub const NeonVkUploadContext = struct {
+    uploadFence: vk.Fence,
+    commandPool: vk.CommandPool,
+    commandBuffer: vk.CommandBuffer,
+    mutex: std.Thread.Mutex = .{},
+    active: bool = false,
+};

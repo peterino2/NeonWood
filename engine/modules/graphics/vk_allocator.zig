@@ -229,8 +229,21 @@ pub const NeonVkAllocator = struct {
         };
     }
 
-    pub fn mapMemory() void {}
-    pub fn unmapMemory() void {}
+    pub fn mapMemorySlice(self: *@This(), comptime T: type, buffer: NeonVkBuffer, size: usize) ![]T {
+        var slice: []T = undefined;
+        slice.ptr = try self.mapMemory(buffer, T);
+        slice.len = size;
+
+        return slice;
+    }
+
+    pub fn mapMemory(self: *@This(), buffer: NeonVkBuffer, comptime T: type) ![*]T {
+        return try self.vmaAllocator.mapMemory(buffer.allocation, T);
+    }
+
+    pub fn unmapMemory(self: *@This(), buffer: NeonVkBuffer) void {
+        self.vmaAllocator.unmapMemory(buffer.allocation);
+    }
 
     pub fn printEventsLog(self: @This()) void {
         for (self.eventsList.items) |item| {

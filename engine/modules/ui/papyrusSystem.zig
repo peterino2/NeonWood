@@ -39,6 +39,8 @@ textPipeData: gpd.GpuPipeData = undefined,
 
 displayDemo: bool = true,
 
+const testString = "hello world";
+
 const DrawListEntryInfo = struct {
     entryType: enum {
         image,

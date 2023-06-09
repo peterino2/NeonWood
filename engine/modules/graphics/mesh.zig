@@ -4,7 +4,10 @@ const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
 const obj_loader = @import("lib/objLoader/obj_loader.zig");
+const constants = @import("vk_constants.zig");
+const vk_utils = @import("vk_utils.zig");
 
+const NeonVkUploader = vk_utils.NeonVkUploader;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
@@ -116,29 +119,87 @@ pub const IndexBuffer = struct {
     }
 };
 
-pub const DynamicMesh = struct {
-    allocator: std.mem.Allocator,
-    vertices: std.ArrayListUnmanaged(Vertex),
-
-    indexBuffers: [2]NeonVkBuffer,
-    vertexBuffers: [2]NeonVkBuffer,
-    currentBuffer: usize,
-
-    uploadVertexBuffer: NeonVkBuffer,
-    uploadIndexBuffer: NeonVkBuffer,
-
+pub const DynamicMeshManager = struct {
     gc: *NeonVkContext,
 
-    pub fn init(gc: *NeonVkContext, allocator: std.mem.Allocator, maxVertexSize: u32) !*@This() {
+    allocator: std.mem.Allocator,
+    dynMeshes: std.ArrayListUnmanaged(*DynamicMesh) = .{},
+    uploader: NeonVkUploader,
+
+    first: bool = true,
+
+    pub fn init(gc: *NeonVkContext) !*@This() {
+        var self = try gc.allocator.create(@This());
+        self.* = @This(){
+            .gc = gc,
+            .allocator = gc.allocator,
+            .uploader = try NeonVkUploader.init(gc),
+        };
+
+        core.graphics_log("creating the mesh manager", .{});
+        return self;
+    }
+
+    pub fn addDynamicMesh(self: *@This(), dynamicMesh: *DynamicMesh) !void {
+        try self.dynMeshes.append(self.allocator, dynamicMesh);
+    }
+
+    pub fn tickUpdates(self: *@This()) !void {
+        if (self.first) {
+            self.first = false;
+            for (self.dynMeshes.items) |_| {
+                core.engine_log("dynamic mesh detected", .{});
+            }
+        }
+
+        for (self.dynMeshes.items) |mesh| {
+            try mesh.uploadVertices();
+        }
+    }
+};
+
+pub const DynamicMesh = struct {
+    pub const GeometryMode = enum { quads, triangles };
+
+    allocator: std.mem.Allocator,
+    gc: *NeonVkContext,
+
+    vertices: []Vertex = undefined,
+    geometryMode: GeometryMode = .quads, // geometry elaboration mode
+    indicesMaxCount: u32 = 0,
+
+    indexBuffers: [2]NeonVkBuffer = undefined,
+    vertexBuffers: [2]NeonVkBuffer = undefined,
+    activeBuffer: usize = 0, // the index of the previously uploaded vertex buffer
+    activeVertexLen: usize = 0, // the length of the previously uploaded vertex buffer
+    vertexCount: usize = 0, //
+
+    uploadVertexBuffer: NeonVkBuffer = undefined,
+    uploadIndexBuffer: NeonVkBuffer = undefined,
+
+    isDirty: bool = true,
+
+    pub fn init(
+        gc: *NeonVkContext,
+        allocator: std.mem.Allocator,
+        maxVertexSize: u32,
+        mode: GeometryMode,
+    ) !*@This() {
         var self = try allocator.create(@This());
+        self.* = .{
+            .allocator = allocator,
+            .vertices = try allocator.alloc(Vertex, maxVertexSize),
+            .gc = gc,
+            .geometry = mode,
+        };
+
+        try gc.dynamicMeshManager.addDynamicMesh(self);
 
         self.allocator = allocator;
-        self.vertices = .{};
-        try self.vertices.resize(allocator, maxVertexSize);
         self.gc = gc;
 
         {
-            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(u32), "DynamicMesh.init - index staging");
+            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
             self.uploadVertexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
@@ -155,12 +216,33 @@ pub const DynamicMesh = struct {
         return self;
     }
 
-    pub fn setup(self: *@This()) void {
-        _ = self;
-        // create the vk buffer
-        // create the upload buffer
-        // create the upload context
-        // map upload context pointer
+    // a stream-like interface for creating vertices
+    pub fn uploadVertices(self: *@This()) !void {
+        if (!self.isDirty) {
+            return;
+        }
+
+        self.activeBuffer += 1 % constants.NUM_FRAMES;
+        self.activeVertexLen = self.vertexCount;
+        // map buffers
+
+        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.uploadVertexBuffer, self.vertices.len);
+        var indexSlice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.uploadVertexBuffer, self.vertices.len * 6 / 4);
+        _ = indexSlice;
+        defer self.gc.vkAllocator.unmapMemory(self.uploadVertexBuffer);
+        defer self.gc.vkAllocator.unmapMemory(self.uploadIndexBuffer);
+
+        // copy over vertices to mapped buffer
+        for (0..self.vertexCount) |i| {
+            slice[i] = self.vertices[i];
+        }
+
+        //
+        self.isDirty = false;
+    }
+
+    pub fn clearVertices(self: *@This()) void {
+        self.vertexCount = 0;
     }
 
     pub fn flushBuffer(self: *@This()) void {
@@ -171,7 +253,7 @@ pub const DynamicMesh = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.vertices.deinit(self.allocator);
+        self.allocator.free(self.vertices);
 
         var vkAllocator = self.gc.vkAllocator;
 

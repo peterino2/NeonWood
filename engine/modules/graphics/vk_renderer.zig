@@ -147,13 +147,7 @@ const RenderObjectSet = core.SparseMultiSet(
     struct { renderObject: RenderObject },
 );
 
-pub const NeonVkUploadContext = struct {
-    uploadFence: vk.Fence,
-    commandPool: vk.CommandPool,
-    commandBuffer: vk.CommandBuffer,
-    mutex: std.Thread.Mutex,
-    active: bool,
-};
+const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
 
 pub const NeonVkCameraDataGpu = struct {
     view: Mat,
@@ -218,32 +212,6 @@ pub const NeonVkQueue = struct {
             .family = family,
         };
     }
-};
-
-const Vertex = struct {
-    const binding_description = vk.VertexInputBindingDescription{
-        .binding = 0,
-        .stride = @sizeOf(Vertex),
-        .input_rate = .vertex,
-    };
-
-    const attribute_description = [_]vk.VertexInputAttributeDescription{
-        .{
-            .binding = 0,
-            .location = 0,
-            .format = .r32g32_sfloat,
-            .offset = @offsetOf(Vertex, "pos"),
-        },
-        .{
-            .binding = 0,
-            .location = 1,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(Vertex, "color"),
-        },
-    };
-
-    pos: [2]f32,
-    color: [3]f32,
 };
 
 pub const NeonVkPhysicalDeviceInfo = struct {
@@ -333,12 +301,6 @@ pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
     pub const NeonObjectTable = core.RttiData.from(Self);
-
-    const vertices = [_]Vertex{
-        .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
-        .{ .pos = .{ 0.5, 0.5 }, .color = .{ 0, 1, 0 } },
-        .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
-    };
 
     pub const maxMode = 3;
 
@@ -447,7 +409,7 @@ pub const NeonVkContext = struct {
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
     sceneManager: NeonVkSceneManager,
-
+    dynamicMeshManager: *mesh.DynamicMeshManager,
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
 
@@ -661,6 +623,8 @@ pub const NeonVkContext = struct {
         try self.init_primitive_meshes();
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
+        try self.init_dynamic_mesh();
+
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut();
 
@@ -668,6 +632,10 @@ pub const NeonVkContext = struct {
         try childProc.spawn();
 
         return self;
+    }
+
+    pub fn init_dynamic_mesh(self: *@This()) !void {
+        self.dynamicMeshManager = try mesh.DynamicMeshManager.init(self);
     }
 
     pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
@@ -1344,6 +1312,7 @@ pub const NeonVkContext = struct {
 
         core.gScene.updateTransforms();
         try self.sceneManager.update(self);
+        try self.dynamicMeshManager.tickUpdates();
 
         if (!self.isMinimized) {
             var z1 = tracy.Zone(@src());
