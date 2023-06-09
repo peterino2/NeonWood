@@ -446,6 +446,10 @@ pub const FontAtlas = struct {
         // write bitmaps into the atlas buffer
         ch = 0;
         while (ch < glyphCount) : (ch += 1) {
+            if (@ptrToInt(glyphs[ch]) == 0) {
+                continue;
+            }
+
             const tl = Vector2i{ .x = @intCast(i32, ch) * (max.x + 1), .y = 0 };
             const maxCol = self.glyphMetrics[ch].x;
             const maxRow = self.glyphMetrics[ch].y;
