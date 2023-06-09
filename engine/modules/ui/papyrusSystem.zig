@@ -140,10 +140,15 @@ fn setupMeshes(self: *@This()) !void {
 
     var indexBuffer: [6]u32 = undefined;
 
-    self.quad.vertices.items[0].position = .{ .x = 1, .y = 1, .z = 0 };
-    self.quad.vertices.items[1].position = .{ .x = 1, .y = -1, .z = 0 };
-    self.quad.vertices.items[2].position = .{ .x = -1, .y = -1, .z = 0 };
-    self.quad.vertices.items[3].position = .{ .x = -1, .y = 1, .z = 0 };
+    self.quad.vertices.items[0].position = .{ .x = 1, .y = 1, .z = 0 }; // bot right
+    self.quad.vertices.items[1].position = .{ .x = 1, .y = -1, .z = 0 }; // top right
+    self.quad.vertices.items[2].position = .{ .x = -1, .y = -1, .z = 0 }; // top left
+    self.quad.vertices.items[3].position = .{ .x = -1, .y = 1, .z = 0 }; // bot left
+
+    self.quad.vertices.items[0].uv = .{ .x = 1.0, .y = 1.0 };
+    self.quad.vertices.items[1].uv = .{ .x = 1.0, .y = 0.0 };
+    self.quad.vertices.items[2].uv = .{ .x = 0.0, .y = 0.0 };
+    self.quad.vertices.items[3].uv = .{ .x = 0.0, .y = 1.0 };
 
     indexBuffer[0] = 0;
     indexBuffer[1] = 1;
@@ -291,19 +296,8 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     for (drawList.items) |drawCmd| {
         _ = drawCmd;
-        var tl = gl.vec2{ .x = 2, .y = 402 };
-        var size = gl.vec2{ .x = 196, .y = 196 };
-        imagesGpu[self.ssboCount] = PapyrusImageGpu{
-            .imagePosition = tl,
-            .imageSize = size,
-            .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-            .scale = .{ .x = 1.0, .y = 1.0 },
-            .alpha = 1.0,
-            .pad0 = std.mem.zeroes([12]u8),
-            .baseColor = .{ .x = 0.0, .y = 1.0, .z = 0.0, .w = 1.0 },
-        };
-        self.ssboCount += 1;
     }
+
     imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 400, .y = 400 },
         .imageSize = .{ .x = 200, .y = 200 },
@@ -328,7 +322,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     imagesGpu[self.ssboCount] = PapyrusImageGpu{
         .imagePosition = .{ .x = 800, .y = 400 },
-        .imageSize = .{ .x = 200, .y = 200 },
+        .imageSize = .{ .x = 50, .y = 50 },
         .anchorPoint = .{ .x = -1.0, .y = -1.0 },
         .scale = .{ .x = 1.0, .y = 1.0 },
         .alpha = 1.0,
@@ -365,8 +359,8 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 
         var index: u32 = 0;
         while (index < self.ssboCount) : (index += 1) {
-            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
         }
     }

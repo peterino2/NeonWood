@@ -362,7 +362,11 @@ pub const FontAtlas = struct {
             .isSDF = true,
         };
 
-        _ = c.stbtt_InitFont(&self.font, self.fileContent.ptr, c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0));
+        _ = c.stbtt_InitFont(
+            &self.font,
+            self.fileContent.ptr,
+            c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0),
+        );
 
         try self.createAtlas();
 
@@ -2037,9 +2041,9 @@ test "sdf texture generation" {
         &font,
         c.stbtt_ScaleForPixelHeight(&font, 50),
         @intCast(c_int, 'a'),
-        5,
+        6,
         180,
-        36,
+        30,
         &width,
         &height,
         &xoff,
