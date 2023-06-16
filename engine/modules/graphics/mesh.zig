@@ -179,18 +179,16 @@ pub const DynamicMesh = struct {
 
     isDirty: bool = true,
 
-    pub fn init(
-        gc: *NeonVkContext,
-        allocator: std.mem.Allocator,
-        maxVertexSize: u32,
-        mode: GeometryMode,
-    ) !*@This() {
+    pub fn init(gc: *NeonVkContext, allocator: std.mem.Allocator, opts: struct {
+        maxVertexCount: u32 = 4096,
+        mode: GeometryMode = .quads,
+    }) !*@This() {
         var self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .vertices = try allocator.alloc(Vertex, maxVertexSize),
+            .vertices = try allocator.alloc(Vertex, opts.maxVertexCount),
             .gc = gc,
-            .geometry = mode,
+            .geometryMode = opts.mode,
         };
 
         try gc.dynamicMeshManager.addDynamicMesh(self);
@@ -199,15 +197,15 @@ pub const DynamicMesh = struct {
         self.gc = gc;
 
         {
-            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
-            self.uploadVertexBuffer = try gc.vkAllocator.createStagingBuffer(maxVertexSize * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
+            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
+            self.uploadVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
-                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(maxVertexSize * @sizeOf(u32), .{
+                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32), .{
                     .index_buffer_bit = true,
                 }, "DynamicMesh.init - gpu indexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
 
-                self.vertexBuffers[i] = try gc.vkAllocator.createGpuBuffer(maxVertexSize * @sizeOf(Vertex), .{
+                self.vertexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(Vertex), .{
                     .vertex_buffer_bit = true,
                 }, "DynamicMesh.init - gpu vertexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
             }
@@ -230,7 +228,7 @@ pub const DynamicMesh = struct {
         var indexSlice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.uploadVertexBuffer, self.vertices.len * 6 / 4);
         _ = indexSlice;
         defer self.gc.vkAllocator.unmapMemory(self.uploadVertexBuffer);
-        defer self.gc.vkAllocator.unmapMemory(self.uploadIndexBuffer);
+        //defer self.gc.vkAllocator.unmapMemory(self.uploadIndexBuffer);
 
         // copy over vertices to mapped buffer
         for (0..self.vertexCount) |i| {
@@ -243,13 +241,12 @@ pub const DynamicMesh = struct {
 
     pub fn clearVertices(self: *@This()) void {
         self.vertexCount = 0;
+        self.indexSlice = 0;
     }
 
-    pub fn flushBuffer(self: *@This()) void {
+    pub fn addQuad(self: *@This(), quad: []Vertex) void {
         _ = self;
-        // swap mapped buffers
-        // swap upload buffers
-        // upload back buffer
+        _ = quad;
     }
 
     pub fn deinit(self: *@This()) void {

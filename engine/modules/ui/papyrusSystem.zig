@@ -91,7 +91,9 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.graphLog.write("digraph G {{\n", .{});
 
     self.gc = gc;
-    self.textMesh = try graphics.DynamicMesh.init(gc, gc.allocator, 4096);
+    self.textMesh = try graphics.DynamicMesh.init(gc, gc.allocator, .{
+        .maxVertexCount = 4096 * 4,
+    });
     try self.preparePipeline();
     try self.prepareFont();
     try self.setupMeshes();
