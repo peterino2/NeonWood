@@ -20,20 +20,8 @@ pub const GameContext = struct {
     }
 
     pub fn uiTick(self: *@This(), deltaTime: f64) void {
+        _ = self;
         _ = deltaTime;
-
-        nw.graphics.imguiUtils.setupDockspace("Dockspace");
-
-        if (self.debugOpen) {
-            if (c.igBegin("Debug Menu", &self.debugOpen, 0)) {
-                c.igText("Sample Text");
-                if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
-                    nw.core.engine_logs("I have been pressed!");
-                    self.debugOpen = false;
-                }
-            }
-            c.igEnd();
-        }
     }
 
     pub fn prepare_game(self: *@This()) !void {

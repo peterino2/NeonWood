@@ -177,10 +177,12 @@ pub const DynamicMesh = struct {
     indicesMaxCount: u32 = 0,
 
     indexBuffers: [2]NeonVkBuffer = undefined,
-    vertexBuffers: [2]NeonVkBuffer = undefined,
     indexBufferLen: [2]u32 = .{ 0, 0 },
 
-    frameId: usize = 0, // the index of the previously uploaded vertex buffer
+    vertexBuffers: [2]NeonVkBuffer = undefined,
+    vertexBufferLen: [2]u32 = .{ 0, 0 },
+
+    swapId: usize = 0, // the index of the previously uploaded vertex buffer
     vertexCount: u32 = 0, //
 
     stagingVertexBuffer: NeonVkBuffer = undefined,
@@ -223,13 +225,29 @@ pub const DynamicMesh = struct {
         return self;
     }
 
+    pub fn getIndexBuffer(self: *@This()) NeonVkBuffer {
+        return self.indexBuffers[self.swapId];
+    }
+
+    pub fn getVertexBuffer(self: *@This()) NeonVkBuffer {
+        return self.vertexBuffers[self.swapId];
+    }
+
+    pub fn getIndexBufferLen(self: *@This()) u32 {
+        return self.indexBufferLen[self.swapId];
+    }
+
+    pub fn getVertexBufferLen(self: *@This()) u32 {
+        return self.vertexBufferLen[self.swapId];
+    }
+
     // a stream-like interface for creating vertices
     pub fn uploadVertices(self: *@This(), uploader: *NeonVkUploader) !void {
         if (!self.isDirty) {
             return;
         }
 
-        self.frameId += 1 % constants.NUM_FRAMES;
+        self.swapId += 1 % constants.NUM_FRAMES;
         // map buffers
 
         var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
@@ -242,6 +260,7 @@ pub const DynamicMesh = struct {
         for (0..self.vertexCount) |i| {
             slice[i] = self.vertices[i];
         }
+        self.vertexBufferLen[self.swapId] = self.vertexCount;
 
         // interpret vertices as quads.
         if (self.geometryMode == .quads) {
@@ -259,19 +278,19 @@ pub const DynamicMesh = struct {
                 vertex += 4;
                 index += 6;
             }
-            self.indexBufferLen[self.frameId] = index;
+            self.indexBufferLen[self.swapId] = index;
         }
 
         // upload index and vertex buffers
         try uploader.addBufferUpload(
             self.stagingIndexBuffer,
-            self.indexBuffers[self.frameId],
-            self.indexBufferLen[self.frameId] * @intCast(u32, @sizeOf(u32)),
+            self.indexBuffers[self.swapId],
+            self.indexBufferLen[self.swapId] * @intCast(u32, @sizeOf(u32)),
         );
 
         try uploader.addBufferUpload(
             self.stagingVertexBuffer,
-            self.vertexBuffers[self.frameId],
+            self.vertexBuffers[self.swapId],
             self.vertexCount * @intCast(u32, @sizeOf(Vertex)),
         );
 

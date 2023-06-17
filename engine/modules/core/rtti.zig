@@ -83,6 +83,7 @@ pub const RttiData = struct {
     init_func: *const fn (std.mem.Allocator, *anyopaque) void,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
+    postInit_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
     processEvents: ?*const fn (*anyopaque, u64) RttiDataEventError!void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
@@ -100,6 +101,17 @@ pub const RttiData = struct {
             .typeAlign = @alignOf(TargetType),
             .init_func = wrappedInit.func,
         };
+
+        if (@hasDecl(TargetType, "postInit")) {
+            const wrappedPostInit = struct {
+                pub fn func(pointer: *anyopaque) RttiDataEventError!void {
+                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    try ptr.postInit();
+                }
+            };
+
+            self.postInit_func = wrappedPostInit.func;
+        }
 
         if (@hasDecl(TargetType, "tick")) {
             const wrappedTick = struct {

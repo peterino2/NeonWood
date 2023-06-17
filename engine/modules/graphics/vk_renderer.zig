@@ -623,8 +623,6 @@ pub const NeonVkContext = struct {
         try self.init_primitive_meshes();
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
-        try self.init_dynamic_mesh();
-
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut();
 
@@ -632,6 +630,10 @@ pub const NeonVkContext = struct {
         try childProc.spawn();
 
         return self;
+    }
+
+    pub fn postInit(self: *@This()) core.RttiDataEventError!void {
+        self.init_dynamic_mesh() catch return core.RttiDataEventError.UnknownStatePanic;
     }
 
     pub fn init_dynamic_mesh(self: *@This()) !void {

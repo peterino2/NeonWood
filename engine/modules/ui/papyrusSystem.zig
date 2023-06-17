@@ -275,7 +275,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
 }
 
 pub fn preparePipeline(self: *@This()) !void {
-    // try self.buildTextPipeline();
+    try self.buildTextPipeline();
     try self.buildImagePipeline();
 }
 
@@ -378,6 +378,12 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
         }
+
+        // draw the font dynamic mesh
+        self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
+        self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&size));
+        self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
+        self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
     }
 
     // 1. get the draw list

@@ -89,6 +89,10 @@ pub const Engine = struct {
             try self.eventors.append(self.allocator, newObjectRef); //
         }
 
+        if (@hasDecl(T, "postInit")) {
+            try vtable.postInit_func.?(newObjectPtr);
+        }
+
         return newObjectPtr;
     }
 
