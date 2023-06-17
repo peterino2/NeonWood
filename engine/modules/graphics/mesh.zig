@@ -19,10 +19,10 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const debug_struct = core.debug_struct;
 
 pub const Vertex = struct {
-    position: Vectorf,
-    normal: Vectorf,
-    color: LinearColor,
-    uv: Vector2f,
+    position: Vectorf = .{},
+    normal: Vectorf = .{},
+    color: LinearColor = .{},
+    uv: Vector2f = .{},
 };
 
 pub const IndexBuffer = struct {
@@ -55,11 +55,11 @@ pub const IndexBuffer = struct {
             .usage = .cpuOnly,
         };
 
-        var allocatedBuffer = try gc.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ " - upload buffer");
-        defer allocatedBuffer.deinit(gc.vkAllocator);
+        var stagingBuffer = try gc.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ " - upload buffer");
+        defer stagingBuffer.deinit(gc.vkAllocator);
 
         {
-            var data = try gc.vkAllocator.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
+            var data = try gc.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
             var dataSlice: []u8 = undefined;
             dataSlice.ptr = data;
             dataSlice.len = bufferSize;
@@ -69,7 +69,7 @@ pub const IndexBuffer = struct {
             iSlice.len = bufferSize;
 
             @memcpy(dataSlice, iSlice);
-            gc.vkAllocator.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
+            gc.vkAllocator.vmaAllocator.unmapMemory(stagingBuffer.allocation);
         }
 
         // GPU sided buffer
@@ -102,7 +102,7 @@ pub const IndexBuffer = struct {
 
             gc.vkd.cmdCopyBuffer(
                 cmd,
-                allocatedBuffer.buffer,
+                stagingBuffer.buffer,
                 self.buffer.buffer,
                 1,
                 @ptrCast([*]const vk.BufferCopy, &copy),
@@ -153,7 +153,15 @@ pub const DynamicMeshManager = struct {
         }
 
         for (self.dynMeshes.items) |mesh| {
-            try mesh.uploadVertices();
+            if (mesh.isDirty and !self.uploader.isActive) {
+                try self.uploader.startUploadContext();
+            }
+
+            try mesh.uploadVertices(&self.uploader);
+        }
+
+        if (self.uploader.isActive) {
+            try self.uploader.finishUploadContext();
         }
     }
 };
@@ -170,12 +178,13 @@ pub const DynamicMesh = struct {
 
     indexBuffers: [2]NeonVkBuffer = undefined,
     vertexBuffers: [2]NeonVkBuffer = undefined,
-    activeBuffer: usize = 0, // the index of the previously uploaded vertex buffer
-    activeVertexLen: usize = 0, // the length of the previously uploaded vertex buffer
-    vertexCount: usize = 0, //
+    indexBufferLen: [2]u32 = .{ 0, 0 },
 
-    uploadVertexBuffer: NeonVkBuffer = undefined,
-    uploadIndexBuffer: NeonVkBuffer = undefined,
+    frameId: usize = 0, // the index of the previously uploaded vertex buffer
+    vertexCount: u32 = 0, //
+
+    stagingVertexBuffer: NeonVkBuffer = undefined,
+    stagingIndexBuffer: NeonVkBuffer = undefined,
 
     isDirty: bool = true,
 
@@ -197,8 +206,8 @@ pub const DynamicMesh = struct {
         self.gc = gc;
 
         {
-            self.uploadIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
-            self.uploadVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
+            self.stagingIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
+            self.stagingVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
                 self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32), .{
@@ -215,38 +224,115 @@ pub const DynamicMesh = struct {
     }
 
     // a stream-like interface for creating vertices
-    pub fn uploadVertices(self: *@This()) !void {
+    pub fn uploadVertices(self: *@This(), uploader: *NeonVkUploader) !void {
         if (!self.isDirty) {
             return;
         }
 
-        self.activeBuffer += 1 % constants.NUM_FRAMES;
-        self.activeVertexLen = self.vertexCount;
+        self.frameId += 1 % constants.NUM_FRAMES;
         // map buffers
 
-        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.uploadVertexBuffer, self.vertices.len);
-        var indexSlice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.uploadVertexBuffer, self.vertices.len * 6 / 4);
-        _ = indexSlice;
-        defer self.gc.vkAllocator.unmapMemory(self.uploadVertexBuffer);
-        //defer self.gc.vkAllocator.unmapMemory(self.uploadIndexBuffer);
+        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
+        var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
+
+        defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
+        defer self.gc.vkAllocator.unmapMemory(self.stagingIndexBuffer);
 
         // copy over vertices to mapped buffer
         for (0..self.vertexCount) |i| {
             slice[i] = self.vertices[i];
         }
 
-        //
+        // interpret vertices as quads.
+        if (self.geometryMode == .quads) {
+            var index: u32 = 0;
+            var vertex: u32 = 0;
+            while (vertex < self.vertexCount) {
+                indexSlice[index + 0] = vertex + 0;
+                indexSlice[index + 1] = vertex + 1;
+                indexSlice[index + 2] = vertex + 2;
+
+                indexSlice[index + 3] = vertex + 2;
+                indexSlice[index + 4] = vertex + 3;
+                indexSlice[index + 5] = vertex + 0;
+
+                vertex += 4;
+                index += 6;
+            }
+            self.indexBufferLen[self.frameId] = index;
+        }
+
+        // upload index and vertex buffers
+        try uploader.addBufferUpload(
+            self.stagingIndexBuffer,
+            self.indexBuffers[self.frameId],
+            self.indexBufferLen[self.frameId] * @intCast(u32, @sizeOf(u32)),
+        );
+
+        try uploader.addBufferUpload(
+            self.stagingVertexBuffer,
+            self.vertexBuffers[self.frameId],
+            self.vertexCount * @intCast(u32, @sizeOf(Vertex)),
+        );
+
         self.isDirty = false;
     }
 
     pub fn clearVertices(self: *@This()) void {
         self.vertexCount = 0;
-        self.indexSlice = 0;
+        self.isDirty = true;
     }
 
-    pub fn addQuad(self: *@This(), quad: []Vertex) void {
-        _ = self;
-        _ = quad;
+    pub fn addVertexList(self: *@This(), list: []const Vertex) void {
+        self.isDirty = true;
+        for (list) |v| {
+            self.vertices[self.vertexCount] = v;
+            self.vertexCount += 1;
+        }
+    }
+
+    // adds a quad only in the X and y Space,
+    pub fn addQuad2D(
+        self: *@This(),
+        _topLeft: core.Vectorf, // only x and y is considered
+        _size: core.Vectorf, // only x and y is considered
+        topLeftUV: core.Vector2f,
+        uvSize: core.Vector2f,
+    ) void {
+        _ = uvSize;
+        _ = topLeftUV;
+
+        var topLeft = _topLeft;
+        var size = _size;
+
+        topLeft.z = 0;
+        size.z = 0;
+
+        const normal = Vectorf{ .x = 0, .y = 0, .z = -1 };
+
+        var vertices: [4]Vertex = undefined;
+
+        vertices[0] = .{
+            .position = topLeft,
+            .normal = normal,
+        };
+
+        vertices[1] = .{
+            .position = topLeft.add(.{ .x = size.x }),
+            .normal = normal,
+        };
+
+        vertices[2] = .{
+            .position = topLeft.add(size),
+            .normal = normal,
+        };
+
+        vertices[3] = .{
+            .position = topLeft.add(.{ .y = size.y }),
+            .normal = normal,
+        };
+
+        self.addVertexList(&vertices);
     }
 
     pub fn deinit(self: *@This()) void {
@@ -254,8 +340,8 @@ pub const DynamicMesh = struct {
 
         var vkAllocator = self.gc.vkAllocator;
 
-        self.uploadVertexBuffer.deinit(vkAllocator);
-        self.uploadIndexBuffer.deinit(vkAllocator);
+        self.stagingVertexBuffer.deinit(vkAllocator);
+        self.stagingIndexBuffer.deinit(vkAllocator);
 
         for (0..self.indexBuffers.len) |i| {
             self.indexBuffers[i].deinit(vkAllocator);

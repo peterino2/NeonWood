@@ -86,6 +86,15 @@ pub fn prepareFont(self: *@This()) !void {
     self.fontTextureDescriptor = res.descriptor;
 }
 
+fn setupDynamicMesh(self: *@This()) !void {
+    self.textMesh.addQuad2D(
+        .{ .x = 0.3, .y = 0.3, .z = 0 },
+        .{ .x = 0.1, .y = 0.1, .z = 0 },
+        .{ .x = 0.0, .y = 0.0 },
+        .{ .x = 1.0, .y = 1.0 },
+    );
+}
+
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     core.ui_log("Papyrus Subsystem setup {x}", .{@ptrToInt(self)});
     try self.graphLog.write("digraph G {{\n", .{});
@@ -97,6 +106,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.preparePipeline();
     try self.prepareFont();
     try self.setupMeshes();
+    try self.setupDynamicMesh();
 
     var ctx = self.papyrusCtx;
 

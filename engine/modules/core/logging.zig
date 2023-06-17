@@ -100,7 +100,7 @@ pub const FileLog = struct {
             &.{ "dot", "-Tpng", srcFile, "-o", srcFile },
             std.heap.c_allocator,
         );
-        try childProc.spawn();
+        _ = try childProc.spawnAndWait();
     }
 
     pub fn deinit(self: *@This()) void {

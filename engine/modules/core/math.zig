@@ -58,8 +58,8 @@ pub fn fabs(x: anytype) @TypeOf(x) {
 
 pub fn Vector2Type(comptime T: type) type {
     return struct {
-        x: T,
-        y: T,
+        x: T = 0,
+        y: T = 0,
 
         pub inline fn new(x: T, y: T) @This() {
             return .{
@@ -127,9 +127,9 @@ pub fn Vector2Type(comptime T: type) type {
 
 pub fn Vector3Type(comptime T: type) type {
     return struct {
-        x: T,
-        y: T,
-        z: T,
+        x: T = 0,
+        y: T = 0,
+        z: T = 0,
 
         pub inline fn new(x: T, y: T, z: T) @This() {
             return .{
@@ -215,10 +215,10 @@ pub fn Vector3Type(comptime T: type) type {
 
 pub fn Vector4Type(comptime T: type) type {
     return struct {
-        x: T,
-        y: T,
-        z: T,
-        w: T,
+        x: T = 0,
+        y: T = 0,
+        z: T = 0,
+        w: T = 0,
 
         pub inline fn new(x: T, y: T, z: T, w: T) @This() {
             return .{
@@ -301,14 +301,14 @@ pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
 }
 
 pub const LinearColor = struct {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    r: f32 = 1.0,
+    g: f32 = 1.0,
+    b: f32 = 1.0,
+    a: f32 = 1.0,
 };
 pub const Color = struct {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    r: u8 = 255,
+    g: u8 = 255,
+    b: u8 = 255,
+    a: u8 = 255,
 };

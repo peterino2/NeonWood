@@ -920,11 +920,11 @@ pub const NeonVkContext = struct {
             .usage = .cpuOnly,
         };
 
-        var allocatedBuffer = try self.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ "-- intermediate buffer");
-        defer allocatedBuffer.deinit(self.vkAllocator);
+        var stagingBuffer = try self.vkAllocator.createBuffer(bci, vmaCreateInfo, @src().fn_name ++ "-- intermediate buffer");
+        defer stagingBuffer.deinit(self.vkAllocator);
 
         {
-            var data = try self.vkAllocator.vmaAllocator.mapMemory(allocatedBuffer.allocation, u8);
+            var data = try self.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
 
             var dataSlice: []u8 = undefined;
             dataSlice.ptr = data;
@@ -935,7 +935,7 @@ pub const NeonVkContext = struct {
             inputSlice.len = bufferSize;
 
             @memcpy(data, inputSlice);
-            self.vkAllocator.vmaAllocator.unmapMemory(allocatedBuffer.allocation);
+            self.vkAllocator.vmaAllocator.unmapMemory(stagingBuffer.allocation);
         }
 
         // Gpu sided buffer
@@ -967,7 +967,7 @@ pub const NeonVkContext = struct {
             core.graphics_log("Starting command copy buffer", .{});
             self.vkd.cmdCopyBuffer(
                 cmd,
-                allocatedBuffer.buffer,
+                stagingBuffer.buffer,
                 uploadedMesh.buffer.buffer,
                 1,
                 @ptrCast([*]const vk.BufferCopy, &copy),

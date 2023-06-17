@@ -277,7 +277,7 @@ pub fn upload_sprite_data(self: *NeonVkContext) !void {
     self.vkAllocator.vmaAllocator.unmapMemory(allocation);
 }
 
-// a highly automated uploading context
+// A better encapsulated version of the NeonVkUploadContext
 pub const NeonVkUploader = struct {
     gc: *NeonVkContext,
     arena: std.heap.ArenaAllocator,
@@ -286,7 +286,7 @@ pub const NeonVkUploader = struct {
     commandPool: vk.CommandPool = undefined,
     commandBuffer: vk.CommandBuffer = undefined,
     mutex: std.Thread.Mutex = .{},
-    active: bool = false,
+    isActive: bool = false,
 
     pub fn init(gc: *NeonVkContext) !@This() {
         var arena = std.heap.ArenaAllocator.init(gc.allocator);
@@ -320,6 +320,61 @@ pub const NeonVkUploader = struct {
         );
 
         return self;
+    }
+
+    pub fn startUploadContext(self: *@This()) !void {
+        self.mutex.lock();
+        var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
+        try self.gc.vkd.beginCommandBuffer(self.commandBuffer, &cbi);
+        self.isActive = true;
+    }
+
+    pub fn addBufferUpload(
+        self: *@This(),
+        stagingBuffer: NeonVkBuffer,
+        targetBuffer: NeonVkBuffer,
+        transferSize: u32,
+    ) !void {
+        core.assert(self.isActive);
+        var copy = vk.BufferCopy{
+            .dst_offset = 0,
+            .src_offset = 0,
+            .size = transferSize,
+        };
+
+        const cmd = self.gc.uploadContext.commandBuffer;
+        core.graphics_log("Starting command copy buffer", .{});
+
+        self.gc.vkd.cmdCopyBuffer(
+            cmd,
+            stagingBuffer.buffer,
+            targetBuffer.buffer,
+            1,
+            @ptrCast([*]const vk.BufferCopy, &copy),
+        );
+    }
+
+    pub fn finishUploadContext(self: *@This()) !void {
+        try self.gc.vkd.endCommandBuffer(self.commandBuffer);
+        var submit = vkinit.submitInfo(&self.commandBuffer);
+        try self.gc.vkd.queueSubmit(
+            self.gc.graphicsQueue.handle,
+            1,
+            @ptrCast([*]const vk.SubmitInfo, &submit),
+            self.uploadFence,
+        );
+
+        _ = try self.gc.vkd.waitForFences(
+            self.gc.dev,
+            1,
+            @ptrCast([*]const vk.Fence, &self.uploadFence),
+            1,
+            1000000000,
+        );
+
+        try self.gc.vkd.resetFences(self.gc.dev, 1, @ptrCast([*]const vk.Fence, &self.uploadFence));
+        self.isActive = false;
+        self.mutex.unlock();
     }
 };
 
