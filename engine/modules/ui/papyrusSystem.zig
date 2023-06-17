@@ -123,7 +123,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     }
 
     try self.graphLog.write("}}\n", .{});
-    try self.graphLog.makeGraphViz();
+    // try self.graphLog.makeGraphViz();
 
     try self.gc.registerRendererPlugin(self);
 

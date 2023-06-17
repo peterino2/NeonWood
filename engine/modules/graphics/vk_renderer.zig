@@ -1155,6 +1155,11 @@ pub const NeonVkContext = struct {
     }
 
     pub fn tick(self: *Self, dt: f64) void {
+        self.updateTime(dt);
+        core.gScene.updateTransforms();
+        self.sceneManager.update(self) catch unreachable;
+        self.dynamicMeshManager.tickUpdates() catch unreachable;
+
         self.draw(dt) catch unreachable;
 
         if (self.shouldExit() catch unreachable) {
@@ -1308,12 +1313,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
-        self.updateTime(deltaTime);
-
-        core.gScene.updateTransforms();
-        try self.sceneManager.update(self);
-        try self.dynamicMeshManager.tickUpdates();
-
         if (!self.isMinimized) {
             var z1 = tracy.Zone(@src());
             z1.Name("drawing UI");
