@@ -152,6 +152,9 @@ pub const DynamicMeshManager = struct {
             }
         }
 
+        var t1 = core.tracy.ZoneN(@src(), "Dynamic Mesh upload");
+        defer t1.End();
+
         for (self.dynMeshes.items) |mesh| {
             if (mesh.isDirty and !self.uploader.isActive) {
                 try self.uploader.startUploadContext();
@@ -247,7 +250,7 @@ pub const DynamicMesh = struct {
             return;
         }
 
-        self.swapId += 1 % constants.NUM_FRAMES;
+        self.swapId = (self.swapId + 1) % 2;
         // map buffers
 
         var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);

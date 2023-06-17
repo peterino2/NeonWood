@@ -51,6 +51,7 @@ pub const NwBuildSystem = struct {
 
         const options = b.addOptions();
         options.addOption(bool, "validation_layers", b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+        options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
         //
         const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;

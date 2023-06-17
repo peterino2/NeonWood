@@ -33,6 +33,8 @@ fontAtlas: papyrus.FontAtlas = undefined,
 ssboCount: u32 = 1,
 
 time: f32 = 0,
+__timeTilNewMesh: f32 = 0,
+__meshCount: f32 = 0,
 
 textMesh: *graphics.DynamicMesh,
 textPipeData: gpd.GpuPipeData = undefined,
@@ -180,6 +182,26 @@ fn setupMeshes(self: *@This()) !void {
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += @floatCast(f32, deltaTime);
     self.time = @mod(self.time, 10.0);
+
+    self.__timeTilNewMesh += @floatCast(f32, deltaTime);
+
+    if (self.__timeTilNewMesh >= 0.01) {
+        self.__timeTilNewMesh = 0;
+
+        self.textMesh.addQuad2D(
+            .{ .x = 0.4, .y = 0.35 * self.__meshCount - 1.0, .z = 0 },
+            .{ .x = 0.1, .y = 0.1, .z = 0 },
+            .{},
+            .{},
+        );
+
+        self.__meshCount += 1;
+
+        if (self.__meshCount == 5) {
+            self.__meshCount = 0;
+            self.textMesh.clearVertices();
+        }
+    }
 }
 
 pub fn uiTick(self: *@This(), deltaTime: f64) void {

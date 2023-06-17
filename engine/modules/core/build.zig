@@ -9,7 +9,7 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath
     spng.addLib(b, exe, packagePath ++ "/lib/zig-spng");
 
     if (enableTracy) {
-        zigTracy.link(b, exe, packagePath ++ "/lib/Zig-Tracy/tracy-0.7.8/");
+        zigTracy.link(b, exe, packagePath ++ "/lib/zig_tracy/tracy-0.7.8/");
     } else {
         zigTracy.link(b, exe, null);
     }

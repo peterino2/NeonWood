@@ -343,7 +343,6 @@ pub const NeonVkUploader = struct {
         };
 
         const cmd = self.commandBuffer;
-        core.graphics_log("Starting command copy buffer", .{});
 
         self.gc.vkd.cmdCopyBuffer(
             cmd,
