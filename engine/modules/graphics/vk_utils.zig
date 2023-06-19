@@ -353,16 +353,7 @@ pub const NeonVkUploader = struct {
         );
     }
 
-    pub fn finishUploadContext(self: *@This()) !void {
-        try self.gc.vkd.endCommandBuffer(self.commandBuffer);
-        var submit = vkinit.submitInfo(&self.commandBuffer);
-        try self.gc.vkd.queueSubmit(
-            self.gc.graphicsQueue.handle,
-            1,
-            @ptrCast([*]const vk.SubmitInfo, &submit),
-            self.uploadFence,
-        );
-
+    pub fn waitForFences(self: *@This()) !void {
         _ = try self.gc.vkd.waitForFences(
             self.gc.dev,
             1,
@@ -374,6 +365,22 @@ pub const NeonVkUploader = struct {
         try self.gc.vkd.resetFences(self.gc.dev, 1, @ptrCast([*]const vk.Fence, &self.uploadFence));
         self.isActive = false;
         self.mutex.unlock();
+    }
+
+    pub fn submitUploads(self: *@This()) !void {
+        try self.gc.vkd.endCommandBuffer(self.commandBuffer);
+        var submit = vkinit.submitInfo(&self.commandBuffer);
+        try self.gc.vkd.queueSubmit(
+            self.gc.graphicsQueue.handle,
+            1,
+            @ptrCast([*]const vk.SubmitInfo, &submit),
+            self.uploadFence,
+        );
+    }
+
+    pub fn finishUploadContext(self: *@This()) !void {
+        try self.submitUploads();
+        try self.waitForFences();
     }
 };
 

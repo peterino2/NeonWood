@@ -66,7 +66,7 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .quad = allocator.create(graphics.Mesh) catch unreachable,
         .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
         .textMesh = undefined,
-        .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 50) catch unreachable,
+        .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64) catch unreachable,
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
     };
 }
@@ -106,7 +106,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
         var panel = try ctx.addPanel(0);
         ctx.getPanel(panel).hasTitle = true;
         ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
-        ctx.get(panel).text = Text("Pinging Quality");
+        ctx.get(panel).text = Text("Testing Quality: Lorem Ipsum");
         ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
         ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
         ctx.get(panel).style.borderColor = ModernStyle.Yellow;
@@ -351,18 +351,18 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     var str = text.text.getRead();
                     var xOffset = text.tl.x;
 
+                    const ratio = (16) / self.fontAtlas.fontSize;
+                    const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
                     for (str) |ch| {
                         if (!self.fontAtlas.hasGlyph[ch]) {
-                            xOffset += @intToFloat(f32, self.fontAtlas.glyphStride);
+                            xOffset += stride;
                             continue;
                         }
                         const Vector2 = papyrus.Vector2;
 
-                        const ratio = (text.textSize - 2) / self.fontAtlas.fontSize;
                         const box = Vector2.fromVector2i(self.fontAtlas.glyphBox1[ch]).fmul(ratio);
                         const metrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]).fmul(ratio);
                         const baseMetrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]);
-                        const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
                         const fontHeight = @intToFloat(f32, self.fontAtlas.glyphMetrics['A'].y) * ratio;
 
                         const uv_tl = self.fontAtlas.glyphCoordinates[ch][0];
@@ -377,10 +377,11 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                             }, // uv size
                             .{ .r = text.color.r, .g = text.color.g, .b = text.color.b }, // color
                         );
-                        xOffset += box.x + metrics.x;
 
                         if (ch == ' ') {
                             xOffset += stride;
+                        } else {
+                            xOffset += box.x + metrics.x;
                         }
                     }
                 }

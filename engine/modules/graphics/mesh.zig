@@ -157,14 +157,33 @@ pub const DynamicMeshManager = struct {
 
         for (self.dynMeshes.items) |mesh| {
             if (mesh.isDirty and !self.uploader.isActive) {
+                var t2 = core.tracy.ZoneN(@src(), "starting dynamic mesh upload context");
+                defer t2.End();
                 try self.uploader.startUploadContext();
             }
 
+            var t3 = core.tracy.ZoneN(@src(), "uploading vertices");
+            defer t3.End();
             try mesh.uploadVertices(&self.uploader);
         }
 
         if (self.uploader.isActive) {
-            try self.uploader.finishUploadContext();
+            try self.uploader.submitUploads();
+        }
+    }
+
+    pub fn finishUpload(self: *@This()) !void {
+        if (self.uploader.isActive) {
+            var t3 = core.tracy.ZoneN(@src(), "finishing dynamic mesh upload context");
+            defer t3.End();
+
+            try self.uploader.waitForFences();
+
+            for (self.dynMeshes.items) |mesh| {
+                if (mesh.isDirty) {
+                    mesh.bumpSwapId();
+                }
+            }
         }
     }
 };
@@ -250,7 +269,7 @@ pub const DynamicMesh = struct {
             return;
         }
 
-        self.swapId = (self.swapId + 1) % 2;
+        var newSwapId = (self.swapId + 1) % 2;
         // map buffers
 
         var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
@@ -263,7 +282,7 @@ pub const DynamicMesh = struct {
         for (0..self.vertexCount) |i| {
             slice[i] = self.vertices[i];
         }
-        self.vertexBufferLen[self.swapId] = self.vertexCount;
+        self.vertexBufferLen[newSwapId] = self.vertexCount;
 
         // interpret vertices as quads.
         if (self.geometryMode == .quads) {
@@ -281,22 +300,25 @@ pub const DynamicMesh = struct {
                 vertex += 4;
                 index += 6;
             }
-            self.indexBufferLen[self.swapId] = index;
+            self.indexBufferLen[newSwapId] = index;
         }
 
         // upload index and vertex buffers
         try uploader.addBufferUpload(
             self.stagingIndexBuffer,
-            self.indexBuffers[self.swapId],
-            self.indexBufferLen[self.swapId] * @intCast(u32, @sizeOf(u32)),
+            self.indexBuffers[newSwapId],
+            self.indexBufferLen[newSwapId] * @intCast(u32, @sizeOf(u32)),
         );
 
         try uploader.addBufferUpload(
             self.stagingVertexBuffer,
-            self.vertexBuffers[self.swapId],
+            self.vertexBuffers[newSwapId],
             self.vertexCount * @intCast(u32, @sizeOf(Vertex)),
         );
+    }
 
+    pub fn bumpSwapId(self: *@This()) void {
+        self.swapId = (self.swapId + 1) % 2;
         self.isDirty = false;
     }
 

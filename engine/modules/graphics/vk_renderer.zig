@@ -1163,6 +1163,7 @@ pub const NeonVkContext = struct {
         self.dynamicMeshManager.tickUpdates() catch unreachable;
 
         self.draw(dt) catch unreachable;
+        self.dynamicMeshManager.finishUpload() catch unreachable;
 
         if (self.shouldExit() catch unreachable) {
             core.gEngine.exit();
