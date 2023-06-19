@@ -356,25 +356,31 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                             xOffset += @intToFloat(f32, self.fontAtlas.glyphStride);
                             continue;
                         }
+                        const Vector2 = papyrus.Vector2;
 
-                        const box = self.fontAtlas.glyphBox1[ch];
-                        const metrics = self.fontAtlas.glyphMetrics[ch];
+                        const ratio = (text.textSize - 2) / self.fontAtlas.fontSize;
+                        const box = Vector2.fromVector2i(self.fontAtlas.glyphBox1[ch]).fmul(ratio);
+                        const metrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]).fmul(ratio);
+                        const baseMetrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]);
+                        const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
+                        const fontHeight = @intToFloat(f32, self.fontAtlas.glyphMetrics['A'].y) * ratio;
+
                         const uv_tl = self.fontAtlas.glyphCoordinates[ch][0];
 
                         self.textMesh.addQuad2D(
-                            .{ .x = xOffset + @intToFloat(f32, box.x), .y = text.tl.y + @intToFloat(f32, box.y) + @intToFloat(f32, self.fontAtlas.glyphMax.y), .z = 0 }, // top left
-                            .{ .x = @intToFloat(f32, metrics.x), .y = @intToFloat(f32, metrics.y), .z = 0 }, // size
+                            .{ .x = xOffset + box.x, .y = text.tl.y + box.y + fontHeight, .z = 0 }, // top left
+                            .{ .x = metrics.x, .y = metrics.y, .z = 0 },
                             .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
                             .{
-                                .x = @intToFloat(f32, metrics.x) / @intToFloat(f32, self.fontAtlas.atlasSize.x),
-                                .y = @intToFloat(f32, metrics.y) / @intToFloat(f32, self.fontAtlas.atlasSize.y),
+                                .x = baseMetrics.x / @intToFloat(f32, self.fontAtlas.atlasSize.x),
+                                .y = baseMetrics.y / @intToFloat(f32, self.fontAtlas.atlasSize.y),
                             }, // uv size
                             .{ .r = text.color.r, .g = text.color.g, .b = text.color.b }, // color
                         );
-                        xOffset += @intToFloat(f32, box.x + metrics.x);
+                        xOffset += box.x + metrics.x;
 
                         if (ch == ' ') {
-                            xOffset += @intToFloat(f32, self.fontAtlas.glyphStride);
+                            xOffset += stride;
                         }
                     }
                 }

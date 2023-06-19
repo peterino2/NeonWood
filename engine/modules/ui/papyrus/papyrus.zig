@@ -1097,6 +1097,10 @@ pub const Vector2i = struct {
         return .{ .x = self.x - o.x, .y = self.y - o.y };
     }
 
+    pub fn fmul(self: @This(), o: anytype) @This() {
+        return .{ .x = self.x * @floatToInt(i32, o), .y = self.y * @floatToInt(i32, o) };
+    }
+
     pub fn fromVector2(o: Vector2) @This() {
         return .{ .x = @floatToInt(i32, o.x), .y = @floatToInt(i32, o.y) };
     }
@@ -1125,19 +1129,19 @@ pub const Vector2 = struct {
     }
 
     pub inline fn fmul(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x * @floatCast(f32, o), .y = self.y * @floatCast(o, f32) };
+        return .{ .x = self.x * @floatCast(f32, o), .y = self.y * @floatCast(f32, o) };
     }
 
     pub inline fn fadd(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x + @floatCast(f32, o), .y = self.y + @floatCast(o, f32) };
+        return .{ .x = self.x + @floatCast(f32, o), .y = self.y + @floatCast(f32, o) };
     }
 
     pub inline fn fsub(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x - @floatCast(f32, o), .y = self.y - @floatCast(o, f32) };
+        return .{ .x = self.x - @floatCast(f32, o), .y = self.y - @floatCast(f32, o) };
     }
 
-    pub fn fromVector2i(o: anytype) @This() {
-        return .{ .x = @intToFloat(f32, o.x), .y = @intToFloat(f32, o.x) };
+    pub fn fromVector2i(o: Vector2i) @This() {
+        return .{ .x = @intToFloat(f32, o.x), .y = @intToFloat(f32, o.y) };
     }
 };
 
@@ -1499,6 +1503,7 @@ pub const PapyrusContext = struct {
                 tl: Vector2,
                 text: LocText,
                 color: Color,
+                textSize: f32,
             },
         },
     };
@@ -1646,6 +1651,7 @@ pub const PapyrusContext = struct {
                                 .tl = resolvedPos.add(.{ .x = 3, .y = 1 }),
                                 .text = n.text,
                                 .color = panel.titleColor,
+                                .textSize = 24,
                             },
                         } });
 
