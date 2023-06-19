@@ -216,7 +216,6 @@ const BmpWriter = struct {
                 atlas,
                 topLeft.add(.{
                     .x = accum,
-                    //.x = (atlas.glyphStride) * @intCast(i32, i),
                     .y = @floatToInt(i32, atlas.fontSize),
                 }).add(.{ .x = box.x, .y = box.y }),
                 ch,
@@ -335,6 +334,7 @@ pub const FontAtlas = struct {
     glyphBox1: [256]Vector2i = undefined,
     scale: f32 = 0,
     lineSize: f32 = 0,
+    hasGlyph: [256]bool = undefined,
 
     meshes: [256][4]Vector2 = undefined,
     glyphCoordinates: [256][2]Vector2 = undefined,
@@ -447,8 +447,10 @@ pub const FontAtlas = struct {
         ch = 0;
         while (ch < glyphCount) : (ch += 1) {
             if (@ptrToInt(glyphs[ch]) == 0) {
+                self.hasGlyph[ch] = false;
                 continue;
             }
+            self.hasGlyph[ch] = true;
 
             const tl = Vector2i{ .x = @intCast(i32, ch) * (max.x + 1), .y = 0 };
             const maxCol = self.glyphMetrics[ch].x;

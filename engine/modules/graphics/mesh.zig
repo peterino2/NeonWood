@@ -320,10 +320,8 @@ pub const DynamicMesh = struct {
         _size: core.Vectorf, // only x and y is considered
         topLeftUV: core.Vector2f,
         uvSize: core.Vector2f,
+        color: LinearColor,
     ) void {
-        _ = uvSize;
-        _ = topLeftUV;
-
         var topLeft = _topLeft;
         var size = _size;
 
@@ -337,21 +335,29 @@ pub const DynamicMesh = struct {
         vertices[0] = .{
             .position = topLeft,
             .normal = normal,
+            .uv = topLeftUV,
+            .color = color,
         };
 
         vertices[1] = .{
             .position = topLeft.add(.{ .x = size.x }),
             .normal = normal,
+            .uv = topLeftUV.add(core.Vector2f{ .x = uvSize.x }),
+            .color = color,
         };
 
         vertices[2] = .{
             .position = topLeft.add(size),
             .normal = normal,
+            .uv = topLeftUV.add(uvSize),
+            .color = color,
         };
 
         vertices[3] = .{
             .position = topLeft.add(.{ .y = size.y }),
             .normal = normal,
+            .uv = topLeftUV.add(core.Vector2f{ .y = uvSize.y }),
+            .color = color,
         };
 
         self.addVertexList(&vertices);

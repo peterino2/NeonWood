@@ -12,6 +12,9 @@ const gl = @import("glslTypes");
 const vk = @import("vulkan");
 const tracy = core.tracy;
 
+const Text = papyrus.Text;
+const DrawCommand = @import("drawCommand.zig").DrawCommand;
+
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
 pipeData: gpd.GpuPipeData = undefined,
@@ -31,8 +34,8 @@ graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
 ssboCount: u32 = 1,
-
 time: f32 = 0,
+
 __timeTilNewMesh: f32 = 0,
 __meshCount: f32 = 0,
 
@@ -41,14 +44,9 @@ textPipeData: gpd.GpuPipeData = undefined,
 
 displayDemo: bool = true,
 
-const testString = "hello world";
+drawCommands: std.ArrayList(DrawCommand),
 
-const DrawListEntryInfo = struct {
-    entryType: enum {
-        image,
-        text, // text is an sdf text utilizing a dynamic mesh.
-    },
-};
+const testString = "hello world";
 
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
@@ -69,6 +67,7 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
         .textMesh = undefined,
         .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 50) catch unreachable,
+        .drawCommands = std.ArrayList(DrawCommand).init(allocator),
     };
 }
 
@@ -88,15 +87,6 @@ pub fn prepareFont(self: *@This()) !void {
     self.fontTextureDescriptor = res.descriptor;
 }
 
-fn setupDynamicMesh(self: *@This()) !void {
-    self.textMesh.addQuad2D(
-        .{ .x = 0.3, .y = 0.3, .z = 0 },
-        .{ .x = 0.1, .y = 0.1, .z = 0 },
-        .{ .x = 0.0, .y = 0.0 },
-        .{ .x = 1.0, .y = 1.0 },
-    );
-}
-
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     core.ui_log("Papyrus Subsystem setup {x}", .{@ptrToInt(self)});
     try self.graphLog.write("digraph G {{\n", .{});
@@ -108,7 +98,6 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.preparePipeline();
     try self.prepareFont();
     try self.setupMeshes();
-    try self.setupDynamicMesh();
 
     var ctx = self.papyrusCtx;
 
@@ -117,6 +106,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
         var panel = try ctx.addPanel(0);
         ctx.getPanel(panel).hasTitle = true;
         ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
+        ctx.get(panel).text = Text("Pinging Quality");
         ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
         ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
         ctx.get(panel).style.borderColor = ModernStyle.Yellow;
@@ -185,21 +175,13 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 
     self.__timeTilNewMesh += @floatCast(f32, deltaTime);
 
-    if (self.__timeTilNewMesh >= 0.01) {
+    if (self.__timeTilNewMesh >= 0.5) {
         self.__timeTilNewMesh = 0;
-
-        self.textMesh.addQuad2D(
-            .{ .x = 0.4, .y = 0.35 * self.__meshCount - 1.0, .z = 0 },
-            .{ .x = 0.1, .y = 0.1, .z = 0 },
-            .{},
-            .{},
-        );
 
         self.__meshCount += 1;
 
         if (self.__meshCount == 5) {
             self.__meshCount = 0;
-            self.textMesh.clearVertices();
         }
     }
 }
@@ -314,9 +296,11 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     var imagesGpu = self.mappedBuffers[frameId].objects;
 
     var drawList = try self.papyrusCtx.makeDrawList();
+    self.drawCommands.clearRetainingCapacity();
     defer drawList.deinit();
 
     self.ssboCount = 0;
+    var textReady: bool = true;
 
     for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
@@ -336,6 +320,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                         .w = rect.borderColor.a,
                     },
                 };
+                try self.drawCommands.append(.{ .image = self.ssboCount });
                 self.ssboCount += 1;
 
                 imagesGpu[self.ssboCount] = PapyrusImageGpu{
@@ -352,11 +337,47 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                         .w = rect.backgroundColor.a,
                     },
                 };
+                try self.drawCommands.append(.{ .image = self.ssboCount });
                 self.ssboCount += 1;
             },
             .Text => |text| {
-                _ = text;
-                // todo
+                if (textReady) {
+                    self.textMesh.clearVertices();
+                    textReady = false;
+                    // not actually used right now just use the main dynamic mesh
+                    try self.drawCommands.append(.{ .text = 0 });
+
+                    // add dimensions of each character into the thing.
+                    var str = text.text.getRead();
+                    var xOffset = text.tl.x;
+
+                    for (str) |ch| {
+                        if (!self.fontAtlas.hasGlyph[ch]) {
+                            xOffset += @intToFloat(f32, self.fontAtlas.glyphStride);
+                            continue;
+                        }
+
+                        const box = self.fontAtlas.glyphBox1[ch];
+                        const metrics = self.fontAtlas.glyphMetrics[ch];
+                        const uv_tl = self.fontAtlas.glyphCoordinates[ch][0];
+
+                        self.textMesh.addQuad2D(
+                            .{ .x = xOffset + @intToFloat(f32, box.x), .y = text.tl.y + @intToFloat(f32, box.y) + @intToFloat(f32, self.fontAtlas.glyphMax.y), .z = 0 }, // top left
+                            .{ .x = @intToFloat(f32, metrics.x), .y = @intToFloat(f32, metrics.y), .z = 0 }, // size
+                            .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
+                            .{
+                                .x = @intToFloat(f32, metrics.x) / @intToFloat(f32, self.fontAtlas.atlasSize.x),
+                                .y = @intToFloat(f32, metrics.y) / @intToFloat(f32, self.fontAtlas.atlasSize.y),
+                            }, // uv size
+                            .{ .r = text.color.r, .g = text.color.g, .b = text.color.b }, // color
+                        );
+                        xOffset += @intToFloat(f32, box.x + metrics.x);
+
+                        if (ch == ' ') {
+                            xOffset += @intToFloat(f32, self.fontAtlas.glyphStride);
+                        }
+                    }
+                }
             },
         }
     }
@@ -372,16 +393,17 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     }
 
     self.uploadSSBOData(frameIndex) catch unreachable;
-    {
-        var constants = PapyrusPushConstant{
-            .extent = .{
-                .x = @intToFloat(f32, self.gc.extent.width),
-                .y = @intToFloat(f32, self.gc.extent.height),
-            },
-        };
 
+    var constants = PapyrusPushConstant{
+        .extent = .{
+            .x = @intToFloat(f32, self.gc.extent.width),
+            .y = @intToFloat(f32, self.gc.extent.height),
+        },
+    };
+    self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
+
+    {
         self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-        self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
         self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
         self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
 
@@ -396,6 +418,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
     self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
     self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
+    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
     self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
 
     // 1. get the draw list
