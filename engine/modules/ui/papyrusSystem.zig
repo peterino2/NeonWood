@@ -313,75 +313,66 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
     var imagesGpu = self.mappedBuffers[frameId].objects;
 
-    var baseColor: gl.vec4 = .{ .x = 0.0, .y = std.math.sin(self.time), .z = 1.0, .w = 1.0 };
-
     var drawList = try self.papyrusCtx.makeDrawList();
     defer drawList.deinit();
 
     self.ssboCount = 0;
 
-    imagesGpu[self.ssboCount] = PapyrusImageGpu{
-        .imagePosition = .{ .x = 0, .y = 400 },
-        .imageSize = .{ .x = 200, .y = 200 },
-        .scale = .{ .x = 1.0, .y = 1.0 },
-        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-        .alpha = 1.0,
-        .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = baseColor,
-    };
-    self.ssboCount += 1;
-
     for (drawList.items) |drawCmd| {
-        _ = drawCmd;
+        switch (drawCmd.primitive) {
+            .Rect => |rect| {
+                //
+                imagesGpu[self.ssboCount] = PapyrusImageGpu{
+                    .imagePosition = .{ .x = rect.tl.x, .y = rect.tl.y },
+                    .imageSize = .{ .x = rect.size.x, .y = rect.size.y },
+                    .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+                    .scale = .{ .x = 1.0, .y = 1.0 },
+                    .alpha = 1.0,
+                    .pad0 = std.mem.zeroes([12]u8),
+                    .baseColor = .{
+                        .x = rect.borderColor.r,
+                        .y = rect.borderColor.g,
+                        .z = rect.borderColor.b,
+                        .w = rect.borderColor.a,
+                    },
+                };
+                self.ssboCount += 1;
+
+                imagesGpu[self.ssboCount] = PapyrusImageGpu{
+                    .imagePosition = .{ .x = rect.tl.x + 1, .y = rect.tl.y + 1 },
+                    .imageSize = .{ .x = rect.size.x - 2, .y = rect.size.y - 2 },
+                    .anchorPoint = .{ .x = -1.0, .y = -1.0 },
+                    .scale = .{ .x = 1.0, .y = 1.0 },
+                    .alpha = 1.0,
+                    .pad0 = std.mem.zeroes([12]u8),
+                    .baseColor = .{
+                        .x = rect.backgroundColor.r,
+                        .y = rect.backgroundColor.g,
+                        .z = rect.backgroundColor.b,
+                        .w = rect.backgroundColor.a,
+                    },
+                };
+                self.ssboCount += 1;
+            },
+            .Text => |text| {
+                _ = text;
+                // todo
+            },
+        }
     }
-
-    imagesGpu[self.ssboCount] = PapyrusImageGpu{
-        .imagePosition = .{ .x = 400, .y = 400 },
-        .imageSize = .{ .x = 200, .y = 200 },
-        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-        .scale = .{ .x = 1.0, .y = 1.0 },
-        .alpha = 1.0,
-        .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = .{ .x = 1.0, .y = 1.0, .z = 0.0, .w = 1.0 },
-    };
-    self.ssboCount += 1;
-
-    imagesGpu[self.ssboCount] = PapyrusImageGpu{
-        .imagePosition = .{ .x = 600, .y = 200 },
-        .imageSize = .{ .x = 200, .y = 200 },
-        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-        .scale = .{ .x = 1.0, .y = 1.0 },
-        .alpha = 1.0,
-        .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = .{ .x = 1.0, .y = 0.0, .z = 0.0, .w = 1.0 },
-    };
-    self.ssboCount += 1;
-
-    imagesGpu[self.ssboCount] = PapyrusImageGpu{
-        .imagePosition = .{ .x = 800, .y = 400 },
-        .imageSize = .{ .x = 50, .y = 50 },
-        .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-        .scale = .{ .x = 1.0, .y = 1.0 },
-        .alpha = 1.0,
-        .pad0 = std.mem.zeroes([12]u8),
-        .baseColor = .{ .x = 1.0, .y = 0.0, .z = 1.0, .w = 1.0 },
-    };
-    self.ssboCount += 1;
 }
 
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
     var z = tracy.ZoneN(@src(), "Papyrus post draw");
     defer z.End();
+    var vertexBufferOffset: u64 = 0;
 
     if (!self.displayDemo) {
         return;
     }
 
     self.uploadSSBOData(frameIndex) catch unreachable;
-
     {
-        var size: u64 = 0;
-
         var constants = PapyrusPushConstant{
             .extent = .{
                 .x = @intToFloat(f32, self.gc.extent.width),
@@ -389,9 +380,9 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             },
         };
 
-        self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
         self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-        self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&size));
+        self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
+        self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
         self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
 
         var index: u32 = 0;
@@ -400,13 +391,12 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
             self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
         }
-
-        // draw the font dynamic mesh
-        self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
-        self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&size));
-        self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
-        self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
     }
+
+    self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
+    self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
+    self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
+    self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
 
     // 1. get the draw list
     _ = frameTime;

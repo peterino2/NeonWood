@@ -73,6 +73,7 @@ pub const GpuPipeDataBinding = struct {
         if (self.isFrameBuffer) {
             try core.assertf(self.frameCount == self.buffers.len, "mismatched frameBuffer {d} != {d}", .{ self.frameCount, self.buffers.len });
         }
+
         // maps buffers for these bindings, one for each frame
         var rv = try gc.allocator.alloc(GpuMappingData(MappingType), self.buffers.len);
         while (frameIndex < self.buffers.len) : (frameIndex += 1) {
@@ -104,6 +105,7 @@ pub const GpuPipeDataBinding = struct {
     }
 };
 
+// High level pipe controls for a gpu data pipe
 pub const GpuPipeData = struct {
     allocator: std.mem.Allocator,
     descriptorSetLayout: vk.DescriptorSetLayout,
@@ -178,7 +180,7 @@ pub const GpuPipeDataBuilder = struct {
         self: *@This(),
         count: usize,
     ) void {
-        self.*.objectCount = count;
+        self.objectCount = count;
     }
 
     pub fn addBufferBinding(
@@ -190,6 +192,7 @@ pub const GpuPipeDataBuilder = struct {
     ) !void {
         var gc = self.gc;
         var binding = vkinit.descriptorSetLayoutBinding(descriptorType, stageFlags, self.currentBinding);
+
         // core.graphics_log("builder adding additional binding {any} {any} objectSize = {d}", .{ descriptorType, stageFlags, @sizeOf(BindingType) });
         try self.bindings.append(self.allocator, binding);
 
