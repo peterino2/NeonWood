@@ -35,5 +35,5 @@ void main()
     float w = fwidth(sigDist);
     float opacity = smoothstep(0.5 - w, 0.5 + w, sigDist);    
 
-    outFragColor = vec4(color.rgb, opacity);
+    outFragColor = vec4(pow(color.rgb, vec3(gamma)), opacity);
 }
