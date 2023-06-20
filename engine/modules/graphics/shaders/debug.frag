@@ -27,6 +27,6 @@ void main()
 {
     vec3 color = in_color.rgb;
     float cameraDist = length(cameraData.position.xyz - worldPosition);
-    float opacity = (1.0) - (cameraDist / 100);
+    float opacity = (1.0) - (cameraDist / 300);
     outFragColor = vec4(color, pow(opacity, 3));
 }
