@@ -14,6 +14,11 @@ const tracy = core.tracy;
 
 const Text = papyrus.Text;
 const DrawCommand = @import("drawCommand.zig").DrawCommand;
+const text_render = @import("text_render.zig");
+
+const TextRenderer = text_render.TextRenderer;
+const DisplayText = text_render.DisplayText;
+const FontAtlasVk = text_render.FontAtlasVk;
 
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
@@ -34,10 +39,7 @@ graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
 ssboCount: u32 = 1,
-time: f32 = 0,
-
-__timeTilNewMesh: f32 = 0,
-__meshCount: f32 = 0,
+time: f64 = 0,
 
 textMesh: *graphics.DynamicMesh,
 textPipeData: gpd.GpuPipeData = undefined,
@@ -45,6 +47,8 @@ textPipeData: gpd.GpuPipeData = undefined,
 displayDemo: bool = true,
 
 drawCommands: std.ArrayList(DrawCommand),
+
+textRenderer: *TextRenderer,
 
 const testString = "hello world";
 
@@ -68,6 +72,7 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .textMesh = undefined,
         .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64) catch unreachable,
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
+        .textRenderer = TextRenderer.init(allocator, graphics.getContext()) catch unreachable,
     };
 }
 
@@ -85,6 +90,8 @@ pub fn prepareFont(self: *@This()) !void {
 
     self.fontTexture = res.texture;
     self.fontTextureDescriptor = res.descriptor;
+
+    // using the v2 stuff
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -110,8 +117,14 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
         ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
         ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
         ctx.get(panel).style.borderColor = ModernStyle.Yellow;
-        ctx.get(panel).pos = .{ .x = 1920 / 4 - 300, .y = 1080 / 4 };
-        ctx.get(panel).size = .{ .x = 1920 / 2, .y = 1080 / 2 };
+        ctx.get(panel).pos = .{ .x = 0, .y = 0 };
+        ctx.get(panel).size = .{ .x = 500, .y = 150 };
+
+        const button = try ctx.addPanel(panel);
+        ctx.get(button).style.borderColor = ModernStyle.Yellow;
+        ctx.get(button).style.backgroundColor = ModernStyle.Grey;
+        ctx.get(button).pos = .{ .x = 20, .y = 20 };
+        ctx.get(button).size = .{ .x = 200, .y = 50 };
     }
 
     try self.graphLog.write("}}\n", .{});
@@ -170,20 +183,7 @@ fn setupMeshes(self: *@This()) !void {
 }
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
-    self.time += @floatCast(f32, deltaTime);
-    self.time = @mod(self.time, 10.0);
-
-    self.__timeTilNewMesh += @floatCast(f32, deltaTime);
-
-    if (self.__timeTilNewMesh >= 0.5) {
-        self.__timeTilNewMesh = 0;
-
-        self.__meshCount += 1;
-
-        if (self.__meshCount == 5) {
-            self.__meshCount = 0;
-        }
-    }
+    self.time += deltaTime;
 }
 
 pub fn uiTick(self: *@This(), deltaTime: f64) void {
@@ -351,11 +351,11 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     var str = text.text.getRead();
                     var xOffset = text.tl.x;
 
-                    const ratio = (16) / self.fontAtlas.fontSize;
+                    const ratio = (text.textSize) / self.fontAtlas.fontSize;
                     const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
                     for (str) |ch| {
                         if (!self.fontAtlas.hasGlyph[ch]) {
-                            xOffset += stride;
+                            xOffset += stride / 2;
                             continue;
                         }
                         const Vector2 = papyrus.Vector2;
@@ -447,6 +447,8 @@ pub fn deinit(self: *@This()) void {
     self.allocator.destroy(self.textMesh);
 
     self.papyrusCtx.deinit();
+
+    self.textRenderer.deinit(self.allocator);
 }
 
 pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {

@@ -7,11 +7,13 @@ layout (location = 3) in vec2 vTexCoord;
 
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
+layout (location = 2) out vec3 worldPosition;
 
 layout (set = 0, binding = 0) uniform CameraBuffer{
     mat4 view;
     mat4 proj;
     mat4 viewproj;
+    vec4 position;
 } cameraData;
 
 // size: 16 x 4 + 3 x 4 = 76 => 128 bytes per object per alignment
@@ -33,4 +35,6 @@ void main()
 	gl_Position = position;
 	outColor = object.color.xyz;
     texCoord = vTexCoord;
+    vec4 modelPos = modelMatrix * vec4(vPosition, 1.0f);
+    worldPosition = modelPos.xyz;
 }

@@ -115,53 +115,7 @@ pub const GameContext = struct {
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
-
-        var idStr: []const u8 = "DockWindow";
-        var dockspaceID = c.igGetIDWithSeed(idStr.ptr, &idStr[idStr.len - 1], 0);
-
-        var viewport = c.igGetMainViewport();
-
-        c.igSetNextWindowPos(viewport.?.*.WorkPos, 0, .{ .x = 0, .y = 0 });
-        c.igSetNextWindowSize(viewport.?.*.WorkSize, 0);
-        c.igPushStyleVar_Float(c.ImGuiStyleVar_WindowRounding, 0.0);
-        c.igPushStyleVar_Float(c.ImGuiStyleVar_WindowBorderSize, 0.0);
-
-        c.igPushStyleVar_Vec2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-
-        var dockspace_flags: c_int = c.ImGuiDockNodeFlags_None;
-        var window_flags: c_int = c.ImGuiWindowFlags_MenuBar | c.ImGuiWindowFlags_NoDocking;
-        window_flags |= c.ImGuiWindowFlags_NoTitleBar | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoResize;
-        window_flags |= c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus;
-        window_flags |= c.ImGuiWindowFlags_NoBackground;
-
-        if (c.igBegin("DockSpace Demo", null, window_flags)) {
-            if (c.igBeginMenuBar()) {
-                if (c.igBeginMenu("Options", true)) {
-                    _ = c.igMenuItem_Bool("Fullscreen", null, true, true);
-                    c.igEndMenu();
-                }
-                c.igEndMenuBar();
-            }
-            _ = c.igDockSpace(dockspaceID, .{ .x = 0, .y = 0 }, dockspace_flags, null);
-            c.igEnd();
-        }
-
-        c.igPopStyleVar(3);
-
-        if (self.debugOpen) {
-            if (c.igBegin("Debug Menu", &self.debugOpen, 0)) {
-                c.igText("Sample Text");
-
-                if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
-                    core.engine_logs("I have been pressed!");
-                    self.debugOpen = false;
-                }
-            }
-            c.igEnd();
-        }
-
-        var showDemo: bool = true;
-        c.igShowDemoWindow(&showDemo);
+        _ = self;
     }
 
     pub fn prepare_game(self: *Self) !void {

@@ -3,8 +3,16 @@
 
 layout (location = 0) in vec3 in_color;
 layout (location = 1) in vec2 texCoord;
+layout (location = 2) in vec3 worldPosition;
 
 layout (location = 0) out vec4 outFragColor;
+
+layout (set = 0, binding = 0) uniform CameraBuffer{
+    mat4 view;
+    mat4 proj;
+    mat4 viewproj;
+    vec4 position;
+} cameraData;
 
 layout(set = 0, binding = 1) uniform  SceneData{
     vec4 fogColor; // w is for exponent
@@ -17,5 +25,8 @@ layout(set = 0, binding = 1) uniform  SceneData{
 
 void main()
 {
-    outFragColor = vec4(vec3(in_color.rgb),  5.0*(1.0 - pow(gl_FragCoord.z,3.0)));
+    vec3 color = in_color.rgb;
+    float cameraDist = length(cameraData.position.xyz - worldPosition);
+    float opacity = (1.0) - (cameraDist / 100);
+    outFragColor = vec4(color, pow(opacity, 3));
 }

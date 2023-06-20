@@ -152,7 +152,7 @@ pub const Camera = struct {
         core.radians(70.0), // angle
         16.0 / 9.0,
         0.1,
-        2000,
+        200000,
     ),
     final: Mat = zm.identity(),
 
@@ -201,5 +201,4 @@ pub const Camera = struct {
         self.transform = mul(zm.translationV(self.position.fmul(-1).toZm()), self.transform);
         self.final = mul(self.transform, self.projection);
     }
-    
 };

@@ -153,6 +153,7 @@ pub const NeonVkCameraDataGpu = struct {
     view: Mat,
     proj: Mat,
     viewproj: Mat,
+    position: Vectorf,
 };
 
 pub const NeonVkSceneDataGpu = struct {
@@ -762,7 +763,7 @@ pub const NeonVkContext = struct {
 
         self.descriptorPool = try self.vkd.createDescriptorPool(self.dev, &poolInfo, null);
 
-        var cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true }, 0);
+        var cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true, .fragment_bit = true }, 0);
         var sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
         var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
 
@@ -1189,14 +1190,17 @@ pub const NeonVkContext = struct {
 
         // resolve the current state of the camera
         var projection_matrix: Mat = core.zm.identity();
+        var position: Vectorf = .{};
         if (self.cameraRef != null) {
             projection_matrix = self.cameraRef.?.final;
+            position = self.cameraRef.?.position;
         }
 
         var cameraData = NeonVkCameraDataGpu{
             .proj = core.zm.identity(),
             .view = core.zm.identity(),
             .viewproj = projection_matrix,
+            .position = position,
         };
 
         var z3 = tracy.ZoneN(@src(), "Uploading");
