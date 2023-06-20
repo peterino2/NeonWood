@@ -117,7 +117,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
         ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
         ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
         ctx.get(panel).style.borderColor = ModernStyle.Yellow;
-        ctx.get(panel).pos = .{ .x = 0, .y = 0 };
+        ctx.get(panel).pos = .{ .x = 30, .y = 30 };
         ctx.get(panel).size = .{ .x = 500, .y = 150 };
 
         const button = try ctx.addPanel(panel);
