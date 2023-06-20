@@ -22,7 +22,7 @@ pub fn transferDst_into_shaderReadOnly(
     };
 
     var imageBarrier_toReadable = vk.ImageMemoryBarrier{
-        .old_layout = .transfer_dst_optimal,
+        .old_layout = .undefined,
         .new_layout = .shader_read_only_optimal,
         .image = image,
         .subresource_range = range,

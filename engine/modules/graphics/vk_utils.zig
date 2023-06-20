@@ -61,7 +61,7 @@ pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {
     return stagingBuffer;
 }
 
-pub fn createImageInfo(size: core.Vector2i, ctx: *NeonVkContext) !NeonVkImage {
+pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !NeonVkImage {
     var imageExtent = vk.Extent3D{
         .width = @intCast(u32, size.x),
         .height = @intCast(u32, size.y),
@@ -71,7 +71,16 @@ pub fn createImageInfo(size: core.Vector2i, ctx: *NeonVkContext) !NeonVkImage {
     var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
         .sampled_bit = true,
         .transfer_dst_bit = true,
-    }, imageExtent, 1);
+    }, imageExtent, mipLevel);
+
+    if (mipLevel > 1) {
+        core.graphics_log("creating image with mip level: {d}", .{mipLevel});
+        imgCreateInfo.usage = .{
+            .transfer_dst_bit = true,
+            .transfer_src_bit = true,
+            .sampled_bit = true,
+        };
+    }
 
     var imgAllocInfo = vma.AllocationCreateInfo{
         .requiredFlags = .{},
@@ -79,6 +88,10 @@ pub fn createImageInfo(size: core.Vector2i, ctx: *NeonVkContext) !NeonVkImage {
     };
 
     return try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
+}
+
+pub fn getMiplevelFromSize(size: core.Vector2i) u32 {
+    return std.math.log2(@intCast(u32, @max(size.x, size.y))) + 1;
 }
 
 pub fn createTextureFromPixelsSync(
@@ -91,9 +104,10 @@ pub fn createTextureFromPixelsSync(
     texture: *Texture,
     descriptor: *vk.DescriptorSet,
 } {
+    var miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
-    var createdImage = try createImageInfo(size, ctx);
-    try submit_copy_from_staging(ctx, stagingBuffer, createdImage, 0);
+    var createdImage = try newVkImage(size, ctx, miplevel);
+    try submit_copy_from_staging(ctx, stagingBuffer, createdImage, miplevel);
 
     stagingBuffer.deinit(ctx.vkAllocator);
 
@@ -137,16 +151,22 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     var stagingBuffer = try stagePixels(pngContents, ctx);
 
+    // todo. use newVkImage here instead of this custom code.
     var imageExtent = vk.Extent3D{
         .width = @intCast(u32, pngContents.size.x),
         .height = @intCast(u32, pngContents.size.y),
         .depth = 1,
     };
+    var mipLevel = std.math.log2(std.math.max(imageExtent.width, imageExtent.height)) + 1;
 
     var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
         .sampled_bit = true,
         .transfer_dst_bit = true,
-    }, imageExtent, 1);
+    }, imageExtent, mipLevel);
+
+    if (mipLevel > 1) {
+        imgCreateInfo.usage.transfer_src_bit = true;
+    }
 
     var imgAllocInfo = vma.AllocationCreateInfo{
         .requiredFlags = .{},
@@ -160,7 +180,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     return .{
         .stagingBuffer = stagingBuffer,
         .image = newImage,
-        .mipLevel = std.math.log2(std.math.max(imageExtent.width, imageExtent.height)) + 1,
+        .mipLevel = mipLevel,
     };
 }
 
@@ -201,10 +221,101 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             p2a(&copyRegion),
         );
 
+        core.graphics_log("miplevel count: {d}", .{mipLevel});
+        try generateMipMaps(ctx, newImage, mipLevel);
+
         transitions.transferDst_into_shaderReadOnly(ctx.vkd, cmd, newImage.image, mipLevel);
         z2.End();
     }
     try ctx.finish_upload_context(&ctx.uploadContext);
+}
+
+fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !void {
+    core.assert(mipLevels > 0);
+    var cmd = ctx.uploadContext.commandBuffer;
+    var img = vkImage.image;
+
+    var range: vk.ImageSubresourceRange = .{
+        .aspect_mask = .{ .color_bit = true },
+        .base_mip_level = 0,
+        .level_count = 1,
+        .base_array_layer = 0,
+        .layer_count = 1,
+    };
+
+    var imb: vk.ImageMemoryBarrier = .{
+        .old_layout = .undefined,
+        .new_layout = .transfer_dst_optimal,
+        .image = img,
+        .src_access_mask = .{},
+        .dst_access_mask = .{},
+        .subresource_range = range,
+        .src_queue_family_index = 0, // 0 == ignored
+        .dst_queue_family_index = 0,
+    };
+
+    var width = @intCast(i32, vkImage.pixelWidth);
+    var height = @intCast(i32, vkImage.pixelHeight);
+
+    for (1..mipLevels) |i| {
+        imb.subresource_range.base_mip_level = @intCast(u32, i) - 1;
+        imb.old_layout = .undefined;
+        imb.new_layout = .transfer_src_optimal;
+        imb.src_access_mask = .{
+            .transfer_write_bit = true,
+        };
+        imb.dst_access_mask = .{
+            .transfer_read_bit = true,
+        };
+
+        ctx.vkd.cmdPipelineBarrier(cmd, .{
+            .transfer_bit = true,
+        }, .{
+            .transfer_bit = true,
+        }, .{}, 0, undefined, 0, undefined, 1, p2a(&imb));
+
+        var blit: vk.ImageBlit = undefined;
+        blit.src_offsets[0] = .{ .x = 0, .y = 0, .z = 0 };
+        blit.src_offsets[1] = .{ .x = width, .y = height, .z = 1 };
+        blit.src_subresource = .{
+            .aspect_mask = .{ .color_bit = true },
+            .mip_level = @intCast(u32, i) - 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        };
+
+        var dstWidth: i32 = 1;
+        if (width > 1) {
+            dstWidth = @divFloor(width, 2);
+        }
+        var dstHeight: i32 = 1;
+        if (height > 1) {
+            dstHeight = @divFloor(height, 2);
+        }
+
+        blit.dst_offsets[0] = .{ .x = 0, .y = 0, .z = 0 };
+        blit.dst_offsets[1] = .{ .x = dstWidth, .y = dstHeight, .z = 1 };
+        blit.dst_subresource = .{
+            .aspect_mask = .{ .color_bit = true },
+            .mip_level = @intCast(u32, i),
+            .base_array_layer = 0,
+            .layer_count = 1,
+        };
+
+        ctx.vkd.cmdBlitImage(
+            cmd,
+            img,
+            .transfer_src_optimal,
+            img,
+            .transfer_dst_optimal,
+            1,
+            p2a(&blit),
+            .linear,
+        );
+
+        width = dstWidth;
+        height = dstHeight;
+    }
 }
 
 // this creates decriptors for sprites

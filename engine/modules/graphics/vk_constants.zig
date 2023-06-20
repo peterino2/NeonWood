@@ -61,6 +61,7 @@ pub const DeviceDispatch = vk.DeviceWrapper(.{
     .createCommandPool = true,
     .destroyCommandPool = true,
     .allocateCommandBuffers = true,
+    .cmdBlitImage = true,
     .freeCommandBuffers = true,
     .queueWaitIdle = true,
     .createShaderModule = true,

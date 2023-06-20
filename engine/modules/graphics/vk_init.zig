@@ -146,6 +146,10 @@ pub fn samplerCreateInfo(
         .unnormalized_coordinates = vk.FALSE,
     };
 
+    if (filters == .linear) {
+        self.max_lod = 4;
+    }
+
     return self;
 }
 

@@ -414,6 +414,8 @@ pub const NeonVkContext = struct {
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
 
+    msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
+
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.hash).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -653,7 +655,8 @@ pub const NeonVkContext = struct {
             .{ .color_bit = true },
             stagingResults.mipLevel,
         );
-        imageViewCreate.subresource_range.level_count = 5;
+
+        imageViewCreate.subresource_range.level_count = stagingResults.mipLevel;
         var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
         var newTexture = try self.allocator.create(Texture);
 
@@ -1469,6 +1472,8 @@ pub const NeonVkContext = struct {
         var data = try self.vkAllocator.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
+
+        self.sceneDataGpu.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
 
         var dataSlice: []u8 = undefined;
         dataSlice.ptr = data + startOffset;

@@ -7,11 +7,13 @@ layout (location = 3) in vec2 vTexCoord;
 
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
+layout (location = 2) out vec3 worldPosition;
 
 layout (set = 0, binding = 0) uniform CameraBuffer{
     mat4 view;
     mat4 proj;
     mat4 viewproj;
+    vec4 position;
 } cameraData;
 
 struct ObjectData {
@@ -36,4 +38,5 @@ void main()
 	gl_Position = position;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
     texCoord = vTexCoord;
+    worldPosition = (modelMatrix * vec4(vPosition, 1.0f)).xyz;
 }

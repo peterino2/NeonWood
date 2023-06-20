@@ -171,7 +171,7 @@ pub fn main() anyerror!void {
     _ = c.glfwSetKeyCallback(@ptrCast(?*c.GLFWwindow, platform.getInstance().window), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
-    while (!core.gEngine.exitSignal) {
+    while (!core.gEngine.exitConfirmed) {
         neonwood.platform.getInstance().pollEvents();
     }
 }

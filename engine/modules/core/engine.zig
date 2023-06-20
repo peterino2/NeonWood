@@ -24,6 +24,7 @@ const engine_log = logging.engine_log;
 
 pub const Engine = struct {
     exitSignal: bool,
+    exitConfirmed: bool = false,
 
     allocator: std.mem.Allocator,
 
@@ -132,6 +133,7 @@ pub const Engine = struct {
                 while (!ctx.engine.exitSignal) {
                     ctx.engine.tick() catch unreachable;
                 }
+                ctx.engine.exitConfirmed = true;
             }
         };
         try core.dispatchJob(L{ .engine = self });
