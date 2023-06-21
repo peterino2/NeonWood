@@ -1164,10 +1164,10 @@ pub const NeonVkContext = struct {
         self.updateTime(dt);
         core.gScene.updateTransforms();
         self.sceneManager.update(self) catch unreachable;
-        self.dynamicMeshManager.tickUpdates() catch unreachable;
+        // self.dynamicMeshManager.tickUpdates() catch unreachable;
 
         self.draw(dt) catch unreachable;
-        self.dynamicMeshManager.finishUpload() catch unreachable;
+        // self.dynamicMeshManager.finishUpload() catch unreachable;
 
         if (self.shouldExit() catch unreachable) {
             core.gEngine.exit();
@@ -1336,6 +1336,7 @@ pub const NeonVkContext = struct {
             const cmd = try self.start_frame_command_buffer();
 
             try self.begin_main_renderpass(cmd);
+            try self.dynamicMeshManager.updateMeshes(cmd);
             try self.render_meshes(deltaTime);
 
             for (self.rendererPlugins.items) |*interface| {

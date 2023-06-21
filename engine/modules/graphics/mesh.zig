@@ -16,6 +16,8 @@ const Vector2f = core.Vector2f;
 const LinearColor = core.LinearColor;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
+const p2a = core.p_to_a;
+
 const debug_struct = core.debug_struct;
 
 pub const Vertex = struct {
@@ -144,6 +146,12 @@ pub const DynamicMeshManager = struct {
         try self.dynMeshes.append(self.allocator, dynamicMesh);
     }
 
+    pub fn updateMeshes(self: *@This(), cmd: vk.CommandBuffer) !void {
+        for (self.dynMeshes.items) |mesh| {
+            try mesh.maybeUpdateVertices(cmd);
+        }
+    }
+
     pub fn tickUpdates(self: *@This()) !void {
         if (self.first) {
             self.first = false;
@@ -261,6 +269,151 @@ pub const DynamicMesh = struct {
 
     pub fn getVertexBufferLen(self: *@This()) u32 {
         return self.vertexBufferLen[self.swapId];
+    }
+
+    pub fn maybeUpdateVertices(self: *@This(), cmd: vk.CommandBuffer) !void {
+        if (!self.isDirty) {
+            return;
+        }
+        var t1 = core.tracy.ZoneN(@src(), "Dynamic Mesh upload with barriers");
+        defer t1.End();
+
+        try self.stageDirtyVertices();
+
+        var vkd = self.gc.vkd;
+
+        var copy = vk.BufferCopy{
+            .dst_offset = 0,
+            .src_offset = 0,
+            .size = self.indexBufferLen[self.swapId] * @intCast(u32, @sizeOf(u32)),
+        };
+
+        // submit index Buffer
+        self.gc.vkd.cmdCopyBuffer(
+            cmd,
+            self.stagingIndexBuffer.buffer,
+            self.indexBuffers[self.swapId].buffer,
+            1,
+            @ptrCast([*]const vk.BufferCopy, &copy),
+        );
+
+        var indexMemoryBarrier = vk.BufferMemoryBarrier{
+            .buffer = self.indexBuffers[self.swapId].buffer,
+            .src_access_mask = .{
+                .transfer_read_bit = true,
+            },
+            .dst_access_mask = .{
+                .transfer_write_bit = true,
+                .index_read_bit = true,
+            },
+            .src_queue_family_index = 0,
+            .dst_queue_family_index = 0,
+            .offset = 0,
+            .size = copy.size,
+        };
+
+        copy.size = self.vertexCount * @intCast(u32, @sizeOf(Vertex));
+
+        // Insert Barrier for indexBuffer
+        vkd.cmdPipelineBarrier(
+            cmd,
+            .{
+                .transfer_bit = true,
+            },
+            .{
+                .vertex_input_bit = true,
+            },
+            .{},
+            0,
+            undefined,
+            1,
+            p2a(&indexMemoryBarrier),
+            0,
+            undefined,
+        );
+
+        // submit vertex Buffer
+        self.gc.vkd.cmdCopyBuffer(
+            cmd,
+            self.stagingVertexBuffer.buffer,
+            self.vertexBuffers[self.swapId].buffer,
+            1,
+            @ptrCast([*]const vk.BufferCopy, &copy),
+        );
+
+        // Insert Barrier for vertexBuffer
+        var vertexMemoryBarrier = vk.BufferMemoryBarrier{
+            .buffer = self.vertexBuffers[self.swapId].buffer,
+            .src_access_mask = .{
+                .transfer_read_bit = true,
+            },
+            .dst_access_mask = .{
+                .transfer_write_bit = true,
+                .vertex_attribute_read_bit = true,
+            },
+            .src_queue_family_index = 0,
+            .dst_queue_family_index = 0,
+            .offset = 0,
+            .size = copy.size,
+        };
+
+        vkd.cmdPipelineBarrier(
+            cmd,
+            .{
+                .transfer_bit = true,
+            },
+            .{
+                .vertex_input_bit = true,
+                .vertex_shader_bit = true,
+            },
+            .{},
+            0,
+            undefined,
+            1,
+            p2a(&vertexMemoryBarrier),
+            0,
+            undefined,
+        );
+
+        self.isDirty = false;
+    }
+
+    pub fn stageDirtyVertices(self: *@This()) !void {
+        var newSwapId = (self.swapId + 1) % 2;
+        // map buffers
+
+        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
+        var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
+
+        defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
+        defer self.gc.vkAllocator.unmapMemory(self.stagingIndexBuffer);
+
+        // copy over vertices to mapped buffer
+        for (0..self.vertexCount) |i| {
+            slice[i] = self.vertices[i];
+        }
+        self.vertexBufferLen[newSwapId] = self.vertexCount;
+
+        // interpret vertices as quads.
+        if (self.geometryMode == .quads) {
+            var index: u32 = 0;
+            var vertex: u32 = 0;
+            while (vertex < self.vertexCount) {
+                indexSlice[index + 0] = vertex + 0;
+                indexSlice[index + 1] = vertex + 1;
+                indexSlice[index + 2] = vertex + 2;
+
+                indexSlice[index + 3] = vertex + 2;
+                indexSlice[index + 4] = vertex + 3;
+                indexSlice[index + 5] = vertex + 0;
+
+                vertex += 4;
+                index += 6;
+            }
+            self.indexBufferLen[newSwapId] = index;
+        }
+
+        self.swapId = newSwapId;
     }
 
     // a stream-like interface for creating vertices

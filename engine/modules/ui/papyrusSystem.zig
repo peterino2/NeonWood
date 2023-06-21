@@ -20,6 +20,9 @@ const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
 
+panel: u32 = 0,
+panelText: ?[]u8 = null,
+
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
 pipeData: gpd.GpuPipeData = undefined,
@@ -111,6 +114,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     {
         const ModernStyle = papyrus.ModernStyle;
         var panel = try ctx.addPanel(0);
+        self.panel = panel;
         ctx.getPanel(panel).hasTitle = true;
         ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
         ctx.get(panel).text = Text("Testing Quality: Lorem Ipsum");
@@ -184,6 +188,17 @@ fn setupMeshes(self: *@This()) !void {
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
+    if (self.time > 0.4) {
+        self.time = 0;
+
+        if (self.panelText) |t| {
+            self.allocator.free(t);
+        }
+
+        self.panelText = std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime}) catch unreachable;
+        var ctx = self.papyrusCtx;
+        ctx.get(self.panel).text = papyrus.LocText.fromUtf8(self.panelText.?);
+    }
 }
 
 pub fn uiTick(self: *@This(), deltaTime: f64) void {

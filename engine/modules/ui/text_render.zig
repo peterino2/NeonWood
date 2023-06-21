@@ -86,6 +86,10 @@ pub const DisplayText = struct {
         self.position = position;
     }
 
+    pub fn setBox(self: *@This(), boxSize: Vector2f) void {
+        self.boxSize = boxSize;
+    }
+
     pub fn setString(self: *@This(), str: []const u8) !void {
         self.string.clearRetainingCapacity();
         try self.string.appendSlice(str);
