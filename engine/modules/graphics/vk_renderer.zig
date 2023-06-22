@@ -1336,7 +1336,6 @@ pub const NeonVkContext = struct {
             const cmd = try self.start_frame_command_buffer();
 
             try self.begin_main_renderpass(cmd);
-            try self.dynamicMeshManager.updateMeshes(cmd);
             try self.render_meshes(deltaTime);
 
             for (self.rendererPlugins.items) |*interface| {
@@ -1350,6 +1349,7 @@ pub const NeonVkContext = struct {
             z3.End();
 
             try self.finish_main_renderpass(cmd);
+            try self.dynamicMeshManager.updateMeshes(cmd);
             try self.vkd.endCommandBuffer(cmd);
             z2.End();
 

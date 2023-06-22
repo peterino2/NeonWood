@@ -364,7 +364,6 @@ pub const DynamicMesh = struct {
             },
             .{
                 .vertex_input_bit = true,
-                .vertex_shader_bit = true,
             },
             .{},
             0,
