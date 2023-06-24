@@ -73,6 +73,7 @@ pub const PlatformInstance = struct {
         }
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
 
         self.window = c.glfwCreateWindow(
             @intCast(c_int, self.extent.x),

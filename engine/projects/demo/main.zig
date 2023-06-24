@@ -48,6 +48,10 @@ pub const GameContext = struct {
     eulerX: f32 = 0,
     eulerY: f32 = 0,
 
+    time: f64 = 0,
+    panel: u32 = 0,
+    panelText: ?[]u8 = null,
+
     pub fn init(allocator: std.mem.Allocator) Self {
         var self = Self{
             .allocator = allocator,
@@ -111,6 +115,22 @@ pub const GameContext = struct {
                 .{},
             );
         }
+        self.tickPanel(deltaTime) catch unreachable;
+    }
+
+    pub fn tickPanel(self: *@This(), deltaTime: f64) !void {
+        self.time += deltaTime;
+        if (self.time > 0.4) {
+            self.time = 0;
+
+            if (self.panelText) |t| {
+                self.allocator.free(t);
+            }
+
+            self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime});
+            var ctx = ui.getContext();
+            ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
+        }
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -134,6 +154,23 @@ pub const GameContext = struct {
             .material_name = core.MakeName("t_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
+
+        var ctx = ui.getContext();
+
+        {
+            const ModernStyle = ui.papyrus.ModernStyle;
+            const Text = ui.papyrus.Text;
+            var panel = try ctx.addPanel(0);
+            self.panel = panel;
+            ctx.getPanel(panel).hasTitle = true;
+            ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
+            ctx.get(panel).text = Text("Testing Quality: Lorem Ipsum");
+            ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
+            ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
+            ctx.get(panel).style.borderColor = ModernStyle.Yellow;
+            ctx.get(panel).pos = .{ .x = 30, .y = 30 };
+            ctx.get(panel).size = .{ .x = 500, .y = 150 };
+        }
 
         gGame = self;
     }

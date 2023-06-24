@@ -8,6 +8,8 @@ layout (location = 3) in vec2 vTexCoord;
 
 layout (location = 0) out vec4 outColor;
 layout (location = 1) out vec2 texCoord;
+layout (location = 2) out vec2 panelPixelPosition;
+layout (location = 3) out int instanceId;
 
 struct ImageRenderData {
     vec2 imagePosition;
@@ -15,7 +17,10 @@ struct ImageRenderData {
     vec2 anchorPoint;
     vec2 scale;
     float alpha;
+    float borderWidth;
 	vec4 baseColor;
+	vec4 rounding;
+    vec4 borderColor;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer ImageBufferObjects {
@@ -43,14 +48,17 @@ void main()
 
 	outColor = baseColor;
 	//outColor = vec3(vColor.x, vColor.y, vColor.z);
-    gl_Position = vec4(
+    vec4 fp = vec4(
         finalPos.x + ( vPosition.x * finalSize.x * scale.x), 
         finalPos.y + (-vPosition.y * finalSize.y * scale.y),
         vPosition.z, 1.0
         );
         //1.0); 
-
+    gl_Position = fp;
 	//gl_Position = vec4( ((position.x) - 1.3) * 0.3 * 1.3, (-position.y + 0.05) * 1.3, position.z, 1.0); // + vec4(imagePosition, 0.0f, 1.0f);
     texCoord = vec2(1 - vTexCoord.x, vTexCoord.y);
+    panelPixelPosition = (vPosition.xy - anchor) / 2 * imageSize;
+    panelPixelPosition.y = imageSize.y - panelPixelPosition.y;
+    instanceId = gl_BaseInstance;
 }
 

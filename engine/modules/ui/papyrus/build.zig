@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
     main_tests.linkLibC();
     main_tests.linkLibCpp();
     main_tests.addCSourceFile("compat.cpp", &.{""});

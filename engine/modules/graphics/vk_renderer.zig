@@ -27,6 +27,7 @@ const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
 
 const enable_validation_layers: bool = build_opts.validation_layers;
+const force_mailbox: bool = build_opts.force_mailbox;
 const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
 
 const SparseSet = core.SparseSet;
@@ -2401,7 +2402,9 @@ pub const NeonVkContext = struct {
             }
         }
 
-        // self.presentMode = .mailbox_khr;
+        if (force_mailbox) {
+            self.presentMode = .mailbox_khr;
+        }
     }
 
     pub fn registerRendererPlugin(self: *@This(), value: anytype) !void {

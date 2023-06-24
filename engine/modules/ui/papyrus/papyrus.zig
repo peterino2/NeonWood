@@ -405,9 +405,9 @@ pub const FontAtlas = struct {
                     &self.font,
                     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
                     @intCast(c_int, ch),
-                    5,
+                    10,
                     180,
-                    36,
+                    18,
                     &self.glyphMetrics[ch].x,
                     &self.glyphMetrics[ch].y,
                     &self.glyphBox1[ch].x,
@@ -653,6 +653,7 @@ pub const BurnStyle = struct {
     pub const Comment = Color.fromRGB(0x90c480);
     pub const DarkComment = Color.fromRGB(0x243120);
     pub const Normal = Color.fromRGB(0xe2e2e5);
+    pub const Diminished = Color.fromRGB(0xe2e2e5);
     pub const Highlight1 = Color.fromRGB(0x90c480);
     pub const Highlight2 = Color.fromRGB(0x75e1eb);
     pub const Highlight3 = Color.fromRGB(0xff9900);
@@ -661,6 +662,8 @@ pub const BurnStyle = struct {
     pub const Statement = Color.fromRGB(0xff00f2);
     pub const LineTerminal = Color.fromRGB(0x87aefa);
     pub const SlateGrey = Color.fromRGB(0x141414);
+    pub const BrightGrey = Color.fromRGB(0x444444);
+    pub const LightGrey = Color.fromRGB(0x242424);
     pub const DarkSlateGrey = Color.fromRGB(0x101010);
 };
 
@@ -1211,7 +1214,8 @@ pub const NodeProperty_Text = struct {
 };
 
 pub const NodeProperty_Panel = struct {
-    titleColor: Color = Color.White,
+    titleColor: Color = ModernStyle.GreyDark,
+    titleSize: f32 = 24,
     layoutMode: ChildLayout = .Free, // when set to anything other than free, we will override anchors from inferior nodes.
     hasTitle: bool = false,
 };
@@ -1498,6 +1502,12 @@ pub const PapyrusContext = struct {
                 size: Vector2,
                 borderColor: Color,
                 backgroundColor: Color,
+                rounding: struct {
+                    tl: f32 = 0,
+                    tr: f32 = 0,
+                    bl: f32 = 0,
+                    br: f32 = 0,
+                } = .{},
             },
             Text: struct {
                 tl: Vector2,
@@ -1630,8 +1640,8 @@ pub const PapyrusContext = struct {
                     if (panel.hasTitle) {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
-                                .tl = resolvedPos.add(.{ .y = 24 }),
-                                .size = resolvedSize.sub(.{ .y = 24 }),
+                                .tl = resolvedPos.add(.{ .y = panel.titleSize }),
+                                .size = resolvedSize.sub(.{ .y = panel.titleSize }),
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.backgroundColor,
                             },
@@ -1640,24 +1650,25 @@ pub const PapyrusContext = struct {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
                                 .tl = resolvedPos,
-                                .size = .{ .x = resolvedSize.x, .y = 24 },
+                                .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.borderColor,
+                                .rounding = .{ .tl = 10, .tr = 10 },
                             },
                         } });
 
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Text = .{
-                                .tl = resolvedPos.add(.{ .x = 3, .y = 1 }),
+                                .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 1 }),
                                 .text = n.text,
                                 .color = panel.titleColor,
-                                .textSize = 24,
+                                .textSize = panel.titleSize - 3,
                             },
                         } });
 
                         try layout.put(node, .{
-                            .pos = resolvedPos.add(.{ .y = 24 }).add(Vector2.Ones),
-                            .size = resolvedSize.sub(.{ .y = -24 }).add(Vector2.Ones),
+                            .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2.Ones),
+                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2.Ones),
                         });
                     } else {
                         try drawList.append(.{ .node = node, .primitive = .{
@@ -2029,7 +2040,7 @@ test "dynamic pool test" {
 
 test "sdf fontAtlas generation" {
     var allocator = std.testing.allocator;
-    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 65);
+    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 128);
     defer atlas.deinit();
 
     try atlas.dumpBufferToFile("Saved/ComicMonoSDF.bmp");

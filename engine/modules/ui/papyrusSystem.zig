@@ -3,7 +3,8 @@ const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
-const papyrus = @import("papyrus/papyrus.zig");
+pub const papyrus = @import("papyrus/papyrus.zig");
+
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");
 const FontSDF_vert = @import("FontSDF_vert");
@@ -19,9 +20,6 @@ const text_render = @import("text_render.zig");
 const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
-
-panel: u32 = 0,
-panelText: ?[]u8 = null,
 
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
@@ -109,28 +107,6 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.prepareFont();
     try self.setupMeshes();
 
-    var ctx = self.papyrusCtx;
-
-    {
-        const ModernStyle = papyrus.ModernStyle;
-        var panel = try ctx.addPanel(0);
-        self.panel = panel;
-        ctx.getPanel(panel).hasTitle = true;
-        ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
-        ctx.get(panel).text = Text("Testing Quality: Lorem Ipsum");
-        ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
-        ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
-        ctx.get(panel).style.borderColor = ModernStyle.Yellow;
-        ctx.get(panel).pos = .{ .x = 30, .y = 30 };
-        ctx.get(panel).size = .{ .x = 500, .y = 150 };
-
-        const button = try ctx.addPanel(panel);
-        ctx.get(button).style.borderColor = ModernStyle.Yellow;
-        ctx.get(button).style.backgroundColor = ModernStyle.Grey;
-        ctx.get(button).pos = .{ .x = 20, .y = 20 };
-        ctx.get(button).size = .{ .x = 200, .y = 50 };
-    }
-
     try self.graphLog.write("}}\n", .{});
     // try self.graphLog.makeGraphViz();
 
@@ -188,17 +164,6 @@ fn setupMeshes(self: *@This()) !void {
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
-    if (self.time > 0.4) {
-        self.time = 0;
-
-        if (self.panelText) |t| {
-            self.allocator.free(t);
-        }
-
-        self.panelText = std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime}) catch unreachable;
-        var ctx = self.papyrusCtx;
-        ctx.get(self.panel).text = papyrus.LocText.fromUtf8(self.panelText.?);
-    }
 }
 
 pub fn uiTick(self: *@This(), deltaTime: f64) void {
@@ -327,30 +292,26 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     .anchorPoint = .{ .x = -1.0, .y = -1.0 },
                     .scale = .{ .x = 1.0, .y = 1.0 },
                     .alpha = 1.0,
-                    .pad0 = std.mem.zeroes([12]u8),
-                    .baseColor = .{
-                        .x = rect.borderColor.r,
-                        .y = rect.borderColor.g,
-                        .z = rect.borderColor.b,
-                        .w = rect.borderColor.a,
-                    },
-                };
-                try self.drawCommands.append(.{ .image = self.ssboCount });
-                self.ssboCount += 1;
-
-                imagesGpu[self.ssboCount] = PapyrusImageGpu{
-                    .imagePosition = .{ .x = rect.tl.x + 1, .y = rect.tl.y + 1 },
-                    .imageSize = .{ .x = rect.size.x - 2, .y = rect.size.y - 2 },
-                    .anchorPoint = .{ .x = -1.0, .y = -1.0 },
-                    .scale = .{ .x = 1.0, .y = 1.0 },
-                    .alpha = 1.0,
-                    .pad0 = std.mem.zeroes([12]u8),
+                    .pad0 = std.mem.zeroes([8]u8),
                     .baseColor = .{
                         .x = rect.backgroundColor.r,
                         .y = rect.backgroundColor.g,
                         .z = rect.backgroundColor.b,
                         .w = rect.backgroundColor.a,
                     },
+                    .rounding = .{
+                        .x = rect.rounding.tl,
+                        .y = rect.rounding.tr,
+                        .z = rect.rounding.bl,
+                        .w = rect.rounding.br,
+                    },
+                    .borderColor = .{
+                        .x = rect.borderColor.r,
+                        .y = rect.borderColor.g,
+                        .z = rect.borderColor.b,
+                        .w = rect.borderColor.a,
+                    },
+                    .borderWidth = 1.0,
                 };
                 try self.drawCommands.append(.{ .image = self.ssboCount });
                 self.ssboCount += 1;
@@ -366,7 +327,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     var str = text.text.getRead();
                     var xOffset = text.tl.x;
 
-                    const ratio = (text.textSize) / self.fontAtlas.fontSize;
+                    const ratio = (text.textSize - 1) / self.fontAtlas.fontSize;
                     const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
                     for (str) |ch| {
                         if (!self.fontAtlas.hasGlyph[ch]) {

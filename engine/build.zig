@@ -1,5 +1,6 @@
 const std = @import("std");
 const nwbuild = @import("nwbuild/nwbuild.zig");
+const utils = @import("projects/utils/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
@@ -15,4 +16,9 @@ pub fn build(b: *std.build.Builder) void {
 
     _ = system.addTest("jobTest");
     _ = system.addTest("sparse_set_perf");
+
+    utils.buildUtilities(b, .{
+        .target = target,
+        .optimize = optimize,
+    });
 }
