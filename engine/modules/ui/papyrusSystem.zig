@@ -175,6 +175,7 @@ pub fn buildTextPipeline(self: *@This()) !void {
     core.ui_log("building text pipeline", .{});
     try self.graphLog.write(" setup->buildTextPipeline", .{});
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
+    gpdBuilder.objectCount = 64;
     try gpdBuilder.addBufferBinding(
         FontSDF_vert.FontInfo,
         .storage_buffer,

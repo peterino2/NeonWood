@@ -405,9 +405,9 @@ pub const FontAtlas = struct {
                     &self.font,
                     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
                     @intCast(c_int, ch),
-                    10,
+                    5,
                     180,
-                    18,
+                    36,
                     &self.glyphMetrics[ch].x,
                     &self.glyphMetrics[ch].y,
                     &self.glyphBox1[ch].x,
@@ -653,7 +653,7 @@ pub const BurnStyle = struct {
     pub const Comment = Color.fromRGB(0x90c480);
     pub const DarkComment = Color.fromRGB(0x243120);
     pub const Normal = Color.fromRGB(0xe2e2e5);
-    pub const Diminished = Color.fromRGB(0xe2e2e5);
+    pub const Diminished = Color.fromRGB(0x828285);
     pub const Highlight1 = Color.fromRGB(0x90c480);
     pub const Highlight2 = Color.fromRGB(0x75e1eb);
     pub const Highlight3 = Color.fromRGB(0xff9900);

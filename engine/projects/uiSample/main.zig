@@ -45,15 +45,8 @@ pub const GameContext = struct {
         ctx.get(self.panel).text = ui.papyrus.Text("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
-        ctx.get(self.panel).style.borderColor = BurnStyle.Bright1;
-        ctx.get(self.panel).style.backgroundColor = BurnStyle.DarkSlateGrey;
-
-        var panel2 = try ctx.addPanel(self.panel);
-        ctx.get(panel2).style = ctx.get(self.panel).style;
-        ctx.get(panel2).style.backgroundColor = BurnStyle.LightGrey;
-        ctx.get(panel2).style.borderColor = BurnStyle.LightGrey;
-        ctx.get(panel2).size = .{ .x = 1600 - 45 - 5, .y = 900 - 18 - 5 - 5 };
-        ctx.get(panel2).pos = .{ .x = 45, .y = 5 };
+        ctx.get(self.panel).style.borderColor = BurnStyle.Diminished;
+        ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
     }
 };
 

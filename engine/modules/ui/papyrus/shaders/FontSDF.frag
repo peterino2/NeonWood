@@ -16,7 +16,6 @@ layout (push_constant) uniform constants {
 //     return max(min(r, g), min(max(r, g), b));
 // }
 // 
-// 
 // // SDF sample code
 // void main() 
 // {
@@ -57,25 +56,25 @@ void main() {
   float outerEdge = 1.0f - (170.0f / 255.0f);
 
   //#if defined(SUPERSAMPLE)
-    float alpha = contour(dist, outerEdge, width);
+  float alpha = contour(dist, outerEdge, width);
 
-    float dscale = 0.354; // half of 1/sqrt2; you can play with this
-    vec2 uv = texCoord.xy;
-    vec2 duv = dscale * (dFdx(uv) + dFdy(uv));
-    vec4 box = vec4(uv - duv, uv + duv);
+  float dscale = 0.354; // half of 1/sqrt2; you can play with this
+  vec2 uv = texCoord.xy;
+  vec2 duv = dscale * (dFdx(uv) + dFdy(uv));
+  vec4 box = vec4(uv - duv, uv + duv);
 
-    float asum = getSample(box.xy, outerEdge, width)
-               + getSample(box.zw, outerEdge, width)
-               + getSample(box.xw, outerEdge, width)
-               + getSample(box.zy, outerEdge, width);
+  float asum = getSample(box.xy, outerEdge, width)
+             + getSample(box.zw, outerEdge, width)
+             + getSample(box.xw, outerEdge, width)
+             + getSample(box.zy, outerEdge, width);
 
-    // weighted average, with 4 extra points having 0.5 weight each,
-    // so 1 + 0.5*4 = 3 is the divisor
-    alpha = (alpha + 0.5 * asum) / 3.0;
+  // weighted average, with 4 extra points having 0.5 weight each,
+  // so 1 + 0.5*4 = 3 is the divisor
+  alpha = (alpha + 0.5 * asum) / 3.0;
 
   // #else
   //   // No supersampling.
-  //   float alpha = contour(dist, outerEdge, width);
+  // float alpha = contour(dist, outerEdge, width);
   // #endif
 
   textColor = vec4(color.xyz, textColor.w * alpha);
