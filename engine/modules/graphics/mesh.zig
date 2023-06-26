@@ -303,7 +303,7 @@ pub const DynamicMesh = struct {
                 .transfer_read_bit = true,
             },
             .dst_access_mask = .{
-                .transfer_write_bit = true,
+                //.transfer_write_bit = true,
                 .index_read_bit = true,
             },
             .src_queue_family_index = 0,
@@ -348,7 +348,7 @@ pub const DynamicMesh = struct {
                 .transfer_read_bit = true,
             },
             .dst_access_mask = .{
-                .transfer_write_bit = true,
+                // .transfer_write_bit = true,
                 .vertex_attribute_read_bit = true,
             },
             .src_queue_family_index = 0,

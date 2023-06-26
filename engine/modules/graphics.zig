@@ -92,3 +92,7 @@ pub fn shutdown_module() void {
 }
 
 pub var icon: []const u8 = "content/textures/icon.png";
+
+pub fn setStartupSettings(comptime field: []const u8, value: anytype) void {
+    @field(vk_renderer.gGraphicsStartupSettings, field) = value;
+}

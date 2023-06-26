@@ -328,6 +328,8 @@ pub const NeonVkContext = struct {
     physicalDeviceProperties: vk.PhysicalDeviceProperties,
     physicalDeviceMemoryProperties: vk.PhysicalDeviceMemoryProperties,
 
+    maxObjectCount: u32 = MAX_OBJECTS,
+
     enumeratedPhysicalDevices: ArrayList(NeonVkPhysicalDeviceInfo),
     showDemo: bool,
 
@@ -503,6 +505,7 @@ pub const NeonVkContext = struct {
         self.uiObjects = .{};
         self.lastMaterial = null;
         self.cameraRef = null;
+        self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
@@ -724,7 +727,6 @@ pub const NeonVkContext = struct {
         try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, textureSet));
 
         var imageBufferInfo = vk.DescriptorImageInfo{
-            //.sampler = self.blockySampler,
             .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
             .image_view = (self.textures.get(name.hash)).?.imageView,
             .image_layout = .shader_read_only_optimal,
@@ -805,7 +807,7 @@ pub const NeonVkContext = struct {
         for (core.count(NumFrames), 0..) |_, i| {
             // detail the object descriptor set
             self.frameData[i].objectBuffer = try self.create_buffer(
-                @sizeOf(NeonVkObjectDataGpu) * MAX_OBJECTS,
+                @sizeOf(NeonVkObjectDataGpu) * self.maxObjectCount,
                 .{ .storage_buffer_bit = true },
                 .cpuToGpu,
                 "framedata object ssbo",
@@ -822,7 +824,7 @@ pub const NeonVkContext = struct {
             var objectInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].objectBuffer.buffer,
                 .offset = 0,
-                .range = @sizeOf(NeonVkObjectDataGpu) * MAX_OBJECTS,
+                .range = @sizeOf(NeonVkObjectDataGpu) * self.maxObjectCount,
             };
 
             var objectWrite = vkinit.writeDescriptorSet(
@@ -1238,7 +1240,6 @@ pub const NeonVkContext = struct {
             1,
             1000000000,
         );
-
         try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
     }
 
@@ -1495,10 +1496,10 @@ pub const NeonVkContext = struct {
         var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
         var ssbo: []NeonVkObjectDataGpu = undefined;
         ssbo.ptr = @ptrCast([*]NeonVkObjectDataGpu, data);
-        ssbo.len = MAX_OBJECTS;
+        ssbo.len = self.maxObjectCount;
 
         var i: usize = 0;
-        while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.len) : (i += 1) {
+        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
             var object = self.renderObjectSet.dense.items(.renderObject)[i];
             if (object.mesh != null) {
                 ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
@@ -2594,3 +2595,6 @@ pub fn setWindowName(newWindowName: []const u8) void {
 }
 
 pub var gContext: *NeonVkContext = undefined;
+pub var gGraphicsStartupSettings: struct {
+    maxObjectCount: u32 = MAX_OBJECTS,
+} = .{};

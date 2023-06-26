@@ -40,8 +40,8 @@ pub const GameContext = struct {
 
         self.panel = try ctx.addPanel(0);
         ctx.getPanel(self.panel).hasTitle = true;
-        ctx.getPanel(self.panel).titleSize = 18;
-        ctx.getPanel(self.panel).titleColor = BurnStyle.SlateGrey;
+        ctx.getPanel(self.panel).titleSize = 20;
+        ctx.getPanel(self.panel).titleColor = BurnStyle.Bright2;
         ctx.get(self.panel).text = ui.papyrus.Text("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
@@ -51,6 +51,7 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
+    nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything("NeonWood: ui");
     defer nw.shutdown_everything();
     try nw.run_no_input(GameContext);

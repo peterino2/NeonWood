@@ -20,7 +20,6 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
 const NumFrames = vk_constants.NUM_FRAMES;
-const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 const NeonVkObjectDataGpu = vk_renderer.NeonVkObjectDataGpu;
 
@@ -337,7 +336,7 @@ pub fn create_sprite_descriptors(self: *NeonVkContext) !void {
     // create SSBOs for the actual type
     var i: usize = 0;
     while (i < NumFrames) : (i += 1) {
-        self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * vk_constants.MAX_OBJECTS, .{ .storage_buffer_bit = true }, .cpuToGpu, "Staging buffer");
+        self.frameData[i].spriteBuffer = try self.create_buffer(@sizeOf(NeonVkSpriteDataGpu) * self.maxObjectCount, .{ .storage_buffer_bit = true }, .cpuToGpu, "Staging buffer");
 
         var spriteDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
             .descriptor_pool = self.descriptorPool,
@@ -354,7 +353,7 @@ pub fn create_sprite_descriptors(self: *NeonVkContext) !void {
         var spriteInfo = vk.DescriptorBufferInfo{
             .buffer = self.frameData[i].spriteBuffer.buffer,
             .offset = 0,
-            .range = @sizeOf(NeonVkSpriteDataGpu) * vk_constants.MAX_OBJECTS,
+            .range = @sizeOf(NeonVkSpriteDataGpu) * self.maxObjectCount,
         };
 
         var spriteWrite = vkinit.writeDescriptorSet(
@@ -374,10 +373,10 @@ pub fn upload_sprite_data(self: *NeonVkContext) !void {
     var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
     var ssbo: []NeonVkSpriteDataGpu = undefined;
     ssbo.ptr = @ptrCast([*]NeonVkSpriteDataGpu, data);
-    ssbo.len = MAX_OBJECTS;
+    ssbo.len = self.maxObjectCount;
 
     var i: usize = 0;
-    while (i < MAX_OBJECTS and i < self.renderObjectSet.dense.len) : (i += 1) {
+    while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
         ssbo[i].position = core.zm.mul(
             self.renderObjectSet.items(.renderObject)[i].transform,
             core.zm.Vec{ 0.0, 0.0, 0.0, 0.0 },

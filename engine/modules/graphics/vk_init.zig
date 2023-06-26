@@ -130,7 +130,7 @@ pub fn samplerCreateInfo(
     var self = vk.SamplerCreateInfo{
         .flags = .{},
         .mag_filter = filters,
-        .min_filter = filters,
+        .min_filter = .nearest,
         .address_mode_u = addressMode,
         .address_mode_v = addressMode,
         .address_mode_w = addressMode,
@@ -146,9 +146,10 @@ pub fn samplerCreateInfo(
         .unnormalized_coordinates = vk.FALSE,
     };
 
-    // if (filters == .linear) {
-    //     self.max_lod = 4;
-    // }
+    if (filters == .linear) {
+        self.max_lod = 4;
+        self.mipmap_mode = .linear;
+    }
 
     return self;
 }

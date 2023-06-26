@@ -53,7 +53,7 @@ void main() {
   float dist  = tex.r;
   float width = fwidth(dist);
   vec4 textColor = clamp(color, 0.0, 1.0);
-  float outerEdge = 1.0f - (170.0f / 255.0f);
+  float outerEdge = 1.0f - (220.0f / 255.0f);
 
   //#if defined(SUPERSAMPLE)
   float alpha = contour(dist, outerEdge, width);
