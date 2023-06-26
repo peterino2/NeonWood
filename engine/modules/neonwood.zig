@@ -43,6 +43,22 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     }
 }
 
+pub fn run_no_input_tickable(comptime T: type) !void {
+    var gameContext = try core.createObject(T, .{ .can_tick = true });
+    try gameContext.prepare_game();
+
+    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
+    _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
+    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
+
+    // run the game
+    try core.gEngine.run();
+
+    while (!core.gEngine.exitSignal) {
+        platform.getInstance().pollEvents();
+    }
+}
+
 pub fn run_no_input(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{});
     try gameContext.prepare_game();

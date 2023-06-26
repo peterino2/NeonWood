@@ -122,7 +122,8 @@ pub const GameContext = struct {
 
     pub fn tickPanel(self: *@This(), deltaTime: f64) !void {
         self.time += deltaTime;
-        if (self.time > 0.4) {
+        var ctx = ui.getContext();
+        if (self.time > 2.4) {
             self.time = 0;
 
             if (self.panelText) |t| {
@@ -130,9 +131,10 @@ pub const GameContext = struct {
             }
 
             self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime});
-            var ctx = ui.getContext();
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
+
+        ctx.get(self.panel).pos = .{ .y = 40 * @floatCast(f32, self.time), .x = 50 * @floatCast(f32, self.time) };
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {

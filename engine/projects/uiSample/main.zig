@@ -24,6 +24,17 @@ pub const GameContext = struct {
         _ = self;
     }
 
+    pub fn tick(self: *@This(), dt: f64) void {
+        self.time += dt;
+
+        if (self.time > 5.0) {
+            self.time = 0;
+        }
+
+        var ctx = ui.getContext();
+        ctx.getPanel(self.panel).titleSize = @floatCast(f32, self.time) * 20.0 + 20.0;
+    }
+
     pub fn uiTick(self: *@This(), deltaTime: f64) void {
         _ = deltaTime;
         _ = self;
@@ -41,7 +52,7 @@ pub const GameContext = struct {
         self.panel = try ctx.addPanel(0);
         ctx.getPanel(self.panel).hasTitle = true;
         ctx.getPanel(self.panel).titleSize = 20;
-        ctx.getPanel(self.panel).titleColor = BurnStyle.Bright2;
+        ctx.getPanel(self.panel).titleColor = BurnStyle.Bright1;
         ctx.get(self.panel).text = ui.papyrus.Text("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
@@ -54,5 +65,5 @@ pub fn main() anyerror!void {
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything("NeonWood: ui");
     defer nw.shutdown_everything();
-    try nw.run_no_input(GameContext);
+    try nw.run_no_input_tickable(GameContext);
 }

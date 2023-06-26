@@ -53,7 +53,7 @@ void main() {
   float dist  = tex.r;
   float width = fwidth(dist);
   vec4 textColor = clamp(color, 0.0, 1.0);
-  float outerEdge = 1.0f - (220.0f / 255.0f);
+  float outerEdge = 1.0f - (120.0f / 255.0f);
 
   //#if defined(SUPERSAMPLE)
   float alpha = contour(dist, outerEdge, width);
@@ -77,8 +77,7 @@ void main() {
   // float alpha = contour(dist, outerEdge, width);
   // #endif
 
-  textColor = vec4(color.xyz, textColor.w * alpha);
-  textColor *= textColor.w;
+  textColor = vec4(color.xyz, alpha);//textColor.* alpha);
   textColor.xyz = pow(textColor.xyz, vec3(2.2)); // gamma correction
 
   // Premultiplied alpha output.
