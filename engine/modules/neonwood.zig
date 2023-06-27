@@ -88,19 +88,22 @@ pub fn run_no_input(comptime T: type) !void {
 // glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
 
 pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    c.cImGui_ImplGlfw_CursorPosCallback(@ptrCast(?*c.GLFWwindow, window), xpos, ypos);
+    _ = window;
+    _ = xpos;
+    _ = ypos;
 }
 
 pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    c.cImGui_ImplGlfw_MouseButtonCallback(@ptrCast(?*c.GLFWwindow, window), button, action, mods);
+    _ = window;
+    _ = button;
+    _ = action;
+    _ = mods;
 }
 
 pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    c.cImGui_ImplGlfw_KeyCallback(@ptrCast(?*c.GLFWwindow, window), key, scancode, action, mods);
-
-    if (action == c.GLFW_PRESS) {
-        if (key == c.GLFW_KEY_W) {
-            ui.getSystem().displayDemo = !ui.getSystem().displayDemo;
-        }
-    }
+    _ = window;
+    _ = key;
+    _ = scancode;
+    _ = action;
+    _ = mods;
 }

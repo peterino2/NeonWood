@@ -61,6 +61,7 @@ pub const DisplayText = struct {
     atlas: *FontAtlasVk,
     mesh: *DynamicMesh,
     string: std.ArrayList(u8),
+    stringHash: u32 = 0xffffffff,
 
     displaySize: f32 = 24.0,
     position: Vector2f = .{},
@@ -71,11 +72,31 @@ pub const DisplayText = struct {
         _ = self;
     }
 
+    pub fn getHash(self: *@This()) u32 {
+        var hash: u32 = 5381;
+
+        for (self.string.items) |c| {
+            hash = @mulWithOverflow(hash, 33)[0];
+            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+        }
+
+        hash = @addWithOverflow(hash, @floatToInt(u32, self.displaySize))[0];
+        hash = @mulWithOverflow(hash, @floatToInt(u32, self.position.x))[0];
+        hash = @addWithOverflow(hash, @floatToInt(u32, self.position.y))[0];
+
+        hash = @mulWithOverflow(hash, @floatToInt(u32, self.boxSize.x))[0];
+        hash = @mulWithOverflow(hash, @floatToInt(u32, self.boxSize.y))[0];
+        const color = self.color;
+        hash = @mulWithOverflow(hash, @floatToInt(u32, color.r + color.g * 10 + color.b * 100))[0];
+
+        return hash;
+    }
+
     pub fn init(
         allocator: std.mem.Allocator,
         atlas: *FontAtlasVk,
         opts: struct {
-            charLimit: u32 = 1024,
+            charLimit: u32 = 8192,
         },
     ) !@This() {
         var self = @This(){
@@ -119,18 +140,39 @@ pub const DisplayText = struct {
 
     pub fn updateMesh(self: *@This()) !void {
         // todo. do a hash check.
+
+        // const hash = self.getHash();
+        // if (self.stringHash == hash) {
+        //     return;
+        // }
         self.mesh.clearVertices();
+
+        // self.stringHash = hash;
 
         const atlas = self.atlas.atlas;
 
         const ratio = (self.displaySize) / atlas.fontSize;
         const stride = @intToFloat(f32, atlas.glyphStride) * ratio;
 
-        var xOffset = self.position.x;
+        var xOffset: f32 = 0;
         var yOffset: f32 = 0;
 
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
+                xOffset += stride / 2;
+                continue;
+            }
+
+            if (ch == 0 or ch == '\r') {
+                continue;
+            }
+
+            if (ch == ' ' or ch == '\n') {
+                xOffset += stride / 2;
+                continue;
+            }
+
+            if (ch == ' ') {
                 xOffset += stride / 2;
                 continue;
             }
@@ -145,11 +187,11 @@ pub const DisplayText = struct {
 
             if (xOffset + box.x > self.boxSize.x) {
                 xOffset = 0;
-                yOffset += fontHeight;
+                yOffset += fontHeight * 1.2;
             }
 
             self.mesh.addQuad2D(
-                .{ .x = xOffset + box.x, .y = yOffset + self.position.y + box.y + fontHeight, .z = 0 }, // top left
+                .{ .x = self.position.x + xOffset + box.x, .y = yOffset + self.position.y + box.y + fontHeight, .z = 0 }, // top left
                 .{ .x = metrics.x, .y = metrics.y, .z = 0 },
                 .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
                 .{
@@ -159,11 +201,7 @@ pub const DisplayText = struct {
                 .{ .r = self.color.r, .g = self.color.g, .b = self.color.b }, // color
             );
 
-            if (ch == ' ') {
-                xOffset += stride / 2;
-            } else {
-                xOffset += box.x + metrics.x;
-            }
+            xOffset += box.x + metrics.x;
         }
     }
 };

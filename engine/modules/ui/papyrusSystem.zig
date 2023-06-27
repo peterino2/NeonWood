@@ -286,10 +286,6 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     self.ssboCount = 0;
     self.textCount = 0;
 
-    for (self.textRenderer.displays.items) |displayText| {
-        try displayText.updateMesh();
-    }
-
     for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
@@ -337,6 +333,11 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 self.textCount += 1;
             },
         }
+    }
+
+    for (0..self.textCount) |i| {
+        var displayText = self.textRenderer.displays.items[i];
+        try displayText.updateMesh();
     }
 }
 

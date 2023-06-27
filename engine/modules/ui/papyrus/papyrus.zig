@@ -1697,7 +1697,7 @@ pub const PapyrusContext = struct {
                             .tl = resolvedPos,
                             .size = n.size,
                             .text = n.text,
-                            .color = txt.color,
+                            .color = n.style.foregroundColor,
                             .textSize = txt.textSize - 3,
                         },
                     } });
@@ -1706,6 +1706,7 @@ pub const PapyrusContext = struct {
                         .pos = resolvedPos.add(Vector2.Ones),
                         .size = resolvedSize.add(Vector2.Ones),
                     });
+
                     // var render = try layoutTextBox(
                     //     self.allocator,
                     //     resolvedSize,
