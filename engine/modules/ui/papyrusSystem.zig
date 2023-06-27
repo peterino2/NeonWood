@@ -73,7 +73,7 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .textMesh = undefined,
         .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64) catch unreachable,
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
-        .textRenderer = TextRenderer.init(allocator, graphics.getContext()) catch unreachable,
+        .textRenderer = TextRenderer.init(allocator, graphics.getContext(), papyrusCtx) catch unreachable,
     };
 }
 
@@ -92,7 +92,12 @@ pub fn prepareFont(self: *@This()) !void {
     self.fontTexture = res.texture;
     self.fontTextureDescriptor = res.descriptor;
 
+    _ = try self.textRenderer.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
+
     // using the v2 stuff
+    var newText = try self.textRenderer.addDisplayText(core.MakeName("roboto"), .{});
+    newText.position = .{ .x = 50, .y = 100 };
+    newText.boxSize = .{ .x = 300, .y = 300 };
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -283,6 +288,10 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     self.ssboCount = 0;
     var textReady: bool = true;
 
+    for (self.textRenderer.displays.items) |displayText| {
+        try displayText.updateMesh();
+    }
+
     for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
@@ -330,6 +339,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
                     const ratio = (text.textSize - 1) / self.fontAtlas.fontSize;
                     const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
+
                     for (str) |ch| {
                         if (!self.fontAtlas.hasGlyph[ch]) {
                             xOffset += stride / 2;
@@ -356,7 +366,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                         );
 
                         if (ch == ' ') {
-                            xOffset += stride;
+                            xOffset += stride / 2;
                         } else {
                             xOffset += box.x + metrics.x;
                         }
@@ -399,14 +409,17 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
         }
     }
 
+    // draw text
     self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
     self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
     self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
     self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
     self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
-
-    // 1. get the draw list
     _ = frameTime;
+
+    for (self.textRenderer.displays.items) |drawText| {
+        drawText.draw(cmd, self.textMaterial);
+    }
 }
 
 pub fn deinit(self: *@This()) void {

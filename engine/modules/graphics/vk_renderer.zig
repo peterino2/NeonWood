@@ -2597,4 +2597,5 @@ pub fn setWindowName(newWindowName: []const u8) void {
 pub var gContext: *NeonVkContext = undefined;
 pub var gGraphicsStartupSettings: struct {
     maxObjectCount: u32 = MAX_OBJECTS,
+    consoleEnabled: bool = true,
 } = .{};
