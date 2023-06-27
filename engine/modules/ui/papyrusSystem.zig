@@ -39,10 +39,10 @@ quad: *graphics.Mesh,
 graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
+textCount: u32 = 0,
 ssboCount: u32 = 1,
 time: f64 = 0,
 
-textMesh: *graphics.DynamicMesh,
 textPipeData: gpd.GpuPipeData = undefined,
 
 displayDemo: bool = true,
@@ -70,7 +70,6 @@ pub fn init(allocator: std.mem.Allocator) @This() {
         .papyrusCtx = papyrusCtx,
         .quad = allocator.create(graphics.Mesh) catch unreachable,
         .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
-        .textMesh = undefined,
         .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64) catch unreachable,
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
         .textRenderer = TextRenderer.init(allocator, graphics.getContext(), papyrusCtx) catch unreachable,
@@ -95,9 +94,11 @@ pub fn prepareFont(self: *@This()) !void {
     _ = try self.textRenderer.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
 
     // using the v2 stuff
-    var newText = try self.textRenderer.addDisplayText(core.MakeName("roboto"), .{});
-    newText.position = .{ .x = 50, .y = 100 };
-    newText.boxSize = .{ .x = 300, .y = 300 };
+    for (0..32) |i| {
+        _ = i;
+        var newText = try self.textRenderer.addDisplayText(core.MakeName("roboto"), .{});
+        _ = newText;
+    }
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -105,9 +106,6 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.graphLog.write("digraph G {{\n", .{});
 
     self.gc = gc;
-    self.textMesh = try graphics.DynamicMesh.init(gc, gc.allocator, .{
-        .maxVertexCount = 4096 * 4,
-    });
     try self.preparePipeline();
     try self.prepareFont();
     try self.setupMeshes();
@@ -286,7 +284,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     defer drawList.deinit();
 
     self.ssboCount = 0;
-    var textReady: bool = true;
+    self.textCount = 0;
 
     for (self.textRenderer.displays.items) |displayText| {
         try displayText.updateMesh();
@@ -327,57 +325,24 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 self.ssboCount += 1;
             },
             .Text => |text| {
-                if (textReady) {
-                    self.textMesh.clearVertices();
-                    textReady = false;
-                    // not actually used right now just use the main dynamic mesh
-                    try self.drawCommands.append(.{ .text = 0 });
+                var textDisplay = self.textRenderer.displays.items[self.textCount];
+                textDisplay.displaySize = text.textSize;
+                textDisplay.boxSize = .{ .x = text.size.x, .y = text.size.y };
+                textDisplay.color = text.color;
+                textDisplay.position = .{ .x = text.tl.x, .y = text.tl.y };
+                textDisplay.string.clearRetainingCapacity();
+                try textDisplay.string.appendSlice(text.text.utf8);
 
-                    // add dimensions of each character into the thing.
-                    var str = text.text.getRead();
-                    var xOffset = text.tl.x;
-
-                    const ratio = (text.textSize - 1) / self.fontAtlas.fontSize;
-                    const stride = @intToFloat(f32, self.fontAtlas.glyphStride) * ratio;
-
-                    for (str) |ch| {
-                        if (!self.fontAtlas.hasGlyph[ch]) {
-                            xOffset += stride / 2;
-                            continue;
-                        }
-                        const Vector2 = papyrus.Vector2;
-
-                        const box = Vector2.fromVector2i(self.fontAtlas.glyphBox1[ch]).fmul(ratio);
-                        const metrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]).fmul(ratio);
-                        const baseMetrics = Vector2.fromVector2i(self.fontAtlas.glyphMetrics[ch]);
-                        const fontHeight = @intToFloat(f32, self.fontAtlas.glyphMetrics['A'].y) * ratio;
-
-                        const uv_tl = self.fontAtlas.glyphCoordinates[ch][0];
-
-                        self.textMesh.addQuad2D(
-                            .{ .x = xOffset + box.x, .y = text.tl.y + box.y + fontHeight, .z = 0 }, // top left
-                            .{ .x = metrics.x, .y = metrics.y, .z = 0 },
-                            .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
-                            .{
-                                .x = baseMetrics.x / @intToFloat(f32, self.fontAtlas.atlasSize.x),
-                                .y = baseMetrics.y / @intToFloat(f32, self.fontAtlas.atlasSize.y),
-                            }, // uv size
-                            .{ .r = text.color.r, .g = text.color.g, .b = text.color.b }, // color
-                        );
-
-                        if (ch == ' ') {
-                            xOffset += stride / 2;
-                        } else {
-                            xOffset += box.x + metrics.x;
-                        }
-                    }
-                }
+                try self.drawCommands.append(.{ .text = self.textCount });
+                self.textCount += 1;
             },
         }
     }
 }
 
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
+    _ = frameTime;
+
     var z = tracy.ZoneN(@src(), "Papyrus post draw");
     defer z.End();
     var vertexBufferOffset: u64 = 0;
@@ -410,14 +375,8 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     }
 
     // draw text
-    self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.textMaterial.pipeline);
-    self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.textMesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
-    self.gc.vkd.cmdBindIndexBuffer(cmd, self.textMesh.getIndexBuffer().buffer, 0, .uint32);
-    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.textMaterial.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
-    self.gc.vkd.cmdDrawIndexed(cmd, self.textMesh.getIndexBufferLen(), 1, 0, 0, 0);
-    _ = frameTime;
-
-    for (self.textRenderer.displays.items) |drawText| {
+    for (0..self.textCount) |i| {
+        var drawText = self.textRenderer.displays.items[i];
         drawText.draw(cmd, self.textMaterial);
     }
 }
@@ -431,10 +390,8 @@ pub fn deinit(self: *@This()) void {
 
     self.pipeData.deinit(self.allocator, self.gc);
     self.textPipeData.deinit(self.allocator, self.gc);
-    self.textMesh.deinit();
 
     self.indexBuffer.deinit(self.gc);
-    self.allocator.destroy(self.textMesh);
 
     self.papyrusCtx.deinit();
 

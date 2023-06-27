@@ -64,7 +64,7 @@ pub const DisplayText = struct {
 
     displaySize: f32 = 24.0,
     position: Vector2f = .{},
-    boxSize: Vector2f = .{},
+    boxSize: Vector2f = .{ .x = 10, .y = 10 },
     color: Color = .{ .r = 1.0, .g = 1.0, .b = 1.0 },
 
     pub fn deinit(self: *@This()) void {
@@ -127,6 +127,7 @@ pub const DisplayText = struct {
         const stride = @intToFloat(f32, atlas.glyphStride) * ratio;
 
         var xOffset = self.position.x;
+        var yOffset: f32 = 0;
 
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
@@ -142,8 +143,13 @@ pub const DisplayText = struct {
 
             const uv_tl = atlas.glyphCoordinates[ch][0];
 
+            if (xOffset + box.x > self.boxSize.x) {
+                xOffset = 0;
+                yOffset += fontHeight;
+            }
+
             self.mesh.addQuad2D(
-                .{ .x = xOffset + box.x, .y = self.position.y + box.y + fontHeight, .z = 0 }, // top left
+                .{ .x = xOffset + box.x, .y = yOffset + self.position.y + box.y + fontHeight, .z = 0 }, // top left
                 .{ .x = metrics.x, .y = metrics.y, .z = 0 },
                 .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
                 .{

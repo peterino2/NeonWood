@@ -1208,8 +1208,8 @@ pub const NodeProperty_Button = struct {
 };
 
 pub const NodeProperty_Text = struct {
-    pos: Vector2,
-    size: Vector2,
+    textSize: f32,
+    color: Color,
     font: PapyrusFont,
 };
 
@@ -1376,11 +1376,14 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addText(self: *@This(), parent: u32, text: []const u8) !u32 {
-        var slotNode = PapyrusNode{ .text = LocText.fromUtf8(text), .nodeType = .{ .DisplayText = .{
-            .pos = .{},
-            .size = .{},
-            .font = self.fallbackFont,
-        } } };
+        var slotNode = PapyrusNode{
+            .text = LocText.fromUtf8(text),
+            .nodeType = .{ .DisplayText = .{
+                .textSize = 24,
+                .color = Color.White,
+                .font = self.fallbackFont,
+            } },
+        };
         var slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
@@ -1511,6 +1514,7 @@ pub const PapyrusContext = struct {
             },
             Text: struct {
                 tl: Vector2,
+                size: Vector2,
                 text: LocText,
                 color: Color,
                 textSize: f32,
@@ -1660,6 +1664,7 @@ pub const PapyrusContext = struct {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Text = .{
                                 .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 1 }),
+                                .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
                                 .text = n.text,
                                 .color = panel.titleColor,
                                 .textSize = panel.titleSize - 3,
@@ -1687,15 +1692,29 @@ pub const PapyrusContext = struct {
                     }
                 },
                 .DisplayText => |txt| {
-                    var render = try layoutTextBox(
-                        self.allocator,
-                        resolvedSize,
-                        n.text.getRead(),
-                        txt.font.atlas,
-                        .WrapLimited,
-                    );
+                    try drawList.append(.{ .node = node, .primitive = .{
+                        .Text = .{
+                            .tl = resolvedPos,
+                            .size = n.size,
+                            .text = n.text,
+                            .color = txt.color,
+                            .textSize = txt.textSize - 3,
+                        },
+                    } });
 
-                    defer render.deinit();
+                    try layout.put(node, .{
+                        .pos = resolvedPos.add(Vector2.Ones),
+                        .size = resolvedSize.add(Vector2.Ones),
+                    });
+                    // var render = try layoutTextBox(
+                    //     self.allocator,
+                    //     resolvedSize,
+                    //     n.text.getRead(),
+                    //     txt.font.atlas,
+                    //     .WrapLimited,
+                    // );
+
+                    // defer render.deinit();
                 },
                 .Slot, .Button => {},
             }

@@ -58,6 +58,11 @@ pub const GameContext = struct {
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
         ctx.get(self.panel).style.borderColor = BurnStyle.Diminished;
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
+
+        const text = try ctx.addText(self.panel, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
+        ctx.get(text).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
+        ctx.get(text).pos = .{ .x = 32, .y = 32 };
+        ctx.get(text).size = .{ .x = 300, .y = 400 };
     }
 };
 
