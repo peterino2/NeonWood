@@ -156,9 +156,11 @@ pub const DisplayText = struct {
 
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
+        var shouldRed: bool = true;
 
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
+                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
@@ -168,11 +170,13 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ' or ch == '\n') {
+                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
 
             if (ch == ' ') {
+                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
@@ -189,6 +193,11 @@ pub const DisplayText = struct {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
             }
+            var color = self.color;
+            if (shouldRed) {
+                color = .{ .r = 1.0, .g = 0.0, .b = 0.0 };
+                shouldRed = false;
+            }
 
             self.mesh.addQuad2D(
                 .{ .x = self.position.x + xOffset + box.x, .y = yOffset + self.position.y + box.y + fontHeight, .z = 0 }, // top left
@@ -198,7 +207,7 @@ pub const DisplayText = struct {
                     .x = baseMetrics.x / @intToFloat(f32, atlas.atlasSize.x),
                     .y = baseMetrics.y / @intToFloat(f32, atlas.atlasSize.y),
                 }, // uv size
-                .{ .r = self.color.r, .g = self.color.g, .b = self.color.b }, // color
+                .{ .r = color.r, .g = color.g, .b = color.b }, // color
             );
 
             xOffset += box.x + metrics.x;
