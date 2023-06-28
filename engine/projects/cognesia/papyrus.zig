@@ -503,6 +503,7 @@ pub const PapyrusImageSubsystem = struct {
     pub fn createMaterials(self: *@This()) !void {
         core.graphics_logs("creating image material");
         var gc: *graphics.NeonVkContext = self.gc;
+
         var pipelineBuilder = try NeonVkPipelineBuilder.init(
             gc.dev,
             gc.vkd,

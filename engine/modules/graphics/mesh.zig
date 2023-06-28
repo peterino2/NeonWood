@@ -279,6 +279,9 @@ pub const DynamicMesh = struct {
         defer t1.End();
 
         try self.stageDirtyVertices();
+        if (self.indexBufferLen[self.swapId] == 0 or self.vertexCount == 0) {
+            return;
+        }
 
         var vkd = self.gc.vkd;
 

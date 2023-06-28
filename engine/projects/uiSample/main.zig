@@ -96,7 +96,7 @@ const ipsum =
 ;
 
 pub fn main() anyerror!void {
-    nw.graphics.setStartupSettings("maxObjectCount", 10);
+    nw.graphics.setStartupSettings("maxObjectCount", 100);
     try nw.start_everything("NeonWood: ui");
     defer nw.shutdown_everything();
     try nw.run_no_input_tickable(GameContext);

@@ -189,14 +189,17 @@ pub fn buildTextPipeline(self: *@This()) !void {
     self.textPipeData = try gpdBuilder.build("Papyrus-Text");
     defer gpdBuilder.deinit();
 
+    var vert_spv = try graphics.loadSpv(self.allocator, "zig-out/shaders/FontSDF_vert.spv");
+    defer self.allocator.free(vert_spv);
+    var frag_spv = try graphics.loadSpv(self.allocator, "zig-out/shaders/FontSDF_frag.spv");
+    defer self.allocator.free(frag_spv);
+
     var builder = try graphics.NeonVkPipelineBuilder.init(
         self.gc.dev,
         self.gc.vkd,
         self.gc.allocator,
-        FontSDF_vert.spirv.len,
-        @ptrCast([*]const u32, @alignCast(4, FontSDF_vert.spirv)),
-        FontSDF_frag.spirv.len,
-        @ptrCast([*]const u32, @alignCast(4, FontSDF_frag.spirv)),
+        vert_spv,
+        frag_spv,
     );
     defer builder.deinit();
 
@@ -231,14 +234,18 @@ pub fn buildImagePipeline(self: *@This()) !void {
     self.pipeData = try spriteDataBuilder.build("Papyrus");
     defer spriteDataBuilder.deinit();
 
+    var vert_spv = try graphics.loadSpv(self.allocator, "zig-out/shaders/papyrus_vk_vert.spv");
+    defer self.allocator.free(vert_spv);
+
+    var frag_spv = try graphics.loadSpv(self.allocator, "zig-out/shaders/papyrus_vk_frag.spv");
+    defer self.allocator.free(frag_spv);
+
     var builder = try graphics.NeonVkPipelineBuilder.init(
         self.gc.dev,
         self.gc.vkd,
         self.gc.allocator,
-        papyrus_vk_vert.spirv.len,
-        @ptrCast([*]const u32, @alignCast(4, papyrus_vk_vert.spirv)),
-        papyrus_vk_frag.spirv.len,
-        @ptrCast([*]const u32, @alignCast(4, papyrus_vk_frag.spirv)),
+        vert_spv,
+        frag_spv,
     );
 
     defer builder.deinit();

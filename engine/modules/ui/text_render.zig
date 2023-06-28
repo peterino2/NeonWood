@@ -221,7 +221,7 @@ pub const TextRenderer = struct {
         var allocator = arena.allocator();
 
         self.* = .{
-            .allocator = allocator,
+            .allocator = backingAllocator,
             .arena = arena,
             .g = g,
             .papyrusCtx = papyrusCtx,

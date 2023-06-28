@@ -96,3 +96,15 @@ pub var icon: []const u8 = "content/textures/icon.png";
 pub fn setStartupSettings(comptime field: []const u8, value: anytype) void {
     @field(vk_renderer.gGraphicsStartupSettings, field) = value;
 }
+
+pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
+    var file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+    const filesize = (try file.stat()).size;
+    var buffer: []u8 = try allocator.alignedAlloc(u8, 4, filesize);
+    try file.reader().readNoEof(buffer);
+
+    var rv: []u32 = undefined;
+    rv.ptr = @ptrCast([*]u32, @alignCast(4, buffer.ptr));
+    rv.len = buffer.len / 4;
+    return rv;
+}

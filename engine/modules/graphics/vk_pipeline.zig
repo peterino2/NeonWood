@@ -173,11 +173,9 @@ pub const NeonVkPipelineBuilder = struct {
         dev: vk.Device,
         vkd: DeviceDispatch,
         allocator: Allocator,
-        vert_spv_len: u32,
-        vert_spv: [*]const u32,
-        frag_spv_len: u32,
-        frag_spv: [*]const u32,
-    ) !NeonVkPipelineBuilder {
+        vert_spv: []const u32,
+        frag_spv: []const u32,
+    ) !@This() {
         var self: NeonVkPipelineBuilder = undefined;
 
         self.vkd = vkd;
@@ -194,14 +192,14 @@ pub const NeonVkPipelineBuilder = struct {
 
         self.vertShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
-            .code_size = vert_spv_len,
-            .p_code = vert_spv,
+            .code_size = vert_spv.len * 4,
+            .p_code = vert_spv.ptr,
         }, null);
 
         self.fragShaderModule = try self.vkd.createShaderModule(self.dev, &.{
             .flags = .{},
-            .code_size = frag_spv_len,
-            .p_code = frag_spv,
+            .code_size = frag_spv.len * 4,
+            .p_code = frag_spv.ptr,
         }, null);
 
         self.vertexInputDescription = null;

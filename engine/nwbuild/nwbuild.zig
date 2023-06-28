@@ -184,7 +184,7 @@ pub const NwBuildSystem = struct {
     }
 
     pub fn addShader(self: *@This(), exe: *std.build.CompileStep, name: []const u8, path: []const u8) void {
-        var shader = self.spirvGen.shader(path, name, .{ .embedFile = true });
+        var shader = self.spirvGen.shader(path, name, .{ .embedFile = false });
         exe.addModule(name, shader);
     }
 };
