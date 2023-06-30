@@ -35,8 +35,10 @@ const GameContext = struct {
     timeElapsed: f64 = 0.0,
     reinjectFired: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{
+    pub fn init(allocator: std.mem.Allocator) !*Self {
+        var self = allocator.create(@This());
+
+        self.* = Self{
             .allocator = allocator,
             .jobContext = undefined,
         };
@@ -163,11 +165,19 @@ const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = gpa.allocator();
     engine_log("Starting up", .{});
-    core.start_module();
-    defer core.shutdown_module();
+    core.start_module(allocator);
+    defer core.shutdown_module(allocator);
 
-    try neonwood.platform.start_module(std.heap.c_allocator, "jobTest", null);
+    try neonwood.platform.start_module(allocator, "jobTest", null);
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });

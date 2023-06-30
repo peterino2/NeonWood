@@ -20,8 +20,9 @@ pub const NeonVkImGui = struct {
     ctx: *NeonVkContext = undefined,
     descriptorPool: vk.DescriptorPool = undefined,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{
+    pub fn init(allocator: std.mem.Allocator) !*Self {
+        var self = try allocator.create(Self);
+        self.* = .{
             .allocator = allocator,
         };
 

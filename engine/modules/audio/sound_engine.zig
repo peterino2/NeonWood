@@ -63,8 +63,9 @@ pub const NeonSoundEngine = struct {
     allocator: std.mem.Allocator,
     volume: f32 = 1.0,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        var self = @This(){
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+        self.* = @This(){
             .engine = allocator.create(c.ma_engine) catch unreachable,
             .sounds = .{},
             .allocator = allocator,

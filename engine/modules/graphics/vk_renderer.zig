@@ -340,7 +340,6 @@ pub const NeonVkContext = struct {
     graphicsQueue: NeonVkQueue,
     presentQueue: NeonVkQueue,
 
-    gpa: std.heap.GeneralPurposeAllocator(.{}),
     allocator: std.mem.Allocator,
 
     extent: vk.Extent2D,
@@ -485,10 +484,9 @@ pub const NeonVkContext = struct {
         self.renderObjectSet.get(handle, .renderObject).?.*.visibility = visible;
     }
 
-    pub fn init_zig_data(self: *Self) !void {
+    pub fn init_zig_data(self: *Self, allocator: std.mem.Allocator) !void {
         core.graphics_log("NeonVkContext StaticSize = {d} bytes", .{@sizeOf(Self)});
-        self.gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        self.allocator = std.heap.c_allocator;
+        self.allocator = allocator;
         self.swapchain = .null_handle;
         self.nextFrameIndex = 0;
         self.rendererTime = 0;
@@ -568,21 +566,20 @@ pub const NeonVkContext = struct {
         return alignedSize;
     }
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: std.mem.Allocator) !*Self {
         core.graphics_log("validation_layers: {any}", .{enable_validation_layers});
         core.graphics_log("release_build: {any}", .{build_opts.release_build});
-        _ = allocator;
-        return create_object() catch unreachable;
+        return create_object(allocator) catch unreachable;
     }
 
     // this is the old version
-    pub fn create_object() !Self {
-        var self: Self = undefined;
-        self.graph = try core.FileLog.init(std.heap.c_allocator, "renderer_graph.viz");
-        try self.graph.write("digraph G {{\n", .{});
+    pub fn create_object(allocator: std.mem.Allocator) !*Self {
+        var self: *Self = try allocator.create(Self);
+        std.debug.print("logging file set: {s} \n", .{"render_graph.viz"});
+        try self.init_zig_data(allocator);
 
-        try self.graph.write("  root->init_zig_data\n", .{});
-        try self.init_zig_data();
+        self.graph = try core.FileLog.init(allocator, "renderer_graph.viz");
+        try self.graph.write("digraph G {{\n", .{});
 
         try self.graph.write("  root->init_api\n", .{});
         try self.init_api();
@@ -1168,6 +1165,7 @@ pub const NeonVkContext = struct {
 
     pub fn tick(self: *Self, dt: f64) void {
         self.updateTime(dt);
+
         core.gScene.updateTransforms();
         self.sceneManager.update(self) catch unreachable;
         // self.dynamicMeshManager.tickUpdates() catch unreachable;

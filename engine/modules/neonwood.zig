@@ -9,23 +9,23 @@ const std = @import("std");
 
 const c = graphics.c;
 
-pub fn start_everything(windowName: []const u8) !void {
+pub fn start_everything(allocator: std.mem.Allocator, windowName: []const u8) !void {
     graphics.setWindowName(windowName);
     core.engine_log("Starting up", .{});
-    core.start_module();
+    core.start_module(allocator);
     try platform.start_module(std.heap.c_allocator, windowName, null);
-    assets.start_module();
-    audio.start_module();
-    graphics.start_module();
-    try ui.start_module(std.heap.c_allocator);
+    assets.start_module(allocator);
+    audio.start_module(allocator);
+    graphics.start_module(allocator);
+    try ui.start_module(allocator);
 }
 
-pub fn shutdown_everything() void {
+pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     ui.shutdown_module();
     graphics.shutdown_module();
     audio.shutdown_module();
     assets.shutdown_module();
-    core.shutdown_module();
+    core.shutdown_module(allocator);
 }
 
 pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
@@ -38,7 +38,7 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
     _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
-    while (!core.gEngine.exitSignal) {
+    while (!core.gEngine.exitConfirmed) {
         graphics.getContext().pollEventsFunc();
     }
 }
@@ -54,8 +54,9 @@ pub fn run_no_input_tickable(comptime T: type) !void {
     // run the game
     try core.gEngine.run();
 
-    while (!core.gEngine.exitSignal) {
+    while (!core.gEngine.exitConfirmed) {
         platform.getInstance().pollEvents();
+        std.time.sleep(1000 * 1000 * 25);
     }
 }
 

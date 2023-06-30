@@ -54,8 +54,9 @@ pub const GameContext = struct {
     panel: u32 = 0,
     panelText: ?[]u8 = null,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{
+    pub fn init(allocator: std.mem.Allocator) !*Self {
+        var self = try allocator.create(@This());
+        self.* = Self{
             .allocator = allocator,
             .camera = graphics.Camera.init(),
             .cameraHorizontalRotationMat = core.zm.identity(),
@@ -185,23 +186,32 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = gpa.allocator();
+
     engine_log("Starting up", .{});
 
-    core.start_module();
-    defer core.shutdown_module();
+    core.start_module(allocator);
+    defer core.shutdown_module(allocator);
 
-    try platform.start_module(std.heap.c_allocator, "Neonwood: flyaround demo", null);
+    try platform.start_module(allocator, "Neonwood: flyaround demo", null);
 
-    assets.start_module();
+    assets.start_module(allocator);
     defer assets.shutdown_module();
 
-    audio.start_module();
+    audio.start_module(allocator);
     defer audio.shutdown_module();
 
-    graphics.start_module();
+    graphics.start_module(allocator);
     defer graphics.shutdown_module();
 
-    try ui.start_module(std.heap.c_allocator);
+    try ui.start_module(allocator);
     defer ui.shutdown_module();
 
     var gameContext = try core.createObject(GameContext, .{ .can_tick = true });

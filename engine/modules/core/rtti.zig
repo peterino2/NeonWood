@@ -3,6 +3,7 @@ const logging = @import("logging.zig");
 const names = @import("names.zig");
 const input = @import("input.zig");
 const algorithm = @import("lib/p2/algorithm.zig");
+const engine_logs = logging.engine_logs;
 
 const ObjectHandle = algorithm.ObjectHandle;
 const Name = names.Name;
@@ -69,6 +70,7 @@ pub const InterfaceUiData = struct {
 
 pub const RttiDataEventError = error{
     UnknownStatePanic,
+    BadInit,
 };
 
 pub const RttiData = struct {
@@ -76,11 +78,7 @@ pub const RttiData = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    // format here is a bit imprecise
-    // the correct format is pub fn init(std.mem.Allocator) T
-    // this is used like a construct in place because... reasons
-
-    init_func: *const fn (std.mem.Allocator, *anyopaque) void,
+    init_func: *const fn (std.mem.Allocator) RttiDataEventError!*anyopaque,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
     postInit_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
@@ -90,8 +88,10 @@ pub const RttiData = struct {
         const wrappedInit = struct {
             const funcFind: @TypeOf(@field(TargetType, "init")) = @field(TargetType, "init");
 
-            pub fn func(allocator: std.mem.Allocator, pointer: *anyopaque) void {
-                @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer)).* = funcFind(allocator);
+            pub fn func(allocator: std.mem.Allocator) RttiDataEventError!*anyopaque {
+                engine_logs("calling init function");
+                var newObject = funcFind(allocator) catch return error.BadInit;
+                return @ptrCast(*anyopaque, newObject);
             }
         };
 

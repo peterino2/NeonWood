@@ -20,8 +20,10 @@ pub const GameContext = struct {
 
     fpsText: ?[]u8 = null,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{ .allocator = allocator };
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+        self.* = .{ .allocator = allocator };
+        return self;
     }
 
     pub fn deinit(self: *@This()) void {
@@ -96,8 +98,18 @@ const ipsum =
 ;
 
 pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = std.heap.c_allocator;
+    //const allocator = gpa.allocator();
+
     nw.graphics.setStartupSettings("maxObjectCount", 100);
-    try nw.start_everything("NeonWood: ui");
-    defer nw.shutdown_everything();
+    try nw.start_everything(allocator, "NeonWood: ui");
+    defer nw.shutdown_everything(allocator);
     try nw.run_no_input_tickable(GameContext);
 }

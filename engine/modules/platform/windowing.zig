@@ -73,8 +73,8 @@ pub const PlatformInstance = struct {
         }
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        // c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
-
+        c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
+        c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
         self.window = c.glfwCreateWindow(
             @intCast(c_int, self.extent.x),
             @intCast(c_int, self.extent.y),
@@ -223,3 +223,8 @@ pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.
 // pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
 //     c.cImGui_ImplGlfw_KeyCallback(@ptrCast(?*c.GLFWwindow, window), key, scancode, action, mods);
 // }
+
+pub var gPlatformSettings: struct {
+    pollLockoutTime: ?f32 = null,
+    decoratedWindow: bool = true,
+} = .{};

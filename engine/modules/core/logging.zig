@@ -71,11 +71,14 @@ pub const FileLog = struct {
     fileName: []u8,
 
     pub fn init(allocator: std.mem.Allocator, fileName: []const u8) !@This() {
-        return .{
+        std.debug.print("logging file set: {s} \n", .{fileName});
+        var self = @This(){
             .buffer = std.ArrayList(u8).init(allocator),
             .allocator = allocator,
             .fileName = try core.dupeString(allocator, fileName),
         };
+
+        return self;
     }
 
     pub fn write(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
@@ -102,7 +105,7 @@ pub const FileLog = struct {
 
         var childProc = std.ChildProcess.init(
             &.{ "dot", "-Tpng", srcFile, "-o", srcFile },
-            std.heap.c_allocator,
+            self.allocator,
         );
         _ = try childProc.spawnAndWait();
     }
@@ -185,13 +188,13 @@ pub const LoggerSys = struct {
         }
     }
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        // log file = Saved/Session_<CurrentDateTime>_log.txt
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
         const cwd = std.fs.cwd();
         var ofile = std.fmt.allocPrint(allocator, "Saved/{s}", .{"Session_Log.txt"}) catch unreachable;
         cwd.makePath("Saved") catch unreachable;
 
-        var self = @This(){
+        var self = try allocator.create(@This());
+        self.* = @This(){
             .allocator = allocator,
             .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,
             .flushBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,

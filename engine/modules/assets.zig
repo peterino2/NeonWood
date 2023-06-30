@@ -19,8 +19,7 @@ pub const AsyncAssetJobContext = asset_jobs.AsyncAssetJobContext;
 
 pub var gAssetSys: *AssetReferenceSys = undefined;
 
-pub fn start_module() void {
-    var allocator = std.heap.c_allocator;
+pub fn start_module(allocator: std.mem.Allocator) void {
     gAssetSys = allocator.create(AssetReferenceSys) catch unreachable;
     gAssetSys.* = AssetReferenceSys.init(allocator);
 }

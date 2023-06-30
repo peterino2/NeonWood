@@ -22,14 +22,11 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
     core.engine_log(" === preparing test with {d} entries === ", .{TestSize});
     var testMap = TestMap.init(allocator);
     defer testMap.deinit();
-    try core.traceFmtDefault("preparing hashmap with {d} entries", .{TestSize});
     var i: usize = 0;
     while (i < TestSize) : (i += 1) {
         try testMap.put(@intCast(u32, i), .{});
     }
     // core.engine_logs("hashmap prep finished");
-    try core.traceFmtDefault("prep complete", .{});
-    try core.traceFmtDefault("testing 20M accesses hashMap", .{});
     i = 0;
     _ = rand;
     var hashMapTime: f64 = 0;
@@ -51,11 +48,8 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
         // existence check
         // memory usage
     }
-    try core.traceFmtDefault("hasmap test complete", .{});
 
     // --- testing sparse sets
-    // core.engine_logs("Testing sparse sets");
-    try core.traceFmtDefault("preparing sparseSet with {d} entries", .{TestSize});
     var testSet = TestSet.init(allocator);
     defer testSet.deinit();
     var handlesList = std.ArrayList(core.ObjectHandle).init(allocator);
@@ -65,8 +59,6 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
         var newHandle = try testSet.createObject(.{});
         try handlesList.append(newHandle);
     }
-    // core.engine_logs("sparseSet prep finished");
-    try core.traceFmtDefault("prep complete", .{});
 
     var sparseSetTime: f64 = 0;
     i = 0;
@@ -81,9 +73,6 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
     }
 
     core.engine_log("sparseSet is {d} times faster than hashmap", .{hashMapTime / sparseSetTime});
-
-    // dump trace results
-    // try core.dumpDefaultTrace();
 }
 
 const K = 1000;
@@ -91,9 +80,18 @@ const M = 1000 * K;
 const G = 1000 * M;
 
 pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = gpa.allocator();
+
     core.engine_log("Starting up", .{});
-    core.start_module();
-    defer core.shutdown_module();
+    core.start_module(allocator);
+    defer core.shutdown_module(allocator);
     try LookupPerfTest(10, 10 * M);
     try LookupPerfTest(100, 10 * M);
     try LookupPerfTest(1 * K, 10 * M);

@@ -62,18 +62,20 @@ pub const PapyrusPushConstant = struct {
 
 pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData;
 
-pub fn init(allocator: std.mem.Allocator) @This() {
-    var papyrusCtx = papyrus.initialize(allocator) catch unreachable;
-    return .{
+pub fn init(allocator: std.mem.Allocator) !*@This() {
+    var papyrusCtx = try papyrus.initialize(allocator);
+    var self = try allocator.create(@This());
+    self.* = .{
         .allocator = allocator,
         .gc = graphics.getContext(),
         .papyrusCtx = papyrusCtx,
-        .quad = allocator.create(graphics.Mesh) catch unreachable,
-        .graphLog = core.FileLog.init(allocator, "papyrus_callgraph.viz") catch unreachable,
-        .fontAtlas = papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64) catch unreachable,
+        .quad = try allocator.create(graphics.Mesh),
+        .graphLog = try core.FileLog.init(allocator, "papyrus_callgraph.viz"),
+        .fontAtlas = try papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64),
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
-        .textRenderer = TextRenderer.init(allocator, graphics.getContext(), papyrusCtx) catch unreachable,
+        .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
     };
+    return self;
 }
 
 pub fn prepareFont(self: *@This()) !void {

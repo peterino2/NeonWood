@@ -263,11 +263,14 @@ pub const DebugDrawSubsystem = struct {
     }
 
     // NeonObject Interface Implementation
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+        self.* = .{
             .allocator = allocator,
             .debugDraws = core.RingQueueU(DebugPrimitive).init(allocator, objectCount) catch unreachable,
         };
+
+        return self;
     }
 
     pub fn deinit(self: *@This()) void {

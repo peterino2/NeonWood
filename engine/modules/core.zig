@@ -46,9 +46,9 @@ const log = logging.engine_log;
 
 pub var gScene: *SceneSystem = undefined;
 
-pub fn start_module() void {
-    gEngine = gEngineAllocator.create(Engine) catch unreachable;
-    gEngine.* = Engine.init(gEngineAllocator) catch unreachable;
+pub fn start_module(allocator: std.mem.Allocator) void {
+    gEngine = allocator.create(Engine) catch unreachable;
+    gEngine.* = Engine.init(allocator) catch unreachable;
 
     gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
 
@@ -60,8 +60,8 @@ pub fn start_module() void {
 
 pub fn run() void {}
 
-pub fn shutdown_module() void {
-    gEngineAllocator.destroy(gEngine);
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    allocator.destroy(gEngine);
     logs("core module shutting down...");
     return;
 }
@@ -70,7 +70,6 @@ pub fn dispatchJob(capture: anytype) !void {
     try gEngine.jobManager.newJob(capture);
 }
 
-pub var gEngineAllocator: std.mem.Allocator = std.heap.c_allocator;
 pub var gEngine: *Engine = undefined;
 
 pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
@@ -87,12 +86,6 @@ pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
 
 pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
     try traceFmt(DefaultName, fmt, args);
-}
-
-pub fn dumpDefaultTrace() !void {
-    for (gEngine.tracesContext.traces.getEntry(DefaultName.hash).?.value_ptr.*.data.items) |*t| {
-        t.debugPrint(std.heap.c_allocator);
-    }
 }
 
 pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {

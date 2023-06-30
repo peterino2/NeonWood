@@ -17,9 +17,16 @@ const Color = papyrus.Color;
 pub const FontAtlasVk = struct {
     g: *graphics.NeonVkContext,
     allocator: std.mem.Allocator,
+    isDefault: bool = false,
     atlas: *FontAtlas,
     texture: *graphics.Texture = undefined,
     textureSet: *vk.DescriptorSet = undefined,
+
+    pub fn deinit(self: @This()) void {
+        if (!self.isDefault) {
+            self.atlas.deinit();
+        }
+    }
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -69,7 +76,8 @@ pub const DisplayText = struct {
     color: Color = .{ .r = 1.0, .g = 1.0, .b = 1.0 },
 
     pub fn deinit(self: *@This()) void {
-        _ = self;
+        self.mesh.deinit();
+        self.string.deinit();
     }
 
     pub fn getHash(self: *@This()) u32 {
@@ -238,6 +246,7 @@ pub const TextRenderer = struct {
 
         var new = try self.allocator.create(FontAtlasVk);
         new.* = try FontAtlasVk.init(self.allocator, self.g);
+        new.isDefault = true;
         new.atlas = papyrusCtx.fallbackFont.atlas; // use default font instead of loading a font from text file
         try new.prepareFont(core.MakeName("default"));
 
@@ -280,6 +289,17 @@ pub const TextRenderer = struct {
 
     pub fn deinit(self: *@This(), backingAllocator: std.mem.Allocator) void {
         self.arena.deinit();
+        for (self.displays.items) |display| {
+            display.deinit();
+        }
+        self.displays.deinit(self.allocator);
         backingAllocator.destroy(self);
+
+        {
+            var iter = self.fonts.iterator();
+            while (iter.next()) |i| {
+                i.value_ptr.*.deinit();
+            }
+        }
     }
 };

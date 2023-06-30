@@ -61,14 +61,11 @@ pub const Engine = struct {
         self.tracesContext.deinit();
     }
 
-    // creates a neon object using the engine's allocator.
-    // todo.. maybe there needs to be a managed NeObjectRef that allows a custom allocator
-    // todo: We need a sparse array implementation of this
+    // creates an engine object using the engine's allocator.
     pub fn createObject(self: *@This(), comptime T: type, params: NeonObjectParams) !*T {
         const newIndex = self.rttiObjects.items.len;
-        var newObjectPtr = try self.allocator.create(T);
         const vtable = &@field(T, "NeonObjectTable");
-        vtable.init_func(self.allocator, @ptrCast(*anyopaque, newObjectPtr));
+        var newObjectPtr = try vtable.init_func(self.allocator);
 
         const newObjectRef = NeonObjectRef{
             .ptr = @ptrCast(*anyopaque, newObjectPtr),
@@ -94,7 +91,7 @@ pub const Engine = struct {
             try vtable.postInit_func.?(newObjectPtr);
         }
 
-        return newObjectPtr;
+        return @ptrCast(*T, @alignCast(@alignOf(T), newObjectPtr));
     }
 
     pub fn tick(self: *@This()) !void {

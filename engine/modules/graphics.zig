@@ -62,7 +62,7 @@ pub fn registerRendererPlugin(value: anytype) !void {
     try gc.rendererPlugins.append(gc.allocator, ref);
 }
 
-pub fn start_module() void {
+pub fn start_module(allocator: std.mem.Allocator) void {
     engine_logs("graphics module starting up...");
 
     var context: *NeonVkContext = core.gEngine.createObject(
@@ -79,7 +79,7 @@ pub fn start_module() void {
 
     vkUi.setup(context) catch unreachable;
 
-    vk_assetLoaders.init_loaders() catch unreachable;
+    vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
     debug_draw.init_debug_draw_subsystem() catch unreachable;
 }

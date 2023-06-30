@@ -119,12 +119,15 @@ pub const TextureLoader = struct {
         }
     }
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+        self.* = .{
             .gc = vk_renderer.gContext,
             //todo: the RttiData init function should have a handleable error
             .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 1024) catch unreachable,
         };
+
+        return self;
     }
 };
 
@@ -142,9 +145,7 @@ pub const MeshLoader = struct {
 pub var gTextureLoader: *TextureLoader = undefined;
 pub var gMeshLoader: *MeshLoader = undefined;
 
-pub fn init_loaders() !void {
-    var allocator = std.heap.c_allocator;
-
+pub fn init_loaders(allocator: std.mem.Allocator) !void {
     gTextureLoader = try core.createObject(TextureLoader, .{
         .responds_to_events = true,
     });

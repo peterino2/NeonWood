@@ -203,11 +203,13 @@ pub const SceneSystem = struct {
     }
 
     // ----- NeonObject interace ----
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+        self.* = .{
             .allocator = allocator,
             .objects = SceneSet.init(allocator),
         };
+        return self;
     }
 
     pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void {
