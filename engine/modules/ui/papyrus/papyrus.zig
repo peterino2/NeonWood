@@ -427,21 +427,25 @@ pub const FontAtlas = struct {
             }
 
             if (self.glyphMetrics[ch].x > max.x) {
-                max.x = self.glyphMetrics[ch].x;
+                if (self.glyphMetrics[ch].x < 128) {
+                    max.x = self.glyphMetrics[ch].x;
+                }
             }
 
-            if (self.glyphMetrics[ch].y > max.y)
-                max.y = self.glyphMetrics[ch].y;
+            if (self.glyphMetrics[ch].y > max.y) {
+                if (self.glyphMetrics[ch].y < 128) {
+                    max.y = self.glyphMetrics[ch].y;
+                }
+            }
         }
 
         self.glyphMax = max;
+        std.debug.print("creating atlas: {any}\n", .{self.glyphMax});
         // allocate the atlasBuffer, just a linear strip
         self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) };
         self.glyphStride = max.x + 1;
         self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
         @memset(self.atlasBuffer.?, 0x0);
-
-        std.debug.print("creating atlas: {s}\n", .{self.filePath});
 
         // write bitmaps into the atlas buffer
         ch = 0;
