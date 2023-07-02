@@ -400,6 +400,9 @@ pub const FontAtlas = struct {
         self.scale = c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize);
 
         while (ch < glyphCount) : (ch += 1) {
+            self.glyphMetrics[ch] = .{ .x = 0, .y = 0 };
+            self.glyphBox1[ch] = .{ .x = 0, .y = 0 };
+
             if (self.isSDF) {
                 glyphs[ch] = c.stbtt_GetCodepointSDF(
                     &self.font,
@@ -427,15 +430,15 @@ pub const FontAtlas = struct {
             }
 
             if (self.glyphMetrics[ch].x > max.x) {
-                if (self.glyphMetrics[ch].x < 128) {
-                    max.x = self.glyphMetrics[ch].x;
-                }
+                //if (self.glyphMetrics[ch].x < 128) {
+                max.x = self.glyphMetrics[ch].x;
+                //}
             }
 
             if (self.glyphMetrics[ch].y > max.y) {
-                if (self.glyphMetrics[ch].y < 128) {
-                    max.y = self.glyphMetrics[ch].y;
-                }
+                //if (self.glyphMetrics[ch].y < 128) {
+                max.y = self.glyphMetrics[ch].y;
+                //}
             }
         }
 
