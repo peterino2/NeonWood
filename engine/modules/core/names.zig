@@ -9,7 +9,7 @@ pub const Name = struct {
 
         for (source) |c| {
             hash = @mulWithOverflow(hash, 33)[0];
-            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+            hash = @addWithOverflow(hash, @as(u32, @intCast(c)))[0];
         }
 
         var self = .{

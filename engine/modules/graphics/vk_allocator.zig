@@ -38,7 +38,7 @@ pub const NeonVkImage = struct {
 
     /// returns the image ratio of the height over width
     pub inline fn getImageRatioFloat(self: @This()) f32 {
-        return @intToFloat(f32, self.pixelHeight) / @intToFloat(f32, self.pixelWidth);
+        return @as(f32, @floatFromInt(self.pixelHeight)) / @as(f32, @floatFromInt(self.pixelWidth));
     }
 };
 
@@ -149,12 +149,12 @@ pub const NeonVkAllocator = struct {
 
     fn pushAllocation(self: *@This(), allocation: vma.Allocation, tag: []const u8) !void {
         try self.liveAllocations.append(.{
-            .allocation = @enumToInt(allocation),
+            .allocation = @intFromEnum(allocation),
             .tag = tag,
         });
 
         try self.eventsList.append(.{ .allocate = .{
-            .alloc = @enumToInt(allocation),
+            .alloc = @intFromEnum(allocation),
             .tag = tag,
         } });
     }
@@ -166,7 +166,7 @@ pub const NeonVkAllocator = struct {
         var found: bool = false;
 
         while (i < self.liveAllocations.items.len) : (i += 1) {
-            if (self.liveAllocations.items[i].allocation == @enumToInt(allocation)) {
+            if (self.liveAllocations.items[i].allocation == @intFromEnum(allocation)) {
                 found = true;
                 live = self.liveAllocations.items[i];
                 break;
@@ -180,7 +180,7 @@ pub const NeonVkAllocator = struct {
         }
 
         self.eventsList.append(.{ .destroy = .{
-            .alloc = @enumToInt(allocation),
+            .alloc = @intFromEnum(allocation),
             .tag = live.tag,
         } }) catch unreachable;
     }

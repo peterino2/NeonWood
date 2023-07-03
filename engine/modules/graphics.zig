@@ -104,7 +104,7 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     try file.reader().readNoEof(buffer);
 
     var rv: []u32 = undefined;
-    rv.ptr = @ptrCast([*]u32, @alignCast(4, buffer.ptr));
+    rv.ptr = @as([*]u32, @ptrCast(@alignCast(buffer.ptr)));
     rv.len = buffer.len / 4;
     return rv;
 }

@@ -90,7 +90,7 @@ const BmpRenderer = struct {
         defer drawList.deinit();
 
         const tend = timer.read();
-        const duration = (@intToFloat(f64, tend - tstart) / 1000);
+        const duration = (@as(f64, @floatFromInt(tend - tstart)) / 1000);
         std.debug.print(" drawList Assembly: {d}us\n", .{duration});
 
         var i: u32 = 0;
@@ -144,7 +144,7 @@ const BmpWriter = struct {
     pixelBuffer: []u8,
 
     pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
-        var pixelBuffer = try allocator.alloc(u8, @intCast(usize, resolution.x * resolution.y * 3));
+        var pixelBuffer = try allocator.alloc(u8, @as(usize, @intCast(resolution.x * resolution.y * 3)));
         @memset(pixelBuffer, 0x8);
         return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
     }
@@ -156,11 +156,11 @@ const BmpWriter = struct {
         while (y < height) : (y += 1) {
             x = 0;
             while (x < width) : (x += 1) {
-                const i = (x + xPos + (@intCast(i32, self.extent.y) - y - yPos) * @intCast(i32, self.extent.x)) * 3;
-                const clamped = @intCast(usize, std.math.max(i, 0));
-                self.pixelBuffer[clamped + 0] = pixels[@intCast(usize, y * width + x)];
-                self.pixelBuffer[clamped + 1] = pixels[@intCast(usize, y * width + x)];
-                self.pixelBuffer[clamped + 2] = pixels[@intCast(usize, y * width + x)];
+                const i = (x + xPos + (@as(i32, @intCast(self.extent.y)) - y - yPos) * @as(i32, @intCast(self.extent.x))) * 3;
+                const clamped = @as(usize, @intCast(@max(i, 0)));
+                self.pixelBuffer[clamped + 0] = pixels[@as(usize, @intCast(y * width + x))];
+                self.pixelBuffer[clamped + 1] = pixels[@as(usize, @intCast(y * width + x))];
+                self.pixelBuffer[clamped + 2] = pixels[@as(usize, @intCast(y * width + x))];
             }
         }
     }
@@ -181,20 +181,20 @@ const BmpWriter = struct {
         while (row < metrics.y) : (row += 1) {
             var col: i32 = 0;
             while (col < metrics.x) : (col += 1) {
-                const pixelOffset = @intCast(usize, (atlas.glyphStride * ch) + col + row * atlas.atlasSize.x);
-                const pixelOffset2 = @intCast(usize, ((self.extent.y - pos.y - row) * self.extent.x) + pos.x + col);
+                const pixelOffset = @as(usize, @intCast((atlas.glyphStride * ch) + col + row * atlas.atlasSize.x));
+                const pixelOffset2 = @as(usize, @intCast(((self.extent.y - pos.y - row) * self.extent.x) + pos.x + col));
 
-                const alpha = @intToFloat(f32, atlas.atlasBuffer.?[pixelOffset]) / 255;
+                const alpha = @as(f32, @floatFromInt(atlas.atlasBuffer.?[pixelOffset])) / 255;
                 const old = Color.fromRGB2(
-                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 2]) / 255,
-                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 1]) / 255,
-                    @intToFloat(f32, self.pixelBuffer[pixelOffset2 * 3 + 0]) / 255,
+                    @as(f32, @floatFromInt(self.pixelBuffer[pixelOffset2 * 3 + 2])) / 255,
+                    @as(f32, @floatFromInt(self.pixelBuffer[pixelOffset2 * 3 + 1])) / 255,
+                    @as(f32, @floatFromInt(self.pixelBuffer[pixelOffset2 * 3 + 0])) / 255,
                 );
 
                 const new = ColorRGBA8{
-                    .r = @floatToInt(u8, 255 * (alpha * color.r + (1 - alpha) * old.r)),
-                    .g = @floatToInt(u8, 255 * (alpha * color.g + (1 - alpha) * old.g)),
-                    .b = @floatToInt(u8, 255 * (alpha * color.r + (1 - alpha) * old.b)),
+                    .r = @as(u8, @intFromFloat(255 * (alpha * color.r + (1 - alpha) * old.r))),
+                    .g = @as(u8, @intFromFloat(255 * (alpha * color.g + (1 - alpha) * old.g))),
+                    .b = @as(u8, @intFromFloat(255 * (alpha * color.r + (1 - alpha) * old.b))),
                 };
 
                 self.pixelBuffer[pixelOffset2 * 3 + 2] = new.r;
@@ -216,7 +216,7 @@ const BmpWriter = struct {
                 atlas,
                 topLeft.add(.{
                     .x = accum,
-                    .y = @floatToInt(i32, atlas.fontSize),
+                    .y = @as(i32, @intFromFloat(atlas.fontSize)),
                 }).add(.{ .x = box.x, .y = box.y }),
                 ch,
                 color,
@@ -240,7 +240,7 @@ const BmpWriter = struct {
             {
                 const col = topLeft.x;
                 if (col >= 0 and col < self.extent.x) {
-                    const pixelOffset = @intCast(usize, flippedRow * self.extent.x + col);
+                    const pixelOffset = @as(usize, @intCast(flippedRow * self.extent.x + col));
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -254,7 +254,7 @@ const BmpWriter = struct {
                     if (col < 0 or col >= self.extent.x) {
                         continue;
                     }
-                    const pixelOffset = @intCast(usize, (flippedRow) * self.extent.x + col);
+                    const pixelOffset = @as(usize, @intCast((flippedRow) * self.extent.x + col));
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -265,7 +265,7 @@ const BmpWriter = struct {
             {
                 const col = topLeft.x + size.x;
                 if (col >= 0 and col < self.extent.x) {
-                    const pixelOffset = @intCast(usize, flippedRow * self.extent.x + col);
+                    const pixelOffset = @as(usize, @intCast(flippedRow * self.extent.x + col));
 
                     self.pixelBuffer[pixelOffset * 3 + 2] = r;
                     self.pixelBuffer[pixelOffset * 3 + 1] = g;
@@ -278,7 +278,7 @@ const BmpWriter = struct {
     pub fn writeOut(self: @This(), outFile: []const u8) !void {
         var header: FileHeader = .{
             .rsvd0 = 0,
-            .filesize = @intCast(u32, self.extent.x * self.extent.y * 3 + @intCast(u32, @sizeOf(FileHeader))),
+            .filesize = @as(u32, @intCast(self.extent.x * self.extent.y * 3 + @as(u32, @intCast(@sizeOf(FileHeader))))),
             .pixelArrayOffset = @sizeOf(FileHeader) + @sizeOf(Windows31Info),
         };
 
@@ -290,9 +290,9 @@ const BmpWriter = struct {
             .mostImpColor = 0,
             .xPixelPerMeter = 0x130B,
             .yPixelPerMeter = 0x130B,
-            .width = @intCast(u32, self.extent.x),
-            .height = @intCast(u32, self.extent.y),
-            .imageSize = @intCast(u32, self.extent.x * self.extent.y * 3),
+            .width = @as(u32, @intCast(self.extent.x)),
+            .height = @as(u32, @intCast(self.extent.y)),
+            .imageSize = @as(u32, @intCast(self.extent.x * self.extent.y * 3)),
         };
 
         const cwd = std.fs.cwd();
@@ -407,7 +407,7 @@ pub const FontAtlas = struct {
                 glyphs[ch] = c.stbtt_GetCodepointSDF(
                     &self.font,
                     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-                    @intCast(c_int, ch),
+                    @as(c_int, @intCast(ch)),
                     5,
                     180,
                     36,
@@ -421,7 +421,7 @@ pub const FontAtlas = struct {
                     &self.font,
                     0,
                     c.stbtt_ScaleForPixelHeight(&self.font, self.fontSize),
-                    @intCast(c_int, ch),
+                    @as(c_int, @intCast(ch)),
                     &self.glyphMetrics[ch].x,
                     &self.glyphMetrics[ch].y,
                     &self.glyphBox1[ch].x,
@@ -447,19 +447,19 @@ pub const FontAtlas = struct {
         // allocate the atlasBuffer, just a linear strip
         self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) };
         self.glyphStride = max.x + 1;
-        self.atlasBuffer = try self.allocator.alloc(u8, @intCast(usize, self.atlasSize.x * self.atlasSize.y));
+        self.atlasBuffer = try self.allocator.alloc(u8, @as(usize, @intCast(self.atlasSize.x * self.atlasSize.y)));
         @memset(self.atlasBuffer.?, 0x0);
 
         // write bitmaps into the atlas buffer
         ch = 0;
         while (ch < glyphCount) : (ch += 1) {
-            if (@ptrToInt(glyphs[ch]) == 0) {
+            if (@intFromPtr(glyphs[ch]) == 0) {
                 self.hasGlyph[ch] = false;
                 continue;
             }
             self.hasGlyph[ch] = true;
 
-            const tl = Vector2i{ .x = @intCast(i32, ch) * (max.x + 1), .y = 0 };
+            const tl = Vector2i{ .x = @as(i32, @intCast(ch)) * (max.x + 1), .y = 0 };
             const maxCol = self.glyphMetrics[ch].x;
             const maxRow = self.glyphMetrics[ch].y;
             var col: i32 = 0;
@@ -468,28 +468,28 @@ pub const FontAtlas = struct {
             // get floating point coordinates for rendering to opengl/vulkan
             // get top left coordinates
             self.glyphCoordinates[ch][0] = .{
-                .x = @intToFloat(f32, tl.x) / @intToFloat(f32, self.atlasSize.x),
-                .y = @intToFloat(f32, tl.y) / @intToFloat(f32, self.atlasSize.y),
+                .x = @as(f32, @floatFromInt(tl.x)) / @as(f32, @floatFromInt(self.atlasSize.x)),
+                .y = @as(f32, @floatFromInt(tl.y)) / @as(f32, @floatFromInt(self.atlasSize.y)),
             };
 
             // get bottom right coordinates
             self.glyphCoordinates[ch][1] = .{
-                .x = @intToFloat(f32, tl.x + self.glyphMetrics[ch].x) / @intToFloat(f32, self.atlasSize.x),
-                .y = @intToFloat(f32, tl.y + self.glyphMetrics[ch].y) / @intToFloat(f32, self.atlasSize.y),
+                .x = @as(f32, @floatFromInt(tl.x + self.glyphMetrics[ch].x)) / @as(f32, @floatFromInt(self.atlasSize.x)),
+                .y = @as(f32, @floatFromInt(tl.y + self.glyphMetrics[ch].y)) / @as(f32, @floatFromInt(self.atlasSize.y)),
             };
 
             while (row < maxRow) : (row += 1) {
                 col = 0;
                 while (col < maxCol) : (col += 1) {
-                    const pixelOffset = @intCast(usize, ((row + tl.y) * self.atlasSize.x) + (col + tl.x));
-                    self.atlasBuffer.?[pixelOffset] = glyphs[ch][@intCast(usize, (row * maxCol) + col)];
+                    const pixelOffset = @as(usize, @intCast(((row + tl.y) * self.atlasSize.x) + (col + tl.x)));
+                    self.atlasBuffer.?[pixelOffset] = glyphs[ch][@as(usize, @intCast((row * maxCol) + col))];
                 }
             }
 
-            const xSize = @intToFloat(f32, self.glyphMetrics[ch].x) * self.scale;
-            const ySize = @intToFloat(f32, self.glyphMetrics[ch].y) * self.scale;
-            const xOff = @intToFloat(f32, self.glyphBox1[ch].x) * self.scale;
-            const yOff = @intToFloat(f32, self.glyphBox1[ch].y) * self.scale;
+            const xSize = @as(f32, @floatFromInt(self.glyphMetrics[ch].x)) * self.scale;
+            const ySize = @as(f32, @floatFromInt(self.glyphMetrics[ch].y)) * self.scale;
+            const xOff = @as(f32, @floatFromInt(self.glyphBox1[ch].x)) * self.scale;
+            const yOff = @as(f32, @floatFromInt(self.glyphBox1[ch].y)) * self.scale;
 
             // create an appropriately proportioned mesh based on the scale.
             self.meshes[ch][0] = .{ .x = xOff, .y = ySize + yOff }; // TL
@@ -506,8 +506,8 @@ pub const FontAtlas = struct {
         while (row < renderer.extent.y) : (row += 1) {
             col = 0;
             while (col < renderer.extent.x) : (col += 1) {
-                const pixelOffset = @intCast(usize, (renderer.extent.x * (row)) + col);
-                const pixelOffset2 = @intCast(usize, (renderer.extent.x * (self.atlasSize.y - row - 1)) + col);
+                const pixelOffset = @as(usize, @intCast((renderer.extent.x * (row)) + col));
+                const pixelOffset2 = @as(usize, @intCast((renderer.extent.x * (self.atlasSize.y - row - 1)) + col));
                 renderer.pixelBuffer[pixelOffset * 3 + 0] = self.atlasBuffer.?[pixelOffset2];
                 renderer.pixelBuffer[pixelOffset * 3 + 1] = self.atlasBuffer.?[pixelOffset2];
                 renderer.pixelBuffer[pixelOffset * 3 + 2] = self.atlasBuffer.?[pixelOffset2];
@@ -589,19 +589,19 @@ pub const ColorRGBA8 = struct {
 
     pub fn fromHex(hex: u32) @This() {
         return .{
-            .r = @intCast(u8, (hex >> 24) & 0xFF),
-            .g = @intCast(u8, (hex >> 16) & 0xFF),
-            .b = @intCast(u8, (hex >> 8) & 0xFF),
-            .a = @intCast(u8, (hex) & 0xFF),
+            .r = @as(u8, @intCast((hex >> 24) & 0xFF)),
+            .g = @as(u8, @intCast((hex >> 16) & 0xFF)),
+            .b = @as(u8, @intCast((hex >> 8) & 0xFF)),
+            .a = @as(u8, @intCast((hex) & 0xFF)),
         };
     }
 
     pub fn fromColor(o: Color) @This() {
         return .{
-            .r = @floatToInt(u8, std.math.clamp(o.r, 0, 1.0) * 255),
-            .g = @floatToInt(u8, std.math.clamp(o.g, 0, 1.0) * 255),
-            .b = @floatToInt(u8, std.math.clamp(o.b, 0, 1.0) * 255),
-            .a = @floatToInt(u8, std.math.clamp(o.a, 0, 1.0) * 255),
+            .r = @as(u8, @intFromFloat(std.math.clamp(o.r, 0, 1.0) * 255)),
+            .g = @as(u8, @intFromFloat(std.math.clamp(o.g, 0, 1.0) * 255)),
+            .b = @as(u8, @intFromFloat(std.math.clamp(o.b, 0, 1.0) * 255)),
+            .a = @as(u8, @intFromFloat(std.math.clamp(o.a, 0, 1.0) * 255)),
         };
     }
 };
@@ -622,10 +622,10 @@ pub const Color = struct {
     pub const Magenta = fromRGB(0xFF00FF);
 
     pub fn intoRGBA(self: @This()) Color32 {
-        return ((@floatToInt(u32, self.r) * 0xFF) << 24) |
-            ((@floatToInt(u32, self.g) & 0xFF) << 16) |
-            ((@floatToInt(u32, self.b) & 0xFF) << 8) |
-            ((@floatToInt(u32, self.a) & 0xFF));
+        return ((@as(u32, @intFromFloat(self.r)) * 0xFF) << 24) |
+            ((@as(u32, @intFromFloat(self.g)) & 0xFF) << 16) |
+            ((@as(u32, @intFromFloat(self.b)) & 0xFF) << 8) |
+            ((@as(u32, @intFromFloat(self.a)) & 0xFF));
     }
 
     pub fn fromRGB2(r: anytype, g: anytype, b: anytype) @This() {
@@ -638,19 +638,19 @@ pub const Color = struct {
 
     pub fn fromRGB(rgb: u32) @This() {
         return @This(){
-            .r = @intToFloat(f32, (rgb >> 16) & 0xFF) / 255,
-            .g = @intToFloat(f32, (rgb >> 8) & 0xFF) / 255,
-            .b = @intToFloat(f32, (rgb) & 0xFF) / 255,
+            .r = @as(f32, @floatFromInt((rgb >> 16) & 0xFF)) / 255,
+            .g = @as(f32, @floatFromInt((rgb >> 8) & 0xFF)) / 255,
+            .b = @as(f32, @floatFromInt((rgb) & 0xFF)) / 255,
             .a = 1.0,
         };
     }
 
     pub fn fromRGBA(rgba: u32) @This() {
         return @This(){
-            .r = @intToFloat(f32, (rgba >> 24) & 0xFF) / 255,
-            .g = @intToFloat(f32, (rgba >> 16) & 0xFF) / 255,
-            .b = @intToFloat(f32, (rgba >> 8) & 0xFF) / 255,
-            .a = @intToFloat(f32, (rgba) & 0xFF) / 255,
+            .r = @as(f32, @floatFromInt((rgba >> 24) & 0xFF)) / 255,
+            .g = @as(f32, @floatFromInt((rgba >> 16) & 0xFF)) / 255,
+            .b = @as(f32, @floatFromInt((rgba >> 8) & 0xFF)) / 255,
+            .a = @as(f32, @floatFromInt((rgba) & 0xFF)) / 255,
         };
     }
 };
@@ -698,7 +698,7 @@ pub const HashStr = struct {
 
         for (source) |ch| {
             hash = @mulWithOverflow(hash, 33)[0];
-            hash = @addWithOverflow(hash, @intCast(u32, ch))[0];
+            hash = @addWithOverflow(hash, @as(u32, @intCast(ch)))[0];
         }
 
         var self = .{
@@ -733,17 +733,17 @@ pub const LocDbInterface = struct {
     pub fn from(comptime TargetType: type) void {
         const W = struct {
             pub fn getLocalized(pointer: *anyopaque, key: u32) ?[]const u8 {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 return ptr.getLocalized(key);
             }
 
             pub fn createEntry(pointer: *anyopaque, key: u32, source: []const u8) LocDbErrors!u32 {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.createEntry(key, source);
             }
 
             pub fn setLocalization(pointer: *anyopaque, name: HashStr) LocDbErrors!void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.setLocalization(name);
             }
         };
@@ -896,17 +896,17 @@ pub fn RingQueueU(comptime T: type) type {
         }
 
         pub fn pushFront(self: *@This(), value: T) !void {
-            var iHead = @intCast(isize, self.head) - 1;
+            var iHead = @as(isize, @intCast(self.head)) - 1;
 
             if (iHead < 0) {
-                iHead = @intCast(isize, self.buffer.len) + iHead;
+                iHead = @as(isize, @intCast(self.buffer.len)) + iHead;
             }
 
-            if (iHead == @intCast(isize, self.tail)) {
+            if (iHead == @as(isize, @intCast(self.tail))) {
                 return error.QueueIsFull;
             }
 
-            self.head = @intCast(usize, iHead);
+            self.head = @as(usize, @intCast(iHead));
             self.buffer[self.head] = value;
         }
 
@@ -950,13 +950,13 @@ pub fn RingQueueU(comptime T: type) type {
                 return null;
             }
 
-            var x: isize = @intCast(isize, self.tail) - @intCast(isize, offset);
+            var x: isize = @as(isize, @intCast(self.tail)) - @as(isize, @intCast(offset));
 
             if (x < 0) {
-                x = @intCast(isize, self.buffer.len) + x;
+                x = @as(isize, @intCast(self.buffer.len)) + x;
             }
 
-            return &self.buffer[@intCast(usize, x)];
+            return &self.buffer[@as(usize, @intCast(x))];
         }
 
         pub fn at(self: *@This(), offset: usize) ?*T {
@@ -1040,7 +1040,7 @@ pub fn DynamicPool(comptime T: type) type {
 
         pub fn new(self: *@This(), initVal: T) !Handle {
             if (self.dead.items.len > 0) {
-                const revivedIndex = @intCast(Handle, self.dead.items[self.dead.items.len - 1]);
+                const revivedIndex = @as(Handle, @intCast(self.dead.items[self.dead.items.len - 1]));
 
                 try assertf(
                     revivedIndex < self.active.items.len,
@@ -1054,7 +1054,7 @@ pub fn DynamicPool(comptime T: type) type {
             }
 
             try self.active.append(self.allocator, initVal);
-            return @intCast(Handle, self.active.items.len - 1);
+            return @as(Handle, @intCast(self.active.items.len - 1));
         }
 
         pub fn isValid(self: @This(), handle: Handle) bool {
@@ -1108,11 +1108,11 @@ pub const Vector2i = struct {
     }
 
     pub fn fmul(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x * @floatToInt(i32, o), .y = self.y * @floatToInt(i32, o) };
+        return .{ .x = self.x * @as(i32, @intFromFloat(o)), .y = self.y * @as(i32, @intFromFloat(o)) };
     }
 
     pub fn fromVector2(o: Vector2) @This() {
-        return .{ .x = @floatToInt(i32, o.x), .y = @floatToInt(i32, o.y) };
+        return .{ .x = @as(i32, @intFromFloat(o.x)), .y = @as(i32, @intFromFloat(o.y)) };
     }
 };
 
@@ -1139,19 +1139,19 @@ pub const Vector2 = struct {
     }
 
     pub inline fn fmul(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x * @floatCast(f32, o), .y = self.y * @floatCast(f32, o) };
+        return .{ .x = self.x * @as(f32, @floatCast(o)), .y = self.y * @as(f32, @floatCast(o)) };
     }
 
     pub inline fn fadd(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x + @floatCast(f32, o), .y = self.y + @floatCast(f32, o) };
+        return .{ .x = self.x + @as(f32, @floatCast(o)), .y = self.y + @as(f32, @floatCast(o)) };
     }
 
     pub inline fn fsub(self: @This(), o: anytype) @This() {
-        return .{ .x = self.x - @floatCast(f32, o), .y = self.y - @floatCast(f32, o) };
+        return .{ .x = self.x - @as(f32, @floatCast(o)), .y = self.y - @as(f32, @floatCast(o)) };
     }
 
     pub fn fromVector2i(o: Vector2i) @This() {
-        return .{ .x = @intToFloat(f32, o.x), .y = @intToFloat(f32, o.y) };
+        return .{ .x = @as(f32, @floatFromInt(o.x)), .y = @as(f32, @floatFromInt(o.y)) };
     }
 };
 
@@ -2018,7 +2018,7 @@ test "basic bmp renderer test" {
     defer atlas2.deinit();
 
     const endTime = timer.read();
-    const duration = (@intToFloat(f64, endTime - startTime) / 1000000000);
+    const duration = (@as(f64, @floatFromInt(endTime - startTime)) / 1000000000);
     std.debug.print(" duration: {d}\n", .{duration});
 
     try renderer.writeOut("Saved/test.bmp");
@@ -2090,7 +2090,7 @@ test "sdf texture generation" {
     var pixels = c.stbtt_GetCodepointSDF(
         &font,
         c.stbtt_ScaleForPixelHeight(&font, 50),
-        @intCast(c_int, 'a'),
+        @as(c_int, @intCast('a')),
         6,
         180,
         30,
@@ -2105,9 +2105,9 @@ test "sdf texture generation" {
 
     var pixelSlice: []const u8 = undefined;
     pixelSlice.ptr = pixels;
-    pixelSlice.len = @intCast(usize, width * height);
+    pixelSlice.len = @as(usize, @intCast(width * height));
 
-    writer.blitBlackWhite(pixelSlice, @intCast(i32, width), @intCast(i32, height), 32, 32);
+    writer.blitBlackWhite(pixelSlice, @as(i32, @intCast(width)), @as(i32, @intCast(height)), 32, 32);
     std.debug.print("\n{d}x{d}\n", .{ width, height });
 
     try writer.writeOut("Saved/sdf_single_char.bmp");

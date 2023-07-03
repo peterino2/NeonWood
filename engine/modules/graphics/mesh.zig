@@ -67,7 +67,7 @@ pub const IndexBuffer = struct {
             dataSlice.len = bufferSize;
 
             var iSlice: []const u8 = undefined;
-            iSlice.ptr = @ptrCast([*]const u8, indices.ptr);
+            iSlice.ptr = @as([*]const u8, @ptrCast(indices.ptr));
             iSlice.len = bufferSize;
 
             @memcpy(dataSlice, iSlice);
@@ -107,7 +107,7 @@ pub const IndexBuffer = struct {
                 stagingBuffer.buffer,
                 self.buffer.buffer,
                 1,
-                @ptrCast([*]const vk.BufferCopy, &copy),
+                @as([*]const vk.BufferCopy, @ptrCast(&copy)),
             );
         }
 
@@ -288,7 +288,7 @@ pub const DynamicMesh = struct {
         var copy = vk.BufferCopy{
             .dst_offset = 0,
             .src_offset = 0,
-            .size = self.indexBufferLen[self.swapId] * @intCast(u32, @sizeOf(u32)),
+            .size = self.indexBufferLen[self.swapId] * @as(u32, @intCast(@sizeOf(u32))),
         };
 
         // submit index Buffer
@@ -297,7 +297,7 @@ pub const DynamicMesh = struct {
             self.stagingIndexBuffer.buffer,
             self.indexBuffers[self.swapId].buffer,
             1,
-            @ptrCast([*]const vk.BufferCopy, &copy),
+            @as([*]const vk.BufferCopy, @ptrCast(&copy)),
         );
 
         var indexMemoryBarrier = vk.BufferMemoryBarrier{
@@ -315,7 +315,7 @@ pub const DynamicMesh = struct {
             .size = copy.size,
         };
 
-        copy.size = self.vertexCount * @intCast(u32, @sizeOf(Vertex));
+        copy.size = self.vertexCount * @as(u32, @intCast(@sizeOf(Vertex)));
 
         // Insert Barrier for indexBuffer
         vkd.cmdPipelineBarrier(
@@ -341,7 +341,7 @@ pub const DynamicMesh = struct {
             self.stagingVertexBuffer.buffer,
             self.vertexBuffers[self.swapId].buffer,
             1,
-            @ptrCast([*]const vk.BufferCopy, &copy),
+            @as([*]const vk.BufferCopy, @ptrCast(&copy)),
         );
 
         // Insert Barrier for vertexBuffer
@@ -462,13 +462,13 @@ pub const DynamicMesh = struct {
         try uploader.addBufferUpload(
             self.stagingIndexBuffer,
             self.indexBuffers[newSwapId],
-            self.indexBufferLen[newSwapId] * @intCast(u32, @sizeOf(u32)),
+            self.indexBufferLen[newSwapId] * @as(u32, @intCast(@sizeOf(u32))),
         );
 
         try uploader.addBufferUpload(
             self.stagingVertexBuffer,
             self.vertexBuffers[newSwapId],
-            self.vertexCount * @intCast(u32, @sizeOf(Vertex)),
+            self.vertexCount * @as(u32, @intCast(@sizeOf(Vertex))),
         );
     }
 

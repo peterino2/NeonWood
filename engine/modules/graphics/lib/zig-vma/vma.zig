@@ -50,7 +50,7 @@ pub const Allocator = enum(usize) {
     pub fn create(createInfo: AllocatorCreateInfo) !Allocator {
         var result: Allocator = undefined;
         const rc = vmaCreateAllocator(&createInfo, &result);
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
 
         return error.VMACreateFailed;
     }
@@ -130,7 +130,7 @@ pub const Allocator = enum(usize) {
     //         /// @param[out] ppStatsString Must be freed using FreeStatsString() function.
     //         pub fn buildStatsString(allocator: Allocator, detailedMap: bool) [*:0]u8 {
     //             var string: [*:0]u8 = undefined;
-    //             vmaBuildStatsString(allocator, &string, @boolToInt(detailedMap));
+    //             vmaBuildStatsString(allocator, &string, @intFromBool(detailedMap));
     //             return string;
     //         }
 
@@ -156,7 +156,7 @@ pub const Allocator = enum(usize) {
     pub fn findMemoryTypeIndex(allocator: Allocator, memoryTypeBits: u32, allocationCreateInfo: AllocationCreateInfo) !u32 {
         var index: u32 = undefined;
         const rc = vmaFindMemoryTypeIndex(allocator, memoryTypeBits, &allocationCreateInfo, &index);
-        if (@enumToInt(rc) >= 0) return index;
+        if (@intFromEnum(rc) >= 0) return index;
 
         if (rc == .ERROR_FEATURE_NOT_PRESENT) return error.VK_FEATURE_NOT_PRESENT;
         return error.VK_UNDOCUMENTED_ERROR;
@@ -179,7 +179,7 @@ pub const Allocator = enum(usize) {
     ) !u32 {
         var index: u32 = undefined;
         const rc = vmaFindMemoryTypeIndexForBufferInfo(allocator, &bufferCreateInfo, &allocationCreateInfo, &index);
-        if (@enumToInt(rc) >= 0) return index;
+        if (@intFromEnum(rc) >= 0) return index;
 
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -207,7 +207,7 @@ pub const Allocator = enum(usize) {
     ) !u32 {
         var index: u32 = undefined;
         const rc = vmaFindMemoryTypeIndexForImageInfo(allocator, &imageCreateInfo, &allocationCreateInfo, &index);
-        if (@enumToInt(rc) >= 0) return index;
+        if (@intFromEnum(rc) >= 0) return index;
 
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -225,7 +225,7 @@ pub const Allocator = enum(usize) {
     pub fn createPool(allocator: Allocator, createInfo: PoolCreateInfo) !Pool {
         var pool: Pool = undefined;
         const rc = vmaCreatePool(allocator, &createInfo, &pool);
-        if (@enumToInt(rc) >= 0) return pool;
+        if (@intFromEnum(rc) >= 0) return pool;
 
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -286,7 +286,7 @@ pub const Allocator = enum(usize) {
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn checkPoolCorruption(allocator: Allocator, pool: Pool) !void {
         const rc = vmaCheckPoolCorruption(allocator, pool);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
 
         return switch (rc) {
             .ERROR_FEATURE_NOT_PRESENT => error.VMA_CORRUPTION_DETECTION_DISABLED,
@@ -331,7 +331,7 @@ pub const Allocator = enum(usize) {
     pub fn allocateMemoryAndGetInfo(allocator: Allocator, vkMemoryRequirements: vk.MemoryRequirements, createInfo: AllocationCreateInfo, outInfo: ?*AllocationInfo) !Allocation {
         var result: Allocation = undefined;
         const rc = vmaAllocateMemory(allocator, &vkMemoryRequirements, &createInfo, &result, outInfo);
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -365,7 +365,7 @@ pub const Allocator = enum(usize) {
     /// returned result is not `vk.SUCCESS`, `pAllocation` array is always entirely filled with `.Null`.
     pub fn allocateMemoryPages(allocator: Allocator, vkMemoryRequirements: vk.MemoryRequirements, createInfo: AllocationCreateInfo, outAllocations: []Allocation) !void {
         const rc = vmaAllocateMemoryPages(allocator, &vkMemoryRequirements, &createInfo, outAllocations.len, outAllocations.ptr, null);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -381,7 +381,7 @@ pub const Allocator = enum(usize) {
     pub fn allocateMemoryPagesAndGetInfo(allocator: Allocator, vkMemoryRequirements: vk.MemoryRequirements, createInfo: AllocationCreateInfo, outAllocations: []Allocation, outInfo: []AllocationInfo) !void {
         assert(outAllocations.len == outInfo.len);
         const rc = vmaAllocateMemoryPages(allocator, &vkMemoryRequirements, &createInfo, outAllocations.len, outAllocations.ptr, outInfo.ptr);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -405,7 +405,7 @@ pub const Allocator = enum(usize) {
     pub fn allocateMemoryForBufferAndGetInfo(allocator: Allocator, buffer: vk.Buffer, createInfo: AllocationCreateInfo, outInfo: ?*AllocationInfo) !Allocation {
         var result: Allocation = undefined;
         const rc = vmaAllocateMemoryForBuffer(allocator, buffer, &createInfo, &result, outInfo);
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
 
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -427,7 +427,7 @@ pub const Allocator = enum(usize) {
     pub fn allocateMemoryForImageAndGetInfo(allocator: Allocator, image: vk.Image, createInfo: AllocationCreateInfo, outInfo: ?*AllocationInfo) !Allocation {
         var result: Allocation = undefined;
         const rc = vmaAllocateMemoryForImage(allocator, image, &createInfo, &result, outInfo);
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
 
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -569,7 +569,7 @@ pub const Allocator = enum(usize) {
     pub fn mapMemory(allocator: Allocator, allocation: Allocation, comptime T: type) ![*]T {
         var data: *anyopaque = undefined;
         const rc = vmaMapMemory(allocator, allocation, &data);
-        if (@enumToInt(rc) >= 0) return @intToPtr([*]T, @ptrToInt(data));
+        if (@intFromEnum(rc) >= 0) return @as([*]T, @ptrFromInt(@intFromPtr(data)));
         return error.VK_UNDOCUMENTED_ERROR;
         //return switch (rc) {
         //    .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -646,7 +646,7 @@ pub const Allocator = enum(usize) {
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn checkCorruption(allocator: Allocator, memoryTypeBits: u32) !void {
         const rc = vmaCheckCorruption(allocator, memoryTypeBits);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
 
         return switch (rc) {
             .ERROR_FEATURE_NOT_PRESENT => error.VMA_CORRUPTION_DETECTION_DISABLED,
@@ -692,7 +692,7 @@ pub const Allocator = enum(usize) {
     pub fn defragmentationBeginWithStats(allocator: Allocator, info: DefragmentationInfo2, stats: ?*DefragmentationStats) !DefragmentationContext {
         var context: DefragmentationContext = undefined;
         const rc = vmaDefragmentationBegin(allocator, &info, stats, &context);
-        if (@enumToInt(rc) >= 0) return context; // includes NOT_READY
+        if (@intFromEnum(rc) >= 0) return context; // includes NOT_READY
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -712,7 +712,7 @@ pub const Allocator = enum(usize) {
     /// It is safe to pass `context == null`. The function then does nothing.
     pub fn defragmentationEnd(allocator: Allocator, context: DefragmentationContext) !void {
         const rc = vmaDefragmentationEnd(allocator, context);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -739,7 +739,7 @@ pub const Allocator = enum(usize) {
     /// It is recommended to use function createBuffer() instead of this one.
     pub fn bindBufferMemory(allocator: Allocator, allocation: Allocation, buffer: vk.Buffer) !void {
         const rc = vmaBindBufferMemory(allocator, allocation, buffer);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -759,7 +759,7 @@ pub const Allocator = enum(usize) {
     /// or with AllocatorCreateInfo::vulkanApiVersion `== vk.API_VERSION_1_1`. Otherwise the call fails.
     pub fn bindBufferMemory2(allocator: Allocator, allocation: Allocation, allocationLocalOffset: vk.DeviceSize, buffer: vk.Buffer, pNext: ?*const anyopaque) !void {
         const rc = vmaBindBufferMemory2(allocator, allocation, allocationLocalOffset, buffer, pNext);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -781,7 +781,7 @@ pub const Allocator = enum(usize) {
     /// It is recommended to use function CreateImage() instead of this one.
     pub fn bindImageMemory(allocator: Allocator, allocation: Allocation, image: vk.Image) !void {
         const rc = vmaBindImageMemory(allocator, allocation, image);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -800,7 +800,7 @@ pub const Allocator = enum(usize) {
     /// or with AllocatorCreateInfo::vulkanApiVersion `== vk.API_VERSION_1_1`. Otherwise the call fails.
     pub fn bindImageMemory2(allocator: Allocator, allocation: Allocation, allocationLocalOffset: vk.DeviceSize, image: vk.Image, pNext: ?*const anyopaque) !void {
         const rc = vmaBindImageMemory2(allocator, allocation, allocationLocalOffset, image, pNext);
-        if (@enumToInt(rc) >= 0) return;
+        if (@intFromEnum(rc) >= 0) return;
         return switch (rc) {
             .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
             .ERROR_OUT_OF_DEVICE_MEMORY => error.VK_OUT_OF_DEVICE_MEMORY,
@@ -855,7 +855,7 @@ pub const Allocator = enum(usize) {
             &result.allocation,
             outInfo,
         );
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
         return error.VK_UNDOCUMENTED_ERROR;
         //switch (rc) {
         //.ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -910,7 +910,7 @@ pub const Allocator = enum(usize) {
             &result.allocation,
             outInfo,
         );
-        if (@enumToInt(rc) >= 0) return result;
+        if (@intFromEnum(rc) >= 0) return result;
         return error.VK_UNDOCUMENTED_ERROR;
         //return switch (rc) {
         //    .ERROR_OUT_OF_HOST_MEMORY => error.VK_OUT_OF_HOST_MEMORY,
@@ -1091,13 +1091,13 @@ pub const VulkanFunctions = extern struct {
         inline for (@typeInfo(T).Struct.fields) |field| {
             if (comptime std.mem.startsWith(u8, field.name, "vk")) {
                 if (comptime isDeviceFunc(field.type)) {
-                    const func = vkGetDeviceProcAddr(device, @ptrCast([*:0]const u8, field.name.ptr));
+                    const func = vkGetDeviceProcAddr(device, @as([*:0]const u8, @ptrCast(field.name.ptr)));
                     const resolved = func orelse @panic("Couldn't fetch vk device function " ++ field.name);
-                    @field(value, field.name) = @ptrCast(field.type, resolved);
+                    @field(value, field.name) = @as(field.type, @ptrCast(resolved));
                 } else {
-                    const func = vkGetInstanceProcAddr(inst, @ptrCast([*:0]const u8, field.name.ptr));
+                    const func = vkGetInstanceProcAddr(inst, @as([*:0]const u8, @ptrCast(field.name.ptr)));
                     const resolved = func orelse @panic("Couldn't fetch vk instance function " ++ field.name);
-                    @field(value, field.name) = @ptrCast(field.type, resolved);
+                    @field(value, field.name) = @as(field.type, @ptrCast(resolved));
                 }
             } else {
                 @field(value, field.name) = loadRecursive(field.type, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
@@ -1112,7 +1112,7 @@ pub const VulkanFunctions = extern struct {
         vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) VulkanFunctions {
         const vkGetDeviceProcAddrPtr = vkGetInstanceProcAddr(inst, "vkGetDeviceProcAddr") orelse @panic("Couldn't fetch vkGetDeviceProcAddr: vkGetInstanceProcAddr returned null.");
-        const vkGetDeviceProcAddr = @ptrCast(*const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, vkGetDeviceProcAddrPtr);
+        const vkGetDeviceProcAddr = @as(*const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction, @ptrCast(vkGetDeviceProcAddrPtr));
         return loadRecursive(VulkanFunctions, inst, device, vkGetInstanceProcAddr, vkGetDeviceProcAddr);
     }
 };

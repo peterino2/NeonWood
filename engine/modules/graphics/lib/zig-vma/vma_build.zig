@@ -49,16 +49,16 @@ fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
         @setEvalBranchQuota(100000);
         var args: []const []const u8 = &[_][]const u8{
             std.fmt.comptimePrint("-DVMA_VULKAN_VERSION={}", .{config.vulkanVersion}),
-            std.fmt.comptimePrint("-DVMA_DEDICATED_ALLOCATION={}", .{@boolToInt(config.dedicatedAllocation)}),
-            std.fmt.comptimePrint("-DVMA_BIND_MEMORY2={}", .{@boolToInt(config.bindMemory2)}),
-            std.fmt.comptimePrint("-DVMA_MEMORY_BUDGET={}", .{@boolToInt(config.memoryBudget)}),
-            std.fmt.comptimePrint("-DVMA_STATIC_VULKAN_FUNCTIONS={}", .{@boolToInt(config.staticVulkanFunctions)}),
-            std.fmt.comptimePrint("-DVMA_STATS_STRING_ENABLED={}", .{@boolToInt(config.statsStringEnabled)}),
+            std.fmt.comptimePrint("-DVMA_DEDICATED_ALLOCATION={}", .{@intFromBool(config.dedicatedAllocation)}),
+            std.fmt.comptimePrint("-DVMA_BIND_MEMORY2={}", .{@intFromBool(config.bindMemory2)}),
+            std.fmt.comptimePrint("-DVMA_MEMORY_BUDGET={}", .{@intFromBool(config.memoryBudget)}),
+            std.fmt.comptimePrint("-DVMA_STATIC_VULKAN_FUNCTIONS={}", .{@intFromBool(config.staticVulkanFunctions)}),
+            std.fmt.comptimePrint("-DVMA_STATS_STRING_ENABLED={}", .{@intFromBool(config.statsStringEnabled)}),
         };
         if (config.debugInitializeAllocations) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_DEBUG_INITIALIZE_ALLOCATIONS={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
         if (config.debugMargin) |value| {
@@ -70,13 +70,13 @@ fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
         if (config.debugDetectCorruption) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_DEBUG_DETECT_CORRUPTION={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
         if (config.recordingEnabled) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_RECORDING_ENABLED={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
         if (config.debugMinBufferImageGranularity) |value| {
@@ -88,19 +88,19 @@ fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
         if (config.debugGlobalMutex) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_DEBUG_GLOBAL_MUTEX={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
         if (config.useStlContainers) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_USE_STL_CONTAINERS={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
         if (config.useStlSharedMutex) |value| {
             args = args ++ &[_][]const u8{std.fmt.comptimePrint(
                 "-DVMA_USE_STL_SHARED_MUTEX={}",
-                .{@boolToInt(value)},
+                .{@intFromBool(value)},
             )};
         }
 

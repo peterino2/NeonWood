@@ -104,7 +104,7 @@ pub fn prepareFont(self: *@This()) !void {
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
-    core.ui_log("Papyrus Subsystem setup {x}", .{@ptrToInt(self)});
+    core.ui_log("Papyrus Subsystem setup {x}", .{@intFromPtr(self)});
     try self.graphLog.write("digraph G {{\n", .{});
 
     self.gc = gc;
@@ -365,8 +365,8 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 
     var constants = PapyrusPushConstant{
         .extent = .{
-            .x = @intToFloat(f32, self.gc.extent.width),
-            .y = @intToFloat(f32, self.gc.extent.height),
+            .x = @as(f32, @floatFromInt(self.gc.extent.width)),
+            .y = @as(f32, @floatFromInt(self.gc.extent.height)),
         },
     };
     self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
@@ -380,7 +380,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
         while (index < self.ssboCount) : (index += 1) {
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
             self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
-            self.gc.vkd.cmdDrawIndexed(cmd, @intCast(u32, self.indexBuffer.indices.len), 1, 0, 0, index);
+            self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
         }
     }
 

@@ -62,8 +62,8 @@ pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {
 
 pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !NeonVkImage {
     var imageExtent = vk.Extent3D{
-        .width = @intCast(u32, size.x),
-        .height = @intCast(u32, size.y),
+        .width = @as(u32, @intCast(size.x)),
+        .height = @as(u32, @intCast(size.y)),
         .depth = 1,
     };
 
@@ -90,7 +90,7 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
 }
 
 pub fn getMiplevelFromSize(size: core.Vector2i) u32 {
-    return std.math.log2(@intCast(u32, @max(size.x, size.y))) + 1;
+    return std.math.log2(@as(u32, @intCast(@max(size.x, size.y)))) + 1;
 }
 
 pub fn createTextureFromPixelsSync(
@@ -152,11 +152,11 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     // todo. use newVkImage here instead of this custom code.
     var imageExtent = vk.Extent3D{
-        .width = @intCast(u32, pngContents.size.x),
-        .height = @intCast(u32, pngContents.size.y),
+        .width = @as(u32, @intCast(pngContents.size.x)),
+        .height = @as(u32, @intCast(pngContents.size.y)),
         .depth = 1,
     };
-    var mipLevel = std.math.log2(std.math.max(imageExtent.width, imageExtent.height)) + 1;
+    var mipLevel = std.math.log2(@max(imageExtent.width, imageExtent.height)) + 1;
 
     var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
         .sampled_bit = true,
@@ -253,11 +253,11 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
         .dst_queue_family_index = 0,
     };
 
-    var width = @intCast(i32, vkImage.pixelWidth);
-    var height = @intCast(i32, vkImage.pixelHeight);
+    var width = @as(i32, @intCast(vkImage.pixelWidth));
+    var height = @as(i32, @intCast(vkImage.pixelHeight));
 
     for (1..mipLevels) |i| {
-        imb.subresource_range.base_mip_level = @intCast(u32, i) - 1;
+        imb.subresource_range.base_mip_level = @as(u32, @intCast(i)) - 1;
         imb.old_layout = .undefined;
         imb.new_layout = .transfer_src_optimal;
         imb.src_access_mask = .{
@@ -278,7 +278,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
         blit.src_offsets[1] = .{ .x = width, .y = height, .z = 1 };
         blit.src_subresource = .{
             .aspect_mask = .{ .color_bit = true },
-            .mip_level = @intCast(u32, i) - 1,
+            .mip_level = @as(u32, @intCast(i)) - 1,
             .base_array_layer = 0,
             .layer_count = 1,
         };
@@ -296,7 +296,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
         blit.dst_offsets[1] = .{ .x = dstWidth, .y = dstHeight, .z = 1 };
         blit.dst_subresource = .{
             .aspect_mask = .{ .color_bit = true },
-            .mip_level = @intCast(u32, i),
+            .mip_level = @as(u32, @intCast(i)),
             .base_array_layer = 0,
             .layer_count = 1,
         };
@@ -328,7 +328,7 @@ pub fn create_sprite_descriptors(self: *NeonVkContext) !void {
     var setLayoutCreateInfo = vk.DescriptorSetLayoutCreateInfo{
         .flags = .{},
         .binding_count = bindings.len,
-        .p_bindings = @ptrCast([*]const vk.DescriptorSetLayoutBinding, &bindings),
+        .p_bindings = @as([*]const vk.DescriptorSetLayoutBinding, @ptrCast(&bindings)),
     };
 
     self.spriteDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setLayoutCreateInfo, null);
@@ -347,7 +347,7 @@ pub fn create_sprite_descriptors(self: *NeonVkContext) !void {
         try self.vkd.allocateDescriptorSets(
             self.dev,
             &spriteDescriptorSetAllocInfo,
-            @ptrCast([*]vk.DescriptorSet, &self.frameData[i].spriteDescriptorSet),
+            @as([*]vk.DescriptorSet, @ptrCast(&self.frameData[i].spriteDescriptorSet)),
         );
 
         var spriteInfo = vk.DescriptorBufferInfo{
@@ -372,7 +372,7 @@ pub fn upload_sprite_data(self: *NeonVkContext) !void {
     const allocation = self.frameData[self.nextFrameIndex].spriteBuffer.allocation;
     var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
     var ssbo: []NeonVkSpriteDataGpu = undefined;
-    ssbo.ptr = @ptrCast([*]NeonVkSpriteDataGpu, data);
+    ssbo.ptr = @as([*]NeonVkSpriteDataGpu, @ptrCast(data));
     ssbo.len = self.maxObjectCount;
 
     var i: usize = 0;
@@ -413,7 +413,7 @@ pub const NeonVkUploader = struct {
         self.uploadFence = try self.gc.vkd.createFence(self.gc.dev, &fci, null);
 
         // create the command pool
-        var cpci = vkinit.commandPoolCreateInfo(@intCast(u32, self.gc.graphicsFamilyIndex), .{ .reset_command_buffer_bit = true });
+        var cpci = vkinit.commandPoolCreateInfo(@as(u32, @intCast(self.gc.graphicsFamilyIndex)), .{ .reset_command_buffer_bit = true });
         self.commandPool = try self.gc.vkd.createCommandPool(self.gc.dev, &cpci, null);
 
         // create the command buffer
@@ -426,7 +426,7 @@ pub const NeonVkUploader = struct {
         try self.gc.vkd.allocateCommandBuffers(
             self.gc.dev,
             &cbai,
-            @ptrCast([*]vk.CommandBuffer, &self.commandBuffer),
+            @as([*]vk.CommandBuffer, @ptrCast(&self.commandBuffer)),
         );
 
         return self;
@@ -459,7 +459,7 @@ pub const NeonVkUploader = struct {
             stagingBuffer.buffer,
             targetBuffer.buffer,
             1,
-            @ptrCast([*]const vk.BufferCopy, &copy),
+            @as([*]const vk.BufferCopy, @ptrCast(&copy)),
         );
     }
 
@@ -467,12 +467,12 @@ pub const NeonVkUploader = struct {
         _ = try self.gc.vkd.waitForFences(
             self.gc.dev,
             1,
-            @ptrCast([*]const vk.Fence, &self.uploadFence),
+            @as([*]const vk.Fence, @ptrCast(&self.uploadFence)),
             1,
             1000000000,
         );
 
-        try self.gc.vkd.resetFences(self.gc.dev, 1, @ptrCast([*]const vk.Fence, &self.uploadFence));
+        try self.gc.vkd.resetFences(self.gc.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.uploadFence)));
         self.isActive = false;
         self.mutex.unlock();
     }
@@ -483,7 +483,7 @@ pub const NeonVkUploader = struct {
         try self.gc.vkd.queueSubmit(
             self.gc.graphicsQueue.handle,
             1,
-            @ptrCast([*]const vk.SubmitInfo, &submit),
+            @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             self.uploadFence,
         );
     }

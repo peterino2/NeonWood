@@ -47,7 +47,7 @@ pub const InterfaceUiData = struct {
     pub fn from(comptime TargetType: type) @This() {
         const wrappedUiTick = struct {
             pub fn func(pointer: *anyopaque, deltaTime: f64) void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.uiTick(deltaTime);
             }
         };
@@ -91,7 +91,7 @@ pub const RttiData = struct {
             pub fn func(allocator: std.mem.Allocator) RttiDataEventError!*anyopaque {
                 engine_logs("calling init function");
                 var newObject = funcFind(allocator) catch return error.BadInit;
-                return @ptrCast(*anyopaque, newObject);
+                return @as(*anyopaque, @ptrCast(newObject));
             }
         };
 
@@ -105,7 +105,7 @@ pub const RttiData = struct {
         if (@hasDecl(TargetType, "postInit")) {
             const wrappedPostInit = struct {
                 pub fn func(pointer: *anyopaque) RttiDataEventError!void {
-                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.postInit();
                 }
             };
@@ -116,7 +116,7 @@ pub const RttiData = struct {
         if (@hasDecl(TargetType, "tick")) {
             const wrappedTick = struct {
                 pub fn func(pointer: *anyopaque, deltaTime: f64) void {
-                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     ptr.tick(deltaTime);
                 }
             };
@@ -127,7 +127,7 @@ pub const RttiData = struct {
         if (@hasDecl(TargetType, "processEvents")) {
             const wrappedProcessEvents = struct {
                 pub fn func(pointer: *anyopaque, frameNumber: u64) RttiDataEventError!void {
-                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.processEvents(frameNumber);
                 }
             };
@@ -138,7 +138,7 @@ pub const RttiData = struct {
         if (@hasDecl(TargetType, "deinit")) {
             const wrappedDeinit = struct {
                 pub fn func(pointer: *anyopaque) void {
-                    var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     ptr.deinit();
                 }
             };
@@ -191,18 +191,18 @@ test "test rtti data" {
     var x: TestStruct = undefined;
     var y: TestStruct2 = undefined;
 
-    types[0].init_func(std.testing.allocator, @ptrCast(*anyopaque, &x));
-    types[1].init_func(std.testing.allocator, @ptrCast(*anyopaque, &y));
+    types[0].init_func(std.testing.allocator, @as(*anyopaque, @ptrCast(&x)));
+    types[1].init_func(std.testing.allocator, @as(*anyopaque, @ptrCast(&y)));
 
     for (types, 0..) |t, i| {
         std.debug.print("{d}: {s} (0x{x})\n", .{ i, t.typeName.utf8, t.typeName.hash });
     }
 
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
-    (&TestStruct.NeonObjectTable).tick_func.?(@ptrCast(*anyopaque, &x), 0.013);
+    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
+    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
+    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
+    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
+    (&TestStruct.NeonObjectTable).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
     try std.testing.expect(x.wanker == 42069);
     try std.testing.expect(y.wanker == 69420);
 }

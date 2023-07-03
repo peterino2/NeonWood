@@ -95,7 +95,7 @@ pub const AssetLoaderInterface = struct {
                 assetRef: AssetRef,
                 properties: ?AssetPropertiesBag,
             ) AssetLoaderError!void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.loadAsset(assetRef, properties);
             }
         };

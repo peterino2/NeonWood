@@ -85,17 +85,17 @@ pub const DisplayText = struct {
 
         for (self.string.items) |c| {
             hash = @mulWithOverflow(hash, 33)[0];
-            hash = @addWithOverflow(hash, @intCast(u32, c))[0];
+            hash = @addWithOverflow(hash, @as(u32, @intCast(c)))[0];
         }
 
-        hash = @addWithOverflow(hash, @floatToInt(u32, self.displaySize))[0];
-        hash = @mulWithOverflow(hash, @floatToInt(u32, self.position.x))[0];
-        hash = @addWithOverflow(hash, @floatToInt(u32, self.position.y))[0];
+        hash = @addWithOverflow(hash, @as(u32, @intFromFloat(self.displaySize)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.position.x)))[0];
+        hash = @addWithOverflow(hash, @as(u32, @intFromFloat(self.position.y)))[0];
 
-        hash = @mulWithOverflow(hash, @floatToInt(u32, self.boxSize.x))[0];
-        hash = @mulWithOverflow(hash, @floatToInt(u32, self.boxSize.y))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.boxSize.x)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.boxSize.y)))[0];
         const color = self.color;
-        hash = @mulWithOverflow(hash, @floatToInt(u32, color.r + color.g * 10 + color.b * 100))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(color.r + color.g * 10 + color.b * 100)))[0];
 
         return hash;
     }
@@ -160,7 +160,7 @@ pub const DisplayText = struct {
         const atlas = self.atlas.atlas;
 
         const ratio = (self.displaySize) / atlas.fontSize;
-        const stride = @intToFloat(f32, atlas.glyphStride) * ratio;
+        const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
 
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
@@ -193,7 +193,7 @@ pub const DisplayText = struct {
             const box = Vector2.fromVector2i(atlas.glyphBox1[ch]).fmul(ratio);
             const metrics = Vector2.fromVector2i(atlas.glyphMetrics[ch]).fmul(ratio);
             const baseMetrics = Vector2.fromVector2i(atlas.glyphMetrics[ch]);
-            const fontHeight = @intToFloat(f32, atlas.glyphMetrics['A'].y) * ratio;
+            const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
 
             const uv_tl = atlas.glyphCoordinates[ch][0];
 
@@ -212,8 +212,8 @@ pub const DisplayText = struct {
                 .{ .x = metrics.x, .y = metrics.y, .z = 0 },
                 .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
                 .{
-                    .x = baseMetrics.x / @intToFloat(f32, atlas.atlasSize.x),
-                    .y = baseMetrics.y / @intToFloat(f32, atlas.atlasSize.y),
+                    .x = baseMetrics.x / @as(f32, @floatFromInt(atlas.atlasSize.x)),
+                    .y = baseMetrics.y / @as(f32, @floatFromInt(atlas.atlasSize.y)),
                 }, // uv size
                 .{ .r = color.r, .g = color.g, .b = color.b }, // color
             );

@@ -68,7 +68,7 @@ pub const Engine = struct {
         var newObjectPtr = try vtable.init_func(self.allocator);
 
         const newObjectRef = NeonObjectRef{
-            .ptr = @ptrCast(*anyopaque, newObjectPtr),
+            .ptr = @as(*anyopaque, @ptrCast(newObjectPtr)),
             .vtable = vtable,
         };
 
@@ -91,7 +91,7 @@ pub const Engine = struct {
             try vtable.postInit_func.?(newObjectPtr);
         }
 
-        return @ptrCast(*T, @alignCast(@alignOf(T), newObjectPtr));
+        return @as(*T, @ptrCast(@alignCast(newObjectPtr)));
     }
 
     pub fn tick(self: *@This()) !void {
@@ -107,10 +107,10 @@ pub const Engine = struct {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;
         }
 
-        var index: isize = @intCast(isize, self.tickables.items.len) - 1;
+        var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;
         while (index >= 0) : (index -= 1) {
             var z = tracy.Zone(@src());
-            const objectRef = self.rttiObjects.items[self.tickables.items[@intCast(usize, index)]];
+            const objectRef = self.rttiObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
             z.Name(objectRef.vtable.typeName.utf8);
             z.End();

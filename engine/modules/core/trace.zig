@@ -22,7 +22,7 @@ const TraceEntry = struct {
 
     pub fn allocPrint(self: @This(), allocator: std.mem.Allocator) ![]const u8 {
         var rv = try std.fmt.allocPrint(allocator, "t {d}: {s}", .{
-            @intToFloat(f64, self.timestamp) / (1000.0 * 1000.0 * 1000.0),
+            @as(f64, @floatFromInt(self.timestamp)) / (1000.0 * 1000.0 * 1000.0),
             self.data,
         });
         return rv;

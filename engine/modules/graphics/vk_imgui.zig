@@ -8,7 +8,7 @@ const c = vk_renderer.c;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 fn vkCast(comptime T: type, handle: anytype) T {
-    return @ptrCast(T, @intToPtr(?*anyopaque, @intCast(usize, @enumToInt(handle))));
+    return @as(T, @ptrCast(@as(?*anyopaque, @ptrFromInt(@as(usize, @intCast(@intFromEnum(handle)))))));
 }
 
 // this data structure is invalid until you call setup
@@ -49,7 +49,7 @@ pub const NeonVkImGui = struct {
         var poolInfo = vk.DescriptorPoolCreateInfo{
             .flags = .{},
             .max_sets = 1000,
-            .pool_size_count = @intCast(u32, descriptorPoolSizes.len),
+            .pool_size_count = @as(u32, @intCast(descriptorPoolSizes.len)),
             .p_pool_sizes = &descriptorPoolSizes,
         };
 
@@ -61,7 +61,7 @@ pub const NeonVkImGui = struct {
 
         var font = c.ImFontAtlas_AddFontFromFileTTF(io.*.Fonts, "modules/ui/papyrus/fonts/ShareTechMono-Regular.ttf", 14, null, null);
         _ = font;
-        _ = c.ImGui_ImplGlfw_InitForVulkan(@ptrCast(*c.GLFWwindow, ctx.platformInstance.window), true);
+        _ = c.ImGui_ImplGlfw_InitForVulkan(@as(*c.GLFWwindow, @ptrCast(ctx.platformInstance.window)), true);
 
         var style = c.igGetStyle();
         c.igStyleColorsDark(style);
@@ -91,7 +91,7 @@ pub const NeonVkImGui = struct {
         _ = c.cImGui_vk_DestroyFontUploadObjects();
         _ = c.SetupImguiColors();
 
-        c.setFontScale(@intCast(c_int, ctx.actual_extent.width), @intCast(c_int, ctx.actual_extent.height));
+        c.setFontScale(@as(c_int, @intCast(ctx.actual_extent.width)), @as(c_int, @intCast(ctx.actual_extent.height)));
     }
 
     pub fn setupVulkanWindow(self: *Self) void {
@@ -109,7 +109,7 @@ pub const NeonVkImGui = struct {
 };
 
 export fn checkVkResult(result: c_int) void {
-    const r = @intToEnum(vk.Result, result);
+    const r = @as(vk.Result, @enumFromInt(result));
     if (r == vk.Result.success)
         return;
 

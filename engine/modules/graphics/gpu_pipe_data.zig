@@ -79,11 +79,11 @@ pub const GpuPipeDataBinding = struct {
         while (frameIndex < self.buffers.len) : (frameIndex += 1) {
             var data = try gc.vkAllocator.vmaAllocator.mapMemory(self.buffers[frameIndex].allocation, MappingType);
             var mapping: []MappingType = undefined;
-            mapping.ptr = @ptrCast([*]MappingType, data);
+            mapping.ptr = @as([*]MappingType, @ptrCast(data));
             mapping.len = self.objectCount;
 
             var dataMapping: []u8 = undefined;
-            dataMapping.ptr = @ptrCast([*]u8, data);
+            dataMapping.ptr = @as([*]u8, @ptrCast(data));
             dataMapping.len = self.objectCount;
             var gpuMappingData: GpuMappingData(MappingType) = .{
                 .objects = mapping,
@@ -113,7 +113,7 @@ pub const GpuPipeData = struct {
     descriptorSets: []vk.DescriptorSet, // one per frame
 
     pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet {
-        return @ptrCast([*]const vk.DescriptorSet, &self.descriptorSets[frameIndex]);
+        return @as([*]const vk.DescriptorSet, @ptrCast(&self.descriptorSets[frameIndex]));
     }
 
     pub fn init(allocator: std.mem.Allocator, bindingCount: usize, frameCount: usize) !@This() {
@@ -230,7 +230,7 @@ pub const GpuPipeDataBuilder = struct {
     pub fn build(self: *@This(), comptime buildName: []const u8) !GpuPipeData {
         var rv = try GpuPipeData.init(self.allocator, self.bindings.items.len, self.frameCount);
         var gc: *NeonVkContext = self.gc;
-        var setInfo = vk.DescriptorSetLayoutCreateInfo{ .binding_count = @intCast(u32, self.bindings.items.len), .flags = .{}, .p_bindings = self.bindings.items.ptr };
+        var setInfo = vk.DescriptorSetLayoutCreateInfo{ .binding_count = @as(u32, @intCast(self.bindings.items.len)), .flags = .{}, .p_bindings = self.bindings.items.ptr };
         rv.descriptorSetLayout = try gc.vkd.createDescriptorSetLayout(gc.dev, &setInfo, null);
         core.graphics_log("finalizing build", .{});
 
@@ -241,7 +241,7 @@ pub const GpuPipeDataBuilder = struct {
                 .p_set_layouts = p2a(&rv.descriptorSetLayout),
             };
 
-            try gc.vkd.allocateDescriptorSets(gc.dev, &descriptorAllocInfo, @ptrCast([*]vk.DescriptorSet, &rv.descriptorSets[frameId]));
+            try gc.vkd.allocateDescriptorSets(gc.dev, &descriptorAllocInfo, @as([*]vk.DescriptorSet, @ptrCast(&rv.descriptorSets[frameId])));
         }
 
         var bindingId: usize = 0;
@@ -288,7 +288,7 @@ pub const GpuPipeDataBuilder = struct {
                     descriptorType,
                     rv.descriptorSets[frameId],
                     &bufferInfo,
-                    @intCast(u32, bindingId),
+                    @as(u32, @intCast(bindingId)),
                 );
                 gc.vkd.updateDescriptorSets(gc.dev, 1, p2a(&descriptorWrite), 0, undefined);
             }

@@ -110,7 +110,7 @@ pub const DebugDrawSubsystem = struct {
     // Member functions
     allocator: std.mem.Allocator,
     debugDraws: core.RingQueueU(DebugPrimitive),
-    meshes: [@intCast(usize, @enumToInt(DebugPrimitiveType.box) + 1)]*graphics.Mesh = .{ undefined, undefined, undefined },
+    meshes: [@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box) + 1))]*graphics.Mesh = .{ undefined, undefined, undefined },
     gc: *graphics.NeonVkContext = undefined,
     pipeData: gpd.GpuPipeData = undefined,
     mappedBuffers: []gpd.GpuMappingData(DebugPrimitiveGpu) = undefined,
@@ -129,9 +129,9 @@ pub const DebugDrawSubsystem = struct {
         try assets.loadList(Primitives);
 
         // assign debug meshes
-        self.meshes[@intCast(usize, @enumToInt(DebugPrimitiveType.sphere))] = gc.meshes.get(core.MakeName("m_primitive_sphere").hash).?;
-        self.meshes[@intCast(usize, @enumToInt(DebugPrimitiveType.box))] = gc.meshes.get(core.MakeName("m_primitive_box").hash).?;
-        self.meshes[@intCast(usize, @enumToInt(DebugPrimitiveType.line))] = gc.meshes.get(core.MakeName("m_primitive_line").hash).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").hash).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").hash).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").hash).?;
         try self.createPipeData();
         try self.createMaterial();
     }
@@ -229,8 +229,8 @@ pub const DebugDrawSubsystem = struct {
         var bindOffset: usize = 0;
         const count: usize = self.debugDraws.count();
 
-        const paddedSceneSize = @intCast(u32, self.gc.pad_uniform_buffer_size(@sizeOf(graphics.vk_renderer.NeonVkSceneDataGpu)));
-        var startOffset: u32 = paddedSceneSize * @intCast(u32, frameIndex);
+        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.vk_renderer.NeonVkSceneDataGpu))));
+        var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
 
         vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, core.p_to_a(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, core.p_to_a(&startOffset));
         while (offset < count) {
@@ -251,10 +251,10 @@ pub const DebugDrawSubsystem = struct {
             }
 
             vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&mesh.buffer.buffer), core.p_to_a(&bindOffset));
-            vkd.cmdDraw(cmd, @intCast(u32, mesh.vertices.items.len), 1, 0, @intCast(u32, offset));
+            vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
 
             offset += 1;
-            primitive.duration -= @floatCast(f32, deltaTime);
+            primitive.duration -= @as(f32, @floatCast(deltaTime));
             if (primitive.duration >= 0) {
                 // push this primitive so that it goes to the next frame
                 self.debugDraws.push(primitive) catch continue;

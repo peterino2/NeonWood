@@ -93,9 +93,9 @@ pub const NeonVkPipelineBuilder = struct {
             ctx.vkd,
             ctx.allocator,
             vert_resource.len,
-            @ptrCast([*]const u32, @alignCast(8, &vert_resource)),
+            @as([*]const u32, @ptrCast(@alignCast(&vert_resource))),
             frag_resource.len,
-            @ptrCast([*]const u32, @alignCast(8, &frag_resource)),
+            @as([*]const u32, @ptrCast(@alignCast(&frag_resource))),
         );
     }
 
@@ -131,7 +131,7 @@ pub const NeonVkPipelineBuilder = struct {
 
         var gpci = vk.GraphicsPipelineCreateInfo{
             .flags = .{},
-            .stage_count = @intCast(u32, self.sscis.items.len),
+            .stage_count = @as(u32, @intCast(self.sscis.items.len)),
             .p_stages = self.sscis.items.ptr,
             .p_vertex_input_state = &self.pvisci, // : ?*const PipelineVertexInputStateCreateInfo,
             .p_input_assembly_state = &self.piasci, //: ?*const PipelineInputAssemblyStateCreateInfo,
@@ -278,10 +278,10 @@ pub const NeonVkPipelineBuilder = struct {
         if (self.vertexInputDescription != null) {
             const desc = self.vertexInputDescription.?;
 
-            self.pvisci.vertex_attribute_description_count = @intCast(u32, desc.attributes.items.len);
+            self.pvisci.vertex_attribute_description_count = @as(u32, @intCast(desc.attributes.items.len));
             self.pvisci.p_vertex_attribute_descriptions = desc.attributes.items.ptr;
 
-            self.pvisci.vertex_binding_description_count = @intCast(u32, desc.bindings.items.len);
+            self.pvisci.vertex_binding_description_count = @as(u32, @intCast(desc.bindings.items.len));
             self.pvisci.p_vertex_binding_descriptions = desc.bindings.items.ptr;
             core.graphics_logs("setting up vertex description");
         }
@@ -322,8 +322,8 @@ pub const NeonVkPipelineBuilder = struct {
         self.viewport = vk.Viewport{
             .x = 0,
             .y = 0,
-            .width = @intToFloat(f32, extents.width),
-            .height = @intToFloat(f32, extents.height),
+            .width = @as(f32, @floatFromInt(extents.width)),
+            .height = @as(f32, @floatFromInt(extents.height)),
             .min_depth = 0.0,
             .max_depth = 1.0,
         };

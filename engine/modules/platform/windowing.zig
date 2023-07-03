@@ -76,8 +76,8 @@ pub const PlatformInstance = struct {
         c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
         c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
         self.window = c.glfwCreateWindow(
-            @intCast(c_int, self.extent.x),
-            @intCast(c_int, self.extent.y),
+            @as(c_int, @intCast(self.extent.x)),
+            @as(c_int, @intCast(self.extent.y)),
             self.windowName.ptr,
             null,
             null,
@@ -88,8 +88,8 @@ pub const PlatformInstance = struct {
 
         var pixels: ?*u8 = &png.pixels[0];
         var iconImage = c.GLFWimage{
-            .width = @intCast(c_int, png.size.x),
-            .height = @intCast(c_int, png.size.y),
+            .width = @as(c_int, @intCast(png.size.x)),
+            .height = @as(c_int, @intCast(png.size.y)),
             .pixels = pixels,
         };
         if (c.glfwRawMouseMotionSupported() != 0)
@@ -120,12 +120,12 @@ pub const PlatformInstance = struct {
     pub fn getCursorPosition(self: *@This()) core.Vector2 {
         var pos: core.Vector2 = .{ .x = 0, .y = 0 };
 
-        c.glfwGetCursorPos(@ptrCast(?*c.GLFWwindow, self.window), &pos.x, &pos.y);
+        c.glfwGetCursorPos(@as(?*c.GLFWwindow, @ptrCast(self.window)), &pos.x, &pos.y);
         return pos;
     }
 
     pub fn installHandlers(self: *@This()) void {
-        _ = c.glfwSetCursorPosCallback(@ptrCast(?*c.GLFWwindow, self.window), mousePositionCallback);
+        _ = c.glfwSetCursorPosCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
     }
 
     pub fn pumpEvents(self: *@This()) !void {

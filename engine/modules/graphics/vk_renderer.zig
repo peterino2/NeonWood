@@ -47,12 +47,12 @@ pub const PixelPos = struct {
 
     /// returns y/x of the pixel position
     pub fn ratio(self: @This()) f32 {
-        return @intToFloat(f32, self.y) / @intToFloat(f32, self.x);
+        return @as(f32, @floatFromInt(self.y)) / @as(f32, @floatFromInt(self.x));
     }
 };
 
 fn vkCast(comptime T: type, handle: anytype) T {
-    return @ptrCast(T, @intToPtr(?*anyopaque, @intCast(usize, @enumToInt(handle))));
+    return @as(T, @ptrCast(@as(?*anyopaque, @ptrFromInt(@as(usize, @intCast(@intFromEnum(handle)))))));
 }
 
 const ObjectHandle = core.ObjectHandle;
@@ -73,17 +73,17 @@ pub const RendererInterface = struct {
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
             pub fn preDraw(pointer: *anyopaque, frameId: usize) void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.preDraw(frameId);
             }
 
             pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.onBindObject(objectHandle, objectIndex, cmd, frameIndex);
             }
 
             pub fn postDraw(pointer: *anyopaque, cmd: vk.CommandBuffer, frameIndex: usize, deltaTime: f64) void {
-                var ptr = @ptrCast(*TargetType, @alignCast(@alignOf(TargetType), pointer));
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.postDraw(cmd, frameIndex, deltaTime);
             }
         };
@@ -251,19 +251,19 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 
         // load device properties
         self.deviceProperties = vki.getPhysicalDeviceProperties(pdevice);
-        core.graphics_log(" device Name: {s}", .{@ptrCast([*:0]u8, &self.deviceProperties.device_name)});
+        core.graphics_log(" device Name: {s}", .{@as([*:0]u8, @ptrCast(&self.deviceProperties.device_name))});
 
         core.graphics_log("  Found {d} family properties", .{count});
         if (count == 0)
             return error.NoPhysicalDeviceQueueFamilyProperties;
-        try self.queueFamilyProperties.resize(@intCast(usize, count));
+        try self.queueFamilyProperties.resize(@as(usize, @intCast(count)));
         vki.getPhysicalDeviceQueueFamilyProperties(pdevice, &count, self.queueFamilyProperties.items.ptr);
 
         // load supported extensions
         _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, null);
         core.graphics_log("  Found {d} extension properties", .{count});
         if (count > 0) {
-            try self.supportedExtensions.resize(@intCast(usize, count));
+            try self.supportedExtensions.resize(@as(usize, @intCast(count)));
             _ = try vki.enumerateDeviceExtensionProperties(pdevice, null, &count, self.supportedExtensions.items.ptr);
         }
 
@@ -271,7 +271,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
         _ = try vki.getPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &count, null);
         core.graphics_log("  Found {d} surface formats", .{count});
         if (count > 0) {
-            try self.surfaceFormats.resize(@intCast(usize, count));
+            try self.surfaceFormats.resize(@as(usize, @intCast(count)));
             _ = try vki.getPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &count, self.surfaceFormats.items.ptr);
         }
 
@@ -279,7 +279,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
         _ = try vki.getPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &count, null);
         core.graphics_log("  Found {d} present modes", .{count});
         if (count > 0) {
-            try self.presentModes.resize(@intCast(usize, count));
+            try self.presentModes.resize(@as(usize, @intCast(count)));
             _ = try vki.getPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &count, self.presentModes.items.ptr);
         }
 
@@ -441,8 +441,8 @@ pub const NeonVkContext = struct {
         };
 
         var s = core.Vector2f{
-            .x = @floatCast(f32, screenPos.x),
-            .y = @floatCast(f32, screenPos.y),
+            .x = @as(f32, @floatCast(screenPos.x)),
+            .y = @as(f32, @floatCast(screenPos.y)),
         };
 
         if (self.actual_extent.width == 0 or self.actual_extent.height == 0) {
@@ -451,8 +451,8 @@ pub const NeonVkContext = struct {
 
         const i = core.zm.inverse(camera.projection);
         const iview = core.zm.inverse(camera.transform);
-        const width = (@intToFloat(f32, self.actual_extent.width));
-        const height = (@intToFloat(f32, self.actual_extent.height));
+        const width = (@as(f32, @floatFromInt(self.actual_extent.width)));
+        const height = (@as(f32, @floatFromInt(self.actual_extent.height)));
 
         const sx = core.clamp(s.x, 0, width);
         const sy = core.clamp(s.y, 0, height);
@@ -537,7 +537,7 @@ pub const NeonVkContext = struct {
         try self.vkd.queueSubmit(
             self.graphicsQueue.handle,
             1,
-            @ptrCast([*]const vk.SubmitInfo, &submit),
+            @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             context.uploadFence,
         );
 
@@ -545,18 +545,18 @@ pub const NeonVkContext = struct {
         _ = try self.vkd.waitForFences(
             self.dev,
             1,
-            @ptrCast([*]const vk.Fence, &context.uploadFence),
+            @as([*]const vk.Fence, @ptrCast(&context.uploadFence)),
             1,
             1000000000,
         );
         z1.End();
-        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &context.uploadFence));
+        try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&context.uploadFence)));
         context.active = false; //  replace this thing with a lock
         context.mutex.unlock();
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
-        var alignment = @intCast(usize, self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment);
+        var alignment = @as(usize, @intCast(self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment));
 
         var alignedSize: usize = originalSize;
         if (alignment > 0) {
@@ -677,7 +677,7 @@ pub const NeonVkContext = struct {
             .p_set_layouts = p2a(&self.singleTextureSetLayout),
         };
 
-        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, textureSet));
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(textureSet)));
 
         var imageBufferInfo = vk.DescriptorImageInfo{
             //.sampler = self.blockySampler,
@@ -721,7 +721,7 @@ pub const NeonVkContext = struct {
             .descriptor_set_count = 1,
             .p_set_layouts = p2a(&self.singleTextureSetLayout),
         };
-        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, textureSet));
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(textureSet)));
 
         var imageBufferInfo = vk.DescriptorImageInfo{
             .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
@@ -760,7 +760,7 @@ pub const NeonVkContext = struct {
         var poolInfo = vk.DescriptorPoolCreateInfo{
             .flags = .{},
             .max_sets = 100,
-            .pool_size_count = @intCast(u32, descriptorPoolSizes.len),
+            .pool_size_count = @as(u32, @intCast(descriptorPoolSizes.len)),
             .p_pool_sizes = &descriptorPoolSizes,
         };
 
@@ -773,7 +773,7 @@ pub const NeonVkContext = struct {
         var setInfo = vk.DescriptorSetLayoutCreateInfo{
             .binding_count = 2,
             .flags = .{},
-            .p_bindings = @ptrCast([*]const @TypeOf(sceneBinding), &bindings),
+            .p_bindings = @as([*]const @TypeOf(sceneBinding), @ptrCast(&bindings)),
         };
 
         var objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
@@ -782,7 +782,7 @@ pub const NeonVkContext = struct {
         var objectSetInfo = vk.DescriptorSetLayoutCreateInfo{
             .binding_count = 1,
             .flags = .{},
-            .p_bindings = @ptrCast([*]const @TypeOf(objectBinding), &objectBindings),
+            .p_bindings = @as([*]const @TypeOf(objectBinding), @ptrCast(&objectBindings)),
         };
 
         self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
@@ -816,7 +816,7 @@ pub const NeonVkContext = struct {
                 .p_set_layouts = p2a(&self.objectDescriptorLayout),
             };
 
-            try self.vkd.allocateDescriptorSets(self.dev, &objectDescriptorSetAllocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].objectDescriptorSet));
+            try self.vkd.allocateDescriptorSets(self.dev, &objectDescriptorSetAllocInfo, @as([*]vk.DescriptorSet, @ptrCast(&self.frameData[i].objectDescriptorSet)));
 
             var objectInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].objectBuffer.buffer,
@@ -842,7 +842,7 @@ pub const NeonVkContext = struct {
                 .descriptor_set_count = 1,
                 .p_set_layouts = p2a(&self.globalDescriptorLayout),
             };
-            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @ptrCast([*]vk.DescriptorSet, &self.frameData[i].globalDescriptorSet));
+            try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(&self.frameData[i].globalDescriptorSet)));
 
             var cameraInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].cameraBuffer.buffer,
@@ -937,7 +937,7 @@ pub const NeonVkContext = struct {
             dataSlice.len = bufferSize;
 
             var inputSlice: []const u8 = undefined;
-            inputSlice.ptr = @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr);
+            inputSlice.ptr = @as([*]const u8, @ptrCast(uploadedMesh.vertices.items.ptr));
             inputSlice.len = bufferSize;
 
             @memcpy(data, inputSlice);
@@ -976,7 +976,7 @@ pub const NeonVkContext = struct {
                 stagingBuffer.buffer,
                 uploadedMesh.buffer.buffer,
                 1,
-                @ptrCast([*]const vk.BufferCopy, &copy),
+                @as([*]const vk.BufferCopy, @ptrCast(&copy)),
             );
         }
         core.graphics_log("Finishing upload context", .{});
@@ -1010,7 +1010,7 @@ pub const NeonVkContext = struct {
         dataSlice.len = size;
 
         var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @ptrCast([*]const u8, uploadedMesh.vertices.items.ptr);
+        inputSlice.ptr = @as([*]const u8, @ptrCast(uploadedMesh.vertices.items.ptr));
         inputSlice.len = size;
 
         @memcpy(data, inputSlice);
@@ -1083,7 +1083,7 @@ pub const NeonVkContext = struct {
         try self.vkd.allocateDescriptorSets(
             self.dev,
             &allocInfo,
-            @ptrCast([*]vk.DescriptorSet, &material.textureSet),
+            @as([*]vk.DescriptorSet, @ptrCast(&material.textureSet)),
         );
 
         // --------- set up the image
@@ -1111,10 +1111,10 @@ pub const NeonVkContext = struct {
 
     pub fn create_white_material(self: *@This(), size: core.Vector2i) !void {
         // generate a white texture.
-        var pixels = try self.allocator.alloc(u8, @intCast(usize, size.x * size.y * 4));
+        var pixels = try self.allocator.alloc(u8, @as(usize, @intCast(size.x * size.y * 4)));
         defer self.allocator.free(pixels);
 
-        for (0..@intCast(usize, size.x * size.y * 4)) |i| {
+        for (0..@as(usize, @intCast(size.x * size.y * 4))) |i| {
             pixels[i] = 255;
         }
         _ = try vk_utils.createTextureFromPixelsSync(core.MakeName("t_white"), pixels, size, self, false);
@@ -1217,7 +1217,7 @@ pub const NeonVkContext = struct {
         dataSlice.len = @sizeOf(NeonVkCameraDataGpu);
 
         var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @ptrCast([*]const u8, &cameraData);
+        inputSlice.ptr = @as([*]const u8, @ptrCast(&cameraData));
         inputSlice.len = @sizeOf(NeonVkCameraDataGpu);
 
         @memcpy(dataSlice, inputSlice);
@@ -1237,11 +1237,11 @@ pub const NeonVkContext = struct {
         _ = try self.vkd.waitForFences(
             self.dev,
             1,
-            @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]),
+            @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])),
             1,
             1000000000,
         );
-        try self.vkd.resetFences(self.dev, 1, @ptrCast([*]const vk.Fence, &self.commandBufferFences.items[self.nextFrameIndex]));
+        try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])));
     }
 
     pub fn start_frame_command_buffer(self: *Self) !vk.CommandBuffer {
@@ -1280,7 +1280,7 @@ pub const NeonVkContext = struct {
             .framebuffer = self.framebuffers.items[self.nextFrameIndex],
             .render_pass = self.renderPass,
             .clear_value_count = 2,
-            .p_clear_values = @ptrCast([*]const vk.ClearValue, &clearValues),
+            .p_clear_values = @as([*]const vk.ClearValue, @ptrCast(&clearValues)),
         };
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
@@ -1369,10 +1369,10 @@ pub const NeonVkContext = struct {
             var h: c_int = undefined;
             platform.c.glfwGetWindowSize(self.platformInstance.window, &w, &h);
 
-            if ((self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and
+            if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
                 (w > 0 and h > 0))
             {
-                self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
+                self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
 
                 self.isMinimized = false;
                 try self.vkd.deviceWaitIdle(self.dev);
@@ -1386,8 +1386,8 @@ pub const NeonVkContext = struct {
 
             if (w <= 0 or h <= 0) {
                 self.isMinimized = true;
-                self.extent.width = @intCast(u32, w);
-                self.extent.height = @intCast(u32, h);
+                self.extent.width = @as(u32, @intCast(w));
+                self.extent.height = @as(u32, @intCast(h));
             }
 
             self.firstFrame = false;
@@ -1426,7 +1426,7 @@ pub const NeonVkContext = struct {
 
         var offset: vk.DeviceSize = 0;
 
-        const paddedSceneSize = @intCast(u32, self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu)));
+        const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
         var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
 
         var z1 = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
@@ -1468,7 +1468,7 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdPushConstants(cmd, layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
-        self.vkd.cmdDraw(cmd, @intCast(u32, object_mesh.vertices.items.len), 1, 0, index);
+        self.vkd.cmdDraw(cmd, @as(u32, @intCast(object_mesh.vertices.items.len)), 1, 0, index);
     }
 
     fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
@@ -1484,7 +1484,7 @@ pub const NeonVkContext = struct {
         dataSlice.len = @sizeOf(@TypeOf(self.sceneDataGpu));
 
         var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @ptrCast([*]const u8, &self.sceneDataGpu);
+        inputSlice.ptr = @as([*]const u8, @ptrCast(&self.sceneDataGpu));
         inputSlice.len = dataSlice.len;
 
         @memcpy(dataSlice, inputSlice);
@@ -1496,7 +1496,7 @@ pub const NeonVkContext = struct {
         const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
         var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
         var ssbo: []NeonVkObjectDataGpu = undefined;
-        ssbo.ptr = @ptrCast([*]NeonVkObjectDataGpu, data);
+        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
         ssbo.len = self.maxObjectCount;
 
         var i: usize = 0;
@@ -1538,7 +1538,7 @@ pub const NeonVkContext = struct {
             // dense to sparse given a known dense index
             var sparseHandle = self.renderObjectSet.sparse[self.renderObjectSet.denseIndices.items[i].index];
             sparseHandle.index = self.renderObjectSet.denseIndices.items[i].index;
-            self.draw_render_object(dense, cmd, @intCast(u32, i), deltaTime, sparseHandle);
+            self.draw_render_object(dense, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
         }
         z2.End();
     }
@@ -1547,30 +1547,30 @@ pub const NeonVkContext = struct {
         var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
         var submit = vk.SubmitInfo{
-            .p_wait_dst_stage_mask = @ptrCast([*]const vk.PipelineStageFlags, &waitStage),
+            .p_wait_dst_stage_mask = @as([*]const vk.PipelineStageFlags, @ptrCast(&waitStage)),
             .wait_semaphore_count = 1,
-            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.acquireSemaphores.items[self.nextFrameIndex]),
+            .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.acquireSemaphores.items[self.nextFrameIndex])),
             .signal_semaphore_count = 1,
-            .p_signal_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[self.nextFrameIndex]),
+            .p_signal_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[self.nextFrameIndex])),
             .command_buffer_count = 1,
-            .p_command_buffers = @ptrCast([*]const vk.CommandBuffer, &self.commandBuffers.items[self.nextFrameIndex]),
+            .p_command_buffers = @as([*]const vk.CommandBuffer, @ptrCast(&self.commandBuffers.items[self.nextFrameIndex])),
         };
 
         var z1 = tracy.ZoneNC(@src(), "submitting", 0xBBAAFF);
         try self.vkd.queueSubmit(
             self.graphicsQueue.handle,
             1,
-            @ptrCast([*]const vk.SubmitInfo, &submit),
+            @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             self.commandBufferFences.items[self.nextFrameIndex],
         );
         z1.End();
 
         var presentInfo = vk.PresentInfoKHR{
-            .p_swapchains = @ptrCast([*]const vk.SwapchainKHR, &self.swapchain),
+            .p_swapchains = @as([*]const vk.SwapchainKHR, @ptrCast(&self.swapchain)),
             .swapchain_count = 1,
-            .p_wait_semaphores = @ptrCast([*]const vk.Semaphore, &self.renderCompleteSemaphores.items[self.nextFrameIndex]),
+            .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[self.nextFrameIndex])),
             .wait_semaphore_count = 1,
-            .p_image_indices = @ptrCast([*]const u32, &self.nextFrameIndex),
+            .p_image_indices = @as([*]const u32, @ptrCast(&self.nextFrameIndex)),
             .p_results = null,
         };
 
@@ -1586,10 +1586,10 @@ pub const NeonVkContext = struct {
         var h: c_int = undefined;
         platform.c.glfwGetWindowSize(self.platformInstance.window, &w, &h);
 
-        if ((outOfDate or self.extent.width != @intCast(u32, w) or self.extent.height != @intCast(u32, h)) and
+        if ((outOfDate or self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
             (w > 0 and h > 0))
         {
-            self.extent = .{ .width = @intCast(u32, w), .height = @intCast(u32, h) };
+            self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
             platform.getInstance().extent = .{ .x = w, .y = h };
 
             self.isMinimized = false;
@@ -1681,7 +1681,7 @@ pub const NeonVkContext = struct {
         };
 
         var colorAttachmentRef = vk.AttachmentReference{
-            .attachment = @intCast(u32, attachments.items.len),
+            .attachment = @as(u32, @intCast(attachments.items.len)),
             .layout = .color_attachment_optimal,
         };
 
@@ -1700,7 +1700,7 @@ pub const NeonVkContext = struct {
         };
 
         var depthAttachmentRef = vk.AttachmentReference{
-            .attachment = @intCast(u32, attachments.items.len),
+            .attachment = @as(u32, @intCast(attachments.items.len)),
             .layout = .depth_stencil_attachment_optimal,
         };
         try attachments.append(depthAttachment);
@@ -1710,7 +1710,7 @@ pub const NeonVkContext = struct {
         subpass.pipeline_bind_point = .graphics;
         subpass.input_attachment_count = 0;
         subpass.color_attachment_count = 1;
-        subpass.p_color_attachments = @ptrCast([*]const vk.AttachmentReference, &colorAttachmentRef);
+        subpass.p_color_attachments = @as([*]const vk.AttachmentReference, @ptrCast(&colorAttachmentRef));
         subpass.p_depth_stencil_attachment = &depthAttachmentRef; // disable the depth attachment for now
         //subpass.p_depth_stencil_attachment = null;
 
@@ -1745,10 +1745,10 @@ pub const NeonVkContext = struct {
         var rpci = std.mem.zeroes(vk.RenderPassCreateInfo);
         rpci.s_type = .render_pass_create_info;
         rpci.flags = .{};
-        rpci.attachment_count = @intCast(u32, attachments.items.len);
+        rpci.attachment_count = @as(u32, @intCast(attachments.items.len));
         rpci.p_attachments = attachments.items.ptr;
         rpci.subpass_count = 1;
-        rpci.p_subpasses = @ptrCast([*]const vk.SubpassDescription, &subpass);
+        rpci.p_subpasses = @as([*]const vk.SubpassDescription, @ptrCast(&subpass));
         rpci.dependency_count = 2;
         rpci.p_dependencies = &dependencies;
         // debug_struct("rpci", rpci);
@@ -1765,9 +1765,9 @@ pub const NeonVkContext = struct {
     ) !vk.Format {
         for (formats) |format| {
             var props = self.vki.getPhysicalDeviceFormatProperties(self.physicalDevice, format);
-            if (imageTiling == .linear and (@bitCast(u32, props.linear_tiling_features) & @bitCast(u32, features)) == @bitCast(u32, features)) {
+            if (imageTiling == .linear and (@as(u32, @bitCast(props.linear_tiling_features)) & @as(u32, @bitCast(features))) == @as(u32, @bitCast(features))) {
                 return format;
-            } else if (imageTiling == .optimal and (@bitCast(u32, props.optimal_tiling_features) & @bitCast(u32, features)) == @bitCast(u32, features)) {
+            } else if (imageTiling == .optimal and (@as(u32, @bitCast(props.optimal_tiling_features)) & @as(u32, @bitCast(features))) == @as(u32, @bitCast(features))) {
                 return format;
             }
         }
@@ -1804,9 +1804,9 @@ pub const NeonVkContext = struct {
             return error.InvalidSurfaceDimensions;
         }
 
-        var image_count = @intCast(u32, NumFrames);
+        var image_count = @as(u32, @intCast(NumFrames));
         if (self.caps.max_image_count > 0) {
-            image_count = std.math.min(image_count, self.caps.max_image_count);
+            image_count = @min(image_count, self.caps.max_image_count);
         }
 
         const qfi = [_]u32{ self.graphicsQueue.family, self.presentQueue.family };
@@ -1848,8 +1848,8 @@ pub const NeonVkContext = struct {
         self.viewport = vk.Viewport{
             .x = 0,
             .y = 0,
-            .width = @intToFloat(f32, self.actual_extent.width),
-            .height = @intToFloat(f32, self.actual_extent.height),
+            .width = @as(f32, @floatFromInt(self.actual_extent.width)),
+            .height = @as(f32, @floatFromInt(self.actual_extent.height)),
             .min_depth = 0.0,
             .max_depth = 1.0,
         };
@@ -2026,25 +2026,25 @@ pub const NeonVkContext = struct {
         try self.vkd.allocateCommandBuffers(
             self.dev,
             &cbai2,
-            @ptrCast([*]vk.CommandBuffer, &self.uploadContext.commandBuffer),
+            @as([*]vk.CommandBuffer, @ptrCast(&self.uploadContext.commandBuffer)),
         );
     }
 
     pub fn init_command_pools(self: *Self) !void {
         var cpci = vk.CommandPoolCreateInfo{ .flags = .{}, .queue_family_index = undefined };
         cpci.flags.reset_command_buffer_bit = true;
-        cpci.queue_family_index = @intCast(u32, self.graphicsFamilyIndex);
+        cpci.queue_family_index = @as(u32, @intCast(self.graphicsFamilyIndex));
 
         self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
 
-        var cpci2 = vkinit.commandPoolCreateInfo(@intCast(u32, self.graphicsFamilyIndex), .{ .reset_command_buffer_bit = true });
+        var cpci2 = vkinit.commandPoolCreateInfo(@as(u32, @intCast(self.graphicsFamilyIndex)), .{ .reset_command_buffer_bit = true });
         self.uploadContext.commandPool = try self.vkd.createCommandPool(self.dev, &cpci2, null);
     }
 
     fn init_api(self: *Self) !void {
         self.vkb = try BaseDispatch.load(platform.c.glfwGetInstanceProcAddress);
 
-        try self.graph.write("  init_api->\"BaseDispatch@0x{x}\" [style=dotted]\n", .{@ptrToInt(&self.vkb)});
+        try self.graph.write("  init_api->\"BaseDispatch@0x{x}\" [style=dotted]\n", .{@intFromPtr(&self.vkb)});
 
         try self.graph.write("  init_api->create_vulkan_instance\n", .{});
         try self.create_vulkan_instance();
@@ -2064,7 +2064,7 @@ pub const NeonVkContext = struct {
             core.engine_logs("glfw has requested extensions:");
             var i: usize = 0;
             while (i < extensionsCount) : (i += 1) {
-                var x = @ptrCast([*]const CStr, extensions);
+                var x = @as([*]const CStr, @ptrCast(extensions));
                 core.engine_log("  glfw_extension: {s}", .{x[i]});
             }
         }
@@ -2074,9 +2074,9 @@ pub const NeonVkContext = struct {
 
         // setup vulkan application info
         const appInfo = vk.ApplicationInfo{
-            .p_application_name = @ptrCast(?[*:0]const u8, self.platformInstance.windowName.ptr),
+            .p_application_name = @as(?[*:0]const u8, @ptrCast(self.platformInstance.windowName.ptr)),
             .application_version = vk.makeApiVersion(0, 0, 0, 0),
-            .p_engine_name = @ptrCast(?[*:0]const u8, self.platformInstance.windowName.ptr),
+            .p_engine_name = @as(?[*:0]const u8, @ptrCast(self.platformInstance.windowName.ptr)),
             .engine_version = vk.makeApiVersion(0, 0, 0, 0),
             .api_version = vk.API_VERSION_1_2,
         };
@@ -2086,9 +2086,9 @@ pub const NeonVkContext = struct {
             .flags = .{},
             .p_application_info = &appInfo,
             .enabled_layer_count = if (enable_validation_layers) 1 else 0,
-            .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &ExtraLayers[0]),
+            .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
             .enabled_extension_count = extensionsCount,
-            .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, extensions),
+            .pp_enabled_extension_names = @as([*]const [*:0]const u8, @ptrCast(extensions)),
         };
 
         try self.graph.write("  create_vulkan_instance->\"vkb.createInstance\"\n", .{});
@@ -2106,8 +2106,8 @@ pub const NeonVkContext = struct {
         var ids = ArrayList(u32).init(self.allocator);
         defer ids.deinit();
 
-        try core.AppendToArrayListUnique(&ids, @intCast(u32, self.graphicsFamilyIndex));
-        try core.AppendToArrayListUnique(&ids, @intCast(u32, self.presentFamilyIndex));
+        try core.AppendToArrayListUnique(&ids, @as(u32, @intCast(self.graphicsFamilyIndex)));
+        try core.AppendToArrayListUnique(&ids, @as(u32, @intCast(self.presentFamilyIndex)));
 
         var createQueueInfoList = ArrayList(vk.DeviceQueueCreateInfo).init(self.allocator);
         defer createQueueInfoList.deinit();
@@ -2137,17 +2137,17 @@ pub const NeonVkContext = struct {
         var dci = vk.DeviceCreateInfo{
             .flags = .{},
             .p_next = &shaderDrawFeatures,
-            .queue_create_info_count = @intCast(u32, createQueueInfoList.items.len),
+            .queue_create_info_count = @as(u32, @intCast(createQueueInfoList.items.len)),
             .p_queue_create_infos = createQueueInfoList.items.ptr,
             .enabled_layer_count = 1,
             .pp_enabled_layer_names = undefined,
-            .enabled_extension_count = @intCast(u32, required_device_extensions.len),
-            .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &required_device_extensions),
+            .enabled_extension_count = @as(u32, @intCast(required_device_extensions.len)),
+            .pp_enabled_extension_names = @as([*]const [*:0]const u8, @ptrCast(&required_device_extensions)),
             .p_enabled_features = &desiredFeatures,
         };
 
         dci.enabled_layer_count = vk_constants.required_device_layers.len;
-        dci.pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vk_constants.required_device_layers);
+        dci.pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&vk_constants.required_device_layers));
 
         self.dev = try self.vki.createDevice(self.physicalDevice, &dci, null);
 
@@ -2180,7 +2180,7 @@ pub const NeonVkContext = struct {
 
         const X = struct {
             pub fn lessThan(ctx: *NeonVkContext, lhs: u32, rhs: u32) bool {
-                return @ptrToInt(ctx.renderObjectSet.dense.items(.renderObject)[lhs].material) < @ptrToInt(ctx.renderObjectSet.dense.items(.renderObject)[rhs].material);
+                return @intFromPtr(ctx.renderObjectSet.dense.items(.renderObject)[lhs].material) < @intFromPtr(ctx.renderObjectSet.dense.items(.renderObject)[rhs].material);
             }
         };
 
@@ -2214,7 +2214,7 @@ pub const NeonVkContext = struct {
 
                 if (props.queue_flags.graphics_bit) {
                     core.graphics_log("Found suitable graphics device with queue id: {d}", .{i});
-                    graphicsID = @intCast(isize, i);
+                    graphicsID = @as(isize, @intCast(i));
                     break;
                 }
             }
@@ -2225,10 +2225,10 @@ pub const NeonVkContext = struct {
                 if (props.queue_count == 0)
                     continue;
 
-                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @intCast(u32, i), self.surface);
+                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @as(u32, @intCast(i)), self.surface);
 
                 if (supportsPresent > 0) {
-                    presentID = @intCast(isize, i);
+                    presentID = @as(isize, @intCast(i));
                     break;
                 }
             }
@@ -2237,8 +2237,8 @@ pub const NeonVkContext = struct {
                 self.physicalDevice = pDeviceInfo.physicalDevice;
                 self.physicalDeviceProperties = pDeviceInfo.deviceProperties;
                 self.physicalDeviceMemoryProperties = pDeviceInfo.memoryProperties;
-                self.graphicsFamilyIndex = @intCast(u32, graphicsID);
-                self.presentFamilyIndex = @intCast(u32, presentID);
+                self.graphicsFamilyIndex = @as(u32, @intCast(graphicsID));
+                self.presentFamilyIndex = @as(u32, @intCast(presentID));
                 core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
                 debug_struct("selected physical device:", self.physicalDevice);
@@ -2295,7 +2295,7 @@ pub const NeonVkContext = struct {
 
         _ = try vki.enumeratePhysicalDevices(self.instance, &numDevices, devices.ptr);
 
-        self.enumeratedPhysicalDevices = try ArrayList(NeonVkPhysicalDeviceInfo).initCapacity(self.allocator, @intCast(usize, numDevices));
+        self.enumeratedPhysicalDevices = try ArrayList(NeonVkPhysicalDeviceInfo).initCapacity(self.allocator, @as(usize, @intCast(numDevices)));
         core.graphics_log("Enumerating {d} devices...", .{numDevices});
         var i: usize = 0;
         while (i < numDevices) : (i += 1) {
@@ -2309,7 +2309,7 @@ pub const NeonVkContext = struct {
             try self.graph.write(
                 "  enumerate_physical_devices->\"device:{s}:{*}\"\n",
                 .{
-                    @ptrCast([*:0]const u8, &self.enumeratedPhysicalDevices.items[i].deviceProperties.device_name),
+                    @as([*:0]const u8, @ptrCast(&self.enumeratedPhysicalDevices.items[i].deviceProperties.device_name)),
                     devices.ptr,
                 },
             );

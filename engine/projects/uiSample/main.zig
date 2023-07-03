@@ -44,9 +44,9 @@ pub const GameContext = struct {
         self.fpsText = std.fmt.allocPrint(self.allocator, "fps: {d:.2}", .{1.0 / dt}) catch unreachable;
 
         var ctx = ui.getContext();
-        ctx.getPanel(self.panel).titleSize = @floatCast(f32, self.time) * 20.0 + 20.0;
+        ctx.getPanel(self.panel).titleSize = @as(f32, @floatCast(self.time)) * 20.0 + 20.0;
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
-        ctx.getText(self.text).textSize = @floatCast(f32, self.time) * 20.0 + 20.0;
+        ctx.getText(self.text).textSize = @as(f32, @floatCast(self.time)) * 20.0 + 20.0;
     }
 
     pub fn uiTick(self: *@This(), deltaTime: f64) void {

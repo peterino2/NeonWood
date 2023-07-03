@@ -107,7 +107,7 @@ pub const JobWorker = struct {
     pub fn workerThreadFunc(self: *@This()) void {
         var printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
         defer self.allocator.free(printed);
-        tracy.SetThreadName(@ptrCast([*:0]u8, printed.ptr));
+        tracy.SetThreadName(@as([*:0]u8, @ptrCast(printed.ptr)));
 
         while (!self.shouldDie.load(.Acquire)) {
             if (self.currentJobContext != null) {
@@ -157,7 +157,7 @@ pub const JobContext = struct {
 
         const Wrap = struct {
             pub fn wrappedFunc(pointer: *anyopaque, context: *JobContext) void {
-                var ptr = @ptrCast(*CaptureType, @alignCast(@alignOf(CaptureType), pointer));
+                var ptr = @as(*CaptureType, @ptrCast(@alignCast(pointer)));
                 ptr.func(context);
             }
         };
@@ -169,7 +169,7 @@ pub const JobContext = struct {
 
         var ptr = try allocator.create(CaptureType);
         self.capture.len = @sizeOf(CaptureType);
-        self.capture.ptr = @ptrCast([*]u8, ptr);
+        self.capture.ptr = @as([*]u8, @ptrCast(ptr));
         ptr.* = capture;
         return self;
     }
@@ -181,7 +181,7 @@ pub const JobContext = struct {
 
         const Wrap = struct {
             pub fn wrappedFunc(pointer: *anyopaque, context: *JobContext) void {
-                var ptr = @ptrCast(*CaptureType, @alignCast(@alignOf(CaptureType), pointer));
+                var ptr = @as(*CaptureType, @ptrCast(@alignCast(pointer)));
                 ptr.func(context);
             }
         };
@@ -193,7 +193,7 @@ pub const JobContext = struct {
 
         var ptr = try allocator.create(CaptureType);
         self.capture.len = @sizeOf(CaptureType);
-        self.capture.ptr = @ptrCast([*]u8, ptr);
+        self.capture.ptr = @as([*]u8, @ptrCast(ptr));
         ptr.* = capture;
         return self;
     }
