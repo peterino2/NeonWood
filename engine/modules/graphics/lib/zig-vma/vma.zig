@@ -1086,16 +1086,20 @@ pub const VulkanFunctions = extern struct {
         vkGetInstanceProcAddr: *const fn (vk.Instance, [*:0]const u8) callconv(vk.vulkan_call_conv) vk.PfnVoidFunction,
         vkGetDeviceProcAddr: *const fn (vk.Device, [*:0]const u8) callconv(vulkan_call_conv) vk.PfnVoidFunction,
     ) T {
+        var funcStringBuffer: [4096]u8 = std.mem.zeroes([4096]u8);
+
         if (@typeInfo(T) != .Struct) return undefined;
         var value: T = undefined;
         inline for (@typeInfo(T).Struct.fields) |field| {
             if (comptime std.mem.startsWith(u8, field.name, "vk")) {
+                @memcpy((&funcStringBuffer).ptr, field.name);
+                funcStringBuffer[field.name.len] = 0;
                 if (comptime isDeviceFunc(field.type)) {
-                    const func = vkGetDeviceProcAddr(device, @as([*:0]const u8, @ptrCast(field.name.ptr)));
+                    const func = vkGetDeviceProcAddr(device, @ptrCast(&funcStringBuffer));
                     const resolved = func orelse @panic("Couldn't fetch vk device function " ++ field.name);
                     @field(value, field.name) = @as(field.type, @ptrCast(resolved));
                 } else {
-                    const func = vkGetInstanceProcAddr(inst, @as([*:0]const u8, @ptrCast(field.name.ptr)));
+                    const func = vkGetInstanceProcAddr(inst, @ptrCast(&funcStringBuffer));
                     const resolved = func orelse @panic("Couldn't fetch vk instance function " ++ field.name);
                     @field(value, field.name) = @as(field.type, @ptrCast(resolved));
                 }
