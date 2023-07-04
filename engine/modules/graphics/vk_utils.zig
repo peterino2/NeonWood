@@ -90,6 +90,8 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
 }
 
 pub fn getMiplevelFromSize(size: core.Vector2i) u32 {
+    if (size.x != size.y)
+        return 1;
     return std.math.log2(@as(u32, @intCast(@max(size.x, size.y)))) + 1;
 }
 

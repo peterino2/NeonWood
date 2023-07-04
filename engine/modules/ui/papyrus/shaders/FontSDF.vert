@@ -24,7 +24,8 @@ layout (push_constant) uniform constants {
 
 void main()
 {
-    gl_Position = vec4((texPosition.xy / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    //gl_Position = vec4((texPosition.xy / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    gl_Position = vec4((texPosition.xy / vec2(1600, 900)) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
     texCoords = texCoord;
     fragColor = texColor;
 }
