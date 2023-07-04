@@ -73,7 +73,7 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
     }, imageExtent, mipLevel);
 
     if (mipLevel > 1) {
-        core.graphics_log("creating image with mip level: {d}", .{mipLevel});
+        core.graphics_log("creating image with mip level: {d} {d}x{d}", .{ mipLevel, size.x, size.y });
         imgCreateInfo.usage = .{
             .transfer_dst_bit = true,
             .transfer_src_bit = true,
@@ -114,7 +114,7 @@ pub fn createTextureFromPixelsSync(
         .r8g8b8a8_srgb,
         createdImage.image,
         .{ .color_bit = true },
-        0,
+        miplevel,
     );
 
     var imageView = try ctx.vkd.createImageView(ctx.dev, &imageViewCreate, null);

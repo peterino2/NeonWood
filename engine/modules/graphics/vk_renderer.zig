@@ -2045,7 +2045,6 @@ pub const NeonVkContext = struct {
         self.vkb = try BaseDispatch.load(platform.c.glfwGetInstanceProcAddress);
 
         try self.graph.write("  init_api->\"BaseDispatch@0x{x}\" [style=dotted]\n", .{@intFromPtr(&self.vkb)});
-
         try self.graph.write("  init_api->create_vulkan_instance\n", .{});
         try self.create_vulkan_instance();
         errdefer self.vki.destroyInstance(self.instance, null);
@@ -2059,6 +2058,7 @@ pub const NeonVkContext = struct {
     fn create_vulkan_instance(self: *Self) !void {
         var extensionsCount: u32 = 0;
         const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
+        var requestedExtensions: [10][*:0]const u8 = undefined;
 
         if (extensionsCount > 0) {
             core.engine_logs("glfw has requested extensions:");
@@ -2066,11 +2066,16 @@ pub const NeonVkContext = struct {
             while (i < extensionsCount) : (i += 1) {
                 var x = @as([*]const CStr, @ptrCast(extensions));
                 core.engine_log("  glfw_extension: {s}", .{x[i]});
+                requestedExtensions[i] = extensions[i];
             }
         }
 
+        requestedExtensions[extensionsCount] = "VK_KHR_portability_enumeration";
+
         // Make a request for vulkan layers
-        const ExtraLayers = [1]CStr{vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING};
+        const ExtraLayers = [1]CStr{
+            vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING,
+        };
 
         // setup vulkan application info
         const appInfo = vk.ApplicationInfo{
@@ -2078,21 +2083,24 @@ pub const NeonVkContext = struct {
             .application_version = vk.makeApiVersion(0, 0, 0, 0),
             .p_engine_name = @as(?[*:0]const u8, @ptrCast(self.platformInstance.windowName.ptr)),
             .engine_version = vk.makeApiVersion(0, 0, 0, 0),
-            .api_version = vk.API_VERSION_1_2,
+            .api_version = vk.makeApiVersion(0, 1, 3, 0),
         };
 
+        var flagbits: u32 = 0x01;
         // instance create info struct
         const icis = vk.InstanceCreateInfo{
-            .flags = .{},
+            .flags = @bitCast(flagbits),
             .p_application_info = &appInfo,
             .enabled_layer_count = if (enable_validation_layers) 1 else 0,
             .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
-            .enabled_extension_count = extensionsCount,
-            .pp_enabled_extension_names = @ptrCast(extensions),
+            .enabled_extension_count = extensionsCount + 1,
+            .pp_enabled_extension_names = @as(?[*]const [*:0]const u8, @ptrCast(&requestedExtensions)) orelse undefined,
         };
 
+        core.graphics_logs("creating Instance");
         try self.graph.write("  create_vulkan_instance->\"vkb.createInstance\"\n", .{});
         self.instance = try self.vkb.createInstance(&icis, null);
+        core.graphics_logs("instance created");
 
         try self.graph.write("  create_vulkan_instance->\"vki.load\"\n", .{});
         // load vulkan per instance functions
@@ -2100,6 +2108,7 @@ pub const NeonVkContext = struct {
     }
 
     fn init_device(self: *Self) !void {
+        core.graphics_logs(" init device");
         try self.graph.write("  init_device->create_physical_devices\n", .{});
         try self.create_physical_devices();
 

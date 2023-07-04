@@ -74,8 +74,8 @@ pub const PlatformInstance = struct {
         core.engine_log("platform starting: GLFW", .{});
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
-        c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
+        // c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
+        // c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
         self.window = c.glfwCreateWindow(
             @as(c_int, @intCast(self.extent.x)),
             @as(c_int, @intCast(self.extent.y)),
@@ -98,6 +98,18 @@ pub const PlatformInstance = struct {
 
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         c.glfwSetWindowAspectRatio(self.window, 16, 9);
+
+        var extensionsCount: u32 = 0;
+        const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
+
+        core.engine_log("glfw has requested extensions: {d}", .{extensionsCount});
+        if (extensionsCount > 0) {
+            var i: usize = 0;
+            while (i < extensionsCount) : (i += 1) {
+                var x = @as([*]const core.CStr, @ptrCast(extensions));
+                core.engine_log("  glfw_extension: {s}", .{x[i]});
+            }
+        }
 
         self.installHandlers();
     }

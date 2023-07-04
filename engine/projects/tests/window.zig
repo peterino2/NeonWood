@@ -3,12 +3,12 @@ const nw = @import("root").neonwood;
 const core = nw.core;
 
 pub fn main() !void {
-    core.start_module();
-    defer core.shutdown_module();
+    const allocator = std.heap.c_allocator;
+    core.start_module(allocator);
+    try nw.platform.start_module(allocator, "window test", null);
 
-    try nw.platform.start_module(std.heap.c_allocator, "jobTest", null);
-
-    while (!core.gEngine.exitSignal) {}
-
-    try core.gEngine.run();
+    while (!core.gEngine.exitConfirmed) {
+        nw.platform.getInstance().pollEvents();
+        std.time.sleep(1000 * 1000 * 25);
+    }
 }

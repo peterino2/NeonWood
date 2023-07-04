@@ -103,6 +103,9 @@ pub fn imageViewCreateInfo(
     aspectFlags: vk.ImageAspectFlags,
     mipLevel: u32,
 ) vk.ImageViewCreateInfo {
+    if (mipLevel == 0) {
+        core.engine_logs("create image view with mipLevel of 0");
+    }
     var ivci = vk.ImageViewCreateInfo{
         .flags = .{},
         .image = image,

@@ -13,6 +13,10 @@ pub fn transferDst_into_shaderReadOnly(
     image: vk.Image,
     mipLevel: u32,
 ) void {
+    if (mipLevel == 0) {
+        core.engine_logs("mipLevel 0 detected into_shaderReadOnly");
+    }
+
     var range = vk.ImageSubresourceRange{
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,
@@ -55,6 +59,9 @@ pub fn into_transferDst(
     image: vk.Image,
     mipLevel: u32,
 ) void {
+    if (mipLevel == 0) {
+        core.engine_logs("mipLevel 0 detected into_transferDst");
+    }
     var range = vk.ImageSubresourceRange{
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,

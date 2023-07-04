@@ -38,7 +38,8 @@ void main()
     }
 
     float cameraDist = length(cameraData.position.xyz - worldPosition);
-    float opacity = clamp((1.f) - pow((cameraDist / 300.f), 1/2.2), 0.f, 1.f);
+    float opacity = clamp((1.f) - cameraDist / 300.f, 0.f, 1.f);
+    //float opacity = 1.0;
 
     outFragColor = vec4(mix(sceneData.fogColor.xyz, color.xyz, opacity), color.w);
 

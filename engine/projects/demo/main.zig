@@ -82,8 +82,8 @@ pub const GameContext = struct {
         }
 
         const position = platform.getInstance().getCursorPosition();
-        var dx = @floatCast(f32, position.x - (@floatCast(f32, lastXPos)));
-        var dy = @floatCast(f32, position.y - (@floatCast(f32, lastYPos)));
+        var dx = @as(f32, @floatCast(position.x - (@as(f32, @floatCast(lastXPos)))));
+        var dy = @as(f32, @floatCast(position.y - (@as(f32, @floatCast(lastYPos)))));
 
         if (!platform.getInstance().cursorEnabled) {
             self.eulerX += dx / 1920;
@@ -100,7 +100,7 @@ pub const GameContext = struct {
 
         var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
 
-        self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@floatCast(f32, deltaTime)));
+        self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@as(f32, @floatCast(deltaTime))));
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
@@ -135,7 +135,7 @@ pub const GameContext = struct {
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
 
-        ctx.get(self.panel).pos = .{ .y = 40 * @floatCast(f32, self.time), .x = 50 * @floatCast(f32, self.time) };
+        ctx.get(self.panel).pos = .{ .y = 40 * @as(f32, @floatCast(self.time)), .x = 50 * @as(f32, @floatCast(self.time)) };
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -219,7 +219,7 @@ pub fn main() anyerror!void {
 
     try core.gEngine.run();
 
-    _ = c.glfwSetKeyCallback(@ptrCast(?*c.GLFWwindow, platform.getInstance().window), input_callback);
+    _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
     while (!core.gEngine.exitConfirmed) {
