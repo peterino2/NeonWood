@@ -2088,7 +2088,7 @@ pub const NeonVkContext = struct {
             .enabled_layer_count = if (enable_validation_layers) 1 else 0,
             .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
             .enabled_extension_count = extensionsCount,
-            .pp_enabled_extension_names = @as([*]const [*:0]const u8, @ptrCast(extensions)),
+            .pp_enabled_extension_names = @ptrCast(extensions),
         };
 
         try self.graph.write("  create_vulkan_instance->\"vkb.createInstance\"\n", .{});
@@ -2142,7 +2142,7 @@ pub const NeonVkContext = struct {
             .enabled_layer_count = 1,
             .pp_enabled_layer_names = undefined,
             .enabled_extension_count = @as(u32, @intCast(required_device_extensions.len)),
-            .pp_enabled_extension_names = @as([*]const [*:0]const u8, @ptrCast(&required_device_extensions)),
+            .pp_enabled_extension_names = @ptrCast(&required_device_extensions),
             .p_enabled_features = &desiredFeatures,
         };
 

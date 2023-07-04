@@ -71,10 +71,11 @@ pub const PlatformInstance = struct {
             core.engine_errs("Glfw Init Failed");
             return error.GlfwInitFailed;
         }
+        core.engine_log("platform starting: GLFW", .{});
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
-        c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
+        // c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
+        // c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
         self.window = c.glfwCreateWindow(
             @as(c_int, @intCast(self.extent.x)),
             @as(c_int, @intCast(self.extent.y)),
@@ -99,6 +100,7 @@ pub const PlatformInstance = struct {
         c.glfwSetWindowAspectRatio(self.window, 16, 9);
 
         self.installHandlers();
+        std.time.sleep(1000 * 1000 * 1000 * 100);
     }
 
     pub fn pollEvents(self: *@This()) void {
