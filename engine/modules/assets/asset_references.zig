@@ -7,6 +7,7 @@ pub const AssetImportReference = struct {
     properties: AssetPropertiesBag,
 };
 
+// MakeImportRef with defaults.
 pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) AssetImportReference {
     return .{
         .assetRef = .{
@@ -17,6 +18,7 @@ pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) 
     };
 }
 
+// Advanced version of MakeImportRef, allows user to explicitly construct the properties bag.
 pub fn MakeImportRefOptions(assetType: []const u8, name: []const u8, properties: AssetPropertiesBag) AssetImportReference {
     return .{
         .assetRef = .{
@@ -37,8 +39,6 @@ pub const AssetPropertiesBag = struct {
     textureUseBlockySampler: bool = true,
 };
 
-// newer API contains info about how to load things as well.
-// ^- no bad... references should only be name + type
 pub const AssetRef = struct {
     name: core.Name,
     assetType: core.Name,
@@ -74,10 +74,6 @@ pub const AssetLoaderMessage = struct {
             self.allocator.free(message);
         }
     }
-};
-
-pub const AssetLoaderContext = struct {
-    loaderMessage: core.RingQueue(AssetLoaderMessage),
 };
 
 pub const AssetLoaderInterface = struct {

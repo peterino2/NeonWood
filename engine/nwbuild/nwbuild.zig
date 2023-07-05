@@ -36,6 +36,7 @@ pub const NwBuildSystem = struct {
     opts: BuildSystemOpts,
     spirvGen: SpirvGenerator,
     options: *std.build.OptionsStep,
+    vulkan_sdk: []const u8,
     enableTracy: bool,
 
     pub fn init(
@@ -45,6 +46,12 @@ pub const NwBuildSystem = struct {
         opts: BuildSystemOpts,
     ) *@This() {
         var self = b.allocator.create(@This()) catch unreachable;
+
+        var vulkan_sdk = b.env_map.hash_map.get("VULKAN_SDK");
+
+        if (vulkan_sdk) |vk_sdk| {
+            std.debug.print("vulkan sdk at: VULKAN_SDK = {s} \n", .{vk_sdk});
+        }
 
         var enginePathBuffer = std.mem.zeroes([std.fs.MAX_PATH_BYTES]u8);
         var enginePath = std.fs.realpath(b.build_root.path.?, &enginePathBuffer) catch unreachable;
@@ -71,6 +78,7 @@ pub const NwBuildSystem = struct {
             }),
             .enableTracy = enableTracy,
             .options = options,
+            .vulkan_sdk = vulkan_sdk.?,
         };
 
         return self;
@@ -177,7 +185,8 @@ pub const NwBuildSystem = struct {
 
         if (self.target.getOs().tag == .macos) {
             exe.addLibraryPath("/opt/homebrew/lib/");
-            exe.addLibraryPath("/Users/peterli/VulkanSDK/1.3.250.1/macOS/lib/");
+            // load find the vulkan environment path.
+            exe.addLibraryPath(self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.vulkan_sdk}));
         }
 
         // generate the vulkan package
