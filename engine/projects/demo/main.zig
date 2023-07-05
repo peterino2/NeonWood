@@ -205,11 +205,11 @@ pub fn main() anyerror!void {
     assets.start_module(allocator);
     defer assets.shutdown_module();
 
-    audio.start_module(allocator);
-    defer audio.shutdown_module();
-
     graphics.start_module(allocator);
     defer graphics.shutdown_module();
+
+    audio.start_module(allocator);
+    defer audio.shutdown_module();
 
     try ui.start_module(allocator);
     defer ui.shutdown_module();

@@ -129,6 +129,10 @@ pub const TextureLoader = struct {
 
         return self;
     }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
 };
 
 pub const MeshLoader = struct {
@@ -136,9 +140,23 @@ pub const MeshLoader = struct {
     pub const NeonObjectTable = core.RttiData.from(@This());
     gc: *NeonVkContext,
 
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+
+        self.* = .{
+            .gc = vk_renderer.gContext,
+        };
+
+        return self;
+    }
+
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
         core.engine_log("loading mesh asset {s}", .{propertiesBag.?.path});
         _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
     }
 };
 
@@ -155,4 +173,8 @@ pub fn init_loaders(allocator: std.mem.Allocator) !void {
 
     try assets.gAssetSys.registerLoader(gTextureLoader);
     try assets.gAssetSys.registerLoader(gMeshLoader);
+}
+
+pub fn deinit_loaders(allocator: std.mem.Allocator) void {
+    allocator.destroy(gMeshLoader);
 }

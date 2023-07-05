@@ -57,8 +57,14 @@ pub const Engine = struct {
 
         return rv;
     }
+
     pub fn deinit(self: *@This()) void {
-        self.tracesContext.deinit();
+        //self.tracesContext.deinit();
+
+        for (self.rttiObjects.items) |item| {
+            _ = item;
+            // item.vtable.deinit_func.?(item.ptr);
+        }
     }
 
     // creates an engine object using the engine's allocator.

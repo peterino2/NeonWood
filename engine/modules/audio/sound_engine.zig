@@ -37,6 +37,10 @@ pub const SoundLoader = struct {
         };
     }
 
+    pub fn deinit(self: @This()) void {
+        _ = self;
+    }
+
     // unfortunately this one is blocking
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, properties: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
         core.engine_log("loading sound asset {s}", .{properties.?.path});
@@ -124,14 +128,13 @@ pub const NeonSoundEngine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        // c.ma_engine_uninit(self.engine);
-        self.allocator.destroy(self.engine);
-
         var iter = self.sounds.iterator();
         while (iter.next()) |sound| {
             self.allocator.destroy(sound.value_ptr.*);
         }
         self.sounds.deinit(self.allocator);
+        // c.ma_engine_uninit(self.engine);
+        self.allocator.destroy(self.engine);
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) void {

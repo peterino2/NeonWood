@@ -2554,6 +2554,8 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
+
+        self.allocator.destroy(self);
     }
 
     /// ---------- renderObject functions

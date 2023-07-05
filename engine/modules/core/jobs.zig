@@ -106,8 +106,9 @@ pub const JobWorker = struct {
 
     pub fn workerThreadFunc(self: *@This()) void {
         var printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
-        defer self.allocator.free(printed);
         tracy.SetThreadName(@as([*:0]u8, @ptrCast(printed.ptr)));
+
+        self.allocator.free(printed);
 
         while (!self.shouldDie.load(.Acquire)) {
             if (self.currentJobContext != null) {

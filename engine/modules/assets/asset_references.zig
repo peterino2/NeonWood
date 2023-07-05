@@ -83,6 +83,7 @@ pub const AssetLoaderInterface = struct {
 
     assetType: core.Name,
     loadAsset: *const fn (*anyopaque, AssetRef, ?AssetPropertiesBag) AssetLoaderError!void,
+    deinit: *const fn (*anyopaque) void,
 
     pub fn from(comptime assetType: core.Name, comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -94,10 +95,22 @@ pub const AssetLoaderInterface = struct {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.loadAsset(assetRef, properties);
             }
+
+            pub fn deinit(
+                pointer: *anyopaque,
+            ) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                ptr.deinit();
+            }
         };
 
         if (!@hasDecl(TargetType, "loadAsset")) {
             @compileLog("Tried to generate AssetLoaderInterface for type ", TargetType, "but it's missing func loadAsset");
+            unreachable;
+        }
+
+        if (!@hasDecl(TargetType, "deinit")) {
+            @compileLog("Tried to generate AssetLoaderInterface for type ", TargetType, "but it's missing func deinit");
             unreachable;
         }
 
@@ -106,6 +119,7 @@ pub const AssetLoaderInterface = struct {
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .loadAsset = wrappedFuncs.loadAsset,
+            .deinit = wrappedFuncs.deinit,
             .assetType = assetType,
         };
 
@@ -119,6 +133,10 @@ pub const AssetLoaderRef = struct {
 
     pub fn loadAsset(self: *@This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
         try self.vtable.loadAsset(self.target, asset, propertiesBag);
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.vtable.deinit(self.target);
     }
 };
 
@@ -147,5 +165,12 @@ pub const AssetReferenceSys = struct {
         }
         try self.loaders.getPtr(asset.assetType.hash).?.loadAsset(asset, propertiesBag);
         z.End();
+    }
+
+    pub fn deinit(self: *@This()) void {
+        var iter = self.loaders.valueIterator();
+        while (iter.next()) |i| {
+            i.deinit();
+        }
     }
 };

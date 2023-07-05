@@ -64,8 +64,8 @@ pub const FontAtlasVk = struct {
 
 pub const DisplayText = struct {
     allocator: std.mem.Allocator,
-    g: *graphics.NeonVkContext,
-    atlas: *FontAtlasVk,
+    g: *graphics.NeonVkContext, // ref
+    atlas: *FontAtlasVk, // ref
     mesh: *DynamicMesh,
     string: std.ArrayList(u8),
     stringHash: u32 = 0xffffffff,
@@ -288,18 +288,19 @@ pub const TextRenderer = struct {
     }
 
     pub fn deinit(self: *@This(), backingAllocator: std.mem.Allocator) void {
-        self.arena.deinit();
         for (self.displays.items) |display| {
             display.deinit();
         }
-        self.displays.deinit(self.allocator);
-        backingAllocator.destroy(self);
 
-        {
-            var iter = self.fonts.iterator();
-            while (iter.next()) |i| {
-                i.value_ptr.*.deinit();
-            }
+        self.displays.deinit(self.allocator);
+
+        var iter = self.fonts.iterator();
+        while (iter.next()) |i| {
+            std.debug.print("ITERATION\n", .{});
+            i.value_ptr.*.deinit();
         }
+
+        self.arena.deinit();
+        backingAllocator.destroy(self);
     }
 };

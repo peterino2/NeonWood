@@ -398,14 +398,14 @@ pub fn deinit(self: *@This()) void {
     }
     self.quad.deinit(self.gc);
 
+    self.textRenderer.deinit(self.allocator);
+
     self.pipeData.deinit(self.allocator, self.gc);
     self.textPipeData.deinit(self.allocator, self.gc);
 
     self.indexBuffer.deinit(self.gc);
 
     self.papyrusCtx.deinit();
-
-    self.textRenderer.deinit(self.allocator);
 }
 
 pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {

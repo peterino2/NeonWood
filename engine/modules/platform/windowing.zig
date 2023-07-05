@@ -47,6 +47,12 @@ pub const PlatformInstance = struct {
     workBuffer: std.ArrayList(IOEvent),
     cursorEnabled: bool = true,
 
+    pub fn deinit(self: *@This()) void {
+        self.workBuffer.deinit();
+        self.eventQueue.deinit();
+        self.handlers.deinit();
+    }
+
     pub fn init(
         allocator: std.mem.Allocator,
         params: PlatformParams,
@@ -183,10 +189,6 @@ pub const PlatformInstance = struct {
 
     pub fn isCursorEnabled(self: @This()) bool {
         return self.cursorEnabled;
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.handlers.deinit();
     }
 
     // Low level API
