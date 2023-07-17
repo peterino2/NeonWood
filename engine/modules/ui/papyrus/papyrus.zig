@@ -3,6 +3,8 @@ const c = @cImport({
     @cInclude("stb_ttf.h");
 });
 
+pub const events = @import("papyrus_events.zig");
+
 // Mixed mode implementation agnostic UI library
 //
 // Intended for use with real time applications.
