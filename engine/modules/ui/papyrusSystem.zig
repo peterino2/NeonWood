@@ -39,7 +39,6 @@ quad: *graphics.Mesh,
 graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
-textCount: u32 = 0,
 ssboCount: u32 = 1,
 time: f64 = 0,
 
@@ -92,15 +91,6 @@ pub fn prepareFont(self: *@This()) !void {
 
     self.fontTexture = res.texture;
     self.fontTextureDescriptor = res.descriptor;
-
-    _ = try self.textRenderer.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
-
-    // using the v2 stuff
-    for (0..32) |i| {
-        _ = i;
-        var newText = try self.textRenderer.addDisplayText(core.MakeName("roboto"), .{});
-        _ = newText;
-    }
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -293,7 +283,8 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     defer drawList.deinit();
 
     self.ssboCount = 0;
-    self.textCount = 0;
+
+    var textFrameContext = self.textRenderer.startRendering();
 
     for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
@@ -326,11 +317,18 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     },
                     .borderWidth = 1.0,
                 };
-                try self.drawCommands.append(.{ .image = self.ssboCount });
+                try self.drawCommands.append(.{ .image = .{ .index = self.ssboCount } });
                 self.ssboCount += 1;
             },
             .Text => |text| {
-                var textDisplay = self.textRenderer.displays.items[self.textCount];
+                var nextDisplay = self.textRenderer.getNextSlot(text.text.utf8.len, &textFrameContext);
+
+                var textDisplay: *DisplayText = undefined;
+                if (nextDisplay.small) {
+                    textDisplay = self.textRenderer.smallDisplays.items[nextDisplay.index];
+                } else {
+                    textDisplay = self.textRenderer.displays.items[nextDisplay.index];
+                }
                 textDisplay.displaySize = text.textSize;
                 textDisplay.boxSize = .{ .x = text.size.x, .y = text.size.y };
                 textDisplay.color = text.color;
@@ -338,15 +336,10 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 textDisplay.string.clearRetainingCapacity();
                 try textDisplay.string.appendSlice(text.text.utf8);
 
-                try self.drawCommands.append(.{ .text = self.textCount });
-                self.textCount += 1;
+                try self.drawCommands.append(.{ .text = .{ .index = nextDisplay.index, .small = nextDisplay.small } });
+                try textDisplay.updateMesh();
             },
         }
-    }
-
-    for (0..self.textCount) |i| {
-        var displayText = self.textRenderer.displays.items[i];
-        try displayText.updateMesh();
     }
 }
 
@@ -371,23 +364,28 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     };
     self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
 
-    {
-        self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-        self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
-        self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
+    for (self.drawCommands.items) |command| {
+        switch (command) {
+            .text => |t| {
+                if (t.small) {
+                    var drawText = self.textRenderer.smallDisplays.items[t.index];
+                    drawText.draw(cmd, self.textMaterial);
+                } else {
+                    var drawText = self.textRenderer.displays.items[t.index];
+                    drawText.draw(cmd, self.textMaterial);
+                }
+            },
+            .image => |img| {
+                var index = img.index;
+                self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+                self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
+                self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
 
-        var index: u32 = 0;
-        while (index < self.ssboCount) : (index += 1) {
-            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
-            self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
-            self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
+                self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+                self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
+                self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
+            },
         }
-    }
-
-    // draw text
-    for (0..self.textCount) |i| {
-        var drawText = self.textRenderer.displays.items[i];
-        drawText.draw(cmd, self.textMaterial);
     }
 }
 

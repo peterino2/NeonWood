@@ -229,7 +229,9 @@ pub const TextRenderer = struct {
     allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
     displays: ArrayListU(*DisplayText) = .{},
+    smallDisplays: ArrayListU(*DisplayText) = .{},
     fonts: AutoHashMapU(u32, *FontAtlasVk) = .{},
+    small_limit: u32,
     papyrusCtx: *papyrus.PapyrusContext,
 
     pub fn init(backingAllocator: std.mem.Allocator, g: *graphics.NeonVkContext, papyrusCtx: *papyrus.PapyrusContext) !*@This() {
@@ -242,6 +244,7 @@ pub const TextRenderer = struct {
             .arena = arena,
             .g = g,
             .papyrusCtx = papyrusCtx,
+            .small_limit = 256,
         };
 
         var new = try self.allocator.create(FontAtlasVk);
@@ -251,6 +254,24 @@ pub const TextRenderer = struct {
         try new.prepareFont(core.MakeName("default"));
 
         try self.fonts.put(allocator, core.MakeName("default").hash, new);
+
+        _ = try self.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
+
+        // we can support up to 8 large text displays and 256 small displays
+        // displayText with default settings is for large renders. eg. pages. code editors, etc..
+        for (0..8) |i| {
+            _ = i;
+            _ = try self.addDisplayText(core.MakeName("roboto"), .{
+                .charLimit = 8192 * 2,
+            });
+        }
+
+        for (0..256) |i| {
+            _ = i;
+            _ = try self.addDisplayText(core.MakeName("roboto"), .{
+                .charLimit = 256,
+            });
+        }
 
         return self;
     }
@@ -282,13 +303,47 @@ pub const TextRenderer = struct {
             opts,
         );
 
-        try self.displays.append(self.allocator, new);
+        var small = opts.charLimit <= self.small_limit;
+
+        if (small) {
+            try self.smallDisplays.append(self.allocator, new);
+        } else {
+            try self.displays.append(self.allocator, new);
+        }
 
         return new;
     }
 
+    pub const TextFrameContext = struct {
+        allocated: u32 = 0,
+        allocated_small: u32 = 0,
+    };
+
+    pub const TextFrameAlloc =
+        struct { index: u32, small: bool };
+
+    pub fn startRendering(_: @This()) TextFrameContext {
+        return .{};
+    }
+
+    pub fn getNextSlot(self: *@This(), len: usize, frameContext: *TextFrameContext) TextFrameAlloc {
+        if (len >= self.small_limit) {
+            var rv: TextFrameAlloc = .{ .small = false, .index = frameContext.allocated };
+            frameContext.allocated += 1;
+            return rv;
+        }
+
+        var rv: TextFrameAlloc = .{ .small = true, .index = frameContext.allocated };
+        frameContext.allocated_small += 1;
+        return rv;
+    }
+
     pub fn deinit(self: *@This(), backingAllocator: std.mem.Allocator) void {
         for (self.displays.items) |display| {
+            display.deinit();
+        }
+
+        for (self.smallDisplays.items) |display| {
             display.deinit();
         }
 
