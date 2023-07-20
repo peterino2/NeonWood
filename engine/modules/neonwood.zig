@@ -34,7 +34,6 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
 
     // run the game
     core.gEngine.run();
-
     _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
     _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
@@ -48,7 +47,6 @@ pub fn run_no_input_tickable(comptime T: type) !void {
     try gameContext.prepare_game();
 
     _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
-    _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
     _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     // run the game

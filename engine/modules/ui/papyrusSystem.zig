@@ -3,6 +3,7 @@ const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
+const platform = @import("../platform.zig");
 pub const papyrus = @import("papyrus/papyrus.zig");
 
 const papyrus_vk_vert = @import("papyrus_vk_vert");
@@ -28,6 +29,7 @@ materialName: core.Name = core.MakeName("mat_papyrus"),
 material: *graphics.Material = undefined,
 textMaterial: *graphics.Material = undefined,
 mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
+textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
 fontTexture: *graphics.Texture = undefined,
@@ -39,7 +41,8 @@ quad: *graphics.Mesh,
 graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
-ssboCount: u32 = 1,
+ssboCount: u32 = 0,
+textSsboCount: u32 = 0,
 time: f64 = 0,
 
 textPipeData: gpd.GpuPipeData = undefined,
@@ -60,6 +63,7 @@ pub const PapyrusPushConstant = struct {
 };
 
 pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData;
+pub const FontInfo = FontSDF_vert.FontInfo;
 
 pub fn init(allocator: std.mem.Allocator) !*@This() {
     var papyrusCtx = try papyrus.initialize(allocator);
@@ -108,6 +112,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.gc.registerRendererPlugin(self);
 
     self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, PapyrusImageGpu, 0);
+    self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
     core.ui_log("Mapping buffers.", .{});
 }
 
@@ -266,22 +271,18 @@ pub fn preparePipeline(self: *@This()) !void {
     try self.buildImagePipeline();
 }
 
-pub fn pushSsbo(self: *@This(), ssbo: PapyrusImageGpu, frameId: usize) !void {
-    var imagesGpu = self.mappedBuffers[frameId].objects;
-    imagesGpu[self.ssboCount] = ssbo;
-    self.ssboCount += 1;
-}
-
 pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     var z = tracy.ZoneN(@src(), "Uploading SSBOs");
     defer z.End();
 
     var imagesGpu = self.mappedBuffers[frameId].objects;
+    var imagesText = self.textImageBuffers[frameId].objects;
 
     var drawList = try self.papyrusCtx.makeDrawList();
     self.drawCommands.clearRetainingCapacity();
     defer drawList.deinit();
 
+    self.textSsboCount = 0;
     self.ssboCount = 0;
 
     var textFrameContext = self.textRenderer.startRendering();
@@ -329,15 +330,35 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 } else {
                     textDisplay = self.textRenderer.displays.items[nextDisplay.index];
                 }
+
                 textDisplay.displaySize = text.textSize;
                 textDisplay.boxSize = .{ .x = text.size.x, .y = text.size.y };
                 textDisplay.color = text.color;
                 textDisplay.position = .{ .x = text.tl.x, .y = text.tl.y };
                 textDisplay.string.clearRetainingCapacity();
+                if (text.rendererHash != 0) {
+                    textDisplay.atlas = self.textRenderer.fonts.get(text.rendererHash).?;
+                }
                 try textDisplay.string.appendSlice(text.text.utf8);
 
-                try self.drawCommands.append(.{ .text = .{ .index = nextDisplay.index, .small = nextDisplay.small } });
+                try self.drawCommands.append(.{ .text = .{ .index = nextDisplay.index, .small = nextDisplay.small, .ssbo = self.textSsboCount } });
                 try textDisplay.updateMesh();
+
+                var isBitmap: u32 = 0;
+
+                core.ui_log("nextDisplay = {any}, font = {d} sdf={any}", .{
+                    nextDisplay,
+                    text.rendererHash,
+                    textDisplay.atlas.atlas.isSDF,
+                });
+                if (!textDisplay.atlas.atlas.isSDF) {
+                    isBitmap = 1;
+                }
+
+                imagesText[self.textSsboCount] = .{
+                    .isSimple = isBitmap,
+                };
+                self.textSsboCount += 1;
             },
         }
     }

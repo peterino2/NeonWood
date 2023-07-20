@@ -2,6 +2,7 @@ const std = @import("std");
 const nw = @import("root").neonwood;
 
 const ui = nw.ui;
+const platform = nw.platform;
 
 const assets = nw.assets;
 const c = nw.graphics.c;
@@ -15,10 +16,12 @@ pub const GameContext = struct {
 
     text: u32 = 0,
     fps: u32 = 0,
+    mousePosition: u32 = 0,
     panel: u32 = 0,
     time: f64 = 0,
 
     fpsText: ?[]u8 = null,
+    mousePositionText: ?[]u8 = null,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         var self = try allocator.create(@This());
@@ -40,13 +43,21 @@ pub const GameContext = struct {
         if (self.fpsText) |t| {
             self.allocator.free(t);
         }
-
         self.fpsText = std.fmt.allocPrint(self.allocator, "fps: {d:.2}", .{1.0 / dt}) catch unreachable;
 
+        const inputState = nw.platform.getInstance().inputState;
+
+        var mouse = inputState.mousePos;
+        if (self.mousePositionText) |t| {
+            self.allocator.free(t);
+        }
+        self.mousePositionText = std.fmt.allocPrint(self.allocator, "mousePosition: {d:.2} {d:.2}", .{ mouse.x, mouse.y }) catch unreachable;
+
         var ctx = ui.getContext();
-        ctx.getPanel(self.panel).titleSize = @as(f32, @floatCast(self.time)) * 20.0 + 20.0;
+
+        // holy crap that's bad i need a better way to automate this.
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
-        ctx.getText(self.text).textSize = @as(f32, @floatCast(self.time)) * 20.0 + 20.0;
+        ctx.get(self.mousePosition).text = ui.papyrus.LocText.fromUtf8(self.mousePositionText.?);
     }
 
     pub fn uiTick(self: *@This(), deltaTime: f64) void {
@@ -67,6 +78,7 @@ pub const GameContext = struct {
         ctx.getPanel(self.panel).hasTitle = true;
         ctx.getPanel(self.panel).titleSize = 20;
         ctx.getPanel(self.panel).titleColor = BurnStyle.Bright1;
+        ctx.setFont(self.panel, "roboto");
         ctx.get(self.panel).text = ui.papyrus.Text("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
@@ -74,13 +86,24 @@ pub const GameContext = struct {
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
         const text = try ctx.addText(self.panel, ipsum);
-        // ctx.get(text).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
+        ctx.setFont(text, "roboto");
         ctx.getText(text).textSize = 28;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 1400, .y = 500 };
         self.text = text;
 
+        self.mousePosition = try ctx.addText(self.panel, "");
+        {
+            var widget = ctx.get(self.mousePosition);
+            widget.style.foregroundColor = ui.papyrus.ModernStyle.Orange;
+            widget.pos = .{ .x = -300, .y = 12 };
+            widget.size = .{ .x = 1400, .y = 500 };
+            widget.anchor = .TopRight;
+            ctx.setFont(self.mousePosition, "roboto");
+        }
+
         const fps = try ctx.addText(self.panel, "fps: {}");
+        ctx.setFont(fps, "roboto");
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
         ctx.get(fps).pos = .{ .x = 32, .y = 12 };
         ctx.get(fps).size = .{ .x = 1400, .y = 500 };
@@ -106,7 +129,6 @@ pub fn main() anyerror!void {
         }
     }
     const allocator = std.heap.c_allocator;
-    //const allocator = gpa.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 100);
     try nw.start_everything(allocator, "NeonWood: ui");

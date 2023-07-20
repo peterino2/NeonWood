@@ -7,5 +7,6 @@ pub const DrawCommand = union(enum(u8)) {
     text: struct {
         index: u32,
         small: bool,
+        ssbo: u32,
     },
 };

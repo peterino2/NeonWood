@@ -46,6 +46,10 @@ pub const PlatformInstance = struct {
     handlers: InstalledEvents,
     workBuffer: std.ArrayList(IOEvent),
     cursorEnabled: bool = true,
+    inputState: struct {
+        mousePos: core.Vector2 = .{},
+        keydown: [256]bool = std.mem.zeroes([256]bool),
+    } = .{},
 
     pub fn deinit(self: *@This()) void {
         self.workBuffer.deinit();
@@ -159,10 +163,11 @@ pub const PlatformInstance = struct {
 
             for (self.workBuffer.items) |event| {
                 switch (event) {
-                    .cursorPos => |payload| {
+                    .cursorPos => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
-                            handler.?(self.window, payload.x, payload.y);
+                            handler.?(self.window, mousePos.x, mousePos.y);
                         }
+                        self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };
                     },
                     .cursorEnter, .windowFocused, .mouseButton, .scroll, .key, .char, .monitor => {},
                 }

@@ -337,6 +337,7 @@ pub const FontAtlas = struct {
     scale: f32 = 0,
     lineSize: f32 = 0,
     hasGlyph: [256]bool = undefined,
+    rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
 
     meshes: [256][4]Vector2 = undefined,
     glyphCoordinates: [256][2]Vector2 = undefined,
@@ -1227,6 +1228,7 @@ pub const NodeProperty_Panel = struct {
     titleSize: f32 = 24,
     layoutMode: ChildLayout = .Free, // when set to anything other than free, we will override anchors from inferior nodes.
     hasTitle: bool = false,
+    font: *FontAtlas,
 };
 
 pub const NodePropertiesBag = union(enum(u8)) {
@@ -1308,7 +1310,7 @@ pub const PapyrusContext = struct {
     _layout: std.AutoHashMap(u32, PosSize),
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
-        const fallbackFontName: []const u8 = "ProggyClean";
+        const fallbackFontName: []const u8 = "default";
         const fallbackFontFile: []const u8 = "fonts/ComicMono.ttf";
 
         var self = try backingAllocator.create(@This());
@@ -1326,7 +1328,7 @@ pub const PapyrusContext = struct {
         };
 
         self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
-        try self.fonts.put(self.fallbackFont.name.hash, self.fallbackFont);
+        try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
 
         // constructing the root node
         _ = try self.nodes.new(.{
@@ -1352,12 +1354,36 @@ pub const PapyrusContext = struct {
         self.allocator.destroy(self);
     }
 
+    pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
+        const name = HashStr.fromUtf8(fontName);
+        try self.fonts.put(name.hash, .{ .atlas = atlas, .name = name });
+    }
+
     pub fn getPanel(self: *@This(), handle: u32) *NodeProperty_Panel {
         return &(self.nodes.get(handle).?.nodeType.Panel);
     }
 
     pub fn getText(self: *@This(), handle: u32) *NodeProperty_Text {
         return &(self.nodes.get(handle).?.nodeType.DisplayText);
+    }
+
+    pub fn setFont(self: *@This(), handle: u32, font: []const u8) void {
+        const name = HashStr.fromUtf8(font);
+
+        switch (self.nodes.get(handle).?.nodeType) {
+            .DisplayText => {
+                var text = &(self.nodes.get(handle).?.nodeType.DisplayText);
+                text.font = .{
+                    .name = name,
+                    .atlas = self.fonts.get(name.hash).?.atlas,
+                };
+            },
+            .Panel => {
+                var panel = &(self.nodes.get(handle).?.nodeType.Panel);
+                panel.font = self.fonts.get(name.hash).?.atlas;
+            },
+            else => {},
+        }
     }
 
     // converts a handle to a node pointer
@@ -1401,7 +1427,9 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addPanel(self: *@This(), parent: u32) !u32 {
-        var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{} } };
+        var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{
+            .font = self.fallbackFont.atlas,
+        } } };
 
         if (parent == 0) {
             slotNode.anchor = .Free;
@@ -1527,6 +1555,7 @@ pub const PapyrusContext = struct {
                 text: LocText,
                 color: Color,
                 textSize: f32,
+                rendererHash: u32,
             },
         },
     };
@@ -1677,6 +1706,7 @@ pub const PapyrusContext = struct {
                                 .text = n.text,
                                 .color = panel.titleColor,
                                 .textSize = panel.titleSize - 3,
+                                .rendererHash = panel.font.rendererHash,
                             },
                         } });
 
@@ -1708,6 +1738,7 @@ pub const PapyrusContext = struct {
                             .text = n.text,
                             .color = n.style.foregroundColor,
                             .textSize = txt.textSize - 3,
+                            .rendererHash = txt.font.atlas.rendererHash,
                         },
                     } });
 
@@ -1715,16 +1746,6 @@ pub const PapyrusContext = struct {
                         .pos = resolvedPos.add(Vector2.Ones),
                         .size = resolvedSize.add(Vector2.Ones),
                     });
-
-                    // var render = try layoutTextBox(
-                    //     self.allocator,
-                    //     resolvedSize,
-                    //     n.text.getRead(),
-                    //     txt.font.atlas,
-                    //     .WrapLimited,
-                    // );
-
-                    // defer render.deinit();
                 },
                 .Slot, .Button => {},
             }
@@ -1802,34 +1823,6 @@ pub const PapyrusContext = struct {
             self.uv.deinit();
         }
     };
-
-    // Layouts a out a textbox from the text and the font given.
-    pub fn layoutTextBox(
-        allocator: std.mem.Allocator,
-        size: Vector2,
-        text: []const u8,
-        font: *FontAtlas,
-        wrap: TextLayoutMode,
-    ) !TextRender {
-        const verticalAdvance = font.glyphMax.y;
-        var rendered = TextRender.init(allocator, size);
-        var ch: u32 = 0;
-
-        while (ch < text.len) : (ch += 1) {
-            try rendered.geometry.append(font.meshes[text[ch]][0]);
-            try rendered.geometry.append(font.meshes[text[ch]][1]);
-            try rendered.geometry.append(font.meshes[text[ch]][2]);
-            try rendered.geometry.append(font.meshes[text[ch]][3]);
-
-            try rendered.uv.append(font.glyphCoordinates[text[ch]][0]);
-            try rendered.uv.append(font.glyphCoordinates[text[ch]][1]);
-        }
-
-        _ = verticalAdvance;
-        _ = wrap;
-
-        return rendered;
-    }
 };
 
 pub fn getContext() *PapyrusContext {

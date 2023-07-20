@@ -7,11 +7,10 @@ layout(location = 3) in vec2 texCoord;
 
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec2 texCoords;
+layout (location = 2) out int instanceId;
 
 struct FontInfo {
-    vec2 FontLocation;
-    vec2 FontSize;
-    float alpha;
+  uint isSimple;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 
@@ -28,4 +27,5 @@ void main()
     gl_Position = vec4((texPosition.xy / vec2(1600, 900)) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
     texCoords = texCoord;
     fragColor = texColor;
+    instanceId = gl_BaseInstance;
 }

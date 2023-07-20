@@ -23,9 +23,7 @@ pub const FontAtlasVk = struct {
     textureSet: *vk.DescriptorSet = undefined,
 
     pub fn deinit(self: @This()) void {
-        if (!self.isDefault) {
-            self.atlas.deinit();
-        }
+        _ = self;
     }
 
     pub fn init(
@@ -251,9 +249,10 @@ pub const TextRenderer = struct {
         new.* = try FontAtlasVk.init(self.allocator, self.g);
         new.isDefault = true;
         new.atlas = papyrusCtx.fallbackFont.atlas; // use default font instead of loading a font from text file
-        try new.prepareFont(core.MakeName("default"));
-
-        try self.fonts.put(allocator, core.MakeName("default").hash, new);
+        const defaultName = core.MakeName("default");
+        try new.prepareFont(defaultName);
+        try self.fonts.put(allocator, defaultName.hash, new);
+        self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
 
         _ = try self.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
 
@@ -261,14 +260,14 @@ pub const TextRenderer = struct {
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
         for (0..8) |i| {
             _ = i;
-            _ = try self.addDisplayText(core.MakeName("roboto"), .{
+            _ = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 8192 * 2,
             });
         }
 
         for (0..256) |i| {
             _ = i;
-            _ = try self.addDisplayText(core.MakeName("roboto"), .{
+            _ = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 256,
             });
         }
@@ -286,9 +285,11 @@ pub const TextRenderer = struct {
             self.allocator,
             self.g,
         );
+
         try new.loadFont(ttfPath);
         try new.prepareFont(core.Name.fromUtf8(textureName));
-
+        new.atlas.rendererHash = name.hash;
+        try self.papyrusCtx.installFontAtlas(name.utf8, new.atlas);
         try self.fonts.put(self.allocator, name.hash, new);
 
         return new;
@@ -333,7 +334,7 @@ pub const TextRenderer = struct {
             return rv;
         }
 
-        var rv: TextFrameAlloc = .{ .small = true, .index = frameContext.allocated };
+        var rv: TextFrameAlloc = .{ .small = true, .index = frameContext.allocated_small };
         frameContext.allocated_small += 1;
         return rv;
     }
