@@ -86,7 +86,6 @@ pub const GameContext = struct {
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
         const text = try ctx.addText(self.panel, ipsum);
-        ctx.setFont(text, "roboto");
         ctx.getText(text).textSize = 28;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 1400, .y = 500 };

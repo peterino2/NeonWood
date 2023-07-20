@@ -11,6 +11,7 @@ layout (location = 2) out int instanceId;
 
 struct FontInfo {
   uint isSimple;
+  vec4 pad;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 

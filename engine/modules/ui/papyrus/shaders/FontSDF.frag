@@ -13,7 +13,8 @@ layout (push_constant) uniform constants {
 } PushConstants;
 
 struct FontInfo {
-  uint isSimple;
+    uint isSimple;
+    vec4 pad;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 
@@ -93,10 +94,9 @@ void main() {
         outFragColor = textColor;
     }
     else {
-        float alpha = tex.w;
+        float alpha = 1.0;
         vec4 textColor = clamp(color, 0.0, 1.0);
         textColor = vec4(color.xyz, alpha);//textColor.* alpha);
-        textColor.xyz = pow(textColor.xyz, vec3(2.2)); // gamma correction
-        outFragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        outFragColor = vec4(textColor.xyz, tex.x);
     }
 }

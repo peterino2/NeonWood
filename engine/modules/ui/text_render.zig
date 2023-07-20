@@ -119,7 +119,7 @@ pub const DisplayText = struct {
         return self;
     }
 
-    pub fn draw(self: *@This(), cmd: vk.CommandBuffer, textMaterial: *graphics.Material) void {
+    pub fn draw(self: *@This(), cmd: vk.CommandBuffer, textMaterial: *graphics.Material, ssboId: u32) void {
         var fontSet = self.atlas.textureSet;
         var vkd = self.g.vkd;
         var vertexBufferOffset: u64 = 0;
@@ -128,7 +128,7 @@ pub const DisplayText = struct {
         vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.mesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
         vkd.cmdBindIndexBuffer(cmd, self.mesh.getIndexBuffer().buffer, 0, .uint32);
         vkd.cmdBindDescriptorSets(cmd, .graphics, textMaterial.layout, 1, 1, core.p_to_a(fontSet), 0, undefined);
-        vkd.cmdDrawIndexed(cmd, self.mesh.getIndexBufferLen(), 1, 0, 0, 0);
+        vkd.cmdDrawIndexed(cmd, self.mesh.getIndexBufferLen(), 1, 0, 0, ssboId);
     }
 
     pub fn setPosition(self: *@This(), position: Vector2f) void {

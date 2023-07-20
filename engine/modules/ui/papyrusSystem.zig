@@ -177,7 +177,7 @@ pub fn buildTextPipeline(self: *@This()) !void {
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     gpdBuilder.objectCount = 64;
     try gpdBuilder.addBufferBinding(
-        FontSDF_vert.FontInfo,
+        FontInfo,
         .storage_buffer,
         .{ .vertex_bit = true, .fragment_bit = true },
         .storageBuffer,
@@ -346,17 +346,21 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
                 var isBitmap: u32 = 0;
 
-                core.ui_log("nextDisplay = {any}, font = {d} sdf={any}", .{
+                core.ui_log("nextDisplay = {any}, font = {d} sdf={any} ssbo={d}", .{
                     nextDisplay,
                     text.rendererHash,
                     textDisplay.atlas.atlas.isSDF,
+                    self.textSsboCount,
                 });
+
                 if (!textDisplay.atlas.atlas.isSDF) {
                     isBitmap = 1;
                 }
 
                 imagesText[self.textSsboCount] = .{
                     .isSimple = isBitmap,
+                    .pad0 = undefined,
+                    .pad = undefined,
                 };
                 self.textSsboCount += 1;
             },
@@ -390,10 +394,10 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             .text => |t| {
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
-                    drawText.draw(cmd, self.textMaterial);
+                    drawText.draw(cmd, self.textMaterial, t.ssbo);
                 } else {
                     var drawText = self.textRenderer.displays.items[t.index];
-                    drawText.draw(cmd, self.textMaterial);
+                    drawText.draw(cmd, self.textMaterial, t.ssbo);
                 }
             },
             .image => |img| {

@@ -1311,7 +1311,7 @@ pub const PapyrusContext = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
-        const fallbackFontFile: []const u8 = "fonts/ComicMono.ttf";
+        const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
 
         var self = try backingAllocator.create(@This());
 
