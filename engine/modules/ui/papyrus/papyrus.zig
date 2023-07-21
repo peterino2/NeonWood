@@ -88,7 +88,8 @@ const BmpRenderer = struct {
         var timer = try std.time.Timer.start();
         const tstart = timer.read();
 
-        var drawList = try self.ui.makeDrawList();
+        var drawList = PapyrusContext.DrawList.init(self.ui.allocator);
+        try self.ui.makeDrawList(&drawList);
         defer drawList.deinit();
 
         const tend = timer.read();
@@ -1655,7 +1656,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    pub fn makeDrawList(self: *@This()) !DrawList {
+    pub fn makeDrawList(self: *@This(), drawList: *DrawList) !void {
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
         self._layout.clearRetainingCapacity();
@@ -1667,7 +1668,8 @@ pub const PapyrusContext = struct {
 
         try layout.put(0, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
 
-        var drawList = DrawList.init(self.allocator);
+        //var drawList = DrawList.init(self.allocator);
+        drawList.clearRetainingCapacity();
 
         for (self._drawOrder.items) |node| {
             var n = self.getRead(node);
@@ -1750,8 +1752,6 @@ pub const PapyrusContext = struct {
                 .Slot, .Button => {},
             }
         }
-
-        return drawList;
     }
 
     pub fn printTree(self: @This(), root: u32) void {

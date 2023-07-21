@@ -35,39 +35,6 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
     return MakeName(hashedName);
 }
 
-pub const UiObjectRef = InterfaceRef(InterfaceUiData);
-
-pub const InterfaceUiData = struct {
-    typeName: Name,
-    typeSize: usize,
-    typeAlign: usize,
-
-    uiTick_func: *const fn (*anyopaque, f64) void,
-
-    pub fn from(comptime TargetType: type) @This() {
-        const wrappedUiTick = struct {
-            pub fn func(pointer: *anyopaque, deltaTime: f64) void {
-                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.uiTick(deltaTime);
-            }
-        };
-
-        if (!@hasDecl(TargetType, "uiTick")) {
-            @compileLog("Tried to generate InterfaceUiData for type ", TargetType, "but it's missing uiTick");
-            unreachable;
-        }
-
-        var self = @This(){
-            .typeName = MakeTypeName(TargetType),
-            .typeSize = @sizeOf(TargetType),
-            .typeAlign = @alignOf(TargetType),
-            .uiTick_func = wrappedUiTick.func,
-        };
-
-        return self;
-    }
-};
-
 pub const RttiDataEventError = error{
     UnknownStatePanic,
     BadInit,

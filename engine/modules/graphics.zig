@@ -11,9 +11,7 @@ pub const vk_allocator = @import("graphics/vk_allocator.zig");
 pub const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 pub const NeonVkPipelineBuilder = vk_renderer.NeonVkPipelineBuilder;
 pub const NeonVkContext = vk_renderer.NeonVkContext;
-pub const vk_ui = @import("graphics/vk_imgui.zig");
 pub const constants = @import("graphics/vk_constants.zig");
-pub const NeonVkImGui = vk_ui.NeonVkImGui;
 pub const NeonVkImage = vk_renderer.NeonVkImage;
 pub const Material = materials.Material;
 pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
@@ -28,8 +26,6 @@ pub const Texture = texture.Texture;
 
 pub const vk_util = @import("graphics/vk_utils.zig");
 pub const createTextureFromPixelsSync = vk_util.createTextureFromPixelsSync;
-
-pub const imguiUtils = @import("graphics/igUtils.zig");
 
 pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
 
@@ -51,8 +47,6 @@ pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
 pub const RenderObject = render_object.RenderObject;
 
-pub var gImgui: *NeonVkImGui = undefined;
-
 pub fn registerRendererPlugin(value: anytype) !void {
     var ref = RendererInterfaceRef{
         .ptr = value,
@@ -71,21 +65,12 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     ) catch unreachable;
     vk_renderer.gContext = context;
 
-    var vkUi: *NeonVkImGui = core.gEngine.createObject(
-        NeonVkImGui,
-        .{ .can_tick = false },
-    ) catch unreachable;
-    gImgui = vkUi;
-
-    vkUi.setup(context) catch unreachable;
-
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
     debug_draw.init_debug_draw_subsystem() catch unreachable;
 }
 
 pub fn shutdown_module() void {
-    gImgui.deinit();
     debug_draw.deinit() catch unreachable;
     vk_renderer.gContext.deinit();
     engine_logs("graphics module shutting down...");

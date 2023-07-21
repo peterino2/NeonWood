@@ -35,7 +35,6 @@ const AssetReferences = [_]assets.AssetImportReference{
 pub const GameContext = struct {
     const Self = @This();
     pub const NeonObjectTable = core.RttiData.from(Self);
-    pub const InterfaceUiTable = core.InterfaceUiData.from(Self);
 
     camera: graphics.Camera,
     allocator: std.mem.Allocator,
@@ -144,11 +143,6 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *Self) !void {
-        try graphics.getContext().add_ui_object(.{
-            .ptr = self,
-            .vtable = &InterfaceUiTable,
-        });
-
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
@@ -234,13 +228,14 @@ pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f
     _ = window;
     _ = xpos;
     _ = ypos;
-    // c.cImGui_ImplGlfw_CursorPosCallback(@ptrCast(?*c.GLFWwindow, window), xpos, ypos);
     var t1 = core.tracy.ZoneN(@src(), "Movement Callback");
     defer t1.End();
 }
 
 pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    c.cImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+    _ = mods;
+    _ = scancode;
+    _ = window;
 
     // Todo turn these into an events pump
 

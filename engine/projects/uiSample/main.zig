@@ -9,7 +9,6 @@ const c = nw.graphics.c;
 
 pub const GameContext = struct {
     pub const NeonObjectTable = nw.core.RttiData.from(@This());
-    pub const InterfaceUiTable = nw.core.InterfaceUiData.from(@This());
 
     allocator: std.mem.Allocator,
     debugOpen: bool = true,
@@ -30,7 +29,13 @@ pub const GameContext = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        _ = self;
+        if (self.fpsText) |text| {
+            self.allocator.free(text);
+        }
+
+        if (self.mousePositionText) |text| {
+            self.allocator.free(text);
+        }
     }
 
     pub fn tick(self: *@This(), dt: f64) void {
@@ -60,17 +65,7 @@ pub const GameContext = struct {
         ctx.get(self.mousePosition).text = ui.papyrus.LocText.fromUtf8(self.mousePositionText.?);
     }
 
-    pub fn uiTick(self: *@This(), deltaTime: f64) void {
-        _ = deltaTime;
-        _ = self;
-    }
-
     pub fn prepare_game(self: *@This()) !void {
-        try nw.graphics.getContext().add_ui_object(.{
-            .ptr = self,
-            .vtable = &InterfaceUiTable,
-        });
-
         var ctx = ui.getContext();
         const BurnStyle = ui.papyrus.BurnStyle;
 
@@ -86,7 +81,7 @@ pub const GameContext = struct {
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
         const text = try ctx.addText(self.panel, ipsum);
-        ctx.getText(text).textSize = 28;
+        ctx.getText(text).textSize = 18;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 1400, .y = 500 };
         self.text = text;

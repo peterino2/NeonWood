@@ -72,6 +72,7 @@ pub const DisplayText = struct {
     position: Vector2f = .{},
     boxSize: Vector2f = .{ .x = 10, .y = 10 },
     color: Color = .{ .r = 1.0, .g = 1.0, .b = 1.0 },
+    wordWrap: bool = true,
 
     pub fn deinit(self: *@This()) void {
         self.mesh.deinit();
@@ -114,7 +115,6 @@ pub const DisplayText = struct {
             }),
             .string = std.ArrayList(u8).init(allocator),
         };
-        try self.string.appendSlice("the quick brown fox jumps over the lazy dog [2 + 2 is 4]");
 
         return self;
     }
@@ -145,28 +145,17 @@ pub const DisplayText = struct {
     }
 
     pub fn updateMesh(self: *@This()) !void {
-        // todo. do a hash check.
-
-        // const hash = self.getHash();
-        // if (self.stringHash == hash) {
-        //     return;
-        // }
         self.mesh.clearVertices();
 
-        // self.stringHash = hash;
-
         const atlas = self.atlas.atlas;
-
         const ratio = (self.displaySize) / atlas.fontSize;
         const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
 
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
-        var shouldRed: bool = true;
 
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
-                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
@@ -176,13 +165,11 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ' or ch == '\n') {
-                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
 
             if (ch == ' ') {
-                shouldRed = true;
                 xOffset += stride / 2;
                 continue;
             }
@@ -199,15 +186,19 @@ pub const DisplayText = struct {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
             }
+
             var color = self.color;
-            if (shouldRed) {
-                color = .{ .r = 1.0, .g = 0.0, .b = 0.0 };
-                shouldRed = false;
-            }
+
+            var topLeft = .{
+                .x = self.position.x + xOffset + box.x,
+                .y = yOffset + self.position.y + box.y + fontHeight,
+            };
+
+            var metric_size = .{ .x = metrics.x, .y = metrics.y, .z = 0 };
 
             self.mesh.addQuad2D(
-                .{ .x = self.position.x + xOffset + box.x, .y = yOffset + self.position.y + box.y + fontHeight, .z = 0 }, // top left
-                .{ .x = metrics.x, .y = metrics.y, .z = 0 },
+                topLeft,
+                metric_size,
                 .{ .x = uv_tl.x, .y = uv_tl.y }, // uv topleft
                 .{
                     .x = baseMetrics.x / @as(f32, @floatFromInt(atlas.atlasSize.x)),

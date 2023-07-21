@@ -74,18 +74,6 @@ pub fn run_no_input(comptime T: type) !void {
     }
 }
 
-// These are Imgui callbacks that need to be rejigged
-// glfwSetWindowFocusCallback(vd->Window, ImGui_ImplGlfw_WindowFocusCallback);
-// glfwSetCursorEnterCallback(vd->Window, ImGui_ImplGlfw_CursorEnterCallback);
-// glfwSetCursorPosCallback(vd->Window, ImGui_ImplGlfw_CursorPosCallback);
-// glfwSetMouseButtonCallback(vd->Window, ImGui_ImplGlfw_MouseButtonCallback);
-// glfwSetScrollCallback(vd->Window, ImGui_ImplGlfw_ScrollCallback);
-// glfwSetKeyCallback(vd->Window, ImGui_ImplGlfw_KeyCallback);
-// glfwSetCharCallback(vd->Window, ImGui_ImplGlfw_CharCallback);
-// glfwSetWindowCloseCallback(vd->Window, ImGui_ImplGlfw_WindowCloseCallback);
-// glfwSetWindowPosCallback(vd->Window, ImGui_ImplGlfw_WindowPosCallback);
-// glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
-
 pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     _ = window;
     _ = xpos;

@@ -406,7 +406,6 @@ pub const NeonVkContext = struct {
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
-    uiObjects: ArrayListUnmanaged(core.UiObjectRef),
     rendererPlugins: ArrayListUnmanaged(RendererInterfaceRef),
     uploadContext: NeonVkUploadContext,
 
@@ -500,7 +499,6 @@ pub const NeonVkContext = struct {
         self.textures = .{};
         self.meshes = .{};
         self.materials = .{};
-        self.uiObjects = .{};
         self.lastMaterial = null;
         self.cameraRef = null;
         self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
@@ -516,10 +514,6 @@ pub const NeonVkContext = struct {
 
     pub fn add_plugin(self: *Self, interface: RendererInterfaceRef) !void {
         try self.rendererPlugins.append(interface);
-    }
-
-    pub fn add_ui_object(self: *Self, interface: core.UiObjectRef) !void {
-        try self.uiObjects.append(self.allocator, interface);
     }
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
@@ -1293,45 +1287,8 @@ pub const NeonVkContext = struct {
         self.vkd.cmdEndRenderPass(cmd);
     }
 
-    pub fn drawDebugUi(self: *Self) void {
-        var windowVal = c.igBegin("Graphics Debug Ui", &self.shouldShowDebug, 0);
-        defer c.igEnd();
-
-        if (!windowVal) {
-            self.shouldShowDebug = false;
-            return;
-        }
-
-        c.igText("Materials List:");
-        var iter = self.materials.iterator();
-        while (iter.next()) |i| {
-            c.igText(i.value_ptr.*.materialName.utf8.ptr);
-        }
-    }
-
-    pub fn draw_ui(self: *Self, deltaTime: f64) !void {
-        c.cImGui_vk_NewFrame();
-        c.ImGui_ImplGlfw_NewFrame();
-        c.igNewFrame();
-
-        if (self.shouldShowDebug) {
-            self.drawDebugUi();
-        }
-
-        for (self.uiObjects.items) |*uiObject| {
-            uiObject.vtable.uiTick_func(uiObject.ptr, deltaTime);
-        }
-
-        c.igRender();
-    }
-
     pub fn draw(self: *Self, deltaTime: f64) !void {
         if (!self.isMinimized) {
-            var z1 = tracy.Zone(@src());
-            z1.Name("drawing UI");
-            try self.draw_ui(deltaTime);
-            z1.End();
-
             try self.acquire_next_frame();
 
             try self.pre_frame_update();
@@ -1346,20 +1303,10 @@ pub const NeonVkContext = struct {
                     postDraw(interface.ptr, cmd, self.nextFrameIndex, deltaTime);
                 }
             }
-
-            var z3 = tracy.ZoneNC(@src(), "Imgui Render", 0x0011FF11);
-            c.cImGui_vk_RenderDrawData(c.igGetDrawData(), vkCast(c.VkCommandBuffer, cmd), vkCast(c.VkPipeline, vk.Pipeline.null_handle));
-            z3.End();
-
             try self.finish_main_renderpass(cmd);
             try self.dynamicMeshManager.updateMeshes(cmd);
             try self.vkd.endCommandBuffer(cmd);
             z2.End();
-
-            var z = tracy.ZoneN(@src(), "Imgui Finishing platform");
-            c.igUpdatePlatformWindows();
-            c.igRenderPlatformWindowsDefault(null, null);
-            z.End();
 
             var x = tracy.ZoneN(@src(), "End of Frame");
             try self.finish_frame();
@@ -2546,7 +2493,6 @@ pub const NeonVkContext = struct {
         self.destroy_materials();
         self.destroy_descriptors();
 
-        self.uiObjects.deinit(self.allocator);
         self.vkAllocator.destroy();
 
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);

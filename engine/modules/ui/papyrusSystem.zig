@@ -32,6 +32,7 @@ mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
 textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
+drawList: papyrus.PapyrusContext.DrawList,
 fontTexture: *graphics.Texture = undefined,
 fontTextureDescriptor: *vk.DescriptorSet = undefined,
 
@@ -77,6 +78,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .fontAtlas = try papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64),
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
+        .drawList = papyrus.PapyrusContext.DrawList.init(allocator),
     };
     return self;
 }
@@ -164,11 +166,6 @@ fn setupMeshes(self: *@This()) !void {
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
-}
-
-pub fn uiTick(self: *@This(), deltaTime: f64) void {
-    _ = self;
-    _ = deltaTime;
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
@@ -278,16 +275,15 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     var imagesGpu = self.mappedBuffers[frameId].objects;
     var imagesText = self.textImageBuffers[frameId].objects;
 
-    var drawList = try self.papyrusCtx.makeDrawList();
+    try self.papyrusCtx.makeDrawList(&self.drawList);
     self.drawCommands.clearRetainingCapacity();
-    defer drawList.deinit();
 
     self.textSsboCount = 0;
     self.ssboCount = 0;
 
     var textFrameContext = self.textRenderer.startRendering();
 
-    for (drawList.items) |drawCmd| {
+    for (self.drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
                 //
@@ -346,12 +342,12 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
                 var isBitmap: u32 = 0;
 
-                core.ui_log("nextDisplay = {any}, font = {d} sdf={any} ssbo={d}", .{
-                    nextDisplay,
-                    text.rendererHash,
-                    textDisplay.atlas.atlas.isSDF,
-                    self.textSsboCount,
-                });
+                // core.ui_log("nextDisplay = {any}, font = {d} sdf={any} ssbo={d}", .{
+                //     nextDisplay,
+                //     text.rendererHash,
+                //     textDisplay.atlas.atlas.isSDF,
+                //     self.textSsboCount,
+                // });
 
                 if (!textDisplay.atlas.atlas.isSDF) {
                     isBitmap = 1;

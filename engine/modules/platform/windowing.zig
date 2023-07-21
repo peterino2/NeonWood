@@ -213,36 +213,11 @@ const IOEvent = union(enum(u8)) {
     monitor: struct { monitor: ?*c.GLFWmonitor, event: c_int },
 };
 
-// These are Imgui callbacks that need to be rejigged
-// glfwSetWindowFocusCallback(vd->Window, ImGui_ImplGlfw_WindowFocusCallback);
-// glfwSetCursorEnterCallback(vd->Window, ImGui_ImplGlfw_CursorEnterCallback);
-// glfwSetCursorPosCallback(vd->Window, ImGui_ImplGlfw_CursorPosCallback);
-// glfwSetMouseButtonCallback(vd->Window, ImGui_ImplGlfw_MouseButtonCallback);
-// glfwSetScrollCallback(vd->Window, ImGui_ImplGlfw_ScrollCallback);
-// glfwSetKeyCallback(vd->Window, ImGui_ImplGlfw_KeyCallback);
-// glfwSetCharCallback(vd->Window, ImGui_ImplGlfw_CharCallback);
-// glfwSetWindowCloseCallback(vd->Window, ImGui_ImplGlfw_WindowCloseCallback);
-// glfwSetWindowPosCallback(vd->Window, ImGui_ImplGlfw_WindowPosCallback);
-// glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
-
-// _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
-// _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
-// _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
-// pumped functions.
-
 const platform = @import("../platform.zig");
 
 pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     platform.getInstance().eventQueue.pushLocked(.{ .cursorPos = .{ .x = xpos, .y = ypos } }) catch unreachable;
 }
-
-// pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
-//     c.cImGui_ImplGlfw_MouseButtonCallback(@ptrCast(?*c.GLFWwindow, window), button, action, mods);
-// }
-//
-// pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-//     c.cImGui_ImplGlfw_KeyCallback(@ptrCast(?*c.GLFWwindow, window), key, scancode, action, mods);
-// }
 
 pub var gPlatformSettings: struct {
     pollLockoutTime: ?f32 = null,
