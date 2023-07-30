@@ -1,9 +1,14 @@
 current todo:
 
+sdl2 add library,
+sdl2 migration,
+glfw purge,
+sdl2 renderer pipeline translation,
+sdl2 input system,
+
+
+done:
+
 dynamic mesh, push quads into dynamic mesh struct, render it on screen.
 dynamic text, convert text into a series of quads to feed into the dynamic mesh
 dynamic text, calculate uv co-ordinates to feed texture parameters to the dynamic mesh
-
-sdl2 migration,
-sdl2 input system,
-sdl2 renderer pipeline translation,
