@@ -4,7 +4,7 @@
 
 # Neonwood
 
-This is a vulkan based gamedev toolkit targeting the vulkan renderer for now.
+This is a gamedev toolkit targeting the vulkan renderer for now.
 It's been written over the last two months as a learning project but has so far
 already released a game jam game: Cognesia.
 
