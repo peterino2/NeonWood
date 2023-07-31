@@ -39,9 +39,9 @@ pub const FontAtlasVk = struct {
         return self;
     }
 
-    pub fn loadFont(self: *@This(), fontPath: []const u8) !void {
-        self.atlas = try self.allocator.create(FontAtlas);
-        self.atlas.* = try FontAtlas.initFromFileSDF(self.allocator, fontPath, 64);
+    pub fn loadFont(self: *@This(), papyrusCtx: *papyrus.PapyrusContext, fontPath: []const u8) !void {
+        self.atlas = try papyrusCtx.allocator.create(FontAtlas);
+        self.atlas.* = try FontAtlas.initFromFileSDF(papyrusCtx.allocator, fontPath, 64);
     }
 
     pub fn prepareFont(self: *@This(), fontName: core.Name) !void {
@@ -216,6 +216,7 @@ pub const DisplayText = struct {
 pub const TextRenderer = struct {
     g: *graphics.NeonVkContext,
     allocator: std.mem.Allocator,
+    backingAllocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
     displays: ArrayListU(*DisplayText) = .{},
     smallDisplays: ArrayListU(*DisplayText) = .{},
@@ -225,16 +226,17 @@ pub const TextRenderer = struct {
 
     pub fn init(backingAllocator: std.mem.Allocator, g: *graphics.NeonVkContext, papyrusCtx: *papyrus.PapyrusContext) !*@This() {
         var self = try backingAllocator.create(@This());
-        var arena = std.heap.ArenaAllocator.init(backingAllocator);
-        var allocator = arena.allocator();
 
         self.* = .{
-            .allocator = backingAllocator,
-            .arena = arena,
+            .allocator = undefined,
+            .backingAllocator = backingAllocator,
+            .arena = std.heap.ArenaAllocator.init(backingAllocator),
             .g = g,
             .papyrusCtx = papyrusCtx,
             .small_limit = 256,
         };
+
+        self.allocator = self.arena.allocator();
 
         var new = try self.allocator.create(FontAtlasVk);
         new.* = try FontAtlasVk.init(self.allocator, self.g);
@@ -242,7 +244,7 @@ pub const TextRenderer = struct {
         new.atlas = papyrusCtx.fallbackFont.atlas; // use default font instead of loading a font from text file
         const defaultName = core.MakeName("default");
         try new.prepareFont(defaultName);
-        try self.fonts.put(allocator, defaultName.hash, new);
+        try self.fonts.put(self.allocator, defaultName.hash, new);
         self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
 
         _ = try self.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
@@ -277,7 +279,7 @@ pub const TextRenderer = struct {
             self.g,
         );
 
-        try new.loadFont(ttfPath);
+        try new.loadFont(self.papyrusCtx, ttfPath);
         try new.prepareFont(core.Name.fromUtf8(textureName));
         new.atlas.rendererHash = name.hash;
         try self.papyrusCtx.installFontAtlas(name.utf8, new.atlas);
@@ -339,12 +341,12 @@ pub const TextRenderer = struct {
             display.deinit();
         }
 
-        self.displays.deinit(self.allocator);
+        // self.displays.deinit(self.allocator);
 
-        var iter = self.fonts.iterator();
-        while (iter.next()) |i| {
-            i.value_ptr.*.deinit();
-        }
+        // var iter = self.fonts.iterator();
+        // while (iter.next()) |i| {
+        //     i.value_ptr.*.deinit();
+        // }
 
         self.arena.deinit();
         backingAllocator.destroy(self);
