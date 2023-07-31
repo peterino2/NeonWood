@@ -65,7 +65,7 @@ make real and playable games, and prefer to drive feature development by making 
 * Screen effects such as vignette and fading.
 * Custom sprite animation system with support for footsteps and animation montage events
 * The most ghetto collision and boundary detection system you've ever seen.
-* All written content was created in a single afternoon.
+* All story content was created in a single afternoon.
 
 
 ## Building
