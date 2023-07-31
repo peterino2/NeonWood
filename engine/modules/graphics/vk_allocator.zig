@@ -70,7 +70,16 @@ pub const NeonVkAllocator = struct {
     eventsList: std.ArrayList(AllocationEvent),
     liveAllocations: std.ArrayList(LiveAlloc),
 
-    const LiveAlloc = struct { allocation: usize, tag: []const u8 };
+    const AllocatedObject = union {
+        image: NeonVkImage,
+        buffer: NeonVkBuffer,
+    };
+
+    const LiveAlloc = struct {
+        allocation: usize,
+        tag: []const u8,
+        object: AllocatedObject,
+    };
 
     pub fn createStagingBuffer(
         self: *@This(),
@@ -147,10 +156,16 @@ pub const NeonVkAllocator = struct {
         return newAllocator;
     }
 
-    fn pushAllocation(self: *@This(), allocation: vma.Allocation, tag: []const u8) !void {
+    fn pushAllocation(
+        self: *@This(),
+        allocation: vma.Allocation,
+        tag: []const u8,
+        object: AllocatedObject,
+    ) !void {
         try self.liveAllocations.append(.{
             .allocation = @intFromEnum(allocation),
             .tag = tag,
+            .object = object,
         });
 
         try self.eventsList.append(.{ .allocate = .{
@@ -193,12 +208,16 @@ pub const NeonVkAllocator = struct {
     ) !NeonVkBuffer {
         const results = try self.vmaAllocator.createBuffer(bci, aci);
 
-        try self.pushAllocation(results.allocation, tag);
-
-        return .{
-            .buffer = results.buffer,
-            .allocation = results.allocation,
+        var object: AllocatedObject = .{
+            .buffer = NeonVkBuffer{
+                .buffer = results.buffer,
+                .allocation = results.allocation,
+            },
         };
+
+        try self.pushAllocation(results.allocation, tag, object);
+
+        return object.buffer;
     }
 
     pub fn destroyBuffer(self: *@This(), buffer: *NeonVkBuffer) void {
@@ -219,14 +238,16 @@ pub const NeonVkAllocator = struct {
     ) !NeonVkImage {
         var result = try self.vmaAllocator.createImage(ici, aci);
 
-        try self.pushAllocation(result.allocation, tag);
-
-        return .{
+        var object: AllocatedObject = .{ .image = .{
             .image = result.image,
             .allocation = result.allocation,
             .pixelWidth = ici.extent.width,
             .pixelHeight = ici.extent.height,
-        };
+        } };
+
+        try self.pushAllocation(result.allocation, tag, object);
+
+        return object.image;
     }
 
     pub fn mapMemorySlice(self: *@This(), comptime T: type, buffer: NeonVkBuffer, size: usize) ![]T {
@@ -257,9 +278,10 @@ pub const NeonVkAllocator = struct {
 
             self.printEventsLog();
             for (self.liveAllocations.items) |alloc| {
-                core.graphics_log("allocation@{d} tag:\'{s}\'", .{ alloc.allocation, alloc.tag });
+                core.graphics_log("allocation@{d} tag:\'{s}\' {any}", .{ alloc.allocation, alloc.tag, alloc.object });
             }
             core.forceFlush();
+
             return;
         }
 

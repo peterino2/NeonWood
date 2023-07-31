@@ -343,7 +343,6 @@ pub const TextRenderer = struct {
 
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
-            std.debug.print("ITERATION\n", .{});
             i.value_ptr.*.deinit();
         }
 

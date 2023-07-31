@@ -415,6 +415,11 @@ pub fn deinit(self: *@This()) void {
     for (self.mappedBuffers) |*mapped| {
         mapped.unmap(self.gc);
     }
+
+    for (self.textImageBuffers) |*mapped| {
+        mapped.unmap(self.gc);
+    }
+
     self.quad.deinit(self.gc);
 
     self.textRenderer.deinit(self.allocator);
