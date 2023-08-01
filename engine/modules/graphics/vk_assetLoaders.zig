@@ -177,4 +177,5 @@ pub fn init_loaders(allocator: std.mem.Allocator) !void {
 
 pub fn deinit_loaders(allocator: std.mem.Allocator) void {
     allocator.destroy(gMeshLoader);
+    gTextureLoader.deinit();
 }
