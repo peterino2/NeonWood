@@ -6,7 +6,7 @@ const zigTracy = @import("lib/zig_tracy/build_tracy.zig");
 
 pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime packagePath: []const u8, cflags: []const []const u8, enableTracy: bool) void {
     _ = cflags;
-    exe.addIncludePath(packagePath ++ "/lib");
+    exe.addIncludePath(.{ .path = packagePath ++ "/lib" });
     spng.addLib(b, exe, packagePath ++ "/lib/zig-spng");
     lua.addLib(b, exe, packagePath ++ "/lib/lua");
 

@@ -12,8 +12,8 @@ pub fn buildUtilities(b: *std.Build, opts: SharedOpts) void {
     const fontExtractor = new_utility(b, "fontExtractor", opts);
     fontExtractor.linkLibC();
     fontExtractor.linkLibCpp();
-    fontExtractor.addCSourceFile("modules/ui/papyrus/compat.cpp", &.{""});
-    fontExtractor.addIncludePath("modules/ui/papyrus/");
+    fontExtractor.addCSourceFile(.{ .file = .{ .path = "modules/ui/papyrus/compat.cpp" }, .flags = &.{""} });
+    fontExtractor.addIncludePath(.{ .path = "modules/ui/papyrus/" });
 }
 
 pub fn new_utility(b: *std.Build, comptime utilName: []const u8, opts: SharedOpts) *std.Build.Step.Compile {
@@ -24,7 +24,7 @@ pub fn new_utility(b: *std.Build, comptime utilName: []const u8, opts: SharedOpt
         .optimize = opts.optimize,
     });
 
-    _ = b.addInstallArtifact(exe);
+    _ = b.addInstallArtifact(exe, .{});
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());

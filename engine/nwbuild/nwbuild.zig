@@ -180,15 +180,15 @@ pub const NwBuildSystem = struct {
 
     pub fn generateVulkan(self: *@This(), exe: *std.build.CompileStep) void {
         if (self.target.getOs().tag == .windows) {
-            exe.addObjectFile("modules/graphics/lib/zig-vma/test/vulkan-1.lib");
+            exe.addObjectFile(.{ .path = "modules/graphics/lib/zig-vma/test/vulkan-1.lib" });
         } else {
             exe.linkSystemLibrary("vulkan");
         }
 
         if (self.target.getOs().tag == .macos) {
-            exe.addLibraryPath("/opt/homebrew/lib/");
+            exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
             // load find the vulkan environment path.
-            exe.addLibraryPath(self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk}));
+            exe.addLibraryPath(.{ .path = self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk}) });
         }
 
         // generate the vulkan package

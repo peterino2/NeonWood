@@ -120,7 +120,7 @@ pub fn linkWithoutModule(object: *LibExeObjStep, mode: std.builtin.Mode, target:
     const debugArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.debugConfig);
     const args = if (mode == .Debug) debugArgs else releaseArgs;
 
-    object.addCSourceFile(zig_vma_path ++ sep ++ "vk_mem_alloc.cpp", args);
+    object.addCSourceFile(.{ .file = .{ .path = zig_vma_path ++ sep ++ "vk_mem_alloc.cpp" }, .flags = args });
     object.linkLibC();
     if (target.getAbi() != .msvc) {
         // MSVC can't link libc++, it causes duplicate symbol errors.
