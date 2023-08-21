@@ -17,7 +17,7 @@ pub fn start_module(allocator: std.mem.Allocator, windowName: []const u8, iconPa
 
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
-    try gPlatformInstance.initGlfw();
+    try gPlatformInstance.setup();
 }
 
 pub fn getInstance() *windowing.PlatformInstance {

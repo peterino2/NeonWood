@@ -1,0 +1,18 @@
+const std = @import("std");
+const core = @import("../core.zig");
+const windowing = @import("windowing.zig");
+
+// GameInput implements the RawInputListenerInterface
+// This is a data driven input system where mappings are defined,
+// and keys are assigned to mapping contexts
+
+pub const GameInputSystem = struct {
+    pub const RawInputListenerVTable = windowing.RawInputListenerInterface.from(@This());
+
+    stub: u32 = 0,
+
+    pub fn OnIoEvent(self: *@This(), event: windowing.IOEvent) void {
+        _ = self;
+        core.engine_log("input recieved {any}", .{event});
+    }
+};

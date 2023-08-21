@@ -1,8 +1,44 @@
 const std = @import("std");
 const core = @import("../core.zig");
 const image = @import("../image.zig");
+const platform = @import("../platform.zig");
+const gameInput = @import("gameInput.zig");
+
 const RingQueue = core.RingQueue;
 const tracy = core.tracy;
+
+pub const RawInputListenerInterface = struct {
+
+    // required functions
+    OnIoEvent: *const fn (*anyopaque, event: IOEvent) void,
+
+    pub fn from(comptime TargetType: type) @This() {
+        const Wrapped = struct {
+            pub fn OnIoEvent(pointer: *anyopaque, event: IOEvent) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                ptr.OnIoEvent(event);
+            }
+        };
+
+        return .{
+            .OnIoEvent = Wrapped.OnIoEvent,
+        };
+    }
+};
+
+pub const RawInputObjectRef = struct {
+    ptr: *anyopaque,
+    vtable: *const RawInputListenerInterface,
+
+    pub fn from(target: anytype) @This() {
+        const vtable = &(@TypeOf(target.*)).RawInputListenerVTable;
+
+        return .{
+            .ptr = target,
+            .vtable = vtable,
+        };
+    }
+};
 
 // We are having some serious issues with this events pump.
 
@@ -13,6 +49,12 @@ pub const PlatformParams = struct {
     windowName: []const u8 = "sample window",
     icon: []const u8 = "content/textures/icon.png",
 };
+
+pub var gPlatformSettings: struct {
+    pollLockoutTime: ?f32 = null,
+    decoratedWindow: bool = true,
+    transparentFrameBuffer: bool = false,
+} = .{};
 
 pub const InstalledEvents = struct {
     allocator: std.mem.Allocator,
@@ -45,6 +87,9 @@ pub const PlatformInstance = struct {
     eventQueue: RingQueue(IOEvent),
     handlers: InstalledEvents,
     workBuffer: std.ArrayList(IOEvent),
+    listeners: std.ArrayList(RawInputObjectRef),
+    gameInput: *gameInput.GameInputSystem = undefined,
+
     cursorEnabled: bool = true,
     inputState: struct {
         mousePos: core.Vector2 = .{},
@@ -68,6 +113,7 @@ pub const PlatformInstance = struct {
             .extent = params.extent,
             .eventQueue = try RingQueue(IOEvent).init(allocator, 8096),
             .handlers = InstalledEvents.init(allocator),
+            .listeners = std.ArrayList(RawInputObjectRef).init(allocator),
             .workBuffer = std.ArrayList(IOEvent).init(allocator),
         };
 
@@ -76,16 +122,28 @@ pub const PlatformInstance = struct {
         return self;
     }
 
+    pub fn setup(self: *@This()) !void {
+        try self.initGlfw();
+        try self.initInput();
+    }
+
+    pub fn initInput(self: *@This()) !void {
+        self.gameInput = try self.allocator.create(gameInput.GameInputSystem);
+        try self.listeners.append(RawInputObjectRef.from(self.gameInput));
+    }
+
     pub fn initGlfw(self: *@This()) !void {
         if (c.glfwInit() != c.GLFW_TRUE) {
             core.engine_errs("Glfw Init Failed");
             return error.GlfwInitFailed;
         }
+
         core.engine_log("platform starting: GLFW", .{});
 
         c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        // c.glfwWindowHint(c.GLFW_DECORATED, c.GLFW_FALSE);
-        // c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, c.GLFW_TRUE);
+        c.glfwWindowHint(c.GLFW_DECORATED, if (gPlatformSettings.decoratedWindow) c.GLFW_TRUE else c.GLFW_FALSE);
+        c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) c.GLFW_TRUE else c.GLFW_FALSE);
+
         self.window = c.glfwCreateWindow(
             @as(c_int, @intCast(self.extent.x)),
             @as(c_int, @intCast(self.extent.y)),
@@ -149,6 +207,7 @@ pub const PlatformInstance = struct {
 
     pub fn installHandlers(self: *@This()) void {
         _ = c.glfwSetCursorPosCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
+        _ = c.glfwSetMouseButtonCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
     }
 
     pub fn pumpEvents(self: *@This()) !void {
@@ -163,13 +222,16 @@ pub const PlatformInstance = struct {
 
             for (self.workBuffer.items) |event| {
                 switch (event) {
-                    .cursorPos => |mousePos| {
+                    .mousePosition => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
                             handler.?(self.window, mousePos.x, mousePos.y);
                         }
                         self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };
                     },
-                    .cursorEnter, .windowFocused, .mouseButton, .scroll, .key, .char, .monitor => {},
+                    .mouseButton => {},
+                    .windowFocused => {},
+                    .scroll => {},
+                    .key => {},
                 }
             }
 
@@ -202,24 +264,36 @@ pub const PlatformInstance = struct {
     }
 };
 
-const IOEvent = union(enum(u8)) {
-    cursorEnter: struct { entered: c_int },
+pub const IOEvent = union(enum(u8)) {
     windowFocused: struct { focused: c_int },
-    cursorPos: struct { x: f64, y: f64 },
+    mousePosition: struct { x: f64, y: f64 },
     mouseButton: struct { button: c_int, action: c_int, mods: c_int },
     scroll: struct { xoffset: f64, yoffset: f64 },
     key: struct { key: c_int, scancode: c_int, action: c_int, mods: c_int },
-    char: struct { c: c_int },
-    monitor: struct { monitor: ?*c.GLFWmonitor, event: c_int },
 };
 
-const platform = @import("../platform.zig");
-
-pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    platform.getInstance().eventQueue.pushLocked(.{ .cursorPos = .{ .x = xpos, .y = ypos } }) catch unreachable;
+pub fn pushEventSafe(event: IOEvent) void {
+    platform.getInstance().eventQueue.pushLocked(event) catch {
+        core.engine_logs("too many events queued, dropping event...");
+    };
 }
 
-pub var gPlatformSettings: struct {
-    pollLockoutTime: ?f32 = null,
-    decoratedWindow: bool = true,
-} = .{};
+pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+    pushEventSafe(.{ .mousePosition = .{ .x = xpos, .y = ypos } });
+}
+
+pub fn mouseButtonCallback(_: ?*c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    pushEventSafe(.{ .mouseButton = .{ .button = button, .action = action, .mods = mods } });
+}
+
+pub fn windowFocusedCallback(_: ?*c.GLFWwindow, focused: c_int) callconv(.C) void {
+    pushEventSafe(.{ .windowFocused = .{ .focused = focused } });
+}
+
+pub fn scrollCallback(_: ?*c.GLFWwindow, xoffset: c_int, yoffset: c_int) callconv(.C) void {
+    pushEventSafe(.{ .scroll = .{ .xoffset = xoffset, .yoffset = yoffset } });
+}
+
+pub fn keyCallback(_: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    pushEventSafe(.{ .key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods } });
+}
