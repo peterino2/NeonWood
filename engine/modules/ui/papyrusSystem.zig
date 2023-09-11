@@ -355,7 +355,6 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
                 imagesText[self.textSsboCount] = .{
                     .isSimple = isBitmap,
-                    .pad0 = undefined,
                     .pad = undefined,
                 };
                 self.textSsboCount += 1;
@@ -390,10 +389,10 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             .text => |t| {
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
-                    drawText.draw(cmd, self.textMaterial, t.ssbo);
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
                 } else {
                     var drawText = self.textRenderer.displays.items[t.index];
-                    drawText.draw(cmd, self.textMaterial, t.ssbo);
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
                 }
             },
             .image => |img| {

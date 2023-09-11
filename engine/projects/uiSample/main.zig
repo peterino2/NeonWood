@@ -82,18 +82,19 @@ pub const GameContext = struct {
 
         const text = try ctx.addText(self.panel, ipsum);
         ctx.setFont(text, "roboto");
-        ctx.getText(text).textSize = 18;
+        ctx.getText(text).textSize = 48;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 1400, .y = 500 };
         self.text = text;
 
-        self.mousePosition = try ctx.addText(self.panel, "");
+        self.mousePosition = try ctx.addText(self.panel, "sampletext");
         {
             var widget = ctx.get(self.mousePosition);
             widget.style.foregroundColor = ui.papyrus.ModernStyle.Orange;
             widget.pos = .{ .x = -300, .y = 12 };
             widget.size = .{ .x = 1400, .y = 500 };
             widget.anchor = .TopRight;
+            widget.state = .Hidden;
             ctx.setFont(self.mousePosition, "roboto");
         }
 
@@ -102,6 +103,7 @@ pub const GameContext = struct {
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
         ctx.get(fps).pos = .{ .x = 32, .y = 12 };
         ctx.get(fps).size = .{ .x = 1400, .y = 500 };
+        ctx.get(fps).state = .Hidden;
         self.fps = fps;
     }
 };

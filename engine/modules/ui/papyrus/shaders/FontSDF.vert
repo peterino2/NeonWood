@@ -10,8 +10,8 @@ layout (location = 1) out vec2 texCoords;
 layout (location = 2) out int instanceId;
 
 struct FontInfo {
-  uint isSimple;
   vec4 pad;
+  uint isSimple;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 

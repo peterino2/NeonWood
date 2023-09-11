@@ -13,8 +13,8 @@ layout (push_constant) uniform constants {
 } PushConstants;
 
 struct FontInfo {
-    uint isSimple;
     vec4 pad;
+    uint isSimple;
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 
@@ -63,14 +63,13 @@ void main() {
 
     uint isSimple = fontBuffer.fontInfo[instanceId].isSimple;
 
-    if(isSimple == 0)
+    if(isSimple != 0)
     {
         float dist  = tex.r;
         float width = fwidth(dist);
         vec4 textColor = clamp(color, 0.0, 1.0);
         float outerEdge = 1.0f - (120.0f / 255.0f);
 
-        //#if defined(SUPERSAMPLE)
         float alpha = contour(dist, outerEdge, width);
 
         float dscale = 0.354; // half of 1/sqrt2; you can play with this

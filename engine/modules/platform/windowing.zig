@@ -3,20 +3,26 @@ const core = @import("../core.zig");
 const image = @import("../image.zig");
 const platform = @import("../platform.zig");
 const gameInput = @import("gameInput.zig");
+pub const c = @import("c.zig");
 
 const RingQueue = core.RingQueue;
 const tracy = core.tracy;
+const InputState = @import("InputState.zig");
+
+pub const InputListenerError = error{
+    UnknownError,
+};
 
 pub const RawInputListenerInterface = struct {
 
     // required functions
-    OnIoEvent: *const fn (*anyopaque, event: IOEvent) void,
+    OnIoEvent: *const fn (*anyopaque, event: IOEvent) InputListenerError!void,
 
     pub fn from(comptime TargetType: type) @This() {
         const Wrapped = struct {
-            pub fn OnIoEvent(pointer: *anyopaque, event: IOEvent) void {
+            pub fn OnIoEvent(pointer: *anyopaque, event: IOEvent) InputListenerError!void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.OnIoEvent(event);
+                try ptr.OnIoEvent(event);
             }
         };
 
@@ -41,8 +47,6 @@ pub const RawInputObjectRef = struct {
 };
 
 // We are having some serious issues with this events pump.
-
-pub const c = @import("c.zig");
 
 pub const PlatformParams = struct {
     extent: core.Vector2c = .{ .x = 1600, .y = 900 },
@@ -91,10 +95,9 @@ pub const PlatformInstance = struct {
     gameInput: *gameInput.GameInputSystem = undefined,
 
     cursorEnabled: bool = true,
-    inputState: struct {
-        mousePos: core.Vector2 = .{},
-        keydown: [256]bool = std.mem.zeroes([256]bool),
-    } = .{},
+
+    // Low level controls of the current state of input,
+    inputState: InputState = .{},
 
     pub fn deinit(self: *@This()) void {
         self.workBuffer.deinit();
@@ -161,6 +164,7 @@ pub const PlatformInstance = struct {
             .height = @as(c_int, @intCast(png.size.y)),
             .pixels = pixels,
         };
+
         if (c.glfwRawMouseMotionSupported() != 0)
             c.glfwSetInputMode(self.window, c.GLFW_RAW_MOUSE_MOTION, c.GLFW_TRUE);
 
@@ -221,11 +225,16 @@ pub const PlatformInstance = struct {
             self.eventQueue.unlock();
 
             for (self.workBuffer.items) |event| {
+                for (self.listeners.items) |listener| {
+                    try listener.vtable.OnIoEvent(listener.ptr, event);
+                }
+
                 switch (event) {
                     .mousePosition => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
                             handler.?(self.window, mousePos.x, mousePos.y);
                         }
+
                         self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };
                     },
                     .mouseButton => {},

@@ -11,8 +11,8 @@ pub const GameInputSystem = struct {
 
     stub: u32 = 0,
 
-    pub fn OnIoEvent(self: *@This(), event: windowing.IOEvent) void {
+    pub fn OnIoEvent(self: *@This(), event: windowing.IOEvent) windowing.InputListenerError!void {
+        _ = event;
         _ = self;
-        core.engine_log("input recieved {any}", .{event});
     }
 };

@@ -1534,7 +1534,6 @@ pub const PapyrusContext = struct {
     }
 
     // ============================= Rendering and Layout ==================
-
     pub const DrawCommand = struct {
         node: u32,
         primitive: union(enum(u8)) {
@@ -1656,6 +1655,8 @@ pub const PapyrusContext = struct {
         }
     }
 
+    const DebugDrawList: bool = true;
+
     pub fn makeDrawList(self: *@This(), drawList: *DrawList) !void {
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
@@ -1668,11 +1669,14 @@ pub const PapyrusContext = struct {
 
         try layout.put(0, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
 
-        //var drawList = DrawList.init(self.allocator);
         drawList.clearRetainingCapacity();
 
         for (self._drawOrder.items) |node| {
             var n = self.getRead(node);
+
+            if (n.state == .Hidden) {
+                continue;
+            }
 
             var parentInfo = layout.get(n.parent).?;
 
@@ -1752,6 +1756,26 @@ pub const PapyrusContext = struct {
                 .Slot, .Button => {},
             }
         }
+
+        if (DebugDrawList) {
+            try self.addDebugInfo(drawList);
+        }
+    }
+
+    pub fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
+        try drawList.append(.{
+            .node = 0,
+            .primitive = .{
+                .Text = .{
+                    .text = LocText.fromUtf8("Debug text"),
+                    .tl = .{ .x = 30, .y = 50 },
+                    .size = .{ .x = 500, .y = 30 },
+                    .color = BurnStyle.Highlight3,
+                    .textSize = 18,
+                    .rendererHash = self.fallbackFont.atlas.rendererHash,
+                },
+            },
+        });
     }
 
     pub fn printTree(self: @This(), root: u32) void {
@@ -1798,31 +1822,17 @@ pub const PapyrusContext = struct {
         }
     }
 
-    // ============
-    pub const TextLayoutMode = enum {
-        Wrap,
-        NoWrap,
-        WrapLimited,
-    };
+    // =============== IO Event processing ================
 
-    pub const TextRender = struct {
-        size: Vector2,
-        geometry: std.ArrayList(Vector2),
-        uv: std.ArrayList(Vector2),
+    // processes all outstanding IO events
+    pub fn processEvents(self: *@This()) !void {
+        _ = self;
+    }
 
-        pub fn init(allocator: std.mem.Allocator, baseSize: Vector2) @This() {
-            return .{
-                .size = baseSize,
-                .geometry = std.ArrayList(Vector2).init(allocator),
-                .uv = std.ArrayList(Vector2).init(allocator),
-            };
-        }
-
-        pub fn deinit(self: *@This()) void {
-            self.geometry.deinit();
-            self.uv.deinit();
-        }
-    };
+    // Sets the current cursor location
+    pub fn SetCursorLocation(self: *@This(), position: Vector2) void {
+        self.currentCursorPosition = position;
+    }
 };
 
 pub fn getContext() *PapyrusContext {
