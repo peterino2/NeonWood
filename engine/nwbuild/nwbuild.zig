@@ -187,7 +187,6 @@ pub const NwBuildSystem = struct {
 
         if (self.target.getOs().tag == .macos) {
             exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
-            // load find the vulkan environment path.
             exe.addLibraryPath(.{ .path = self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk}) });
         }
 

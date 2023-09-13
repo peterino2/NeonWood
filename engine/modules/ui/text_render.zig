@@ -258,9 +258,9 @@ pub const TextRenderer = struct {
 
         _ = try self.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
 
-        // we can support up to 8 large text displays and 256 small displays
+        // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
-        for (0..8) |i| {
+        for (0..32) |i| {
             _ = i;
             _ = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 8192 * 2,
