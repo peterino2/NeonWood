@@ -355,7 +355,8 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
 
                 imagesText[self.textSsboCount] = .{
                     .isSimple = isBitmap,
-                    .pad = undefined,
+                    .position = .{ .x = textDisplay.position.x, .y = textDisplay.position.y },
+                    .size = .{ .x = textDisplay.boxSize.x, .y = textDisplay.boxSize.y },
                 };
                 self.textSsboCount += 1;
             },

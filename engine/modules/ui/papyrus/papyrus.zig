@@ -221,6 +221,9 @@ pub const PapyrusContext = struct {
     _drawOrder: DrawOrderList,
     _layout: std.AutoHashMap(u32, PosSize),
 
+    debugText: std.ArrayList([]u8),
+    debugTextCount: u32 = 0,
+
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
         const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
@@ -237,7 +240,13 @@ pub const PapyrusContext = struct {
             },
             ._drawOrder = DrawOrderList.init(backingAllocator),
             ._layout = std.AutoHashMap(u32, PosSize).init(backingAllocator),
+            .debugText = std.ArrayList([]u8).init(backingAllocator),
         };
+
+        for (0..32) |_| {
+            //var textBuffer = try backingAllocator.alloc(u8, 512);
+            //try self.debugText.append(textBuffer);
+        }
 
         self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
         try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
@@ -252,6 +261,8 @@ pub const PapyrusContext = struct {
         return self;
     }
 
+    pub fn pushDebugText() void {}
+
     pub fn deinit(self: *@This()) void {
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
@@ -263,6 +274,11 @@ pub const PapyrusContext = struct {
         self.nodes.deinit();
         self._drawOrder.deinit();
         self._layout.deinit();
+
+        for (self.debugText.items) |text| {
+            self.allocator.free(text);
+        }
+        self.debugText.deinit();
         self.allocator.destroy(self);
     }
 
@@ -669,17 +685,20 @@ pub const PapyrusContext = struct {
         }
 
         if (DebugDrawList) {
-            try self.addDebugInfo(drawList);
+            // try self.addDebugInfo(drawList);
         }
     }
 
     pub fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
+        const offsetPerLine: f32 = 50.0;
+        var yOffset: f32 = offsetPerLine;
+
         try drawList.append(.{
             .node = 0,
             .primitive = .{
                 .Text = .{
-                    .text = LocText.fromUtf8("Debug text"),
-                    .tl = .{ .x = 30, .y = 50 },
+                    .text = LocText.fromUtf8("Papyrus Debug:"),
+                    .tl = .{ .x = 30, .y = yOffset },
                     .size = .{ .x = 500, .y = 30 },
                     .color = BurnStyle.Highlight3,
                     .textSize = 18,
@@ -687,6 +706,29 @@ pub const PapyrusContext = struct {
                 },
             },
         });
+
+        yOffset += offsetPerLine;
+
+        for (self.debugText.items, 0..) |textData, i| {
+            if (i >= self.debugTextCount) {
+                break;
+            }
+
+            try drawList.append(.{
+                .node = 0,
+                .primitive = .{
+                    .Text = .{
+                        .text = LocText.fromUtf8(textData),
+                        .tl = .{ .x = 30, .y = yOffset },
+                        .size = .{ .x = 500, .y = 30 },
+                        .color = BurnStyle.Highlight3,
+                        .textSize = 18,
+                        .rendererHash = self.fallbackFont.atlas.rendererHash,
+                    },
+                },
+            });
+            yOffset += offsetPerLine + (offsetPerLine / 4);
+        }
     }
 
     pub fn printTree(self: @This(), root: u32) void {
@@ -731,13 +773,6 @@ pub const PapyrusContext = struct {
             try self.writeTreeInner(next, log);
             next = self.getRead(next).*.next;
         }
-    }
-
-    // =============== IO Event processing ================
-
-    // processes all outstanding IO events
-    pub fn processEvents(self: *@This()) !void {
-        _ = self;
     }
 
     // Sets the current cursor location

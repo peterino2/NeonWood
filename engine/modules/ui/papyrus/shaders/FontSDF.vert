@@ -10,7 +10,8 @@ layout (location = 1) out vec2 texCoords;
 layout (location = 2) out int instanceId;
 
 struct FontInfo {
-  vec4 pad;
+  vec2 position;
+  vec2 size;
   uint isSimple;
 };
 
@@ -24,8 +25,12 @@ layout (push_constant) uniform constants {
 
 void main()
 {
-    //gl_Position = vec4((texPosition.xy / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
-    gl_Position = vec4((texPosition.xy / vec2(1600, 900)) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    
+    vec2 position = fontBuffer.fontInfo[instanceId].position;
+    vec2 size = fontBuffer.fontInfo[instanceId].size;
+    //gl_Position = vec4(( (texPosition.xy + position) / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    gl_Position = vec4(( (texPosition.xy + position) / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+
     texCoords = texCoord;
     fragColor = texColor;
     instanceId = gl_BaseInstance;

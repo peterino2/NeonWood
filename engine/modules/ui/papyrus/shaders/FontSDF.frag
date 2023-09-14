@@ -13,7 +13,8 @@ layout (push_constant) uniform constants {
 } PushConstants;
 
 struct FontInfo {
-    vec4 pad;
+    vec2 position;
+    vec2 size;
     uint isSimple;
 };
 

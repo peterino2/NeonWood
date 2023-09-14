@@ -199,8 +199,10 @@ pub const DisplayText = struct {
             var color = self.color;
 
             var topLeft = .{
-                .x = self.position.x + xOffset + box.x,
-                .y = yOffset + self.position.y + box.y + fontHeight,
+                // .x = self.position.x + xOffset + box.x,
+                // .y = yOffset + self.position.y + box.y + fontHeight,
+                .x = xOffset + box.x,
+                .y = yOffset + box.y + fontHeight,
             };
 
             var metric_size = .{ .x = metrics.x, .y = metrics.y, .z = 0 };
@@ -242,7 +244,7 @@ pub const TextRenderer = struct {
             .arena = std.heap.ArenaAllocator.init(backingAllocator),
             .g = g,
             .papyrusCtx = papyrusCtx,
-            .small_limit = 256,
+            .small_limit = 512,
         };
 
         self.allocator = self.arena.allocator();
@@ -262,16 +264,20 @@ pub const TextRenderer = struct {
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
         for (0..32) |i| {
             _ = i;
-            _ = try self.addDisplayText(core.MakeName("default"), .{
+            var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 8192 * 2,
             });
+
+            try self.displays.append(self.allocator, newDisplay);
         }
 
         for (0..256) |i| {
             _ = i;
-            _ = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 256,
+            var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
+                .charLimit = 512,
             });
+
+            try self.smallDisplays.append(self.allocator, newDisplay);
         }
 
         return self;
@@ -305,14 +311,6 @@ pub const TextRenderer = struct {
             self.fonts.get(fontName.hash).?,
             opts,
         );
-
-        var small = opts.charLimit <= self.small_limit;
-
-        if (small) {
-            try self.smallDisplays.append(self.allocator, new);
-        } else {
-            try self.displays.append(self.allocator, new);
-        }
 
         return new;
     }
