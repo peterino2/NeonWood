@@ -158,12 +158,11 @@ pub const GameContext = struct {
 
         {
             const ModernStyle = ui.papyrus.ModernStyle;
-            const Text = ui.papyrus.Text;
             var panel = try ctx.addPanel(0);
             self.panel = panel;
             ctx.getPanel(panel).hasTitle = true;
             ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
-            ctx.get(panel).text = Text("Testing Quality: Lorem Ipsum");
+            ctx.get(panel).text = ui.papyrus.MakeText("Testing Quality: Lorem Ipsum");
             ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
             ctx.get(panel).style.foregroundColor = ModernStyle.BrightGrey;
             ctx.get(panel).style.borderColor = ModernStyle.Yellow;

@@ -74,7 +74,7 @@ pub const GameContext = struct {
         ctx.getPanel(self.panel).titleSize = 20;
         ctx.getPanel(self.panel).titleColor = BurnStyle.Bright1;
         ctx.setFont(self.panel, "roboto");
-        ctx.get(self.panel).text = ui.papyrus.Text("Ui demo program: Hello world.");
+        ctx.get(self.panel).text = ui.papyrus.MakeText("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
         ctx.get(self.panel).style.borderColor = BurnStyle.Diminished;
