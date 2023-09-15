@@ -85,6 +85,23 @@ pub const LocText = struct {
             .utf8 = text,
         };
     }
+
+    pub fn fromUtf8Z(text: []const u8) @This() {
+        for (text, 0..) |ch, i| {
+            if (ch == 0) {
+                var slice: []const u8 = undefined;
+                slice.ptr = text.ptr;
+                slice.len = i;
+                return .{
+                    .utf8 = slice,
+                };
+            }
+        }
+
+        return .{
+            .utf8 = text,
+        };
+    }
 };
 
 // text construction macro

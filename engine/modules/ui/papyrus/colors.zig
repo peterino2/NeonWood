@@ -41,6 +41,7 @@ pub const Color = struct {
     pub const Blue = fromRGB(0x0000FF);
     pub const Cyan = fromRGB(0x00FFFF);
     pub const Magenta = fromRGB(0xFF00FF);
+    pub const Black = fromRGB(0x000000);
 
     pub fn intoRGBA(self: @This()) Color32 {
         return ((@as(u32, @intFromFloat(self.r)) * 0xFF) << 24) |

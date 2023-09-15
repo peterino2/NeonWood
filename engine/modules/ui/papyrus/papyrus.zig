@@ -216,6 +216,7 @@ pub const PapyrusContext = struct {
     fonts: std.AutoHashMap(u32, PapyrusFont),
     fallbackFont: PapyrusFont,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
+    currentCursorPosition: Vector2 = .{},
 
     // internals
     _drawOrder: DrawOrderList,
@@ -223,6 +224,8 @@ pub const PapyrusContext = struct {
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
+
+    const debugTextMax = 32;
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
@@ -243,9 +246,9 @@ pub const PapyrusContext = struct {
             .debugText = std.ArrayList([]u8).init(backingAllocator),
         };
 
-        for (0..32) |_| {
-            //var textBuffer = try backingAllocator.alloc(u8, 512);
-            //try self.debugText.append(textBuffer);
+        for (0..debugTextMax) |_| {
+            var textBuffer = try backingAllocator.alloc(u8, 512);
+            try self.debugText.append(textBuffer);
         }
 
         self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
@@ -258,10 +261,27 @@ pub const PapyrusContext = struct {
             .nodeType = .{ .Slot = .{} },
         });
 
+        try self.pushDebugText("mouse position: {d}, {d}", .{ 0, 0 });
+
         return self;
     }
 
-    pub fn pushDebugText() void {}
+    pub fn pushDebugText(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
+        if (self.debugTextCount < debugTextMax) {
+            _ = try std.fmt.bufPrintZ(self.debugText.items[self.debugTextCount], fmt, args);
+            self.debugTextCount += 1;
+        }
+    }
+
+    pub fn clearDebugText(self: *@This()) void {
+        self.debugTextCount = 0;
+    }
+
+    pub fn tick(self: *@This(), deltaTime: f64) !void {
+        _ = deltaTime;
+        self.clearDebugText();
+        try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
+    }
 
     pub fn deinit(self: *@This()) void {
         var iter = self.fonts.iterator();
@@ -453,11 +473,6 @@ pub const PapyrusContext = struct {
             try self.walkNodesToRemove(next, killList);
             next = self.getRead(next).next;
         }
-    }
-
-    pub fn tick(self: *@This(), deltaTime: f32) void {
-        _ = self;
-        _ = deltaTime;
     }
 
     // ============================= Rendering and Layout ==================
@@ -685,13 +700,24 @@ pub const PapyrusContext = struct {
         }
 
         if (DebugDrawList) {
-            // try self.addDebugInfo(drawList);
+            try self.addDebugInfo(drawList);
         }
     }
 
     pub fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
         const offsetPerLine: f32 = 50.0;
         var yOffset: f32 = offsetPerLine;
+        try drawList.append(.{
+            .node = 0,
+            .primitive = .{
+                .Rect = .{
+                    .tl = .{ .x = 30 - 3, .y = yOffset - 3 },
+                    .size = .{ .x = 500 + 5, .y = offsetPerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
+                    .borderColor = Color.Yellow,
+                    .backgroundColor = Color.Black,
+                },
+            },
+        });
 
         try drawList.append(.{
             .node = 0,
@@ -718,7 +744,7 @@ pub const PapyrusContext = struct {
                 .node = 0,
                 .primitive = .{
                     .Text = .{
-                        .text = LocText.fromUtf8(textData),
+                        .text = LocText.fromUtf8Z(textData),
                         .tl = .{ .x = 30, .y = yOffset },
                         .size = .{ .x = 500, .y = 30 },
                         .color = BurnStyle.Highlight3,
@@ -776,7 +802,7 @@ pub const PapyrusContext = struct {
     }
 
     // Sets the current cursor location
-    pub fn SetCursorLocation(self: *@This(), position: Vector2) void {
+    pub fn setCursorLocation(self: *@This(), position: Vector2) void {
         self.currentCursorPosition = position;
     }
 };

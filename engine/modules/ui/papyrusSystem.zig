@@ -109,7 +109,6 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.setupMeshes();
 
     try self.graphLog.write("}}\n", .{});
-    // try self.graphLog.makeGraphViz();
 
     try self.gc.registerRendererPlugin(self);
 
@@ -166,6 +165,14 @@ fn setupMeshes(self: *@This()) !void {
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
+    var cursor = platform.getInstance().inputState.mousePos;
+
+    self.papyrusCtx.setCursorLocation(.{
+        .x = @floatCast(cursor.x),
+        .y = @floatCast(cursor.y),
+    });
+
+    self.papyrusCtx.tick(deltaTime) catch unreachable;
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
@@ -337,10 +344,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 }
                 try textDisplay.string.appendSlice(text.text.utf8);
 
-                try self.drawCommands.append(.{ .text = .{ .index = nextDisplay.index, .small = nextDisplay.small, .ssbo = self.textSsboCount } });
                 try textDisplay.updateMesh();
-
-                var isBitmap: u32 = 0;
 
                 // core.ui_log("nextDisplay = {any}, font = {d} sdf={any} ssbo={d}", .{
                 //     nextDisplay,
@@ -349,15 +353,20 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 //     self.textSsboCount,
                 // });
 
-                if (!textDisplay.atlas.atlas.isSDF) {
-                    isBitmap = 1;
-                }
-
                 imagesText[self.textSsboCount] = .{
-                    .isSimple = isBitmap,
+                    .isSdf = if (textDisplay.atlas.atlas.isSDF) 1 else 0,
                     .position = .{ .x = textDisplay.position.x, .y = textDisplay.position.y },
                     .size = .{ .x = textDisplay.boxSize.x, .y = textDisplay.boxSize.y },
+                    .pad0 = 0,
+                    .pad2 = undefined,
                 };
+
+                try self.drawCommands.append(.{ .text = .{
+                    .index = nextDisplay.index,
+                    .small = nextDisplay.small,
+                    .ssbo = self.textSsboCount,
+                } });
+
                 self.textSsboCount += 1;
             },
         }

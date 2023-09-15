@@ -8,11 +8,14 @@ layout(location = 3) in vec2 texCoord;
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec2 texCoords;
 layout (location = 2) out int instanceId;
+layout (location = 3) out vec2 pixelPosition;
 
 struct FontInfo {
-  vec2 position;
-  vec2 size;
-  uint isSimple;
+  vec2 position; // 8 bytes alignment 0
+  vec2 size;     // 8 bytes alignment 8
+  uint isSdf; // 4 bytes 16
+  uint pad0;     // 4 bytes
+  vec2 pad2;     // 8 bytes
 };
 
 layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 
@@ -25,11 +28,13 @@ layout (push_constant) uniform constants {
 
 void main()
 {
-    
-    vec2 position = fontBuffer.fontInfo[instanceId].position;
-    vec2 size = fontBuffer.fontInfo[instanceId].size;
-    //gl_Position = vec4(( (texPosition.xy + position) / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
-    gl_Position = vec4(( (texPosition.xy + position) / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    vec2 pos = fontBuffer.fontInfo[gl_BaseInstance].position;
+    vec2 size = fontBuffer.fontInfo[gl_BaseInstance].size;
+
+    vec2 t = texPosition.xy + pos;
+    pixelPosition = t;
+    //gl_Position = vec4(( (texPosition.xy + pos) / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
+    gl_Position = vec4((t / PushConstants.extent) * 2 + vec2(-1.0f, -1.0f), texPosition.z, 1.0);
 
     texCoords = texCoord;
     fragColor = texColor;

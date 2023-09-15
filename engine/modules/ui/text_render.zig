@@ -191,7 +191,9 @@ pub const DisplayText = struct {
 
             const uv_tl = atlas.glyphCoordinates[ch][0];
 
-            if (xOffset + box.x > self.boxSize.x) {
+            xOffset += box.x;
+
+            if (xOffset + box.x + metrics.x > self.boxSize.x) {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
             }
@@ -201,7 +203,7 @@ pub const DisplayText = struct {
             var topLeft = .{
                 // .x = self.position.x + xOffset + box.x,
                 // .y = yOffset + self.position.y + box.y + fontHeight,
-                .x = xOffset + box.x,
+                .x = xOffset,
                 .y = yOffset + box.y + fontHeight,
             };
 
