@@ -59,9 +59,7 @@ const testString = "hello world";
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
-pub const PapyrusPushConstant = struct {
-    extent: core.Vector2f,
-};
+pub const PapyrusPushConstant = FontSDF_vert.constants;
 
 pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData;
 pub const FontInfo = FontSDF_vert.FontInfo;
@@ -392,11 +390,11 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             .y = @as(f32, @floatFromInt(self.gc.extent.height)),
         },
     };
-    self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
 
     for (self.drawCommands.items) |command| {
         switch (command) {
             .text => |t| {
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
                     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
@@ -406,6 +404,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 }
             },
             .image => |img| {
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
                 var index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
