@@ -280,7 +280,7 @@ pub const PapyrusContext = struct {
     pub fn tick(self: *@This(), deltaTime: f64) !void {
         _ = deltaTime;
         self.clearDebugText();
-        try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
+        try self.pushDebugText("mouse Position: {d:.2}, {d:.2}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
     }
 
     pub fn deinit(self: *@This()) void {
@@ -711,10 +711,10 @@ pub const PapyrusContext = struct {
             .node = 0,
             .primitive = .{
                 .Rect = .{
-                    .tl = .{ .x = 30 - 3, .y = yOffset - 3 },
+                    .tl = .{ .x = 30 - 5, .y = yOffset - 5 },
                     .size = .{ .x = 500 + 5, .y = offsetPerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
-                    .borderColor = Color.Yellow,
-                    .backgroundColor = Color.Black,
+                    .borderColor = Color.fromRGBA(0x222222ee),
+                    .backgroundColor = Color.fromRGBA2(0.0, 0.0, 0.0, 0.9),
                 },
             },
         });

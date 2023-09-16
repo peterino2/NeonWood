@@ -80,5 +80,5 @@ void main()
 
 
     // scale the color
-    outFragColor = vec4(pow(color, vec3(2.2)), 1.0f);
+    outFragColor = vec4(pow(color, vec3(2.2)), fragColor.w);
 }
