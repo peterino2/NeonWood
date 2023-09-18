@@ -294,12 +294,6 @@ pub const PapyrusContext = struct {
         self.debugTextCount = 0;
     }
 
-    pub fn tick(self: *@This(), deltaTime: f64) !void {
-        _ = deltaTime;
-        self.clearDebugText();
-        try self.pushDebugText("mouse Position: {d:.2}, {d:.2}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
-    }
-
     pub fn deinit(self: *@This()) void {
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
