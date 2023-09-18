@@ -4,6 +4,8 @@ const core = @import("core.zig");
 const graphics = @import("graphics.zig");
 pub const papyrus = PapyrusSystem.papyrus;
 
+pub const NodeHandle = papyrus.NodeHandle;
+
 var gPapyrus: *PapyrusSystem = undefined;
 
 pub fn getSystem() *PapyrusSystem {

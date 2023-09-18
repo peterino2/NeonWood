@@ -2,27 +2,31 @@ pub const std = @import("std");
 
 const utils = @import("utils.zig");
 const assertf = utils.assertf;
+pub const Handle = struct {
+    index: u24 = 0,
+    generation: u8 = 0,
+};
 
 // ========================================== Dynamic pool ===============================
 pub fn DynamicPool(comptime T: type) type {
     return struct {
-        pub const Handle = u32;
-
         allocator: std.mem.Allocator,
         active: std.ArrayListUnmanaged(?T),
-        dead: std.ArrayListUnmanaged(Handle),
+        generations: std.ArrayListUnmanaged(u8),
+        dead: std.ArrayListUnmanaged(u24),
 
         pub fn init(allocator: std.mem.Allocator) @This() {
             return .{
                 .allocator = allocator,
                 .active = .{},
                 .dead = .{},
+                .generations = .{},
             };
         }
 
         pub fn new(self: *@This(), initVal: T) !Handle {
             if (self.dead.items.len > 0) {
-                const revivedIndex = @as(Handle, @intCast(self.dead.items[self.dead.items.len - 1]));
+                const revivedIndex = self.dead.items[self.dead.items.len - 1];
 
                 try assertf(
                     revivedIndex < self.active.items.len,
@@ -32,40 +36,56 @@ pub fn DynamicPool(comptime T: type) type {
 
                 self.active.items[revivedIndex] = initVal;
                 self.dead.shrinkRetainingCapacity(self.dead.items.len - 1);
-                return revivedIndex;
+                return .{
+                    .index = revivedIndex,
+                    .generation = self.generations.items[revivedIndex],
+                };
             }
 
             try self.active.append(self.allocator, initVal);
-            return @as(Handle, @intCast(self.active.items.len - 1));
+            try self.generations.append(self.allocator, 0);
+
+            return .{
+                .index = @as(u24, @intCast(self.active.items.len - 1)),
+                .generation = 0,
+            };
         }
 
         pub fn isValid(self: @This(), handle: Handle) bool {
-            if (handle >= self.active.items.len) {}
+            if (handle.index >= self.active.items.len) {
+                return false;
+            }
+
+            if (self.active.items[handle.index] == null) {
+                return false;
+            }
+
+            if (self.generations.items[handle.index] != handle.generation) {
+                return false;
+            }
+            return true;
         }
 
         pub fn get(self: *@This(), handle: Handle) ?*T {
-            if (handle >= self.active.items.len) {
+            if (!self.isValid(handle)) {
                 return null;
             }
 
-            if (self.active.items[handle] == null) {
-                return null;
-            }
-
-            return &(self.active.items[handle].?);
+            return &(self.active.items[handle.index].?);
         }
 
         pub fn getRead(self: @This(), handle: Handle) ?*const T {
-            if (handle >= self.active.items.len) {
+            if (!self.isValid(handle)) {
                 return null;
             }
 
-            return &(self.active.items[handle].?);
+            return &(self.active.items[handle.index].?);
         }
 
         pub fn destroy(self: *@This(), destroyHandle: Handle) void {
-            self.active.items[destroyHandle] = null;
-            self.dead.append(self.allocator, destroyHandle) catch unreachable;
+            self.active.items[destroyHandle.index] = null;
+            self.dead.append(self.allocator, destroyHandle.index) catch unreachable;
+            self.generations.items[destroyHandle.index] += 1;
         }
 
         pub fn deinit(self: *@This()) void {

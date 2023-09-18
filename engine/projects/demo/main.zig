@@ -4,6 +4,7 @@ pub const neonwood = @import("root").neonwood;
 const core = neonwood.core;
 const platform = neonwood.platform;
 const ui = neonwood.ui;
+const NodeHandle = ui.NodeHandle;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
@@ -50,7 +51,7 @@ pub const GameContext = struct {
     eulerY: f32 = 0,
 
     time: f64 = 0,
-    panel: u32 = 0,
+    panel: NodeHandle = .{},
     panelText: ?[]u8 = null,
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
@@ -158,7 +159,7 @@ pub const GameContext = struct {
 
         {
             const ModernStyle = ui.papyrus.ModernStyle;
-            var panel = try ctx.addPanel(0);
+            var panel = try ctx.addPanel(.{});
             self.panel = panel;
             ctx.getPanel(panel).hasTitle = true;
             ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;

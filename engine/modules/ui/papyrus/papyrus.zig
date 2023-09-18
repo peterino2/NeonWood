@@ -5,6 +5,8 @@ const c = @cImport({
 
 pub const events = @import("papyrus_events.zig");
 
+pub const PapyrusLayout = @import("PapyrusMousePick.zig");
+
 pub const PapyrusFont = @import("PapyrusFont.zig");
 pub const FontAtlas = PapyrusFont.FontAtlas;
 pub const BmpRenderer = @import("BmpRenderer.zig");
@@ -33,6 +35,8 @@ pub const DynamicPool = pool.DynamicPool;
 const vectors = @import("vectors.zig");
 pub const Vector2i = vectors.Vector2i;
 pub const Vector2 = vectors.Vector2;
+
+pub const NodeHandle = pool.Handle;
 
 // Mixed mode implementation agnostic UI library
 //
@@ -171,13 +175,13 @@ pub const PapyrusNodeStyle = struct {
 // this is going to follow a pretty object-oriented-like user facing api
 pub const PapyrusNode = struct {
     text: LocText = MakeText("hello world"),
-    parent: u32 = 0, // 0 corresponds to true root
+    parent: NodeHandle = .{}, // 0 corresponds to true root
 
     // all children of the same parent operate as a doubly linked list
-    child: u32 = 0,
-    end: u32 = 0,
-    next: u32 = 0, //
-    prev: u32 = 0,
+    child: NodeHandle = .{},
+    end: NodeHandle = .{},
+    next: NodeHandle = .{}, //
+    prev: NodeHandle = .{},
 
     zOrder: i32 = 0, // higher order goes first
 
@@ -211,6 +215,7 @@ pub const PapyrusNode = struct {
 };
 
 pub const PapyrusContext = struct {
+    backingAllocator: std.mem.Allocator,
     allocator: std.mem.Allocator,
     nodes: DynamicPool(PapyrusNode),
     fonts: std.AutoHashMap(u32, PapyrusFont),
@@ -218,46 +223,58 @@ pub const PapyrusContext = struct {
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
     currentCursorPosition: Vector2 = .{},
 
+    mousePick: PapyrusLayout,
+
     // internals
     _drawOrder: DrawOrderList,
-    _layout: std.AutoHashMap(u32, PosSize),
+    _layout: std.AutoHashMap(NodeHandle, PosSize),
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
+    currentMouseOver: u32 = 0, // the current node that is being moused over.
 
     const debugTextMax = 32;
+
+    pub fn tick(self: *@This(), deltaTime: f64) !void {
+        self.clearDebugText();
+        try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
+        try self.mousePick.tick(self, deltaTime);
+    }
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
         const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
 
         var self = try backingAllocator.create(@This());
+        var allocator = backingAllocator;
 
         self.* = .{
-            .allocator = backingAllocator,
-            .nodes = DynamicPool(PapyrusNode).init(backingAllocator),
-            .fonts = std.AutoHashMap(u32, PapyrusFont).init(backingAllocator),
+            .allocator = allocator,
+            .backingAllocator = allocator,
+            .nodes = DynamicPool(PapyrusNode).init(allocator),
+            .fonts = std.AutoHashMap(u32, PapyrusFont).init(allocator),
             .fallbackFont = PapyrusFont{
                 .name = HashStr.fromUtf8(fallbackFontName),
-                .atlas = try backingAllocator.create(FontAtlas),
+                .atlas = try allocator.create(FontAtlas),
             },
-            ._drawOrder = DrawOrderList.init(backingAllocator),
-            ._layout = std.AutoHashMap(u32, PosSize).init(backingAllocator),
-            .debugText = std.ArrayList([]u8).init(backingAllocator),
+            ._drawOrder = DrawOrderList.init(allocator),
+            ._layout = std.AutoHashMap(NodeHandle, PosSize).init(allocator),
+            .debugText = std.ArrayList([]u8).init(allocator),
+            .mousePick = PapyrusLayout.init(allocator),
         };
 
         for (0..debugTextMax) |_| {
-            var textBuffer = try backingAllocator.alloc(u8, 512);
+            var textBuffer = try allocator.alloc(u8, 512);
             try self.debugText.append(textBuffer);
         }
 
-        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(backingAllocator, fallbackFontFile, 18);
+        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(allocator, fallbackFontFile, 18);
         try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
 
         // constructing the root node
         _ = try self.nodes.new(.{
             .text = MakeText("root"),
-            .parent = 0,
+            .parent = .{},
             .nodeType = .{ .Slot = .{} },
         });
 
@@ -277,12 +294,6 @@ pub const PapyrusContext = struct {
         self.debugTextCount = 0;
     }
 
-    pub fn tick(self: *@This(), deltaTime: f64) !void {
-        _ = deltaTime;
-        self.clearDebugText();
-        try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
-    }
-
     pub fn deinit(self: *@This()) void {
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
@@ -299,7 +310,7 @@ pub const PapyrusContext = struct {
             self.allocator.free(text);
         }
         self.debugText.deinit();
-        self.allocator.destroy(self);
+        self.backingAllocator.destroy(self);
     }
 
     pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
@@ -307,15 +318,15 @@ pub const PapyrusContext = struct {
         try self.fonts.put(name.hash, .{ .atlas = atlas, .name = name });
     }
 
-    pub fn getPanel(self: *@This(), handle: u32) *NodeProperty_Panel {
+    pub fn getPanel(self: *@This(), handle: NodeHandle) *NodeProperty_Panel {
         return &(self.nodes.get(handle).?.nodeType.Panel);
     }
 
-    pub fn getText(self: *@This(), handle: u32) *NodeProperty_Text {
+    pub fn getText(self: *@This(), handle: NodeHandle) *NodeProperty_Text {
         return &(self.nodes.get(handle).?.nodeType.DisplayText);
     }
 
-    pub fn setFont(self: *@This(), handle: u32, font: []const u8) void {
+    pub fn setFont(self: *@This(), handle: NodeHandle, font: []const u8) void {
         const name = HashStr.fromUtf8(font);
 
         switch (self.nodes.get(handle).?.nodeType) {
@@ -336,20 +347,20 @@ pub const PapyrusContext = struct {
 
     // converts a handle to a node pointer
     // invalid after AddNode
-    pub fn get(self: *@This(), handle: u32) *PapyrusNode {
+    pub fn get(self: *@This(), handle: NodeHandle) *PapyrusNode {
         return self.nodes.get(handle).?;
     }
 
     // gets a node as read only
-    pub fn getRead(self: @This(), handle: u32) *const PapyrusNode {
+    pub fn getRead(self: @This(), handle: NodeHandle) *const PapyrusNode {
         return self.nodes.getRead(handle).?;
     }
 
-    fn newNode(self: *@This(), node: PapyrusNode) !u32 {
+    fn newNode(self: *@This(), node: PapyrusNode) !NodeHandle {
         return try self.nodes.new(node);
     }
 
-    pub fn addSlot(self: *@This(), parent: u32) !u32 {
+    pub fn addSlot(self: *@This(), parent: NodeHandle) !NodeHandle {
         var slotNode = PapyrusNode{ .nodeType = .{ .Slot = .{} } };
         var slot = try self.newNode(slotNode);
 
@@ -358,7 +369,7 @@ pub const PapyrusContext = struct {
         return slot;
     }
 
-    pub fn addText(self: *@This(), parent: u32, text: []const u8) !u32 {
+    pub fn addText(self: *@This(), parent: NodeHandle, text: []const u8) !NodeHandle {
         var slotNode = PapyrusNode{
             .text = LocText.fromUtf8(text),
             .nodeType = .{ .DisplayText = .{
@@ -374,12 +385,12 @@ pub const PapyrusContext = struct {
         return slot;
     }
 
-    pub fn addPanel(self: *@This(), parent: u32) !u32 {
+    pub fn addPanel(self: *@This(), parent: NodeHandle) !NodeHandle {
         var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{
             .font = self.fallbackFont.atlas,
         } } };
 
-        if (parent == 0) {
+        if (parent.index == 0) {
             slotNode.anchor = .Free;
         }
         var slot = try self.nodes.new(slotNode);
@@ -389,20 +400,29 @@ pub const PapyrusContext = struct {
         return slot;
     }
 
-    pub fn setParent(self: *@This(), node: u32, parent: u32) !void {
-        try assertf(self.nodes.get(parent) != null, "tried to assign node {d} to parent {d} but parent does not exist", .{ node, parent });
-        try assertf(self.nodes.get(node) != null, "tried to assign node {d} to parent {d} but node does not exist", .{ node, parent });
+    pub fn setParent(self: *@This(), node: NodeHandle, parent: NodeHandle) !void {
+        try assertf(
+            self.nodes.get(parent) != null,
+            "tried to assign node {d}.{d} to parent {d}.{d} but parent does not exist",
+            .{ node.index, node.generation, parent.index, parent.generation },
+        );
+
+        try assertf(
+            self.nodes.get(node) != null,
+            "tried to assign node {d}.{d} to parent {d}.{d} but node does not exist",
+            .{ node.index, node.generation, parent.index, parent.generation },
+        );
 
         var parentNode = self.nodes.get(parent).?;
         var thisNode = self.nodes.get(node).?;
 
         // if we have a previous parent, remove ourselves
-        if (thisNode.*.parent != 0) {
+        if (thisNode.*.parent.index != 0) {
             // remove myself from that parent.
             var oldParentNode = self.nodes.get(thisNode.*.parent).?;
 
             // special case for when we're the first child element
-            if (oldParentNode.*.child == node) {
+            if (oldParentNode.*.child.index == node.index) {
                 oldParentNode.*.child = thisNode.next;
             } else {
                 // otherwise remove ourselves from the linked list
@@ -413,7 +433,7 @@ pub const PapyrusContext = struct {
         // assign ourselves the new parent
         self.nodes.get(node).?.*.parent = parent;
 
-        if (parentNode.*.child == 0) {
+        if (parentNode.*.child.index == 0) {
             parentNode.*.child = node;
         } else {
             self.nodes.get(parentNode.*.end).?.*.next = node;
@@ -424,21 +444,22 @@ pub const PapyrusContext = struct {
     }
 
     // helper functions for a whole bunch of shit
-    pub fn addButton(self: *@This(), text: LocText) !u32 {
+    pub fn addButton(self: *@This(), text: LocText) !NodeHandle {
         var button = NodeProperty_Button{ .text = text };
         return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
     }
 
-    pub fn removeFromParent(self: *@This(), node: u32) !void {
+    pub fn removeFromParent(self: *@This(), node: NodeHandle) !void {
         // this also deletes all children
         // 1. gather all children.
-        try assertf(node != 0, "removeFromParent CANNOT be called on the root node", .{});
+        try assertf(node.index != 0, "removeFromParent CANNOT be called on the root node", .{});
 
-        var killList = std.ArrayList(u32).init(self.allocator);
+        var killList = std.ArrayList(NodeHandle).init(self.allocator);
         defer killList.deinit();
         self.walkNodesToRemove(node, &killList) catch {
             for (killList.items) |n| {
-                std.debug.print("{d}, ", .{n});
+                _ = n;
+                // std.debug.print("{d};{d}, ", .{ n.index, n.generation });
             }
             return error.BadWalk;
         };
@@ -464,7 +485,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn walkNodesToRemove(self: @This(), root: u32, killList: *std.ArrayList(u32)) !void {
+    fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(u32)) !void {
         try killList.append(root);
 
         var next = self.getRead(root).child;
@@ -477,7 +498,7 @@ pub const PapyrusContext = struct {
 
     // ============================= Rendering and Layout ==================
     pub const DrawCommand = struct {
-        node: u32,
+        node: NodeHandle,
         primitive: union(enum(u8)) {
             Rect: struct {
                 tl: Vector2,
@@ -502,33 +523,33 @@ pub const PapyrusContext = struct {
         },
     };
     pub const DrawList = std.ArrayList(DrawCommand);
-    const DrawOrderList = std.ArrayList(u32);
+    const DrawOrderList = std.ArrayList(NodeHandle);
 
-    fn assembleDrawOrderListForNode(self: @This(), node: u32, list: *DrawOrderList) !void {
-        var next: u32 = self.getRead(node).child;
-        while (next != 0) : (next = self.getRead(next).next) {
+    fn assembleDrawOrderListForNode(self: @This(), node: NodeHandle, list: *DrawOrderList) !void {
+        var next: NodeHandle = self.getRead(node).child;
+        while (next.index != 0) : (next = self.getRead(next).next) {
             try list.append(next);
             try self.assembleDrawOrderListForNode(next, list);
         }
     }
 
     fn assembleDrawOrderList(self: @This(), list: *DrawOrderList) !void {
-        var rootNodes = std.ArrayList(u32).init(self.allocator);
+        var rootNodes = std.ArrayList(NodeHandle).init(self.allocator);
         defer rootNodes.deinit();
 
-        var next: u32 = self.getRead(0).child;
-        while (next != 0) : (next = self.getRead(next).next) {
+        var next: NodeHandle = self.getRead(.{}).child;
+        while (next.index != 0) : (next = self.getRead(next).next) {
             try rootNodes.append(next);
         }
 
         const SortFunc = struct {
-            pub fn lessThan(ctx: PapyrusContext, lhs: u32, rhs: u32) bool {
+            pub fn lessThan(ctx: PapyrusContext, lhs: NodeHandle, rhs: NodeHandle) bool {
                 return ctx.getRead(lhs).zOrder < ctx.getRead(rhs).zOrder;
             }
         };
 
         std.sort.insertion(
-            u32,
+            NodeHandle,
             rootNodes.items,
             self,
             SortFunc.lessThan,
@@ -606,10 +627,10 @@ pub const PapyrusContext = struct {
 
         try self.assembleDrawOrderList(&self._drawOrder);
 
-        var layout = std.AutoHashMap(u32, PosSize).init(self.allocator);
+        var layout = std.AutoHashMap(NodeHandle, PosSize).init(self.allocator);
         defer layout.deinit();
 
-        try layout.put(0, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
+        try layout.put(.{}, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
 
         drawList.clearRetainingCapacity();
 
@@ -708,7 +729,7 @@ pub const PapyrusContext = struct {
         const offsetPerLine: f32 = 50.0;
         var yOffset: f32 = offsetPerLine;
         try drawList.append(.{
-            .node = 0,
+            .node = .{},
             .primitive = .{
                 .Rect = .{
                     .tl = .{ .x = 30 - 3, .y = yOffset - 3 },
@@ -720,7 +741,7 @@ pub const PapyrusContext = struct {
         });
 
         try drawList.append(.{
-            .node = 0,
+            .node = .{},
             .primitive = .{
                 .Text = .{
                     .text = LocText.fromUtf8("Papyrus Debug:"),
@@ -741,7 +762,7 @@ pub const PapyrusContext = struct {
             }
 
             try drawList.append(.{
-                .node = 0,
+                .node = .{},
                 .primitive = .{
                     .Text = .{
                         .text = LocText.fromUtf8Z(textData),
@@ -757,20 +778,20 @@ pub const PapyrusContext = struct {
         }
     }
 
-    pub fn printTree(self: @This(), root: u32) void {
+    pub fn printTree(self: @This(), root: NodeHandle) void {
         std.debug.print("\n ==== tree ==== \n", .{});
         self.printTreeInner(root, 0);
         std.debug.print(" ==== /tree ====   \n\n", .{});
     }
 
-    fn printTreeInner(self: @This(), root: u32, indentLevel: u32) void {
+    fn printTreeInner(self: @This(), root: NodeHandle, indentLevel: u32) void {
         var i: u32 = 0;
         while (i < indentLevel) : (i += 1) {
             std.debug.print(" ", .{});
         }
 
         const node = self.getRead(root);
-        std.debug.print("> {d}: {s}\n", .{ root, node.text.getRead() });
+        // std.debug.print("> {d}: {s}\n", .{ root.index, node.text.getRead() });
 
         var next = node.child;
         while (next != 0) {
@@ -779,7 +800,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    pub fn writeTree(self: @This(), root: u32, outFile: []const u8) !void {
+    pub fn writeTree(self: @This(), root: NodeHandle, outFile: []const u8) !void {
         var log = try FileLog.init(self.allocator, outFile);
         defer log.deinit();
 
@@ -790,7 +811,7 @@ pub const PapyrusContext = struct {
         try log.writeOut();
     }
 
-    fn writeTreeInner(self: @This(), root: u32, log: *FileLog) !void {
+    fn writeTreeInner(self: @This(), root: NodeHandle, log: *FileLog) !void {
         var node = self.getRead(root);
         try log.write("  {s}->{s}", .{ self.getRead(node.parent).text.getRead(), node.text.getRead() });
 

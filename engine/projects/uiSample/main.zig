@@ -6,6 +6,7 @@ const platform = nw.platform;
 
 const assets = nw.assets;
 const c = nw.graphics.c;
+const NodeHandle = ui.NodeHandle;
 
 pub const GameContext = struct {
     pub const NeonObjectTable = nw.core.RttiData.from(@This());
@@ -13,10 +14,10 @@ pub const GameContext = struct {
     allocator: std.mem.Allocator,
     debugOpen: bool = true,
 
-    text: u32 = 0,
-    fps: u32 = 0,
-    mousePosition: u32 = 0,
-    panel: u32 = 0,
+    text: NodeHandle = .{},
+    fps: NodeHandle = .{},
+    mousePosition: NodeHandle = .{},
+    panel: NodeHandle = .{},
     time: f64 = 0,
 
     fpsText: ?[]u8 = null,
@@ -69,7 +70,7 @@ pub const GameContext = struct {
         var ctx = ui.getContext();
         const BurnStyle = ui.papyrus.BurnStyle;
 
-        self.panel = try ctx.addPanel(0);
+        self.panel = try ctx.addPanel(.{});
         ctx.getPanel(self.panel).hasTitle = true;
         ctx.getPanel(self.panel).titleSize = 20;
         ctx.getPanel(self.panel).titleColor = BurnStyle.Bright1;
