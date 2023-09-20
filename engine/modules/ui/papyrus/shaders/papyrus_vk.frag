@@ -43,6 +43,7 @@ void main()
     vec4 rounding =  objectBuffer.objects[instanceId].rounding;
     vec4 borderColor =  objectBuffer.objects[instanceId].borderColor;
     float borderWidth =  objectBuffer.objects[instanceId].borderWidth;
+    float alpha = fragColor.w;
 
     // check to discard topleft
     vec3 color = fragColor.xyz;
@@ -75,10 +76,10 @@ void main()
     )
     {
         color = borderColor.xyz;
-        //color = vec3(1.0, 0,0);
+        alpha = borderColor.w;
     }
 
 
     // scale the color
-    outFragColor = vec4(pow(color, vec3(2.2)), fragColor.w);
+    outFragColor = vec4(pow(color, vec3(2.2)), alpha);
 }

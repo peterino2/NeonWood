@@ -11,10 +11,10 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false);
 
     var system = nwbuild.NwBuildSystem.init(b, target, optimize, .{});
-    _ = system.addGame("demo", "simple flyover demo");
+    //_ = system.addGame("demo", "simple flyover demo");
     _ = system.addGame("uiSample", "sample UI program");
 
-    _ = system.addTest("window");
+    //_ = system.addTest("window");
     // _ = system.addTest("sparse_set_perf");
 
     utils.buildUtilities(b, .{

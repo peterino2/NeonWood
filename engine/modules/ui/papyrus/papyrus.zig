@@ -214,6 +214,12 @@ pub const PapyrusNode = struct {
     }
 };
 
+// final resolved size
+const LayoutInfo = struct {
+    pos: Vector2,
+    size: Vector2,
+};
+
 pub const PapyrusContext = struct {
     backingAllocator: std.mem.Allocator,
     allocator: std.mem.Allocator,
@@ -227,18 +233,23 @@ pub const PapyrusContext = struct {
 
     // internals
     _drawOrder: DrawOrderList,
-    _layout: std.AutoHashMap(NodeHandle, PosSize),
+    _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
+    _layout: std.ArrayListUnmanaged(PosSize),
+    _layoutPositions: std.AutoHashMapUnmanaged(NodeHandle, PosSize),
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
-    currentMouseOver: u32 = 0, // the current node that is being moused over.
 
     const debugTextMax = 32;
 
     pub fn tick(self: *@This(), deltaTime: f64) !void {
+        try self.mousePick.tick(self, deltaTime);
+
         self.clearDebugText();
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
-        try self.mousePick.tick(self, deltaTime);
+        if (self.mousePick.found) {
+            try self.pushDebugText("found node: {any}", .{self.mousePick.selectedNode});
+        }
     }
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
@@ -258,7 +269,9 @@ pub const PapyrusContext = struct {
                 .atlas = try allocator.create(FontAtlas),
             },
             ._drawOrder = DrawOrderList.init(allocator),
-            ._layout = std.AutoHashMap(NodeHandle, PosSize).init(allocator),
+            ._layout = .{},
+            ._layoutNodes = .{},
+            ._layoutPositions = .{},
             .debugText = std.ArrayList([]u8).init(allocator),
             .mousePick = PapyrusLayout.init(allocator),
         };
@@ -304,7 +317,9 @@ pub const PapyrusContext = struct {
         self.fonts.deinit();
         self.nodes.deinit();
         self._drawOrder.deinit();
-        self._layout.deinit();
+        self._layout.deinit(self.allocator);
+        self._layoutNodes.deinit(self.allocator);
+        self._layoutPositions.deinit(self.allocator);
 
         for (self.debugText.items) |text| {
             self.allocator.free(text);
@@ -624,6 +639,7 @@ pub const PapyrusContext = struct {
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
         self._layout.clearRetainingCapacity();
+        self._layoutNodes.clearRetainingCapacity();
 
         try self.assembleDrawOrderList(&self._drawOrder);
 
@@ -645,6 +661,16 @@ pub const PapyrusContext = struct {
 
             var resolvedPos = resolveAnchoredPosition(parentInfo, n);
             var resolvedSize = resolveAnchoredSize(parentInfo, n);
+            try self._layout.append(self.allocator, .{
+                .pos = resolvedPos,
+                .size = resolvedSize,
+            });
+            try self._layoutNodes.append(self.allocator, node);
+            try self._layoutPositions.put(
+                self.allocator,
+                node,
+                .{ .pos = resolvedPos, .size = resolvedSize },
+            );
 
             switch (n.nodeType) {
                 .Panel => |panel| {
@@ -725,9 +751,12 @@ pub const PapyrusContext = struct {
         }
     }
 
-    pub fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
+    fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
         const offsetPerLine: f32 = 50.0;
         var yOffset: f32 = offsetPerLine;
+
+        try self.mousePick.addMousePickInfo(&self, drawList);
+
         try drawList.append(.{
             .node = .{},
             .primitive = .{
