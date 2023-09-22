@@ -2,6 +2,8 @@ const std = @import("std");
 const papyrus = @import("papyrus.zig");
 
 const PapyrusContext = papyrus.PapyrusContext;
+const EventType = PapyrusContext.EventType;
+
 const vectors = @import("vectors.zig");
 
 const Vector2i = vectors.Vector2i;
@@ -30,16 +32,32 @@ fn intersect(position: Vector2, topLeft: Vector2, size: Vector2) bool {
 pub fn tick(self: *@This(), papyrusCtx: *PapyrusContext, _: f64) !void {
     var layout = papyrusCtx._layout.items;
 
+    var lastFound = self.found;
+    var lastSelected = self.selectedNode;
+
     self.found = false;
 
-    var x: isize = @as(isize, @intCast(layout.len)) - 1;
-    while (x >= 0) : (x -= 1) {
-        var i = @as(usize, @intCast(x));
+    var i: usize = layout.len;
+
+    while (i > 0) {
+        i -= 1;
+
         if (intersect(papyrusCtx.currentCursorPosition, layout[i].pos, layout[i].size)) {
             self.selectedNode = papyrusCtx._layoutNodes.items[i];
             self.found = true;
             break;
         }
+    }
+
+    if (lastFound and !self.found) {
+        // falling edge
+        try papyrusCtx.events.pushMouseOverEvent(lastSelected, .mouseOff);
+    } else if (!lastFound and self.found) {
+        // rising edge
+        try papyrusCtx.events.pushMouseOverEvent(self.selectedNode, .mouseOver);
+    } else if (!self.selectedNode.eql(lastSelected)) {
+        try papyrusCtx.events.pushMouseOverEvent(self.selectedNode, .mouseOver);
+        try papyrusCtx.events.pushMouseOverEvent(lastSelected, .mouseOff);
     }
 }
 

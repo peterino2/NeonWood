@@ -54,7 +54,7 @@ drawCommands: std.ArrayList(DrawCommand),
 
 textRenderer: *TextRenderer,
 
-const testString = "hello world";
+pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
 pub const NeonObjectTable = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
@@ -78,6 +78,8 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
         .drawList = papyrus.PapyrusContext.DrawList.init(allocator),
     };
+
+    try platform.getInstance().installListener(self);
     return self;
 }
 
@@ -95,6 +97,20 @@ pub fn prepareFont(self: *@This()) !void {
 
     self.fontTexture = res.texture;
     self.fontTextureDescriptor = res.descriptor;
+}
+
+pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
+    _ = self;
+
+    switch (event) {
+        .mousePosition => |mousePosition| {
+            _ = mousePosition;
+        },
+        .mouseButton => |mouseButton| {
+            core.ui_log("mousebutton: {any}", .{mouseButton});
+        },
+        else => {},
+    }
 }
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -320,6 +336,11 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     .borderWidth = 1.0,
                 };
                 try self.drawCommands.append(.{ .image = .{ .index = self.ssboCount } });
+                // core.ui_log("drawCmd: {any} {any} {any}", .{
+                //     drawCmd.node,
+                //     imagesGpu[self.ssboCount].imagePosition,
+                //     imagesGpu[self.ssboCount].imageSize,
+                // });
                 self.ssboCount += 1;
             },
             .Text => |text| {

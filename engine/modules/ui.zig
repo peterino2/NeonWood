@@ -2,7 +2,12 @@ const std = @import("std");
 const PapyrusSystem = @import("ui/papyrusSystem.zig");
 const core = @import("core.zig");
 const graphics = @import("graphics.zig");
+
+pub usingnamespace @import("ui/papyrus/PapyrusEvent.zig");
+
 pub const papyrus = PapyrusSystem.papyrus;
+
+pub const PapyrusContext = papyrus.PapyrusContext;
 
 pub const NodeHandle = papyrus.NodeHandle;
 

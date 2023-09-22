@@ -5,7 +5,13 @@ const assertf = utils.assertf;
 pub const Handle = struct {
     index: u24 = 0,
     generation: u8 = 0,
+
+    pub fn eql(self: @This(), oth: @This()) bool {
+        return self.index == oth.index and self.generation == oth.generation;
+    }
 };
+
+pub const NullHandle: Handle = .{};
 
 // ========================================== Dynamic pool ===============================
 pub fn DynamicPool(comptime T: type) type {
@@ -44,6 +50,8 @@ pub fn DynamicPool(comptime T: type) type {
 
             try self.active.append(self.allocator, initVal);
             try self.generations.append(self.allocator, 0);
+
+            std.debug.print("creating index {d}\n", .{self.active.items.len - 1});
 
             return .{
                 .index = @as(u24, @intCast(self.active.items.len - 1)),

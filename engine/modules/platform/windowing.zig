@@ -103,6 +103,8 @@ pub const PlatformInstance = struct {
         self.workBuffer.deinit();
         self.eventQueue.deinit();
         self.handlers.deinit();
+        self.gameInput.deinit();
+        self.allocator.destroy(self.gameInput);
     }
 
     pub fn init(
@@ -133,6 +135,11 @@ pub const PlatformInstance = struct {
     pub fn initInput(self: *@This()) !void {
         self.gameInput = try self.allocator.create(gameInput.GameInputSystem);
         try self.listeners.append(RawInputObjectRef.from(self.gameInput));
+    }
+
+    pub fn installListener(self: *@This(), listener: anytype) !void {
+        core.engine_logs("installed listener:");
+        try self.listeners.append(RawInputObjectRef.from(listener));
     }
 
     pub fn initGlfw(self: *@This()) !void {
@@ -210,8 +217,10 @@ pub const PlatformInstance = struct {
     }
 
     pub fn installHandlers(self: *@This()) void {
+        core.engine_logs("platform.windowing:: installing handlers");
         _ = c.glfwSetCursorPosCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
         _ = c.glfwSetMouseButtonCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
+        _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), keyCallback);
     }
 
     pub fn pumpEvents(self: *@This()) !void {

@@ -3,9 +3,8 @@ const c = @cImport({
     @cInclude("stb_ttf.h");
 });
 
-pub const events = @import("papyrus_events.zig");
-
 pub const PapyrusLayout = @import("PapyrusMousePick.zig");
+pub const PapyrusEvent = @import("PapyrusEvent.zig");
 
 pub const PapyrusFont = @import("PapyrusFont.zig");
 pub const FontAtlas = PapyrusFont.FontAtlas;
@@ -88,8 +87,6 @@ pub const NodeHandle = pool.Handle;
 
 pub var gPapyrusContext: *PapyrusContext = undefined;
 pub var gPapyrusIsInitialized: bool = false;
-
-pub const PapyrusEvent = struct {};
 
 pub const PapyrusAnchorNode = enum {
     // zig fmt: off
@@ -231,6 +228,8 @@ pub const PapyrusContext = struct {
 
     mousePick: PapyrusLayout,
 
+    events: PapyrusEvent,
+
     // internals
     _drawOrder: DrawOrderList,
     _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
@@ -239,6 +238,7 @@ pub const PapyrusContext = struct {
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
+    drawDebug: bool = false,
 
     const debugTextMax = 32;
 
@@ -264,6 +264,7 @@ pub const PapyrusContext = struct {
             .backingAllocator = allocator,
             .nodes = DynamicPool(PapyrusNode).init(allocator),
             .fonts = std.AutoHashMap(u32, PapyrusFont).init(allocator),
+            .events = PapyrusEvent.init(allocator),
             .fallbackFont = PapyrusFont{
                 .name = HashStr.fromUtf8(fallbackFontName),
                 .atlas = try allocator.create(FontAtlas),
@@ -308,6 +309,8 @@ pub const PapyrusContext = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.mousePick.deinit();
+
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
             i.value_ptr.atlas.deinit();
@@ -316,6 +319,7 @@ pub const PapyrusContext = struct {
 
         self.fonts.deinit();
         self.nodes.deinit();
+        self.events.deinit();
         self._drawOrder.deinit();
         self._layout.deinit(self.allocator);
         self._layoutNodes.deinit(self.allocator);
@@ -427,6 +431,8 @@ pub const PapyrusContext = struct {
             "tried to assign node {d}.{d} to parent {d}.{d} but node does not exist",
             .{ node.index, node.generation, parent.index, parent.generation },
         );
+
+        std.debug.print("setting parent {d}->{d}\n ", .{ node.index, parent.index });
 
         var parentNode = self.nodes.get(parent).?;
         var thisNode = self.nodes.get(node).?;
@@ -633,8 +639,6 @@ pub const PapyrusContext = struct {
         }
     }
 
-    const DebugDrawList: bool = true;
-
     pub fn makeDrawList(self: *@This(), drawList: *DrawList) !void {
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
@@ -661,19 +665,20 @@ pub const PapyrusContext = struct {
 
             var resolvedPos = resolveAnchoredPosition(parentInfo, n);
             var resolvedSize = resolveAnchoredSize(parentInfo, n);
-            try self._layout.append(self.allocator, .{
-                .pos = resolvedPos,
-                .size = resolvedSize,
-            });
-            try self._layoutNodes.append(self.allocator, node);
-            try self._layoutPositions.put(
-                self.allocator,
-                node,
-                .{ .pos = resolvedPos, .size = resolvedSize },
-            );
 
             switch (n.nodeType) {
                 .Panel => |panel| {
+                    try self._layout.append(self.allocator, .{
+                        .pos = resolvedPos,
+                        .size = resolvedSize,
+                    });
+                    try self._layoutNodes.append(self.allocator, node);
+                    try self._layoutPositions.put(
+                        self.allocator,
+                        node,
+                        .{ .pos = resolvedPos, .size = resolvedSize },
+                    );
+
                     if (panel.hasTitle) {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
@@ -746,7 +751,7 @@ pub const PapyrusContext = struct {
             }
         }
 
-        if (DebugDrawList) {
+        if (self.drawDebug) {
             try self.addDebugInfo(drawList);
         }
     }
@@ -820,10 +825,10 @@ pub const PapyrusContext = struct {
         }
 
         const node = self.getRead(root);
-        // std.debug.print("> {d}: {s}\n", .{ root.index, node.text.getRead() });
+        std.debug.print("> {d}: {s}\n", .{ root.index, node.text.getRead() });
 
         var next = node.child;
-        while (next != 0) {
+        while (next.index != 0) {
             self.printTreeInner(next, indentLevel + 1);
             next = self.getRead(next).*.next;
         }

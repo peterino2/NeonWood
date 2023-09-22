@@ -15,4 +15,8 @@ pub const GameInputSystem = struct {
         _ = event;
         _ = self;
     }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
 };

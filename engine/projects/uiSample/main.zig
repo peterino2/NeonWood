@@ -68,6 +68,7 @@ pub const GameContext = struct {
 
     pub fn prepare_game(self: *@This()) !void {
         var ctx = ui.getContext();
+        ctx.drawDebug = true;
         const BurnStyle = ui.papyrus.BurnStyle;
 
         self.panel = try ctx.addPanel(.{});
@@ -77,7 +78,7 @@ pub const GameContext = struct {
         ctx.setFont(self.panel, "roboto");
         ctx.get(self.panel).text = ui.papyrus.MakeText("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
-        ctx.get(self.panel).size = .{ .x = 1600, .y = 900 };
+        ctx.get(self.panel).size = .{ .x = 800, .y = 900 };
         ctx.get(self.panel).style.borderColor = BurnStyle.Diminished;
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
@@ -85,8 +86,11 @@ pub const GameContext = struct {
         ctx.setFont(text, "roboto");
         ctx.getText(text).textSize = 48;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
-        ctx.get(text).size = .{ .x = 1400, .y = 500 };
+        ctx.get(text).size = .{ .x = 600, .y = 600 };
         self.text = text;
+
+        try ctx.events.installMouseOverEvent(self.panel, .mouseOver, &onMouseOver);
+        try ctx.events.installMouseOverEvent(self.panel, .mouseOff, &onMouseOff);
 
         self.mousePosition = try ctx.addText(self.panel, "sampletext");
         {
@@ -95,7 +99,7 @@ pub const GameContext = struct {
             widget.pos = .{ .x = -300, .y = 12 };
             widget.size = .{ .x = 1400, .y = 500 };
             widget.anchor = .TopRight;
-            widget.state = .Hidden;
+            // widget.state = .Hidden;
             ctx.setFont(self.mousePosition, "roboto");
         }
 
@@ -103,12 +107,29 @@ pub const GameContext = struct {
         ctx.setFont(fps, "roboto");
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
         ctx.get(fps).pos = .{ .x = 32, .y = 12 };
-        ctx.get(fps).size = .{ .x = 1400, .y = 500 };
-        ctx.get(fps).state = .Hidden;
+        ctx.get(fps).size = .{ .x = 700, .y = 500 };
         self.fps = fps;
+
+        const unk = try ctx.addPanel(.{});
+        ctx.get(unk).pos = .{ .x = 800, .y = 0 };
+        ctx.get(unk).size = .{ .x = 800, .y = 900 };
+        ctx.get(unk).style.borderColor = BurnStyle.Diminished;
+        ctx.get(unk).style.backgroundColor = BurnStyle.LightGrey;
+
+        try ctx.events.installMouseOverEvent(unk, .mouseOver, &onMouseOver);
+        try ctx.events.installMouseOverEvent(unk, .mouseOff, &onMouseOff);
+
+        ctx.printTree(.{});
     }
 };
 
+fn onMouseOver(node: ui.NodeHandle) ui.EventHandlerError!void {
+    nw.core.engine_log("Mouse over over {any}", .{node});
+}
+
+fn onMouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+    nw.core.engine_log("Mouse hover off {any}", .{node});
+}
 const ipsum =
     \\ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque gravida nec urna at porta. Interdum et malesuada fames ac ante ipsum primis in faucibus. Morbi non felis nisi. Aliquam lectus enim, cursus a mollis sed, aliquam ut risus. Nam dolor urna, fermentum consectetur enim vitae, tempus scelerisque urna. Vestibulum quam sem, faucibus ac volutpat ut, semper in ipsum. Maecenas ornare lectus massa, in lacinia nulla feugiat et. Vestibulum blandit justo at ipsum aliquet, consectetur ultrices libero finibus. Vestibulum ut risus ac metus gravida aliquet. Quisque vel neque eu nisl consectetur iaculis id tincidunt odio. Maecenas rhoncus tristique ullamcorper. Vivamus egestas massa in nulla malesuada ullamcorper. Nullam sed nibh id lacus rutrum interdum a ut ex. Mauris nec odio tempor, pretium arcu et, auctor purus.
     \\ Morbi imperdiet sapien eros, at mollis velit efficitur ac. Ut dictum sapien erat, nec pulvinar justo congue at. Integer ac fringilla mauris. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla lacinia arcu et dignissim bibendum. Cras feugiat consequat ante ac fermentum. Ut luctus ante quis est efficitur laoreet. Donec consequat, nisl vel fringilla condimentum, purus leo finibus dolor, imperdiet rutrum risus orci non sapien. Phasellus in maximus augue. Praesent rhoncus sagittis mi vitae elementum. Integer id blandit diam. Sed ut augue id orci venenatis suscipit nec at velit. Vestibulum luctus pretium nisl, quis pretium neque tristique a. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Interdum et malesuada fames ac ante ipsum primis in faucibus. Suspendisse in pretium sapien.

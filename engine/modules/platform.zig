@@ -4,7 +4,7 @@ const std = @import("std");
 // graphics depends on this one
 
 pub usingnamespace @import("platform/windowing.zig");
-const windowing = @import("platform/windowing.zig");
+pub const windowing = @import("platform/windowing.zig");
 
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 
@@ -22,4 +22,9 @@ pub fn start_module(allocator: std.mem.Allocator, windowName: []const u8, iconPa
 
 pub fn getInstance() *windowing.PlatformInstance {
     return gPlatformInstance;
+}
+
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    gPlatformInstance.deinit();
+    allocator.destroy(gPlatformInstance);
 }
