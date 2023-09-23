@@ -21,6 +21,7 @@ const text_render = @import("text_render.zig");
 const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
+const Key = papyrus.PapyrusEvent.Key;
 
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
@@ -100,14 +101,49 @@ pub fn prepareFont(self: *@This()) !void {
 }
 
 pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
-    _ = self;
-
     switch (event) {
         .mousePosition => |mousePosition| {
             _ = mousePosition;
         },
         .mouseButton => |mouseButton| {
-            core.ui_log("mousebutton: {any}", .{mouseButton});
+            var keycode: Key = .Unknown;
+            var eventType: papyrus.PressedEventType = .onPressed;
+            switch (mouseButton.button) {
+                0 => {
+                    // left click
+                    keycode = Key.Mouse1;
+                },
+                1 => {
+                    // right click
+                    keycode = Key.Mouse2;
+                },
+                2 => {
+                    // middle click
+                    keycode = Key.Mouse3;
+                },
+                3 => {
+                    // button 3
+                    keycode = Key.Mouse4;
+                },
+                4 => {
+                    // button 4
+                    keycode = Key.Mouse5;
+                },
+                else => {},
+            }
+
+            switch (mouseButton.action) {
+                0 => {
+                    eventType = .onReleased;
+                },
+                1 => {
+                    eventType = .onPressed;
+                },
+                else => {},
+            }
+
+            // todo: use the right error code here
+            self.papyrusCtx.onKey(keycode, eventType) catch unreachable;
         },
         else => {},
     }
@@ -181,6 +217,7 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
     var cursor = platform.getInstance().inputState.mousePos;
 
+    // TODO, use OnIoEvent, but ehh this is fine.
     self.papyrusCtx.setCursorLocation(.{
         .x = @floatCast(cursor.x),
         .y = @floatCast(cursor.y),

@@ -69,7 +69,6 @@ pub const GameContext = struct {
     pub fn prepare_game(self: *@This()) !void {
         var ctx = ui.getContext();
         ctx.drawDebug = true;
-        const BurnStyle = ui.papyrus.BurnStyle;
 
         self.panel = try ctx.addPanel(.{});
         ctx.getPanel(self.panel).hasTitle = true;
@@ -119,9 +118,52 @@ pub const GameContext = struct {
         try ctx.events.installMouseOverEvent(unk, .mouseOver, &onMouseOver);
         try ctx.events.installMouseOverEvent(unk, .mouseOff, &onMouseOff);
 
+        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, &pressedUnk);
+
+        const unk2 = try ctx.addPanel(unk);
+        {
+            ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
+            ctx.get(unk2).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, &onUnk2MouseOff);
+
+            const unk2Text = try ctx.addText(unk2, "click me!");
+            ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
+            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.setFont(unk2Text, "roboto");
+            ctx.getText(unk2Text).textSize = 32;
+        }
+
         ctx.printTree(.{});
     }
 };
+
+const BurnStyle = ui.papyrus.BurnStyle;
+
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+    var ctx = ui.getContext();
+
+    if (eventType == .onPressed) {
+        nw.core.engine_logs("I GOT CLICKED!!!");
+        ctx.get(node).style.backgroundColor = BurnStyle.DarkSlateGrey;
+    }
+
+    if (eventType == .onReleased) {
+        ctx.get(node).style.backgroundColor = BurnStyle.LightGrey;
+    }
+}
+
+fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+    ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
+}
+
+fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+    if (eventType == .onPressed) {
+        nw.core.engine_log("clicked on {any}", .{node});
+    }
+}
 
 fn onMouseOver(node: ui.NodeHandle) ui.EventHandlerError!void {
     nw.core.engine_log("Mouse over over {any}", .{node});

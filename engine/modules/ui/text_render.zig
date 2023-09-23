@@ -56,6 +56,8 @@ pub const FontAtlasVk = struct {
             false,
         );
 
+        self.atlas.cleanUp();
+
         self.texture = res.texture;
         self.textureSet = res.descriptor;
     }

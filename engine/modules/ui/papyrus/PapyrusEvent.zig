@@ -139,7 +139,7 @@ pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: EventType) Ev
 pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key) !void {
     if (self.pressEvents.get(node)) |listeners| {
         for (listeners.items) |listener| {
-            if (listener.event == event and keycode == listener.key) {
+            if (listener.event == event and keycode == listener.keycode) {
                 try listener.eventFn(node, event);
             }
         }
@@ -147,7 +147,7 @@ pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventTyp
 }
 
 pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key, eventFn: PressedEventFn) !void {
-    var listener: EventListener = .{
+    var listener: PressedEventListener = .{
         .node = node,
         .event = event,
         .keycode = keycode,
@@ -156,7 +156,7 @@ pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEve
 
     var allocator = self.arena.allocator();
 
-    if (self.inputEvents.getPtr(node)) |listenerList| {
+    if (self.pressEvents.getPtr(node)) |listenerList| {
         try listenerList.append(allocator, listener);
     } else {
         var newListenerList: std.ArrayListUnmanaged(PressedEventListener) = .{};

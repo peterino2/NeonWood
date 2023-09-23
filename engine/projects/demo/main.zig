@@ -135,7 +135,7 @@ pub const GameContext = struct {
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
 
-        ctx.get(self.panel).pos = .{ .y = 40 * @as(f32, @floatCast(self.time)), .x = 50 * @as(f32, @floatCast(self.time)) };
+        //ctx.get(self.panel).pos = .{ .y = 40 * @as(f32, @floatCast(self.time)), .x = 50 * @as(f32, @floatCast(self.time)) };
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -172,12 +172,53 @@ pub const GameContext = struct {
         }
 
         gGame = self;
+
+        const unk = try ctx.addPanel(.{});
+        ctx.get(unk).pos = .{ .x = 900, .y = 30 };
+        ctx.get(unk).size = .{ .x = 300, .y = 300 };
+        ctx.get(unk).style.borderColor = BurnStyle.Diminished;
+        ctx.get(unk).style.backgroundColor = BurnStyle.LightGrey;
+
+        const unk2 = try ctx.addPanel(unk);
+        {
+            ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
+            ctx.get(unk2).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, &onUnk2MouseOff);
+
+            const unk2Text = try ctx.addText(unk2, "click me!");
+            ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
+            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.setFont(unk2Text, "roboto");
+            ctx.getText(unk2Text).textSize = 32;
+        }
     }
 
     pub fn deinit(self: *Self) void {
         _ = self;
     }
 };
+
+const BurnStyle = ui.papyrus.BurnStyle;
+
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+    var ctx = ui.getContext();
+
+    if (eventType == .onPressed) {
+        core.engine_logs("I GOT CLICKED!!!");
+        ctx.get(node).style.backgroundColor = BurnStyle.DarkSlateGrey;
+    }
+
+    if (eventType == .onReleased) {
+        ctx.get(node).style.backgroundColor = BurnStyle.LightGrey;
+    }
+}
+
+fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+    ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
+}
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

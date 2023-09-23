@@ -6,6 +6,8 @@ const c = @cImport({
 pub const PapyrusLayout = @import("PapyrusMousePick.zig");
 pub const PapyrusEvent = @import("PapyrusEvent.zig");
 
+pub usingnamespace PapyrusEvent;
+
 pub const PapyrusFont = @import("PapyrusFont.zig");
 pub const FontAtlas = PapyrusFont.FontAtlas;
 pub const BmpRenderer = @import("BmpRenderer.zig");
@@ -432,8 +434,6 @@ pub const PapyrusContext = struct {
             .{ node.index, node.generation, parent.index, parent.generation },
         );
 
-        std.debug.print("setting parent {d}->{d}\n ", .{ node.index, parent.index });
-
         var parentNode = self.nodes.get(parent).?;
         var thisNode = self.nodes.get(node).?;
 
@@ -619,6 +619,12 @@ pub const PapyrusContext = struct {
             .BotRight => {
                 return parent.pos.add(.{ .x = parent.size.x, .y = parent.size.y }).add(node.pos);
             },
+        }
+    }
+
+    pub fn onKey(self: *@This(), keycode: PapyrusEvent.Key, eventType: PapyrusEvent.PressedEventType) !void {
+        if (self.mousePick.found) {
+            try self.events.pushPressedEvent(self.mousePick.selectedNode, eventType, keycode);
         }
     }
 

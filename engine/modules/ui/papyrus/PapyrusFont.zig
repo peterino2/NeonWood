@@ -75,6 +75,16 @@ pub const FontAtlas = struct {
         return self;
     }
 
+    // destroys all bitmaps created during the setup process.
+    // if the bitmaps are already uploaded to the GPU, you wouldnt need to
+    // keep them mapped
+    pub fn cleanUp(self: *@This()) void {
+        if (self.atlasBuffer) |buffer| {
+            self.atlasBuffer = null;
+            self.allocator.free(buffer);
+        }
+    }
+
     // creates a font atlas from
     pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
         var self = @This(){
@@ -198,6 +208,17 @@ pub const FontAtlas = struct {
             self.meshes[ch][1] = .{ .x = xSize + xOff, .y = ySize + yOff }; // TR
             self.meshes[ch][2] = .{ .x = xSize + xOff, .y = 0 + yOff }; // BR
             self.meshes[ch][3] = .{ .x = xOff, .y = yOff }; // BL
+        }
+
+        ch = 0;
+        while (ch < glyphCount) : (ch += 1) {
+            if (glyphs[ch]) |ptr| {
+                if (self.isSDF) {
+                    c.stbtt_FreeSDF(ptr, null);
+                } else {
+                    c.stbtt_FreeBitmap(ptr, null);
+                }
+            }
         }
     }
 
