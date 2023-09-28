@@ -1111,6 +1111,7 @@ pub const NeonVkContext = struct {
         for (0..@as(usize, @intCast(size.x * size.y * 4))) |i| {
             pixels[i] = 255;
         }
+
         _ = try vk_utils.createTextureFromPixelsSync(core.MakeName("t_white"), pixels, size, self, false);
     }
 
@@ -2472,31 +2473,56 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_textures(self: *Self) !void {
-        var iter = self.textures.iterator();
-        while (iter.next()) |i| {
-            try i.value_ptr.*.deinit(self);
-            self.allocator.destroy(i.value_ptr.*);
+        {
+            var iter = self.textures.iterator();
+
+            while (iter.next()) |i| {
+                try i.value_ptr.*.deinit(self);
+                self.allocator.destroy(i.value_ptr.*);
+            }
+            self.textures.deinit(self.allocator);
+        }
+
+        {
+            var iter = self.textureSets.iterator();
+            while (iter.next()) |i| {
+                self.allocator.destroy(i.value_ptr.*);
+            }
+            self.textureSets.deinit(self.allocator);
         }
     }
 
     pub fn deinit(self: *Self) void {
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
-        self.destroy_renderpass() catch return;
-        self.destroy_syncs() catch return;
-        self.destroy_renderobjects() catch return;
-        self.destroy_textures() catch return;
-        self.destroy_meshes() catch return;
-        self.destroy_framebuffers() catch return;
-        self.destroy_upload_context(&self.uploadContext) catch return;
-
+        self.destroy_textures() catch {
+            core.engine_errs("unable to destroy textures");
+        };
+        self.destroy_meshes() catch {
+            core.engine_errs("unable to destroy meshes");
+        };
         self.destroy_materials();
         self.destroy_descriptors();
 
-        self.vkAllocator.destroy();
+        self.destroy_renderpass() catch {
+            core.engine_errs("unable to destroy renderpass");
+        };
+        self.destroy_syncs() catch {
+            core.engine_errs("unable to destroy syncs");
+        };
+        self.destroy_renderobjects() catch {
+            core.engine_errs("unable to destroy renderObjects");
+        };
+        self.destroy_framebuffers() catch {
+            core.engine_errs("unable to destroy framebuffers");
+        };
+        self.destroy_upload_context(&self.uploadContext) catch {
+            core.engine_errs("unable to destroy upload context");
+        };
 
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
 
+        self.vkAllocator.destroy();
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);

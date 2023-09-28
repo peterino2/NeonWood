@@ -238,6 +238,7 @@ pub fn main() anyerror!void {
     defer core.shutdown_module(allocator);
 
     try platform.start_module(allocator, "Neonwood: flyaround demo", null);
+    defer platform.shutdown_module(allocator);
 
     assets.start_module(allocator);
     defer assets.shutdown_module();

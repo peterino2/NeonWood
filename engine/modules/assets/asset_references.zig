@@ -130,6 +130,8 @@ pub const AssetLoaderInterface = struct {
 pub const AssetLoaderRef = struct {
     target: *anyopaque,
     vtable: *const AssetLoaderInterface,
+    size: usize,
+    alignment: usize,
 
     pub fn loadAsset(self: *@This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
         try self.vtable.loadAsset(self.target, asset, propertiesBag);
@@ -153,7 +155,11 @@ pub const AssetReferenceSys = struct {
 
     pub fn registerLoader(self: *@This(), loader: anytype) !void {
         const vtable = &@field(@TypeOf(loader.*), "LoaderInterfaceVTable");
-        try self.loaders.put(self.allocator, vtable.assetType.hash, .{ .vtable = vtable, .target = loader });
+        try self.loaders.put(self.allocator, vtable.assetType.hash, .{
+            .vtable = vtable,
+            .target = loader,
+            .size = @sizeOf(@TypeOf(loader)),
+        });
     }
 
     pub fn loadRef(self: @This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
@@ -171,6 +177,11 @@ pub const AssetReferenceSys = struct {
         var iter = self.loaders.valueIterator();
         while (iter.next()) |i| {
             i.deinit();
+            var p: []u8 = undefined;
+            p.ptr = @ptrCast(i.target);
+            p.len = i.size;
+            self.allocator.free(@alignCast(p));
+            self.allocator.rawFree(p, i.alignment, i.size);
         }
     }
 };
