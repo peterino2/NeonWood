@@ -63,6 +63,7 @@ pub fn start_module(allocator: std.mem.Allocator) void {
         NeonVkContext,
         .{ .can_tick = true },
     ) catch unreachable;
+
     vk_renderer.gContext = context;
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;

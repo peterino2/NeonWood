@@ -221,7 +221,9 @@ fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
 }
 
 pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
     defer {
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {
