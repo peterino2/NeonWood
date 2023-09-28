@@ -51,8 +51,6 @@ pub fn DynamicPool(comptime T: type) type {
             try self.active.append(self.allocator, initVal);
             try self.generations.append(self.allocator, 0);
 
-            std.debug.print("creating index {d}\n", .{self.active.items.len - 1});
-
             return .{
                 .index = @as(u24, @intCast(self.active.items.len - 1)),
                 .generation = 0,
