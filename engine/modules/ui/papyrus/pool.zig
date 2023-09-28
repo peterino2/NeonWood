@@ -91,12 +91,13 @@ pub fn DynamicPool(comptime T: type) type {
         pub fn destroy(self: *@This(), destroyHandle: Handle) void {
             self.active.items[destroyHandle.index] = null;
             self.dead.append(self.allocator, destroyHandle.index) catch unreachable;
-            self.generations.items[destroyHandle.index] += 1;
+            self.generations.items[destroyHandle.index] +%= 1;
         }
 
         pub fn deinit(self: *@This()) void {
             self.active.deinit(self.allocator);
             self.dead.deinit(self.allocator);
+            self.generations.deinit(self.allocator);
         }
     };
 }

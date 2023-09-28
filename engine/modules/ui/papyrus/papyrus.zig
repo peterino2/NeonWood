@@ -480,7 +480,6 @@ pub const PapyrusContext = struct {
         self.walkNodesToRemove(node, &killList) catch {
             for (killList.items) |n| {
                 _ = n;
-                // std.debug.print("{d};{d}, ", .{ n.index, n.generation });
             }
             return error.BadWalk;
         };
@@ -492,11 +491,11 @@ pub const PapyrusContext = struct {
         {
             var parent = self.get(thisNode.parent);
 
-            if (parent.child == node) {
+            if (parent.child.eql(node)) {
                 parent.child = thisNode.next;
             }
 
-            if (parent.end == node) {
+            if (parent.end.eql(node)) {
                 parent.end = thisNode.prev;
             }
         }
@@ -506,12 +505,12 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(u32)) !void {
+    fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(NodeHandle)) !void {
         try killList.append(root);
 
         var next = self.getRead(root).child;
 
-        while (next != 0) {
+        while (next.index != 0) {
             try self.walkNodesToRemove(next, killList);
             next = self.getRead(next).next;
         }
@@ -856,7 +855,7 @@ pub const PapyrusContext = struct {
         try log.write("  {s}->{s}", .{ self.getRead(node.parent).text.getRead(), node.text.getRead() });
 
         var next = node.child;
-        while (next != 0) {
+        while (next.index != 0) {
             try self.writeTreeInner(next, log);
             next = self.getRead(next).*.next;
         }

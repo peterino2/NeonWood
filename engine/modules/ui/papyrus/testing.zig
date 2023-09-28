@@ -41,7 +41,7 @@ test "hierarchy test" {
         // This adds a default slot to the ui library
         // Slots can have children and can set up a few policies such as docking, etc...
         // by default this slot will be free
-        var slot = try ctx.addSlot(0);
+        var slot = try ctx.addSlot(.{});
         ctx.get(slot).text = MakeText("slot1");
 
         var slot2 = try ctx.addSlot(slot);
@@ -56,7 +56,7 @@ test "hierarchy test" {
         var slot4 = try ctx.addSlot(slot2);
         ctx.get(slot4).text = MakeText("slot4");
 
-        try ctx.writeTree(0, "before.viz");
+        try ctx.writeTree(.{}, "before.viz");
         try grapvizDotToPng(std.testing.allocator, "before.viz", "before.png");
 
         try ctx.removeFromParent(slot2);
@@ -68,11 +68,11 @@ test "hierarchy test" {
         ctx.get(try ctx.addSlot(x)).text = MakeText("slot9");
         ctx.get(try ctx.addSlot(x)).text = MakeText("slot10");
 
-        try ctx.writeTree(0, "after.viz");
+        try ctx.writeTree(.{}, "after.viz");
         try grapvizDotToPng(std.testing.allocator, "after.viz", "after.png");
     }
 
-    ctx.tick(0.0016);
+    try ctx.tick(0.0016);
 }
 
 test "Testing a fullscreen render" {
@@ -84,7 +84,7 @@ test "Testing a fullscreen render" {
     defer rend.deinit();
     rend.setRenderFile("Saved/frame_fs00.bmp");
 
-    var panel = try ctx.addPanel(0);
+    var panel = try ctx.addPanel(.{});
     ctx.getPanel(panel).hasTitle = true;
     ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
     ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
@@ -153,21 +153,21 @@ test "Testing a render" {
     rend.setRenderFile("Saved/frame.bmp");
     try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
-    var panel = try ctx.addPanel(0);
+    var panel = try ctx.addPanel(.{});
     ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
     ctx.get(panel).style.foregroundColor = ModernStyle.GreyDark;
     ctx.get(panel).style.borderColor = ModernStyle.Yellow;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
     ctx.get(panel).size = .{ .x = 400, .y = 400 };
 
-    var panel2 = try ctx.addPanel(0);
+    var panel2 = try ctx.addPanel(.{});
     ctx.get(panel2).text = MakeText("wanker window");
     ctx.getPanel(panel2).hasTitle = true;
     ctx.get(panel2).style = ctx.get(panel).style;
     ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
     ctx.get(panel2).size = .{ .x = 400, .y = 400 };
 
-    var panel3 = try ctx.addPanel(0);
+    var panel3 = try ctx.addPanel(.{});
     ctx.get(panel3).text = MakeText("panel 3");
     ctx.getPanel(panel3).hasTitle = true;
     ctx.get(panel3).style = ctx.get(panel).style;
@@ -225,7 +225,7 @@ test "dynamic pool test" {
         var prng = std.rand.DefaultPrng.init(0x1234);
         var rand = prng.random();
 
-        var workBuffer: [5]u32 = .{ 0, 0, 0, 0, 0 };
+        var workBuffer: [5]papyrus.NodeHandle = .{ .{}, .{}, .{}, .{}, .{} };
 
         count = 1000000;
         while (count > 0) : (count -= 1) {
