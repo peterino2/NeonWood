@@ -83,7 +83,7 @@ pub const AssetLoaderInterface = struct {
 
     assetType: core.Name,
     loadAsset: *const fn (*anyopaque, AssetRef, ?AssetPropertiesBag) AssetLoaderError!void,
-    deinit: *const fn (*anyopaque) void,
+    destroy: *const fn (*anyopaque, std.mem.Allocator) void,
 
     pub fn from(comptime assetType: core.Name, comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -96,11 +96,12 @@ pub const AssetLoaderInterface = struct {
                 try ptr.loadAsset(assetRef, properties);
             }
 
-            pub fn deinit(
+            pub fn destroy(
                 pointer: *anyopaque,
+                allocator: std.mem.Allocator,
             ) void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.deinit();
+                ptr.destroy(allocator);
             }
         };
 
@@ -109,8 +110,8 @@ pub const AssetLoaderInterface = struct {
             unreachable;
         }
 
-        if (!@hasDecl(TargetType, "deinit")) {
-            @compileLog("Tried to generate AssetLoaderInterface for type ", TargetType, "but it's missing func deinit");
+        if (!@hasDecl(TargetType, "destroy")) {
+            @compileLog("Tried to generate AssetLoaderInterface for type ", TargetType, "but it's missing func destroy.");
             unreachable;
         }
 
@@ -119,7 +120,7 @@ pub const AssetLoaderInterface = struct {
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .loadAsset = wrappedFuncs.loadAsset,
-            .deinit = wrappedFuncs.deinit,
+            .destroy = wrappedFuncs.destroy,
             .assetType = assetType,
         };
 
@@ -131,14 +132,13 @@ pub const AssetLoaderRef = struct {
     target: *anyopaque,
     vtable: *const AssetLoaderInterface,
     size: usize,
-    alignment: usize,
 
     pub fn loadAsset(self: *@This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
         try self.vtable.loadAsset(self.target, asset, propertiesBag);
     }
 
-    pub fn deinit(self: *@This()) void {
-        self.vtable.deinit(self.target);
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        self.vtable.destroy(self.target, allocator);
     }
 };
 
@@ -176,12 +176,7 @@ pub const AssetReferenceSys = struct {
     pub fn deinit(self: *@This()) void {
         var iter = self.loaders.valueIterator();
         while (iter.next()) |i| {
-            i.deinit();
-            var p: []u8 = undefined;
-            p.ptr = @ptrCast(i.target);
-            p.len = i.size;
-            self.allocator.free(@alignCast(p));
-            self.allocator.rawFree(p, i.alignment, i.size);
+            i.destroy(self.allocator);
         }
     }
 };

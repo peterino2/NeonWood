@@ -31,7 +31,7 @@ pub const Engine = struct {
     // better name for these rtti objects is actually 'engine object'
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     eventors: ArrayListUnmanaged(NeonObjectRef),
-    tickables: ArrayListUnmanaged(usize),
+    tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     tracesContext: *TracesContext,
     jobManager: JobManager,
 

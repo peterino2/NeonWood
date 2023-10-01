@@ -37,8 +37,8 @@ pub const SoundLoader = struct {
         };
     }
 
-    pub fn deinit(self: @This()) void {
-        _ = self;
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        allocator.destroy(self);
     }
 
     // unfortunately this one is blocking

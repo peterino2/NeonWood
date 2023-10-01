@@ -21,7 +21,4 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     gSoundEngine.loadSound(core.MakeName("s_test"), "content/sounds/engineTick.wav", .{}) catch unreachable;
 }
 
-pub fn shutdown_module() void {
-    // gSoundEngine.deinit(); // miniaudio fails asan and it has a lot of fuckin issues
-    gSoundLoader.deinit();
-}
+pub fn shutdown_module() void {}

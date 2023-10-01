@@ -130,8 +130,9 @@ pub const TextureLoader = struct {
         return self;
     }
 
-    pub fn deinit(self: *@This()) void {
-        _ = self;
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        self.assetsReady.deinit();
+        allocator.destroy(self);
     }
 };
 
@@ -155,8 +156,8 @@ pub const MeshLoader = struct {
         _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
     }
 
-    pub fn deinit(self: *@This()) void {
-        _ = self;
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        allocator.destroy(self);
     }
 };
 
