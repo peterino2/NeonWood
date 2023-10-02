@@ -63,7 +63,8 @@ pub const NwBuildSystem = struct {
         options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
-
+        //
+        //
         const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
         self.* = @This(){

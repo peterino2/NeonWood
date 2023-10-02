@@ -105,6 +105,7 @@ pub fn createTextureFromPixelsSync(
     texture: *Texture,
     descriptor: *vk.DescriptorSet,
 } {
+    core.graphics_log("createTextureFromPixelsSync: {s}", .{textureName.utf8});
     var miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
     var createdImage = try newVkImage(size, ctx, miplevel);

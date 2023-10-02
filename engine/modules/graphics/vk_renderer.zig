@@ -624,9 +624,6 @@ pub const NeonVkContext = struct {
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut();
 
-        var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", "Saved/renderer_graph.viz", "-o", "Saved/renderer_graph.png" }, std.heap.c_allocator);
-        try childProc.spawn();
-
         return self;
     }
 
@@ -2018,6 +2015,7 @@ pub const NeonVkContext = struct {
             }
         }
 
+        // if we are macos we need this one.
         requestedExtensions[extensionsCount] = "VK_KHR_portability_enumeration";
 
         // Make a request for vulkan layers
