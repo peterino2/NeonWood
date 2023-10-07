@@ -569,10 +569,9 @@ pub const NeonVkContext = struct {
     // this is the old version
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
-        std.debug.print("logging file set: {s} \n", .{"render_graph.viz"});
         try self.init_zig_data(allocator);
 
-        self.graph = try core.FileLog.init(allocator, "renderer_graph.viz");
+        self.graph = try core.FileLog.init(allocator);
         try self.graph.write("digraph G {{\n", .{});
 
         try self.graph.write("  root->init_api\n", .{});
@@ -622,7 +621,7 @@ pub const NeonVkContext = struct {
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
         try self.graph.write("}}\n", .{});
-        try self.graph.writeOut();
+        try self.graph.writeOut("renderer_graph.viz");
 
         return self;
     }

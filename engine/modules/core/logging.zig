@@ -68,14 +68,11 @@ pub fn graphics_logs(comptime fmt: []const u8) void {
 pub const FileLog = struct {
     buffer: std.ArrayList(u8),
     allocator: std.mem.Allocator,
-    fileName: []u8,
 
-    pub fn init(allocator: std.mem.Allocator, fileName: []const u8) !@This() {
-        std.debug.print("logging file set: {s} \n", .{fileName});
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         var self = @This(){
             .buffer = std.ArrayList(u8).init(allocator),
             .allocator = allocator,
-            .fileName = try core.dupeString(allocator, fileName),
         };
 
         return self;
@@ -86,32 +83,35 @@ pub const FileLog = struct {
         try writer.print(fmt, args);
     }
 
-    pub fn writeOut(self: @This()) !void {
+    pub fn writeGraphvizHeader(self: *@This()) !void {
+        try self.write("digraph G {{", .{});
+    }
+
+    pub fn writeOutGraphViz(self: *@This(), fileName: []const u8) !void {
+        var obuf = try std.fmt.allocPrint(
+            self.allocator,
+            "{s}{s}",
+            .{ self.buffer.items, "}}\n" },
+        );
+        defer self.free(obuf);
+
         const cwd = std.fs.cwd();
-        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
+        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
+        defer self.allocator.free(ofile);
+
+        try cwd.makePath("Saved");
+        try cwd.writeFile(ofile, obuf);
+    }
+
+    pub fn writeOut(self: @This(), fileName: []const u8) !void {
+        const cwd = std.fs.cwd();
+        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
         defer self.allocator.free(ofile);
         try cwd.makePath("Saved");
         try cwd.writeFile(ofile, self.buffer.items);
     }
 
-    pub fn makeGraphViz(self: @This()) !void {
-        try self.writeOut();
-
-        var srcFile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
-        var oFile = try std.fmt.allocPrint(self.allocator, "{s}.png", .{srcFile});
-
-        defer self.allocator.free(srcFile);
-        defer self.allocator.free(oFile);
-
-        var childProc = std.ChildProcess.init(
-            &.{ "dot", "-Tpng", srcFile, "-o", srcFile },
-            self.allocator,
-        );
-        _ = try childProc.spawnAndWait();
-    }
-
     pub fn deinit(self: *@This()) void {
-        self.allocator.free(self.fileName);
         self.buffer.deinit();
     }
 };

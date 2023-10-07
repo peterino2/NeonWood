@@ -40,7 +40,6 @@ fontTextureDescriptor: *vk.DescriptorSet = undefined,
 papyrusCtx: *papyrus.PapyrusContext,
 quad: *graphics.Mesh,
 
-graphLog: core.FileLog,
 fontAtlas: papyrus.FontAtlas = undefined,
 
 ssboCount: u32 = 0,
@@ -73,7 +72,6 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .gc = graphics.getContext(),
         .papyrusCtx = papyrusCtx,
         .quad = try allocator.create(graphics.Mesh),
-        .graphLog = try core.FileLog.init(allocator, "papyrus_callgraph.viz"),
         .fontAtlas = try papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64),
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
@@ -151,14 +149,11 @@ pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListener
 
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     core.ui_log("Papyrus Subsystem setup {x}", .{@intFromPtr(self)});
-    try self.graphLog.write("digraph G {{\n", .{});
 
     self.gc = gc;
     try self.preparePipeline();
     try self.prepareFont();
     try self.setupMeshes();
-
-    try self.graphLog.write("}}\n", .{});
 
     try self.gc.registerRendererPlugin(self);
 
@@ -183,8 +178,6 @@ pub fn onBindObject(self: *@This(), objectHandle: core.ObjectHandle, objectIndex
 
 // Uploads a new primitive mesh and an index buffer to the gpu.
 fn setupMeshes(self: *@This()) !void {
-    try self.graphLog.write("  root->setup_meshes\n", .{});
-
     self.quad.* = graphics.Mesh.init(self.gc, self.allocator);
     try self.quad.vertices.resize(4);
 
@@ -228,7 +221,6 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 
 pub fn buildTextPipeline(self: *@This()) !void {
     core.ui_log("building text pipeline", .{});
-    try self.graphLog.write(" setup->buildTextPipeline", .{});
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     gpdBuilder.objectCount = 64;
     try gpdBuilder.addBufferBinding(
@@ -274,7 +266,6 @@ pub fn buildTextPipeline(self: *@This()) !void {
 
 pub fn buildImagePipeline(self: *@This()) !void {
     core.ui_log("buildingImagePipeline", .{});
-    try self.graphLog.write("  setup->preparePipeline\n", .{});
 
     var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     try spriteDataBuilder.addBufferBinding(
