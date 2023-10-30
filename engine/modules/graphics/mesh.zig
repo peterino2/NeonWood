@@ -275,6 +275,9 @@ pub const DynamicMesh = struct {
         if (!self.isDirty) {
             return;
         }
+
+        self.isDirty = false;
+
         var t1 = core.tracy.ZoneN(@src(), "Dynamic Mesh upload with barriers");
         defer t1.End();
 
@@ -302,13 +305,8 @@ pub const DynamicMesh = struct {
 
         var indexMemoryBarrier = vk.BufferMemoryBarrier{
             .buffer = self.indexBuffers[self.swapId].buffer,
-            .src_access_mask = .{
-                .transfer_read_bit = true,
-            },
-            .dst_access_mask = .{
-                //.transfer_write_bit = true,
-                .index_read_bit = true,
-            },
+            .src_access_mask = .{ .transfer_read_bit = true },
+            .dst_access_mask = .{ .index_read_bit = true },
             .src_queue_family_index = 0,
             .dst_queue_family_index = 0,
             .offset = 0,
@@ -320,12 +318,8 @@ pub const DynamicMesh = struct {
         // Insert Barrier for indexBuffer
         vkd.cmdPipelineBarrier(
             cmd,
-            .{
-                .transfer_bit = true,
-            },
-            .{
-                .vertex_input_bit = true,
-            },
+            .{ .transfer_bit = true },
+            .{ .vertex_input_bit = true },
             .{},
             0,
             undefined,
@@ -347,13 +341,8 @@ pub const DynamicMesh = struct {
         // Insert Barrier for vertexBuffer
         var vertexMemoryBarrier = vk.BufferMemoryBarrier{
             .buffer = self.vertexBuffers[self.swapId].buffer,
-            .src_access_mask = .{
-                .transfer_read_bit = true,
-            },
-            .dst_access_mask = .{
-                // .transfer_write_bit = true,
-                .vertex_attribute_read_bit = true,
-            },
+            .src_access_mask = .{ .transfer_read_bit = true },
+            .dst_access_mask = .{ .vertex_attribute_read_bit = true },
             .src_queue_family_index = 0,
             .dst_queue_family_index = 0,
             .offset = 0,
@@ -362,12 +351,8 @@ pub const DynamicMesh = struct {
 
         vkd.cmdPipelineBarrier(
             cmd,
-            .{
-                .transfer_bit = true,
-            },
-            .{
-                .vertex_input_bit = true,
-            },
+            .{ .transfer_bit = true },
+            .{ .vertex_input_bit = true },
             .{},
             0,
             undefined,
@@ -483,6 +468,9 @@ pub const DynamicMesh = struct {
     }
 
     pub fn addVertexList(self: *@This(), list: []const Vertex) void {
+        if (list.len == 0)
+            return;
+
         self.isDirty = true;
         for (list) |v| {
             self.vertices[self.vertexCount] = v;
