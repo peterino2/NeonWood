@@ -152,34 +152,6 @@ pub const DynamicMeshManager = struct {
         }
     }
 
-    pub fn tickUpdates(self: *@This()) !void {
-        if (self.first) {
-            self.first = false;
-            for (self.dynMeshes.items) |_| {
-                core.engine_log("dynamic mesh detected", .{});
-            }
-        }
-
-        var t1 = core.tracy.ZoneN(@src(), "Dynamic Mesh upload");
-        defer t1.End();
-
-        for (self.dynMeshes.items) |mesh| {
-            if (mesh.isDirty and !self.uploader.isActive) {
-                var t2 = core.tracy.ZoneN(@src(), "starting dynamic mesh upload context");
-                defer t2.End();
-                try self.uploader.startUploadContext();
-            }
-
-            var t3 = core.tracy.ZoneN(@src(), "uploading vertices");
-            defer t3.End();
-            try mesh.uploadVertices(&self.uploader);
-        }
-
-        if (self.uploader.isActive) {
-            try self.uploader.submitUploads();
-        }
-    }
-
     pub fn finishUpload(self: *@This()) !void {
         if (self.uploader.isActive) {
             var t3 = core.tracy.ZoneN(@src(), "finishing dynamic mesh upload context");
@@ -277,6 +249,7 @@ pub const DynamicMesh = struct {
         }
         var t1 = core.tracy.ZoneN(@src(), "Dynamic Mesh upload with barriers");
         defer t1.End();
+        self.isDirty = false;
 
         try self.stageDirtyVertices();
         if (self.indexBufferLen[self.swapId] == 0 or self.vertexCount == 0) {
@@ -376,8 +349,6 @@ pub const DynamicMesh = struct {
             0,
             undefined,
         );
-
-        self.isDirty = false;
     }
 
     pub fn stageDirtyVertices(self: *@This()) !void {
@@ -423,6 +394,8 @@ pub const DynamicMesh = struct {
         if (!self.isDirty) {
             return;
         }
+
+        self.dirty = false;
 
         var newSwapId = (self.swapId + 1) % 2;
         // map buffers
@@ -478,12 +451,15 @@ pub const DynamicMesh = struct {
     }
 
     pub fn clearVertices(self: *@This()) void {
+        core.engine_logs("clearvertexlist");
         self.vertexCount = 0;
         self.isDirty = true;
     }
 
     pub fn addVertexList(self: *@This(), list: []const Vertex) void {
-        self.isDirty = true;
+        if (list.len > 0) {
+            self.isDirty = true;
+        }
         for (list) |v| {
             self.vertices[self.vertexCount] = v;
             self.vertexCount += 1;

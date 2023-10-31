@@ -36,7 +36,7 @@ pub const NwBuildSystem = struct {
     opts: BuildSystemOpts,
     spirvGen: SpirvGenerator,
     options: *std.build.OptionsStep,
-    macos_vulkan_sdk: []const u8,
+    macos_vulkan_sdk: ?[]const u8,
     enableTracy: bool,
 
     pub fn init(
@@ -81,7 +81,7 @@ pub const NwBuildSystem = struct {
             }),
             .enableTracy = enableTracy,
             .options = options,
-            .macos_vulkan_sdk = macos_vulkan_sdk.?,
+            .macos_vulkan_sdk = macos_vulkan_sdk,
         };
 
         return self;
@@ -188,7 +188,7 @@ pub const NwBuildSystem = struct {
 
         if (self.target.getOs().tag == .macos) {
             exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
-            exe.addLibraryPath(.{ .path = self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk}) });
+            exe.addLibraryPath(.{ .path = self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk.?}) });
         }
 
         // generate the vulkan package
