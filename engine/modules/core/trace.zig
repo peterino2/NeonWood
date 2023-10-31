@@ -132,6 +132,7 @@ pub const TracesContext = struct {
             .defaultTrace = allocator.create(Trace) catch unreachable,
             .traces = .{},
         };
+
         rv.defaultTrace.* = .{
             .name = MakeName("default"),
             .startTimestamp = engineTime.getEngineTimeStamp(),
@@ -147,6 +148,8 @@ pub const TracesContext = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.allocator.destroy(self.defaultTrace);
         self.traces.deinit(self.allocator);
+        self.allocator.destroy(self);
     }
 };

@@ -3,7 +3,10 @@ const nw = @import("root").neonwood;
 const core = nw.core;
 
 pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
+
     defer {
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {

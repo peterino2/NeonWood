@@ -243,5 +243,6 @@ pub const SceneSystem = struct {
 
     pub fn deinit(self: *@This()) void {
         self.objects.deinit();
+        self.allocator.destroy(self);
     }
 };

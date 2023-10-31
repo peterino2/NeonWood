@@ -61,6 +61,7 @@ pub const JobManager = struct {
             worker.deinit();
         }
         self.allocator.free(self.workers);
+        self.jobQueue.deinit(self.allocator);
     }
 };
 
@@ -139,6 +140,7 @@ pub const JobWorker = struct {
         self.shouldDie.store(true, .SeqCst);
         self.wake();
         self.workerThread.join();
+        self.allocator.destroy(self);
     }
 };
 

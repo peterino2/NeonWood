@@ -64,10 +64,10 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 pub fn run() void {}
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    gEngine.deinit();
-    allocator.destroy(gEngine);
     logs("core module shutting down...");
     logging.forceFlush();
+    gEngine.deinit();
+    allocator.destroy(gEngine);
     return;
 }
 
