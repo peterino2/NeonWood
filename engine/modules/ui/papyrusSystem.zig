@@ -35,12 +35,9 @@ indexBuffer: graphics.IndexBuffer = undefined,
 
 drawList: papyrus.PapyrusContext.DrawList,
 fontTexture: *graphics.Texture = undefined,
-fontTextureDescriptor: *vk.DescriptorSet = undefined,
 
 papyrusCtx: *papyrus.PapyrusContext,
 quad: *graphics.Mesh,
-
-fontAtlas: papyrus.FontAtlas = undefined,
 
 ssboCount: u32 = 0,
 textSsboCount: u32 = 0,
@@ -72,7 +69,6 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .gc = graphics.getContext(),
         .papyrusCtx = papyrusCtx,
         .quad = try allocator.create(graphics.Mesh),
-        .fontAtlas = try papyrus.FontAtlas.initFromFileSDF(allocator, "fonts/Roboto-Regular.ttf", 64),
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
         .drawList = papyrus.PapyrusContext.DrawList.init(allocator),
@@ -80,22 +76,6 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
 
     try platform.getInstance().installListener(self);
     return self;
-}
-
-pub fn prepareFont(self: *@This()) !void {
-    // load with default font size as an SDF
-    var pixels = try self.fontAtlas.makeBitmapRGBA(self.allocator);
-    defer self.allocator.free(pixels);
-    var res = try graphics.createTextureFromPixelsSync(
-        core.MakeName("_t_papyrusFont"),
-        pixels,
-        .{ .x = self.fontAtlas.atlasSize.x, .y = self.fontAtlas.atlasSize.y },
-        self.gc,
-        false,
-    );
-
-    self.fontTexture = res.texture;
-    self.fontTextureDescriptor = res.descriptor;
 }
 
 pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
@@ -152,7 +132,6 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
 
     self.gc = gc;
     try self.preparePipeline();
-    try self.prepareFont();
     try self.setupMeshes();
 
     try self.gc.registerRendererPlugin(self);
@@ -458,9 +437,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
                 self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
-
                 self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
-                self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.fontTextureDescriptor), 0, undefined);
                 self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
             },
         }

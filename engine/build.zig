@@ -11,8 +11,8 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false);
 
     var system = nwbuild.NwBuildSystem.init(b, target, optimize, .{});
-    //_ = system.addGame("demo", "simple flyover demo");
-    //_ = system.addGame("uiSample", "sample UI program");
+    _ = system.addGame("demo", "simple flyover demo");
+    _ = system.addGame("uiSample", "sample UI program");
     _ = system.addGame("vault", "demo program that runs the 'vault' runtime.");
 
     //_ = system.addTest("window");

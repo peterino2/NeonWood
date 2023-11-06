@@ -145,7 +145,7 @@ pub const NodeProperty_Text = struct {
 
 pub const NodeProperty_Panel = struct {
     titleColor: Color = ModernStyle.GreyDark,
-    titleSize: f32 = 24,
+    titleSize: f32 = 20,
     layoutMode: ChildLayout = .Free, // when set to anything other than free, we will override anchors from inferior nodes.
     hasTitle: bool = false,
     font: *FontAtlas,
@@ -256,7 +256,7 @@ pub const PapyrusContext = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
-        const fallbackFontFile: []const u8 = "fonts/ProggyClean.ttf";
+        const fallbackFontFile: []const u8 = "fonts/Roboto-Regular.ttf";
 
         var self = try backingAllocator.create(@This());
         var allocator = backingAllocator;
@@ -284,7 +284,7 @@ pub const PapyrusContext = struct {
             try self.debugText.append(textBuffer);
         }
 
-        self.fallbackFont.atlas.* = try FontAtlas.initFromFile(allocator, fallbackFontFile, 18);
+        self.fallbackFont.atlas.* = try FontAtlas.initFromFileSDF(allocator, fallbackFontFile, 64);
         try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
 
         // constructing the root node
@@ -355,7 +355,7 @@ pub const PapyrusContext = struct {
                 var text = &(self.nodes.get(handle).?.nodeType.DisplayText);
                 text.font = .{
                     .name = name,
-                    .atlas = self.fonts.get(name.hash).?.atlas,
+                    .atlas = (self.fonts.get(name.hash) orelse self.fonts.get(HashStr.fromUtf8("default").hash).?).atlas,
                 };
             },
             .Panel => {
@@ -706,11 +706,11 @@ pub const PapyrusContext = struct {
 
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Text = .{
-                                .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 1 }),
+                                .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 3 }),
                                 .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
                                 .text = n.text,
                                 .color = panel.titleColor,
-                                .textSize = panel.titleSize - 3,
+                                .textSize = panel.titleSize - 4,
                                 .rendererHash = panel.font.rendererHash,
                             },
                         } });
@@ -742,7 +742,7 @@ pub const PapyrusContext = struct {
                             .size = n.size,
                             .text = n.text,
                             .color = n.style.foregroundColor,
-                            .textSize = txt.textSize - 3,
+                            .textSize = txt.textSize,
                             .rendererHash = txt.font.atlas.rendererHash,
                         },
                     } });
@@ -786,8 +786,9 @@ pub const PapyrusContext = struct {
                     .text = LocText.fromUtf8("Papyrus Debug:"),
                     .tl = .{ .x = 30, .y = yOffset },
                     .size = .{ .x = 500, .y = 30 },
-                    .color = BurnStyle.Highlight3,
-                    .textSize = 18,
+                    //.color = BurnStyle.Highlight3,
+                    .color = Color.Cyan,
+                    .textSize = 16,
                     .rendererHash = self.fallbackFont.atlas.rendererHash,
                 },
             },
@@ -808,7 +809,7 @@ pub const PapyrusContext = struct {
                         .tl = .{ .x = 30, .y = yOffset },
                         .size = .{ .x = 500, .y = 30 },
                         .color = BurnStyle.Highlight3,
-                        .textSize = 18,
+                        .textSize = 16,
                         .rendererHash = self.fallbackFont.atlas.rendererHash,
                     },
                 },

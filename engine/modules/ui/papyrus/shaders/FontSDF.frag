@@ -99,7 +99,8 @@ void main() {
     }
     else {
         float alpha = 1.0;
-        outFragColor = vec4(color.xyz , pow(tex.x, 1/1.5));//textColor.* alpha);
+        float gray = dot(color.xyz, vec3(0.2126, 0.7152, 0.0722));
+        outFragColor = vec4(color.xyz , pow(tex.x / gray, 1/(2.2)) );//textColor.* alpha);
     }
 
     /* debug test.

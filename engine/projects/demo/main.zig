@@ -51,8 +51,11 @@ pub const GameContext = struct {
     eulerY: f32 = 0,
 
     time: f64 = 0,
+    movingAverage: f64 = 0,
     panel: NodeHandle = .{},
     panelText: ?[]u8 = null,
+
+    frameCount: u32 = 5,
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
         var self = try allocator.create(@This());
@@ -123,9 +126,10 @@ pub const GameContext = struct {
 
     pub fn tickPanel(self: *@This(), deltaTime: f64) !void {
         self.time += deltaTime;
-        var ctx = ui.getContext();
-        if (self.time > 2.4) {
-            self.time = 0;
+        self.frameCount -= 1;
+        if (self.frameCount == 0) {
+            self.frameCount = 5;
+            var ctx = ui.getContext();
 
             if (self.panelText) |t| {
                 self.allocator.free(t);
@@ -134,8 +138,6 @@ pub const GameContext = struct {
             self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime});
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
-
-        //ctx.get(self.panel).pos = .{ .y = 40 * @as(f32, @floatCast(self.time)), .x = 50 * @as(f32, @floatCast(self.time)) };
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -192,7 +194,7 @@ pub const GameContext = struct {
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
             ctx.setFont(unk2Text, "roboto");
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.getText(unk2Text).textSize = 12;
         }
     }
 
@@ -209,6 +211,7 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerEr
     if (eventType == .onPressed) {
         core.engine_logs("I GOT CLICKED!!!");
         ctx.get(node).style.backgroundColor = BurnStyle.DarkSlateGrey;
+        ui.getContext().drawDebug = !ui.getContext().drawDebug;
     }
 
     if (eventType == .onReleased) {

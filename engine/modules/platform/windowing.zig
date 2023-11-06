@@ -96,6 +96,8 @@ pub const PlatformInstance = struct {
 
     cursorEnabled: bool = true,
 
+    cursorPos: core.Vector2 = .{},
+
     // Low level controls of the current state of input,
     inputState: InputState = .{},
 
@@ -210,10 +212,7 @@ pub const PlatformInstance = struct {
     }
 
     pub fn getCursorPosition(self: *@This()) core.Vector2 {
-        var pos: core.Vector2 = .{ .x = 0, .y = 0 };
-
-        c.glfwGetCursorPos(@as(?*c.GLFWwindow, @ptrCast(self.window)), &pos.x, &pos.y);
-        return pos;
+        return self.cursorPos;
     }
 
     pub fn installHandlers(self: *@This()) void {
@@ -242,6 +241,8 @@ pub const PlatformInstance = struct {
                     .mousePosition => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
                             handler.?(self.window, mousePos.x, mousePos.y);
+                            self.cursorPos.x = mousePos.x;
+                            self.cursorPos.y = mousePos.y;
                         }
 
                         self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };

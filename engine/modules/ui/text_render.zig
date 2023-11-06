@@ -262,8 +262,6 @@ pub const TextRenderer = struct {
         try self.fonts.put(self.allocator, defaultName.hash, new);
         self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
 
-        _ = try self.addFont("fonts/Roboto-Regular.ttf", core.MakeName("roboto"));
-
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
         for (0..32) |i| {

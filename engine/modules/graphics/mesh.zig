@@ -451,7 +451,6 @@ pub const DynamicMesh = struct {
     }
 
     pub fn clearVertices(self: *@This()) void {
-        core.engine_logs("clearvertexlist");
         self.vertexCount = 0;
         self.isDirty = true;
     }
