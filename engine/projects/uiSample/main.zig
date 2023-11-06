@@ -74,7 +74,6 @@ pub const GameContext = struct {
         ctx.getPanel(self.panel).hasTitle = true;
         ctx.getPanel(self.panel).titleSize = 20;
         ctx.getPanel(self.panel).titleColor = BurnStyle.Bright1;
-        ctx.setFont(self.panel, "roboto");
         ctx.get(self.panel).text = ui.papyrus.MakeText("Ui demo program: Hello world.");
         ctx.get(self.panel).pos = .{ .x = 0, .y = 0 };
         ctx.get(self.panel).size = .{ .x = 800, .y = 900 };
@@ -82,7 +81,6 @@ pub const GameContext = struct {
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
         const text = try ctx.addText(self.panel, ipsum);
-        ctx.setFont(text, "roboto");
         ctx.getText(text).textSize = 48;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 600, .y = 600 };
@@ -99,11 +97,9 @@ pub const GameContext = struct {
             widget.size = .{ .x = 1400, .y = 500 };
             widget.anchor = .TopRight;
             // widget.state = .Hidden;
-            ctx.setFont(self.mousePosition, "roboto");
         }
 
         const fps = try ctx.addText(self.panel, "fps: {}");
-        ctx.setFont(fps, "roboto");
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
         ctx.get(fps).pos = .{ .x = 32, .y = 12 };
         ctx.get(fps).size = .{ .x = 700, .y = 500 };
@@ -132,7 +128,6 @@ pub const GameContext = struct {
             const unk2Text = try ctx.addText(unk2, "click me!");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.setFont(unk2Text, "roboto");
             ctx.getText(unk2Text).textSize = 32;
         }
 
