@@ -80,6 +80,10 @@ pub const NeonSoundEngine = struct {
         return self;
     }
 
+    pub fn shutdown(self: *@This()) void {
+        c.ma_engine_uninit(self.engine);
+    }
+
     pub fn loadSound(
         self: *@This(),
         soundName: core.Name,

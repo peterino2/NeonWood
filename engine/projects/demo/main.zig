@@ -223,51 +223,6 @@ fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
     ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
 }
 
-pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{
-        .stack_trace_frames = 20,
-    }){};
-    defer {
-        const cleanupStatus = gpa.deinit();
-        if (cleanupStatus == .leak) {
-            std.debug.print("gpa cleanup leaked memory\n", .{});
-        }
-    }
-    const allocator = gpa.allocator();
-
-    engine_log("Starting up", .{});
-
-    core.start_module(allocator);
-    defer core.shutdown_module(allocator);
-
-    try platform.start_module(allocator, "Neonwood: flyaround demo", null);
-    defer platform.shutdown_module(allocator);
-
-    assets.start_module(allocator);
-    defer assets.shutdown_module();
-
-    graphics.start_module(allocator);
-    defer graphics.shutdown_module();
-
-    audio.start_module(allocator);
-    defer audio.shutdown_module();
-
-    try ui.start_module(allocator);
-    defer ui.shutdown_module();
-
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
-    try gameContext.prepare_game();
-
-    try core.gEngine.run();
-
-    _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
-    try platform.getInstance().installCursorPosCallback(mousePositionCallback);
-
-    while (!core.gEngine.exitConfirmed) {
-        neonwood.platform.getInstance().pollEvents();
-    }
-}
-
 var lastXPos: f64 = 0;
 var lastYPos: f64 = 0;
 
@@ -357,5 +312,50 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
 
     if (key == c.GLFW_KEY_SPACE and action == c.GLFW_PRESS) {
         gGame.showDemo = true;
+    }
+}
+
+pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = gpa.allocator();
+
+    engine_log("Starting up", .{});
+
+    core.start_module(allocator);
+    defer core.shutdown_module(allocator);
+
+    try platform.start_module(allocator, "Neonwood: flyaround demo", null);
+    defer platform.shutdown_module(allocator);
+
+    assets.start_module(allocator);
+    defer assets.shutdown_module();
+
+    graphics.start_module(allocator);
+    defer graphics.shutdown_module();
+
+    audio.start_module(allocator);
+    defer audio.shutdown_module();
+
+    try ui.start_module(allocator);
+    defer ui.shutdown_module();
+
+    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
+    try gameContext.prepare_game();
+
+    try core.gEngine.run();
+
+    _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
+    try platform.getInstance().installCursorPosCallback(mousePositionCallback);
+
+    while (!core.gEngine.exitConfirmed) {
+        neonwood.platform.getInstance().pollEvents();
     }
 }

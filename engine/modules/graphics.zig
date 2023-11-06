@@ -73,8 +73,8 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 
 pub fn shutdown_module() void {
     engine_logs("graphics module shutting down...");
-    debug_draw.deinit() catch unreachable;
-    vk_renderer.gContext.deinit();
+    debug_draw.shutdown();
+    vk_renderer.gContext.shutdown();
 }
 
 pub var icon: []const u8 = "content/textures/icon.png";

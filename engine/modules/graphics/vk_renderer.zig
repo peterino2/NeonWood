@@ -2490,6 +2490,10 @@ pub const NeonVkContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.allocator.destroy(self);
+    }
+
+    pub fn shutdown(self: *Self) void {
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
         self.destroy_textures() catch {
@@ -2519,12 +2523,14 @@ pub const NeonVkContext = struct {
 
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
 
+        if (self.vkAllocator.areAllocationsOutstanding()) {
+            self.vkAllocator.printOutStandingAllocations();
+        }
+
         self.vkAllocator.destroy();
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
-
-        self.allocator.destroy(self);
     }
 
     /// ---------- renderObject functions
@@ -2565,6 +2571,10 @@ pub const NeonVkContext = struct {
         self.renderObjectsAreDirty = true;
 
         return rv;
+    }
+
+    pub fn onExitSignal(self: @This()) core.RttiDataEventError!void {
+        _ = self;
     }
 };
 

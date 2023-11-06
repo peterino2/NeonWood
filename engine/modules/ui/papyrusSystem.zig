@@ -444,7 +444,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     }
 }
 
-pub fn deinit(self: *@This()) void {
+pub fn shutdown(self: *@This()) void {
     core.ui_logs("Shutting down UI");
     for (self.mappedBuffers) |*mapped| {
         mapped.unmap(self.gc);
@@ -460,10 +460,13 @@ pub fn deinit(self: *@This()) void {
 
     self.pipeData.deinit(self.allocator, self.gc);
     self.textPipeData.deinit(self.allocator, self.gc);
-
     self.indexBuffer.deinit(self.gc);
-
     self.papyrusCtx.deinit();
+    core.ui_logs("finished shutting down ui");
+}
+
+pub fn deinit(self: *@This()) void {
+    self.allocator.destroy(self);
 }
 
 pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {

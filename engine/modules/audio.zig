@@ -21,4 +21,6 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     gSoundEngine.loadSound(core.MakeName("s_test"), "content/sounds/engineTick.wav", .{}) catch unreachable;
 }
 
-pub fn shutdown_module() void {}
+pub fn shutdown_module() void {
+    gSoundEngine.shutdown();
+}

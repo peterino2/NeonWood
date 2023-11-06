@@ -89,7 +89,7 @@ pub const TextureLoader = struct {
                 tracy.Message(assetReady.assetRef.name.utf8);
                 tracy.Message(assetReady.properties.path);
 
-                core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
+                //core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
                 var image = assetReady.stagingResults.image;
 

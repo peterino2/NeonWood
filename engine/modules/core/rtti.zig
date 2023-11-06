@@ -22,13 +22,6 @@ pub fn InterfaceRef(comptime Vtable: type) type {
     };
 }
 
-// We actually don't need that many polymorphic types.
-// this will primarily be an ecs focused engine.
-// current goal: remove the graphics_test_run and move the renderer into the
-// gEngine structure.
-
-pub const RTTI_MAX_TYPES = 1024;
-
 pub fn MakeTypeName(comptime TargetType: type) Name {
     const hashedName = comptime std.fmt.comptimePrint("{s}_{d}", .{ @typeName(TargetType), @sizeOf(TargetType) });
 
@@ -50,6 +43,7 @@ pub const RttiData = struct {
     deinit_func: ?*const fn (*anyopaque) void = null,
     postInit_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
     processEvents: ?*const fn (*anyopaque, u64) RttiDataEventError!void = null,
+    exitSignal_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
@@ -100,6 +94,17 @@ pub const RttiData = struct {
             };
 
             self.processEvents = wrappedProcessEvents.func;
+        }
+
+        if (@hasDecl(TargetType, "onExitSignal")) {
+            const wrappedProcessEvents = struct {
+                pub fn func(pointer: *anyopaque) RttiDataEventError!void {
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                    try ptr.onExitSignal();
+                }
+            };
+
+            self.exitSignal_func = wrappedProcessEvents.func;
         }
 
         if (@hasDecl(TargetType, "deinit")) {

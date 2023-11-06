@@ -273,12 +273,16 @@ pub const DebugDrawSubsystem = struct {
         return self;
     }
 
-    pub fn deinit(self: *@This()) void {
+    pub fn shutdown(self: *@This()) void {
         for (self.mappedBuffers) |*mapped| {
             mapped.unmap(self.gc);
         }
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.destroy(self);
     }
 };
 
@@ -290,8 +294,8 @@ pub fn init_debug_draw_subsystem() !void {
     try graphics.registerRendererPlugin(gDebugDrawSys);
 }
 
-pub fn deinit() !void {
-    gDebugDrawSys.deinit();
+pub fn shutdown() void {
+    gDebugDrawSys.shutdown();
 }
 
 pub const DebugDrawParams = struct {

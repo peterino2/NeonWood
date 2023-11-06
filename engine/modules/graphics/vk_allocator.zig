@@ -272,20 +272,22 @@ pub const NeonVkAllocator = struct {
         }
     }
 
-    pub fn destroy(self: *@This()) void {
-        if (self.liveAllocations.items.len > 0) {
-            core.graphics_log("There are still allocations outstanding: {d}", .{self.liveAllocations.items.len});
+    pub fn areAllocationsOutstanding(self: *@This()) bool {
+        return self.liveAllocations.items.len > 0;
+    }
 
-            self.printEventsLog();
-            for (self.liveAllocations.items) |alloc| {
-                core.graphics_log("allocation@{d} tag:\'{s}\' {any}", .{ alloc.allocation, alloc.tag, alloc.object });
-            }
-            core.forceFlush();
+    pub fn printOutStandingAllocations(self: *@This()) void {
+        core.graphics_log("There are {d} allocations outstanding", .{self.liveAllocations.items.len});
 
-            return;
+        self.printEventsLog();
+        for (self.liveAllocations.items) |alloc| {
+            core.graphics_log("live allocation@{d} tag:\'{s}\' {any}", .{ alloc.allocation, alloc.tag, alloc.object });
         }
+        core.graphics_logs("end of report.");
+        core.forceFlush();
+    }
 
-        // if there are any live allocations left, print them all out.
+    pub fn destroy(self: *@This()) void {
         self.vmaAllocator.destroy();
     }
 };

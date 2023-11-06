@@ -31,6 +31,7 @@ pub const Engine = struct {
     // better name for these rtti objects is actually 'engine object'
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     eventors: ArrayListUnmanaged(NeonObjectRef),
+    exitListeners: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     tracesContext: *TracesContext,
     jobManager: JobManager,
@@ -51,6 +52,7 @@ pub const Engine = struct {
             .jobManager = JobManager.init(allocator),
             .eventors = .{},
             .frameNumber = 0,
+            .exitListeners = .{},
         };
 
         rv.tracesContext.* = TracesContext.init(allocator);
@@ -61,12 +63,16 @@ pub const Engine = struct {
     pub fn deinit(self: *@This()) void {
         self.jobManager.deinit();
         for (self.rttiObjects.items) |item| {
-            item.vtable.deinit_func.?(item.ptr);
+            if(item.vtable.deinit_func)|deinitFn|
+            {
+                deinitFn(item.ptr);
+            }
         }
         self.rttiObjects.deinit(self.allocator);
         self.eventors.deinit(self.allocator);
         self.tickables.deinit(self.allocator);
         self.tracesContext.deinit();
+        self.exitListeners.deinit(self.allocator);
     }
 
     // creates an engine object using the engine's allocator.
@@ -93,6 +99,10 @@ pub const Engine = struct {
 
         if (@hasDecl(T, "processEvents")) {
             try self.eventors.append(self.allocator, newObjectRef); //
+        }
+
+        if (@hasDecl(T, "onExitSignal")) {
+            try self.exitListeners.append(self.allocator, newObjectRef); //
         }
 
         if (@hasDecl(T, "postInit")) {
@@ -138,6 +148,10 @@ pub const Engine = struct {
                 while (!ctx.engine.exitSignal) {
                     ctx.engine.tick() catch unreachable;
                 }
+                for (ctx.engine.exitListeners.items) |ref| {
+                    ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
+                }
+
                 ctx.engine.exitConfirmed = true;
             }
         };
