@@ -191,7 +191,10 @@ pub const NeonVkAllocator = struct {
         if (found) {
             _ = self.liveAllocations.swapRemove(i);
         } else {
-            // unreachable;
+            core.engine_log("We have a big issue here, a destroy was issued for allocation {any}\n But it is not alive", .{allocation});
+            self.printEventsLog();
+            self.printOutStandingAllocations();
+            unreachable;
         }
 
         self.eventsList.append(.{ .destroy = .{
