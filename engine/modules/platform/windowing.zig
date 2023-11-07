@@ -96,7 +96,7 @@ pub const PlatformInstance = struct {
 
     cursorEnabled: bool = true,
 
-    cursorPos: core.Vector2 = .{},
+    cursorPos: core.Vector2f = .{},
 
     // Low level controls of the current state of input,
     inputState: InputState = .{},
@@ -211,7 +211,7 @@ pub const PlatformInstance = struct {
         try self.pumpEvents();
     }
 
-    pub fn getCursorPosition(self: *@This()) core.Vector2 {
+    pub fn getCursorPosition(self: *@This()) core.Vector2f {
         return self.cursorPos;
     }
 
@@ -241,8 +241,8 @@ pub const PlatformInstance = struct {
                     .mousePosition => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
                             handler.?(self.window, mousePos.x, mousePos.y);
-                            self.cursorPos.x = mousePos.x;
-                            self.cursorPos.y = mousePos.y;
+                            self.cursorPos.x = @floatCast(mousePos.x);
+                            self.cursorPos.y = @floatCast(mousePos.y);
                         }
 
                         self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };

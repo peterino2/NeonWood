@@ -25,10 +25,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "content/meshes/lost_empire.obj",
         },
     ),
-    assets.MakeImportRefOptions("Texture", "t_empire", .{
-        .path = testimage1,
-        .textureUseBlockySampler = false,
-    }),
+    // assets.MakeImportRefOptions("Texture", "t_empire", .{
+    //     .path = testimage1,
+    //     .textureUseBlockySampler = false,
+    // }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -138,6 +138,13 @@ pub const GameContext = struct {
             self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime});
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
+
+        if (gIpsumDown) {
+            var ctx = ui.getContext();
+            var mousePos = platform.getInstance().getCursorPosition();
+            ctx.get(self.panel).pos = .{ .x = mousePos.x + gSavedMouseOffset.x, .y = mousePos.y + gSavedMouseOffset.y };
+            gIpsumPos = .{ .x = ctx.getRead(self.panel).pos.x, .y = ctx.getRead(self.panel).pos.y };
+        }
     }
 
     pub fn uiTick(self: *Self, deltaTime: f64) void {
@@ -169,8 +176,11 @@ pub const GameContext = struct {
             ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
             ctx.get(panel).style.foregroundColor = ModernStyle.Yellow;
             ctx.get(panel).style.borderColor = ModernStyle.BrightGrey;
-            ctx.get(panel).pos = .{ .x = 30, .y = 30 };
+            ctx.get(panel).pos = .{ .x = gIpsumPos.x, .y = gIpsumPos.y };
             ctx.get(panel).size = .{ .x = 500, .y = 150 };
+
+            try ctx.events.installOnPressedEvent(panel, .onPressed, .Mouse1, &onPressed);
+            try ctx.events.installOnPressedEvent(panel, .onReleased, .Mouse1, &onPressed);
         }
 
         gGame = self;
@@ -179,12 +189,12 @@ pub const GameContext = struct {
         ctx.get(unk).pos = .{ .x = 900, .y = 30 };
         ctx.get(unk).size = .{ .x = 300, .y = 300 };
         ctx.get(unk).style.borderColor = BurnStyle.Diminished;
-        ctx.get(unk).style.backgroundColor = BurnStyle.LightGrey;
+        ctx.get(unk).style.backgroundColor = BurnStyle.DarkSlateGrey;
 
         const unk2 = try ctx.addPanel(unk);
         {
             ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
-            ctx.get(unk2).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2).size = .{ .x = 100, .y = 20 };
             ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
             try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
@@ -202,6 +212,22 @@ pub const GameContext = struct {
         _ = self;
     }
 };
+
+var gIpsumPos: core.Vector2f = .{ .x = 30, .y = 30 };
+var gSavedMouseOffset: core.Vector2f = .{};
+var gIpsumDown: bool = false;
+
+fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+    _ = node;
+    if (eventType == .onPressed) {
+        gIpsumDown = true;
+        var mousePos = platform.getInstance().getCursorPosition();
+        gSavedMouseOffset = gIpsumPos.sub(core.Vector2f{ .x = mousePos.x, .y = mousePos.y });
+    }
+    if (eventType == .onReleased) {
+        gIpsumDown = false;
+    }
+}
 
 const BurnStyle = ui.papyrus.BurnStyle;
 
