@@ -225,6 +225,7 @@ pub const PapyrusContext = struct {
     nodes: DynamicPool(PapyrusNode),
     fonts: std.AutoHashMap(u32, PapyrusFont),
     fallbackFont: PapyrusFont,
+    defaultMonoFont: PapyrusFont,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
     currentCursorPosition: Vector2 = .{},
 
@@ -256,7 +257,8 @@ pub const PapyrusContext = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
-        const fallbackFontFile: []const u8 = "fonts/Roboto-Regular.ttf";
+
+        const defaultMonoName: []const u8 = "monospace";
 
         var self = try backingAllocator.create(@This());
         var allocator = backingAllocator;
@@ -269,6 +271,10 @@ pub const PapyrusContext = struct {
             .events = PapyrusEvent.init(allocator),
             .fallbackFont = PapyrusFont{
                 .name = HashStr.fromUtf8(fallbackFontName),
+                .atlas = try allocator.create(FontAtlas),
+            },
+            .defaultMonoFont = PapyrusFont{
+                .name = HashStr.fromUtf8(defaultMonoName),
                 .atlas = try allocator.create(FontAtlas),
             },
             ._drawOrder = DrawOrderList.init(allocator),
@@ -284,8 +290,13 @@ pub const PapyrusContext = struct {
             try self.debugText.append(textBuffer);
         }
 
+        const fallbackFontFile: []const u8 = "fonts/Roboto-Regular.ttf";
         self.fallbackFont.atlas.* = try FontAtlas.initFromFileSDF(allocator, fallbackFontFile, 64);
         try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
+
+        const defaultMonoFile: []const u8 = "fonts/FiraMono-Medium.ttf";
+        self.defaultMonoFont.atlas.* = try FontAtlas.initFromFileSDF(allocator, defaultMonoFile, 64);
+        try self.installFontAtlas(self.defaultMonoFont.name.utf8, self.defaultMonoFont.atlas);
 
         // constructing the root node
         _ = try self.nodes.new(.{
@@ -762,8 +773,12 @@ pub const PapyrusContext = struct {
     }
 
     fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
-        const offsetPerLine: f32 = 50.0;
+        const defaultHeight = 16;
+        const offsetPerLine: f32 = defaultHeight + 2;
         var yOffset: f32 = offsetPerLine;
+        const width = defaultHeight / 2 * 120;
+
+        var fontHash = self.defaultMonoFont.atlas.rendererHash;
 
         try self.mousePick.addMousePickInfo(&self, drawList);
 
@@ -772,7 +787,7 @@ pub const PapyrusContext = struct {
             .primitive = .{
                 .Rect = .{
                     .tl = .{ .x = 30 - 5, .y = yOffset - 5 },
-                    .size = .{ .x = 500 + 5, .y = offsetPerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
+                    .size = .{ .x = width + 5, .y = offsetPerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
                     .borderColor = Color.fromRGBA(0x222222ee),
                     .backgroundColor = Color.fromRGBA2(0.0, 0.0, 0.0, 0.9),
                 },
@@ -785,11 +800,11 @@ pub const PapyrusContext = struct {
                 .Text = .{
                     .text = LocText.fromUtf8("Papyrus Debug:"),
                     .tl = .{ .x = 30, .y = yOffset },
-                    .size = .{ .x = 500, .y = 30 },
+                    .size = .{ .x = width, .y = 30 },
                     //.color = BurnStyle.Highlight3,
-                    .color = Color.Cyan,
-                    .textSize = 16,
-                    .rendererHash = self.fallbackFont.atlas.rendererHash,
+                    .color = Color.Yellow,
+                    .textSize = defaultHeight,
+                    .rendererHash = fontHash,
                 },
             },
         });
@@ -807,10 +822,10 @@ pub const PapyrusContext = struct {
                     .Text = .{
                         .text = LocText.fromUtf8Z(textData),
                         .tl = .{ .x = 30, .y = yOffset },
-                        .size = .{ .x = 500, .y = 30 },
-                        .color = BurnStyle.Highlight3,
-                        .textSize = 16,
-                        .rendererHash = self.fallbackFont.atlas.rendererHash,
+                        .size = .{ .x = width, .y = 30 },
+                        .color = Color.Yellow,
+                        .textSize = defaultHeight,
+                        .rendererHash = fontHash,
                     },
                 },
             });

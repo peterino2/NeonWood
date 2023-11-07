@@ -365,6 +365,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 textDisplay.color = text.color;
                 textDisplay.position = .{ .x = text.tl.x, .y = text.tl.y };
                 textDisplay.string.clearRetainingCapacity();
+                // TODO this is really bad
                 if (text.rendererHash != 0) {
                     textDisplay.atlas = self.textRenderer.fonts.get(text.rendererHash).?;
                 }

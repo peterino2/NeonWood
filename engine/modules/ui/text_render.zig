@@ -263,6 +263,16 @@ pub const TextRenderer = struct {
         try self.fonts.put(self.allocator, defaultName.hash, new);
         self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
 
+        var newMono = try self.allocator.create(FontAtlasVk);
+        newMono.* = try FontAtlasVk.init(self.allocator, self.g);
+        newMono.isDefault = true;
+        newMono.atlas = papyrusCtx.defaultMonoFont.atlas;
+
+        const monoName = core.MakeName("monospace");
+        try newMono.prepareFont(monoName);
+        try self.fonts.put(self.allocator, monoName.hash, newMono);
+        self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.hash;
+
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
