@@ -142,6 +142,10 @@ pub const DynamicMeshManager = struct {
         return self;
     }
 
+    pub fn deinit(self: *@This()) void {
+        self.dynMeshes.deinit(self.allocator);
+    }
+
     pub fn addDynamicMesh(self: *@This(), dynamicMesh: *DynamicMesh) !void {
         try self.dynMeshes.append(self.allocator, dynamicMesh);
     }
@@ -527,6 +531,9 @@ pub const DynamicMesh = struct {
             self.indexBuffers[i].deinit(vkAllocator);
             self.vertexBuffers[i].deinit(vkAllocator);
         }
+
+        self.allocator.destroy(self);
+        // should remove ourselves from the manager
     }
 };
 
@@ -604,6 +611,7 @@ pub const Mesh = struct {
 
     pub fn deinit(self: *Mesh, ctx: *NeonVkContext) void {
         self.buffer.deinit(ctx.vkAllocator);
+        self.vertices.deinit();
     }
 };
 

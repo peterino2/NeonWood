@@ -50,7 +50,6 @@ pub const RttiData = struct {
             const funcFind: @TypeOf(@field(TargetType, "init")) = @field(TargetType, "init");
 
             pub fn func(allocator: std.mem.Allocator) RttiDataEventError!*anyopaque {
-                engine_logs("calling init function");
                 var newObject = funcFind(allocator) catch return error.BadInit;
                 return @as(*anyopaque, @ptrCast(newObject));
             }

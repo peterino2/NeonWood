@@ -9,7 +9,8 @@ pub const PngContents = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
-        var pngFileContents = try core.loadFileAlloc(filePath, 8, allocator);
+        var pngFileContents = try core.loadFileAlloc(filePath, 1, allocator);
+        defer allocator.free(pngFileContents);
         var decoder = try spng.SpngContext.newDecoder();
         defer decoder.deinit();
 

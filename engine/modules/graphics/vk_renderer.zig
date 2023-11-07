@@ -2416,6 +2416,8 @@ pub const NeonVkContext = struct {
             self.allocator.destroy(i.value_ptr.*);
         }
         self.meshes.deinit(self.allocator);
+
+        self.dynamicMeshManager.deinit();
     }
 
     pub fn destroy_renderobjects(self: *Self) !void {
@@ -2531,6 +2533,12 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
+
+        for (self.enumeratedPhysicalDevices.items) |*enumerated| {
+            enumerated.deinit();
+        }
+        self.enumeratedPhysicalDevices.deinit();
+        self.graph.deinit();
     }
 
     /// ---------- renderObject functions

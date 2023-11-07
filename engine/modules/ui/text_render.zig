@@ -67,7 +67,7 @@ pub const DisplayText = struct {
     allocator: std.mem.Allocator,
     g: *graphics.NeonVkContext, // ref
     atlas: *FontAtlasVk, // ref
-    mesh: *DynamicMesh,
+    mesh: *DynamicMesh, // we own this
     string: std.ArrayList(u8),
     stringHash: u32 = 0xffffffff,
 
@@ -80,6 +80,7 @@ pub const DisplayText = struct {
     pub fn deinit(self: *@This()) void {
         self.mesh.deinit();
         self.string.deinit();
+        self.allocator.destroy(self.mesh);
     }
 
     pub fn getHash(self: *@This()) u32 {
@@ -262,6 +263,7 @@ pub const TextRenderer = struct {
         try self.fonts.put(self.allocator, defaultName.hash, new);
         self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
 
+        var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
         for (0..32) |i| {
@@ -270,6 +272,7 @@ pub const TextRenderer = struct {
                 .charLimit = 8192 * 2,
             });
 
+            k += 1;
             try self.displays.append(self.allocator, newDisplay);
         }
 
@@ -279,8 +282,16 @@ pub const TextRenderer = struct {
                 .charLimit = 512,
             });
 
+            k += 1;
             try self.smallDisplays.append(self.allocator, newDisplay);
         }
+
+        core.engine_log(">>>>>>> textlist count {d} {d}+{d} = {d} ", .{
+            k,
+            self.displays.items.len,
+            self.smallDisplays.items.len,
+            self.smallDisplays.items.len + self.displays.items.len,
+        });
 
         return self;
     }
@@ -349,13 +360,6 @@ pub const TextRenderer = struct {
         for (self.smallDisplays.items) |display| {
             display.deinit();
         }
-
-        // self.displays.deinit(self.allocator);
-
-        // var iter = self.fonts.iterator();
-        // while (iter.next()) |i| {
-        //     i.value_ptr.*.deinit();
-        // }
 
         self.arena.deinit();
         backingAllocator.destroy(self);

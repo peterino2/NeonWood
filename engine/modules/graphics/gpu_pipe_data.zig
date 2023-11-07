@@ -142,8 +142,10 @@ pub const GpuPipeData = struct {
     // pub fn unmapAll(self: *@This(), mappings: anytype);
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator, gc: *NeonVkContext) void {
         for (self.bindings) |*binding| {
+            allocator.free(binding.buffers);
             binding.deinit(gc.vkAllocator);
         }
+        allocator.free(self.descriptorSets);
         allocator.free(self.bindings);
     }
 };

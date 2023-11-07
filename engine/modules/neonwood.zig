@@ -25,7 +25,7 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     ui.shutdown_module(); //6
     graphics.shutdown_module(); //5
     audio.shutdown_module(); //4
-    assets.shutdown_module(); //3
+    assets.shutdown_module(allocator); //3
     platform.shutdown_module(allocator); //2
     core.shutdown_module(allocator); // 1
 }

@@ -319,6 +319,7 @@ pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 20,
     }){};
+
     defer {
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {
@@ -336,7 +337,7 @@ pub fn main() anyerror!void {
     defer platform.shutdown_module(allocator);
 
     assets.start_module(allocator);
-    defer assets.shutdown_module();
+    defer assets.shutdown_module(allocator);
 
     graphics.start_module(allocator);
     defer graphics.shutdown_module();

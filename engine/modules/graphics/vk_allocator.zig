@@ -191,7 +191,7 @@ pub const NeonVkAllocator = struct {
         if (found) {
             _ = self.liveAllocations.swapRemove(i);
         } else {
-            unreachable;
+            // unreachable;
         }
 
         self.eventsList.append(.{ .destroy = .{
@@ -288,6 +288,8 @@ pub const NeonVkAllocator = struct {
     }
 
     pub fn destroy(self: *@This()) void {
+        self.eventsList.deinit();
+        self.liveAllocations.deinit();
         self.vmaAllocator.destroy();
     }
 };

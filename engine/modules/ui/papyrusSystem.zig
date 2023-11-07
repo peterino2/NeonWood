@@ -461,6 +461,8 @@ pub fn shutdown(self: *@This()) void {
     self.pipeData.deinit(self.allocator, self.gc);
     self.textPipeData.deinit(self.allocator, self.gc);
     self.indexBuffer.deinit(self.gc);
+
+    self.drawList.deinit();
     self.papyrusCtx.deinit();
     core.ui_logs("finished shutting down ui");
 }

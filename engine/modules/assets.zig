@@ -24,8 +24,10 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     gAssetSys.* = AssetReferenceSys.init(allocator);
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
     gAssetSys.deinit();
+
+    allocator.destroy(gAssetSys);
 }
 
 pub fn loadList(assetList: anytype) !void {

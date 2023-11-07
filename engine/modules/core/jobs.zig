@@ -151,7 +151,8 @@ pub const JobContext = struct {
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
     func: *const fn (*anyopaque, *JobContext) void, // todo, add an error for job funcs
     capture: []u8 = undefined,
-    hasCaptureAlloc: bool = false,
+
+    const align8_struct = struct { size: u64 };
 
     pub fn newJob(allocator: std.mem.Allocator, capture: anytype) !JobContext {
         const CaptureType = @TypeOf(capture);
@@ -174,6 +175,7 @@ pub const JobContext = struct {
         var ptr = try allocator.create(CaptureType);
         self.capture.len = @sizeOf(CaptureType);
         self.capture.ptr = @as([*]u8, @ptrCast(ptr));
+        self.captureAlign = @alignOf(CaptureType);
         ptr.* = capture;
         return self;
     }
@@ -203,10 +205,9 @@ pub const JobContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        if (self.hasCaptureAlloc) {
-            // need to use the size to do an anonymous destroy
-            //self.allocator.destroy(self.capture.ptr);
-            self.allocator.free(self.capture);
-        }
+        _ = self;
+        // need to use the size to do an anonymous destroy
+        //self.allocator.destroy(self.capture.ptr);
+        // self.allocator.free(self.capture);
     }
 };
