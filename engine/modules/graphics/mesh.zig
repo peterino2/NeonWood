@@ -118,6 +118,7 @@ pub const IndexBuffer = struct {
 
     pub fn deinit(self: *@This(), gc: *NeonVkContext) void {
         self.buffer.deinit(gc.vkAllocator);
+        self.allocator.free(self.indices);
     }
 };
 

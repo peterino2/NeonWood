@@ -151,6 +151,7 @@ pub const JobContext = struct {
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
     func: *const fn (*anyopaque, *JobContext) void, // todo, add an error for job funcs
     capture: []u8 = undefined,
+    destroyFunc: *const fn (*anyopaque, std.mem.Allocator) void,
 
     const align8_struct = struct { size: u64 };
 
@@ -165,11 +166,17 @@ pub const JobContext = struct {
                 var ptr = @as(*CaptureType, @ptrCast(@alignCast(pointer)));
                 ptr.func(context);
             }
+
+            pub fn wrappedDestroy(ptr: *anyopaque, alloc: std.mem.Allocator) void {
+                var p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
+                alloc.destroy(p);
+            }
         };
 
         var self = Self{
             .allocator = allocator,
             .func = Wrap.wrappedFunc,
+            .destroyFunc = Wrap.wrappedDestroy,
         };
 
         var ptr = try allocator.create(CaptureType);
@@ -190,11 +197,17 @@ pub const JobContext = struct {
                 var ptr = @as(*CaptureType, @ptrCast(@alignCast(pointer)));
                 ptr.func(context);
             }
+
+            pub fn wrappedDestroy(ptr: *anyopaque, alloc: std.mem.Allocator) void {
+                var p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
+                alloc.destroy(p);
+            }
         };
 
         var self = Self{
             .allocator = allocator,
             .func = Wrap.wrappedFunc,
+            .destroyFunc = Wrap.wrappedDestroy,
         };
 
         var ptr = try allocator.create(CaptureType);
@@ -205,9 +218,9 @@ pub const JobContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        _ = self;
         // need to use the size to do an anonymous destroy
         //self.allocator.destroy(self.capture.ptr);
         // self.allocator.free(self.capture);
+        self.destroyFunc(self.capture.ptr, self.allocator);
     }
 };

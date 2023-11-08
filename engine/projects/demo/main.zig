@@ -25,10 +25,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "content/meshes/lost_empire.obj",
         },
     ),
-    // assets.MakeImportRefOptions("Texture", "t_empire", .{
-    //     .path = testimage1,
-    //     .textureUseBlockySampler = false,
-    // }),
+    assets.MakeImportRefOptions("Texture", "t_empire", .{
+        .path = testimage1,
+        .textureUseBlockySampler = false,
+    }),
 };
 
 // Primarily a test file that exists to create a simple application for
