@@ -296,13 +296,6 @@ pub const TextRenderer = struct {
             try self.smallDisplays.append(self.allocator, newDisplay);
         }
 
-        core.engine_log(">>>>>>> textlist count {d} {d}+{d} = {d} ", .{
-            k,
-            self.displays.items.len,
-            self.smallDisplays.items.len,
-            self.smallDisplays.items.len + self.displays.items.len,
-        });
-
         return self;
     }
 

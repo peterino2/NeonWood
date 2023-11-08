@@ -352,7 +352,8 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const allocator = gpa.allocator();
+    //const allocator = gpa.allocator();
+    const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 
