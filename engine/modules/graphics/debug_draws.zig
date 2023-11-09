@@ -148,10 +148,10 @@ pub const DebugDrawSubsystem = struct {
     pub fn createMaterial(self: *@This()) !void {
         var gc: *graphics.NeonVkContext = self.gc;
 
-        var vert_spv = try graphics.loadSpv(gc.allocator, "zig-out/shaders/debug_vert.spv");
+        var vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
         defer gc.allocator.free(vert_spv);
 
-        var frag_spv = try graphics.loadSpv(gc.allocator, "zig-out/shaders/debug_frag.spv");
+        var frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
         defer gc.allocator.free(frag_spv);
 
         var pipelineBuilder = try graphics.NeonVkPipelineBuilder.init(

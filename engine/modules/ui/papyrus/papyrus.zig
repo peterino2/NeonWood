@@ -290,12 +290,10 @@ pub const PapyrusContext = struct {
             try self.debugText.append(textBuffer);
         }
 
-        const fallbackFontFile: []const u8 = "fonts/Roboto-Regular.ttf";
-        self.fallbackFont.atlas.* = try FontAtlas.initFromFileSDF(allocator, fallbackFontFile, 64);
+        self.fallbackFont.atlas.* = try FontAtlas.initDefaultFont(allocator, 64);
         try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
 
-        const defaultMonoFile: []const u8 = "fonts/FiraMono-Medium.ttf";
-        self.defaultMonoFont.atlas.* = try FontAtlas.initFromFileSDF(allocator, defaultMonoFile, 64);
+        self.defaultMonoFont.atlas.* = try FontAtlas.initMonoFont(allocator, 64);
         try self.installFontAtlas(self.defaultMonoFont.name.utf8, self.defaultMonoFont.atlas);
 
         // constructing the root node

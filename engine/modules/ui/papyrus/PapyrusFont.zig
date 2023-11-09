@@ -23,7 +23,7 @@ pub const FontAtlas = struct {
     font: c.stbtt_fontinfo = undefined,
     allocator: std.mem.Allocator,
     isSDF: bool = false,
-    fileContent: []u8,
+    fileContent: []const u8,
     filePath: []const u8,
     atlasBuffer: ?[]u8,
     fontSize: f32,
@@ -37,6 +37,7 @@ pub const FontAtlas = struct {
     lineSize: f32 = 0,
     hasGlyph: [256]bool = undefined,
     rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
+    isEmbedded: bool = false,
 
     meshes: [256][4]Vector2 = undefined,
     glyphCoordinates: [256][2]Vector2 = undefined,
@@ -52,6 +53,39 @@ pub const FontAtlas = struct {
         }
 
         return buf;
+    }
+
+    const defaultFontEmbed = @embedFile("fonts/Roboto-Regular.ttf");
+    const defaultMonoEmbed = @embedFile("fonts/FiraMono-Medium.ttf");
+
+    pub fn initMonoFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
+        return try initEmbeddedFont(allocator, defaultMonoEmbed, fontSize);
+    }
+
+    pub fn initDefaultFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
+        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize);
+    }
+
+    pub fn initEmbeddedFont(allocator: std.mem.Allocator, fontContent: []const u8, fontSize: f32) !@This() {
+        var self = @This(){
+            .allocator = allocator,
+            .filePath = "embedded_file",
+            .fileContent = fontContent,
+            .atlasBuffer = null,
+            .fontSize = fontSize,
+            .isSDF = true,
+            .isEmbedded = true,
+        };
+
+        _ = c.stbtt_InitFont(
+            &self.font,
+            self.fileContent.ptr,
+            c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0),
+        );
+
+        try self.createAtlas();
+
+        return self;
     }
 
     pub fn initFromFileSDF(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
@@ -245,6 +279,7 @@ pub const FontAtlas = struct {
         if (self.atlasBuffer != null) {
             self.allocator.free(self.atlasBuffer.?);
         }
-        self.allocator.free(self.fileContent);
+        if (!self.isEmbedded)
+            self.allocator.free(self.fileContent);
     }
 };

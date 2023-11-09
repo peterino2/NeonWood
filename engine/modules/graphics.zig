@@ -84,13 +84,26 @@ pub fn setStartupSettings(comptime field: []const u8, value: anytype) void {
 }
 
 pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
-    var file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
-    const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.alignedAlloc(u8, 4, filesize);
-    try file.reader().readNoEof(buffer);
+    core.engine_log("loading path {s}", .{path});
+    const search_prefixes: []const []const u8 = &.{
+        "zig-out/shaders",
+        "shaders",
+    };
 
-    var rv: []u32 = undefined;
-    rv.ptr = @as([*]u32, @ptrCast(@alignCast(buffer.ptr)));
-    rv.len = buffer.len / 4;
-    return rv;
+    var s_path: [4096]u8 = undefined;
+
+    for (search_prefixes) |prefix| {
+        var s = try std.fmt.bufPrint(&s_path, "{s}/{s}", .{ prefix, path });
+        var file = std.fs.cwd().openFile(s, .{ .mode = .read_only }) catch continue;
+        const filesize = (try file.stat()).size;
+        var buffer: []u8 = try allocator.alignedAlloc(u8, 4, filesize);
+        try file.reader().readNoEof(buffer);
+
+        var rv: []u32 = undefined;
+        rv.ptr = @as([*]u32, @ptrCast(@alignCast(buffer.ptr)));
+        rv.len = buffer.len / 4;
+        return rv;
+    }
+
+    return error.FileNotFound;
 }
