@@ -188,11 +188,11 @@ test "basic bmp renderer test" {
     var timer = try std.time.Timer.start();
 
     const startTime = timer.read();
-    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ShareTechMono-Regular.ttf", 36);
+    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/FiraMono-Medium.ttf", 36);
     try atlas.dumpBufferToFile("Saved/atlas.bmp");
     defer atlas.deinit();
 
-    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/ProggyClean.ttf", 36);
+    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/Robot-Regular.ttf", 36);
     try atlas2.dumpBufferToFile("Saved/ProggyClean.bmp");
     defer atlas2.deinit();
 
@@ -246,17 +246,17 @@ test "dynamic pool test" {
 
 test "sdf fontAtlas generation" {
     var allocator = std.testing.allocator;
-    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/ShareTechMono-Regular.ttf", 128);
+    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/FiraMono-Medium.ttf", 128);
     defer atlas.deinit();
 
-    try atlas.dumpBufferToFile("Saved/ComicMonoSDF.bmp");
+    try atlas.dumpBufferToFile("Saved/FiraMono.bmp");
 }
 
 test "sdf texture generation" {
     var allocator = std.testing.allocator;
     var font: c.stbtt_fontinfo = undefined;
 
-    var fileContent = try utils.loadFileAlloc("fonts/ComicMono.ttf", 8, allocator);
+    var fileContent = try utils.loadFileAlloc("fonts/FiraMono-Medium.ttf", 8, allocator);
     defer allocator.free(fileContent);
 
     _ = c.stbtt_InitFont(&font, fileContent.ptr, c.stbtt_GetFontOffsetForIndex(fileContent.ptr, 0));
