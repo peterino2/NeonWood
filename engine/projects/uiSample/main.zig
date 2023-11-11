@@ -16,12 +16,10 @@ pub const GameContext = struct {
 
     text: NodeHandle = .{},
     fps: NodeHandle = .{},
-    mousePosition: NodeHandle = .{},
     panel: NodeHandle = .{},
     time: f64 = 0,
 
     fpsText: ?[]u8 = null,
-    mousePositionText: ?[]u8 = null,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         var self = try allocator.create(@This());
@@ -31,10 +29,6 @@ pub const GameContext = struct {
 
     pub fn deinit(self: *@This()) void {
         if (self.fpsText) |text| {
-            self.allocator.free(text);
-        }
-
-        if (self.mousePositionText) |text| {
             self.allocator.free(text);
         }
     }
@@ -51,19 +45,10 @@ pub const GameContext = struct {
         }
         self.fpsText = std.fmt.allocPrint(self.allocator, "fps: {d:.2}", .{1.0 / dt}) catch unreachable;
 
-        const inputState = nw.platform.getInstance().inputState;
-
-        var mouse = inputState.mousePos;
-        if (self.mousePositionText) |t| {
-            self.allocator.free(t);
-        }
-        self.mousePositionText = std.fmt.allocPrint(self.allocator, "mousePosition: {d:.2} {d:.2}", .{ mouse.x, mouse.y }) catch unreachable;
-
         var ctx = ui.getContext();
 
         // holy crap that's bad i need a better way to automate this.
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
-        ctx.get(self.mousePosition).text = ui.papyrus.LocText.fromUtf8(self.mousePositionText.?);
     }
 
     pub fn prepare_game(self: *@This()) !void {
@@ -89,16 +74,6 @@ pub const GameContext = struct {
         try ctx.events.installMouseOverEvent(self.panel, .mouseOver, &onMouseOver);
         try ctx.events.installMouseOverEvent(self.panel, .mouseOff, &onMouseOff);
 
-        self.mousePosition = try ctx.addText(self.panel, "sampletext");
-        {
-            var widget = ctx.get(self.mousePosition);
-            widget.style.foregroundColor = ui.papyrus.ModernStyle.Orange;
-            widget.pos = .{ .x = -300, .y = 12 };
-            widget.size = .{ .x = 1400, .y = 500 };
-            widget.anchor = .TopRight;
-            // widget.state = .Hidden;
-        }
-
         const fps = try ctx.addText(self.panel, "fps: {}");
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
         ctx.get(fps).pos = .{ .x = 32, .y = 12 };
@@ -110,6 +85,7 @@ pub const GameContext = struct {
         ctx.get(unk).size = .{ .x = 800, .y = 900 };
         ctx.get(unk).style.borderColor = BurnStyle.Diminished;
         ctx.get(unk).style.backgroundColor = BurnStyle.LightGrey;
+        ctx.getPanel(unk).hasTitle = true;
 
         try ctx.events.installMouseOverEvent(unk, .mouseOver, &onMouseOver);
         try ctx.events.installMouseOverEvent(unk, .mouseOff, &onMouseOff);
