@@ -1,5 +1,8 @@
 const std = @import("std");
-const HashStr = @import("HashStr.zig");
+const core = @import("root").neonwood.core;
+
+const Name = core.Name;
+const MakeName = core.Name;
 
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{});
@@ -59,11 +62,6 @@ pub const FileLog = struct {
         self.buffer.deinit();
     }
 };
-
-pub fn MakeHash(comptime utf8: []const u8) HashStr {
-    @setEvalBranchQuota(100000);
-    return comptime HashStr.fromUtf8(utf8);
-}
 
 pub fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
     if (!eval) {

@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const HashStr = @import("HashStr.zig");
+const core = @import("root").neonwood.core;
+const Name = core.Name;
 
 pub var gLocDbRef: ?*anyopaque = null;
 pub var gLocDbInterface: *LocDbInterface = undefined;
@@ -14,7 +15,7 @@ pub const LocDbErrors = error{
 pub const LocDbInterface = struct {
 
     // Fetches the localized version of the string if it exists
-    setLocalization: *const fn (*anyopaque, HashStr) LocDbErrors!void,
+    setLocalization: *const fn (*anyopaque, Name) LocDbErrors!void,
     getLocalized: *const fn (*anyopaque, u32) ?[]const u8,
     createEntry: *const fn (*anyopaque, u32, []const u8) LocDbErrors!u32,
 
@@ -30,7 +31,7 @@ pub const LocDbInterface = struct {
                 try ptr.createEntry(key, source);
             }
 
-            pub fn setLocalization(pointer: *anyopaque, name: HashStr) LocDbErrors!void {
+            pub fn setLocalization(pointer: *anyopaque, name: Name) LocDbErrors!void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.setLocalization(name);
             }

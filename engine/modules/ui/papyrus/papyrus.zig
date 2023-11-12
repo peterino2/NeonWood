@@ -12,7 +12,6 @@ pub const PapyrusFont = @import("PapyrusFont.zig");
 pub const FontAtlas = PapyrusFont.FontAtlas;
 pub const BmpRenderer = @import("BmpRenderer.zig");
 pub const BmpWriter = BmpRenderer.BmpWriter;
-pub const HashStr = @import("HashStr.zig");
 
 pub const colors = @import("colors.zig");
 pub const Color = colors.Color;
@@ -36,6 +35,7 @@ pub const DynamicPool = pool.DynamicPool;
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
+const Name = core.Name;
 
 pub const NodeHandle = pool.Handle;
 
@@ -270,11 +270,11 @@ pub const PapyrusContext = struct {
             .fonts = std.AutoHashMap(u32, PapyrusFont).init(allocator),
             .events = PapyrusEvent.init(allocator),
             .fallbackFont = PapyrusFont{
-                .name = HashStr.fromUtf8(fallbackFontName),
+                .name = Name.fromUtf8(fallbackFontName),
                 .atlas = try allocator.create(FontAtlas),
             },
             .defaultMonoFont = PapyrusFont{
-                .name = HashStr.fromUtf8(defaultMonoName),
+                .name = Name.fromUtf8(defaultMonoName),
                 .atlas = try allocator.create(FontAtlas),
             },
             ._drawOrder = DrawOrderList.init(allocator),
@@ -344,7 +344,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
-        const name = HashStr.fromUtf8(fontName);
+        const name = Name.fromUtf8(fontName);
         try self.fonts.put(name.hash, .{ .atlas = atlas, .name = name });
     }
 
@@ -357,14 +357,14 @@ pub const PapyrusContext = struct {
     }
 
     pub fn setFont(self: *@This(), handle: NodeHandle, font: []const u8) void {
-        const name = HashStr.fromUtf8(font);
+        const name = Name.fromUtf8(font);
 
         switch (self.nodes.get(handle).?.nodeType) {
             .DisplayText => {
                 var text = &(self.nodes.get(handle).?.nodeType.DisplayText);
                 text.font = .{
                     .name = name,
-                    .atlas = (self.fonts.get(name.hash) orelse self.fonts.get(HashStr.fromUtf8("default").hash).?).atlas,
+                    .atlas = (self.fonts.get(name.hash) orelse self.fonts.get(Name.fromUtf8("default").hash).?).atlas,
                 };
             },
             .Panel => {

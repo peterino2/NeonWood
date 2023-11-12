@@ -4,19 +4,19 @@ const c = @import("c.zig");
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
+const Name = core.Name;
 
 const colors = @import("colors.zig");
 const ColorRGBA8 = colors.ColorRGBA8;
 const Color = colors.Color;
 
 const LocText = @import("localization.zig").LocText;
-const HashStr = @import("HashStr.zig");
 
 const utils = @import("utils.zig");
 const loadFileAlloc = utils.loadFileAlloc;
 const BmpWriter = @import("BmpRenderer.zig").BmpWriter;
 
-name: HashStr,
+name: Name,
 atlas: *FontAtlas,
 
 pub const FontAtlas = struct {
