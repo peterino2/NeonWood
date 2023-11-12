@@ -186,10 +186,9 @@ pub const DisplayText = struct {
                 continue;
             }
 
-            const Vector2 = papyrus.Vector2;
-            const box = Vector2.fromVector2i(atlas.glyphBox1[ch]).fmul(ratio);
-            const metrics = Vector2.fromVector2i(atlas.glyphMetrics[ch]).fmul(ratio);
-            const baseMetrics = Vector2.fromVector2i(atlas.glyphMetrics[ch]);
+            const box = Vector2f.from(atlas.glyphBox1[ch]).fmul(ratio);
+            const metrics = Vector2f.from(atlas.glyphMetrics[ch]).fmul(ratio);
+            const baseMetrics = Vector2f.from(atlas.glyphMetrics[ch]);
             const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
 
             const uv_tl = atlas.glyphCoordinates[ch][0];

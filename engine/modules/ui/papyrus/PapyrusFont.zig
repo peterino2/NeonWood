@@ -1,9 +1,9 @@
 const std = @import("std");
 const c = @import("c.zig");
 
-const vectors = @import("vectors.zig");
-const Vector2i = vectors.Vector2i;
-const Vector2 = vectors.Vector2;
+const core = @import("root").neonwood.core;
+const Vector2i = core.Vector2i;
+const Vector2f = core.Vector2f;
 
 const colors = @import("colors.zig");
 const ColorRGBA8 = colors.ColorRGBA8;
@@ -39,8 +39,8 @@ pub const FontAtlas = struct {
     rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
     isEmbedded: bool = false,
 
-    meshes: [256][4]Vector2 = undefined,
-    glyphCoordinates: [256][2]Vector2 = undefined,
+    meshes: [256][4]Vector2f = undefined,
+    glyphCoordinates: [256][2]Vector2f = undefined,
 
     pub fn makeBitmapRGBA(self: @This(), allocator: std.mem.Allocator) ![]u8 {
         var buf = try allocator.alloc(u8, self.atlasBuffer.?.len * 4);

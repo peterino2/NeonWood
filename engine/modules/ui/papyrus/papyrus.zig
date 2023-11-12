@@ -33,9 +33,9 @@ pub const MakeText = localization.MakeText;
 const pool = @import("pool.zig");
 pub const DynamicPool = pool.DynamicPool;
 
-const vectors = @import("vectors.zig");
-pub const Vector2i = vectors.Vector2i;
-pub const Vector2 = vectors.Vector2;
+const core = @import("root").neonwood.core;
+const Vector2i = core.Vector2i;
+const Vector2f = core.Vector2f;
 
 pub const NodeHandle = pool.Handle;
 
@@ -159,10 +159,10 @@ pub const NodePropertiesBag = union(enum(u8)) {
 };
 
 pub const NodePadding = union(enum(u8)) {
-    topLeft: Vector2,
-    botLeft: Vector2,
+    topLeft: Vector2f,
+    botLeft: Vector2f,
     all: f32,
-    allSides: [2]Vector2,
+    allSides: [2]Vector2f,
 };
 
 pub const PapyrusNodeStyle = struct {
@@ -190,8 +190,8 @@ pub const PapyrusNode = struct {
 
     // Resolutions and scalings are a real headspinner
     // DPI awareness and content scaling is also a huge problem.
-    size: Vector2 = .{ .x = 0, .y = 0 },
-    pos: Vector2 = .{ .x = 0, .y = 0 },
+    size: Vector2f = .{ .x = 0, .y = 0 },
+    pos: Vector2f = .{ .x = 0, .y = 0 },
     anchor: PapyrusAnchorNode = .TopLeft,
     fill: PapyrusFillMode = .None,
 
@@ -207,7 +207,7 @@ pub const PapyrusNode = struct {
 
     nodeType: NodePropertiesBag,
 
-    pub fn getSize(self: @This()) Vector2 {
+    pub fn getSize(self: @This()) Vector2f {
         _ = self;
         return .{};
     }
@@ -215,8 +215,8 @@ pub const PapyrusNode = struct {
 
 // final resolved size
 const LayoutInfo = struct {
-    pos: Vector2,
-    size: Vector2,
+    pos: Vector2f,
+    size: Vector2f,
 };
 
 pub const PapyrusContext = struct {
@@ -227,7 +227,7 @@ pub const PapyrusContext = struct {
     fallbackFont: PapyrusFont,
     defaultMonoFont: PapyrusFont,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
-    currentCursorPosition: Vector2 = .{},
+    currentCursorPosition: Vector2f = .{},
 
     mousePick: PapyrusLayout,
 
@@ -530,8 +530,8 @@ pub const PapyrusContext = struct {
         node: NodeHandle,
         primitive: union(enum(u8)) {
             Rect: struct {
-                tl: Vector2,
-                size: Vector2,
+                tl: Vector2f,
+                size: Vector2f,
                 borderColor: Color,
                 backgroundColor: Color,
                 rounding: struct {
@@ -542,8 +542,8 @@ pub const PapyrusContext = struct {
                 } = .{},
             },
             Text: struct {
-                tl: Vector2,
-                size: Vector2,
+                tl: Vector2f,
+                size: Vector2f,
                 text: LocText,
                 color: Color,
                 textSize: f32,
@@ -591,11 +591,11 @@ pub const PapyrusContext = struct {
     }
 
     const PosSize = struct {
-        pos: Vector2,
-        size: Vector2,
+        pos: Vector2f,
+        size: Vector2f,
     };
 
-    fn resolveAnchoredPosition(parent: PosSize, node: *const PapyrusNode) Vector2 {
+    fn resolveAnchoredPosition(parent: PosSize, node: *const PapyrusNode) Vector2f {
         switch (node.anchor) {
             .Free => {
                 return node.pos;
@@ -636,7 +636,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn resolveAnchoredSize(parent: PosSize, node: *const PapyrusNode) Vector2 {
+    fn resolveAnchoredSize(parent: PosSize, node: *const PapyrusNode) Vector2f {
         switch (node.fill) {
             .None => {
                 return node.size;
@@ -648,7 +648,7 @@ pub const PapyrusContext = struct {
                 return .{ .x = node.size.x, .y = node.size.y * parent.size.y };
             },
             .FillXY => {
-                return node.size.mul(parent.size);
+                return node.size.vmul(parent.size);
             },
         }
     }
@@ -664,7 +664,7 @@ pub const PapyrusContext = struct {
         var layout = std.AutoHashMap(NodeHandle, PosSize).init(self.allocator);
         defer layout.deinit();
 
-        try layout.put(.{}, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2.fromVector2i(self.extent) });
+        try layout.put(.{}, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2f.from(self.extent) });
 
         drawList.clearRetainingCapacity();
 
@@ -725,8 +725,8 @@ pub const PapyrusContext = struct {
                         } });
 
                         try layout.put(node, .{
-                            .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2.Ones),
-                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2.Ones),
+                            .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
+                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2f.Ones),
                         });
                     } else {
                         try drawList.append(.{ .node = node, .primitive = .{
@@ -739,8 +739,8 @@ pub const PapyrusContext = struct {
                         } });
 
                         try layout.put(node, .{
-                            .pos = resolvedPos.add(Vector2.Ones),
-                            .size = resolvedSize.add(Vector2.Ones),
+                            .pos = resolvedPos.add(Vector2f.Ones),
+                            .size = resolvedSize.add(Vector2f.Ones),
                         });
                     }
                 },
@@ -757,8 +757,8 @@ pub const PapyrusContext = struct {
                     } });
 
                     try layout.put(node, .{
-                        .pos = resolvedPos.add(Vector2.Ones),
-                        .size = resolvedSize.add(Vector2.Ones),
+                        .pos = resolvedPos.add(Vector2f.Ones),
+                        .size = resolvedSize.add(Vector2f.Ones),
                     });
                 },
                 .Slot, .Button => {},
@@ -876,7 +876,7 @@ pub const PapyrusContext = struct {
     }
 
     // Sets the current cursor location
-    pub fn setCursorLocation(self: *@This(), position: Vector2) void {
+    pub fn setCursorLocation(self: *@This(), position: Vector2f) void {
         self.currentCursorPosition = position;
     }
 };

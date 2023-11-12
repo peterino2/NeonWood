@@ -1,8 +1,9 @@
 const std = @import("std");
 const PapyrusContext = @import("papyrus.zig").PapyrusContext;
 
-const vectors = @import("vectors.zig");
-const Vector2i = vectors.Vector2i;
+const core = @import("root").neonwood.core;
+const Vector2i = core.Vector2i;
+const Vector2 = core.Vector2;
 
 const colors = @import("colors.zig");
 const ColorRGBA8 = colors.ColorRGBA8;

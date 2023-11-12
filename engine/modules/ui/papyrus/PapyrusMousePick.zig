@@ -4,10 +4,10 @@ const papyrus = @import("papyrus.zig");
 const PapyrusContext = papyrus.PapyrusContext;
 const EventType = PapyrusContext.EventType;
 
-const vectors = @import("vectors.zig");
+const core = @import("root").neonwood.core;
+const Vector2i = core.Vector2i;
+const Vector2f = core.Vector2f;
 
-const Vector2i = vectors.Vector2i;
-const Vector2 = vectors.Vector2;
 const colors = @import("colors.zig");
 const Color = colors.Color;
 
@@ -21,7 +21,7 @@ pub fn init(allocator: std.mem.Allocator) @This() {
     };
 }
 
-fn intersect(position: Vector2, topLeft: Vector2, size: Vector2) bool {
+fn intersect(position: Vector2f, topLeft: Vector2f, size: Vector2f) bool {
     if (position.x > topLeft.x and position.x < topLeft.x + size.x and position.y > topLeft.y and position.y < topLeft.y + size.y) {
         return true;
     }

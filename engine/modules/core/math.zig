@@ -1,11 +1,7 @@
 const std = @import("std");
 const misc = @import("misc.zig");
-const logging = @import("logging.zig");
-const algorithm = @import("lib/p2/algorithm.zig");
 const zm = @import("lib/zmath/zmath.zig");
 const math = std.math;
-
-// super ghetto math library
 
 pub const Rayf = RayType(f32);
 
@@ -61,6 +57,9 @@ pub fn Vector2Type(comptime T: type) type {
         x: T = 0,
         y: T = 0,
 
+        pub const Ones = @This(){ .x = 1, .y = 1 };
+        pub const Zeroes = @This(){ .x = 0, .y = 0 };
+
         pub inline fn new(x: T, y: T) @This() {
             return .{
                 .x = x,
@@ -68,32 +67,48 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
-        pub inline fn zero() @This() {
-            return .{
-                .x = 0.0,
-                .y = 0.0,
-            };
-        }
-
-        pub inline fn add(self: @This(), other: anytype) @This() {
+        pub inline fn add(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x + other.x,
                 .y = self.y + other.y,
             };
         }
 
-        pub inline fn sub(self: @This(), other: anytype) @This() {
+        pub inline fn sub(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x - other.x,
                 .y = self.y - other.y,
             };
         }
 
-        pub inline fn fmul(self: @This(), other: anytype) @This() {
+        pub inline fn vmul(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x * other.x,
                 .y = self.y * other.y,
             };
+        }
+
+        pub inline fn fmul(self: @This(), other: T) @This() {
+            return .{
+                .x = self.x * other,
+                .y = self.y * other,
+            };
+        }
+
+        pub inline fn dot(self: @This(), other: @This()) T {
+            return self.x * other.x + self.y * other.y;
+        }
+
+        pub inline fn equals(self: @This(), other: @This()) bool {
+            return self.x == other.x and self.y == other.y and self.z == other.z;
+        }
+
+        pub inline fn length(self: @This()) T {
+            return std.math.sqrt(self.x * self.x + self.y * self.y);
+        }
+
+        pub inline fn swizzleYX(self: @This()) @This() {
+            return .{ .x = self.y, .y = self.x };
         }
 
         pub inline fn normalize(self: @This()) @This() {
@@ -111,16 +126,57 @@ pub fn Vector2Type(comptime T: type) type {
             };
         }
 
-        pub inline fn dot(self: @This(), other: @This()) T {
-            return self.x * other.x + self.y * other.y;
-        }
-
-        pub inline fn length(self: @This()) T {
-            return std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
-        }
-
-        pub inline fn swizzleYX(self: @This()) @This() {
-            return .{ .x = self.y, .y = self.x };
+        pub inline fn from(o: anytype) @This() {
+            const OType: std.builtin.Type = @typeInfo(@TypeOf(o.x));
+            switch (@typeInfo(T)) {
+                .Int => {
+                    switch (OType) {
+                        .Int => {
+                            // convert integer into integer
+                            return .{
+                                .x = @intCast(o.x),
+                                .y = @intCast(o.y),
+                            };
+                        },
+                        .Float => {
+                            // convert float into float
+                            return .{
+                                .x = @intFromFloat(o.x),
+                                .y = @intFromFloat(o.y),
+                            };
+                        },
+                        else => {
+                            @compileError("Invalid vector type conversion");
+                        },
+                    }
+                },
+                .Float => {
+                    switch (OType) {
+                        .Int => {
+                            // convert integer into float
+                            return .{
+                                .x = @floatFromInt(o.x),
+                                .y = @floatFromInt(o.y),
+                            };
+                        },
+                        .Float => {
+                            // convert float
+                            return .{
+                                .x = @floatCast(o.x),
+                                .y = @floatCast(o.y),
+                            };
+                        },
+                        else => {
+                            // convert float into float
+                            @compileError("Invalid vector type conversion");
+                        },
+                    }
+                },
+                else => {
+                    @compileError("Invalid vector type conversion");
+                },
+            }
+            @compileError("Invalid vector conversion");
         }
     };
 }
@@ -130,6 +186,9 @@ pub fn Vector3Type(comptime T: type) type {
         x: T = 0,
         y: T = 0,
         z: T = 0,
+
+        pub const Ones = @This(){ .x = 1, .y = 1, .z = 1 };
+        pub const Zeroes = @This(){ .x = 0, .y = 0, .z = 0 };
 
         pub inline fn new(x: T, y: T, z: T) @This() {
             return .{
@@ -163,7 +222,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub inline fn vmul(self: @This(), other: anytype) @This() {
+        pub inline fn vmul(self: @This(), other: @This()) @This() {
             return .{
                 .x = self.x * other.x,
                 .y = self.y * other.y,
@@ -171,7 +230,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub inline fn fmul(self: @This(), other: anytype) @This() {
+        pub inline fn fmul(self: @This(), other: T) @This() {
             return .{
                 .x = self.x * other,
                 .y = self.y * other,
@@ -179,16 +238,36 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub inline fn equals(self: @This(), other: anytype) bool {
-            return self.x == other.x and self.y == self.y and self.z == self.z;
+        pub inline fn dot(self: @This(), other: T) T {
+            return self.x * other.x + self.y * other.y;
         }
 
-        pub inline fn zero() @This() {
-            return .{ .x = 0, .y = 0, .z = 0 };
+        pub inline fn equals(self: @This(), other: @This()) bool {
+            return self.x == other.x and self.y == self.y and self.z == self.z;
         }
 
         pub inline fn length(self: @This()) T {
             return std.math.sqrt(self.x * self.x + self.z * self.z + self.y * self.y);
+        }
+
+        pub inline fn swizzleYZX(self: @This()) @This() {
+            return .{ .x = self.y, .y = self.z, .z = self.x };
+        }
+
+        pub inline fn swizzleYXZ(self: @This()) @This() {
+            return .{ .x = self.y, .y = self.x, .z = self.z };
+        }
+
+        pub inline fn swizzleZXY(self: @This()) @This() {
+            return .{ .x = self.z, .y = self.x, .z = self.y };
+        }
+
+        pub inline fn swizzleZYX(self: @This()) @This() {
+            return .{ .x = self.z, .y = self.y, .z = self.x };
+        }
+
+        pub inline fn swizzleXZY(self: @This()) @This() {
+            return .{ .x = self.x, .y = self.z, .z = self.y };
         }
 
         pub inline fn lengthXZ(self: @This()) T {
@@ -210,6 +289,63 @@ pub fn Vector3Type(comptime T: type) type {
                 .z = self.z / len,
             };
         }
+
+        pub inline fn from(o: anytype) @This() {
+            const OType: std.builtin.Type = @typeInfo(@TypeOf(o.x));
+            switch (@typeInfo(T)) {
+                .Int => {
+                    switch (OType) {
+                        .Int => {
+                            // convert integer into integer
+                            return .{
+                                .x = @intCast(o.x),
+                                .y = @intCast(o.y),
+                                .z = @intCast(o.z),
+                            };
+                        },
+                        .Float => {
+                            // convert float into float
+                            return .{
+                                .x = @intFromFloat(o.x),
+                                .y = @intFromFloat(o.y),
+                                .z = @intFromFloat(o.z),
+                            };
+                        },
+                        else => {
+                            @compileError("Invalid vector type conversion");
+                        },
+                    }
+                },
+                .Float => {
+                    switch (OType) {
+                        .Int => {
+                            // convert integer into float
+                            return .{
+                                .x = @floatFromInt(o.x),
+                                .y = @floatFromInt(o.y),
+                                .z = @floatFromInt(o.z),
+                            };
+                        },
+                        .Float => {
+                            // convert float
+                            return .{
+                                .x = @floatCast(o.x),
+                                .y = @floatCast(o.y),
+                                .z = @floatCast(o.z),
+                            };
+                        },
+                        else => {
+                            // convert float into float
+                            @compileError("Invalid vector type conversion");
+                        },
+                    }
+                },
+                else => {
+                    @compileError("Invalid vector type conversion");
+                },
+            }
+            @compileError("Invalid vector conversion");
+        }
     };
 }
 
@@ -219,6 +355,13 @@ pub fn Vector4Type(comptime T: type) type {
         y: T = 0,
         z: T = 0,
         w: T = 0,
+
+        pub const Ones = @This(){ .x = 1, .y = 1, .z = 1 };
+        pub const Zeroes = @This(){ .x = 0, .y = 0, .z = 0 };
+
+        pub inline fn from(o: anytype) @This() {
+            return .{ .x = o.x, .y = o.y, .z = o.z, .w = o.w };
+        }
 
         pub inline fn new(x: T, y: T, z: T, w: T) @This() {
             return .{
