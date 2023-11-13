@@ -153,7 +153,6 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     var stagingBuffer = try stagePixels(pngContents, ctx);
 
-    // todo. use newVkImage here instead of this custom code.
     var imageExtent = vk.Extent3D{
         .width = @as(u32, @intCast(pngContents.size.x)),
         .height = @as(u32, @intCast(pngContents.size.y)),
