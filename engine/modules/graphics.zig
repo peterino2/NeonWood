@@ -107,3 +107,8 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
 
     return error.FileNotFound;
 }
+
+// the REAL renderer
+pub fn start_module_rend(allocator: std.mem.Allocator) void {
+    _ = allocator;
+}

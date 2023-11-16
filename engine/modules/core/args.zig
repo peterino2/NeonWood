@@ -2,21 +2,21 @@
 
 const std = @import("std");
 
-pub fn ParseArgs(comptime T: type, argList: []const []const u8) !T {
+pub fn ParseArgs(comptime T: type) !T {
+    var iter = std.process.args();
     var args: T = .{};
+
     var shortBuf: [32]u8 = undefined;
     _ = shortBuf;
+
     var longBuf: [256]u8 = undefined;
 
-    var i: u32 = 0;
-    while (i < argList.len) {
-        var a = argList[i];
-
+    while (iter.next()) |a| {
         inline for (@typeInfo(T).Struct.fields) |field| {
             var longRef = try std.fmt.bufPrint(&longBuf, "--{s}", .{field.name});
 
             if (std.mem.startsWith(u8, a, longRef)) {
-                // check if it has more arguments.
+                // check if it has a value argument
                 if (a.len > longRef.len) {
                     if (a[longRef.len] == '=' and a.len > longRef.len + 1) {
                         var right = a[longRef.len + 1 ..];
@@ -25,11 +25,21 @@ pub fn ParseArgs(comptime T: type, argList: []const []const u8) !T {
                                 if (std.mem.eql(u8, right, "true") or
                                     std.mem.eql(u8, right, "t") or
                                     std.mem.eql(u8, right, "True") or
+                                    std.mem.eql(u8, right, "TRUE") or
                                     std.mem.eql(u8, right, "T") or
                                     std.mem.eql(u8, right, "1"))
                                 {
                                     @field(args, field.name) = true;
+                                } else if (std.mem.eql(u8, right, "false") or
+                                    std.mem.eql(u8, right, "f") or
+                                    std.mem.eql(u8, right, "False") or
+                                    std.mem.eql(u8, right, "FALSE") or
+                                    std.mem.eql(u8, right, "F") or
+                                    std.mem.eql(u8, right, "0"))
+                                {
+                                    @field(args, field.name) = false;
                                 } else {
+                                    std.debug.print("Error parsing: non-boolean argument", .{});
                                     @field(args, field.name) = false;
                                 }
                             },
@@ -42,7 +52,6 @@ pub fn ParseArgs(comptime T: type, argList: []const []const u8) !T {
                             .Pointer => |pointer| {
                                 switch (pointer.size) {
                                     .Slice => {
-                                        // i'm just going to assume that it's a u8 slice, i don't support other types here.
                                         @field(args, field.name) = right;
                                     },
                                     else => {
@@ -70,7 +79,6 @@ pub fn ParseArgs(comptime T: type, argList: []const []const u8) !T {
                         .Pointer => |pointer| {
                             switch (pointer.size) {
                                 .Slice => {
-                                    // i'm just going to assume that it's a u8 slice, i don't support other types here.
                                     std.debug.print("Error parsing arguments: Expected value '{s}'\n", .{a});
                                     return error.MalformedArgument;
                                 },
@@ -87,11 +95,23 @@ pub fn ParseArgs(comptime T: type, argList: []const []const u8) !T {
                 break;
             }
         }
-
-        i += 1;
     }
 
     return args;
+}
+
+pub fn main() !void {
+    const A = struct {
+        foo: f32 = 0,
+        bar: i32 = 0,
+        baz: bool = false,
+        test_file: []const u8 = "",
+    };
+
+    var iter = std.process.args();
+    var args = try ParseArgs(A, &iter);
+
+    std.debug.print("A: {any}", .{args});
 }
 
 test "test args" {

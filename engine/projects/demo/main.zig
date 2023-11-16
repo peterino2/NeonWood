@@ -352,10 +352,16 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const allocator = gpa.allocator();
-    //const allocator = std.heap.c_allocator;
+    var allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
+
+    var args = try neonwood.getArgs();
+
+    if (args.useGPA) {
+        core.engine_logs("Using GPA allocator");
+        allocator = gpa.allocator();
+    }
 
     core.start_module(allocator);
     defer core.shutdown_module(allocator);

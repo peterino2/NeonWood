@@ -11,6 +11,7 @@ pub usingnamespace @import("core/lib/p2/algorithm.zig");
 const algorithm = @import("core/lib/p2/algorithm.zig");
 pub usingnamespace @import("core/math.zig");
 pub usingnamespace @import("core/string.zig");
+pub usingnamespace @import("core/args.zig");
 
 pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
