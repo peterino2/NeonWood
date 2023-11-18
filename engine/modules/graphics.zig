@@ -108,5 +108,5 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     return error.FileNotFound;
 }
 
-pub const rend = @import("core/rend_core.zig");
-pub usingnamespace @import("core/rend_core.zig");
+pub const rend = @import("graphics/rend_core.zig");
+pub usingnamespace @import("graphics/rend_core.zig");

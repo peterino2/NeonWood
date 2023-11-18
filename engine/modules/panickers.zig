@@ -39,9 +39,13 @@ fn handleSegfaultWindowsExtra(
     label: ?[]const u8,
 ) noreturn {
     const exception_address = @intFromPtr(info.ExceptionRecord.ExceptionAddress);
-    if (@hasDecl(windows, "CONTEXT")) {
+
+    if (!@hasDecl(windows, "CONTEXT")) {
         switch (msg) {
-            0 => std.debug.panicImpl(null, exception_address, "{s}", label.?),
+            0 => {
+                dumpSegfaultInfoWindows(info, msg, label);
+                os.abort();
+            },
             1 => {
                 const format_item = "Segmentation fault at address 0x{x}";
                 var buf: [format_item.len + 64]u8 = undefined; // 64 is arbitrary, but sufficiently large
@@ -51,6 +55,9 @@ fn handleSegfaultWindowsExtra(
             2 => std.debug.panicImpl(null, exception_address, "Illegal Instruction"),
             else => unreachable,
         }
+    } else {
+        dumpSegfaultInfoWindows(info, msg, label);
+        os.abort();
     }
 }
 
