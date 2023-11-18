@@ -44,15 +44,16 @@ pub const TextureLoader = struct {
             gc: *NeonVkContext,
             properties: assets.AssetPropertiesBag,
 
-            pub fn func(ctx: @This(), job: *core.JobContext) void {
-                _ = job;
+            pub fn func(ctx: @This(), currentWorker: *core.JobContext) void {
+                _ = currentWorker;
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
-                // I'm like 99% sure theres a memory leak here if this raises an error
                 var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
 
                 tracy.Message(ctx.assetRef.name.utf8);
                 tracy.Message(ctx.properties.path);
+
+                core.engine_log("loaded: {d} from: {d}", .{ ctx.assetRef.name.utf8, ctx.properties.path });
                 var loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
                     .stagingResults = stagingResults,
@@ -89,7 +90,7 @@ pub const TextureLoader = struct {
                 tracy.Message(assetReady.assetRef.name.utf8);
                 tracy.Message(assetReady.properties.path);
 
-                //core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
+                core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
                 var image = assetReady.stagingResults.image;
 

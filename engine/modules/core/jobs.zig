@@ -45,8 +45,8 @@ pub const JobManager = struct {
         // 2. find a worker and pass it the job context if available
         for (self.workers) |worker| {
             if (!worker.isBusy()) {
-                worker.manager = self;
                 try worker.assignContext(ctx);
+                worker.manager = self;
                 return;
             }
         }

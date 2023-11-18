@@ -127,6 +127,7 @@ pub const LoggerSys = struct {
     consoleFile: std.fs.File,
     lock: std.Thread.Mutex = .{},
     flushLock: std.Thread.Mutex = .{},
+    flushing: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false),
 
     pub fn flush(self: *@This()) !void {
         var z = tracy.ZoneN(@src(), "Trying to flush");
@@ -135,7 +136,8 @@ pub const LoggerSys = struct {
         self.lock.lock();
         self.flushLock.lock();
 
-        {
+        if (!self.flushing.load(.Acquire)) {
+            self.flushing.store(true, .SeqCst);
             var swap = self.writeOutBuffer;
             self.writeOutBuffer = self.flushBuffer;
             self.flushBuffer = swap;
@@ -147,10 +149,13 @@ pub const LoggerSys = struct {
                     var z1 = tracy.ZoneN(@src(), "flushing output buffer");
                     defer z1.End();
                     ctx.loggerSys.flushFromJob() catch unreachable;
+                    ctx.loggerSys.flushing.store(false, .SeqCst);
                 }
             };
 
             try core.dispatchJob(L{ .loggerSys = self });
+        } else {
+            //self.flushWriteBuffer();
         }
 
         self.flushLock.unlock();
@@ -183,6 +188,7 @@ pub const LoggerSys = struct {
             if (flushBufferLen == 0) {
                 try self.flush();
             } else {
+                std.debug.print("write overloaded!! Forcing flush\n", .{});
                 try self.flushWriteBuffer();
             }
         }
@@ -230,7 +236,7 @@ pub const LoggerSys = struct {
 };
 
 pub fn forceFlush() void {
-    gLoggerSys.?.flushWriteBuffer() catch unreachable;
+    gLoggerSys.?.flushWriteBuffer() catch {};
 }
 
 pub fn setupLogging(engine: *core.Engine) !void {

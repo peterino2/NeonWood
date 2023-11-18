@@ -128,7 +128,10 @@ pub const NwBuildSystem = struct {
         );
         exe.addModule("main", mainModule);
 
-        self.b.installArtifact(exe);
+        const install = self.b.addInstallArtifact(exe, .{});
+        self.b.step("build-" ++ name, description).dependOn(&install.step);
+        //self.b.getInstallStep().dependOn(&install.step);
+        //self.b.installArtifact(exe);
         exe.linkLibC();
         exe.linkLibCpp();
 
@@ -153,7 +156,7 @@ pub const NwBuildSystem = struct {
         ui.addLib(self.b, exe, "modules/ui", self.cflags.items);
 
         const runCmd = self.b.addRunArtifact(exe);
-        runCmd.step.dependOn(self.b.getInstallStep());
+        runCmd.step.dependOn(&install.step);
         if (self.b.args) |args| {
             runCmd.addArgs(args);
         }
@@ -200,7 +203,6 @@ pub const NwBuildSystem = struct {
     }
 
     pub fn addShader(self: *@This(), exe: *std.build.CompileStep, name: []const u8, path: []const u8) void {
-        var shader = self.spirvGen.shader(path, name, .{ .embedFile = false });
-        exe.addModule(name, shader);
+        self.spirvGen.shader(exe, path, name, .{ .embedFile = false });
     }
 };

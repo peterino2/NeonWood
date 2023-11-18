@@ -9,6 +9,16 @@ const std = @import("std");
 
 const c = graphics.c;
 
+pub const NwArgs = struct {
+    useGPA: bool = false,
+};
+
+pub fn getArgs() !NwArgs {
+    var a = try core.ParseArgs(NwArgs);
+
+    return a;
+}
+
 pub fn start_everything(allocator: std.mem.Allocator, windowName: []const u8) !void {
     graphics.setWindowName(windowName);
     core.engine_log("Starting up", .{});
