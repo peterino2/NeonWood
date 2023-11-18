@@ -137,6 +137,7 @@ pub const Engine = struct {
     }
 
     pub fn run(self: *@This()) !void {
+        core.engine_logs("enigne loop started");
         const L = struct {
             engine: *Engine,
 

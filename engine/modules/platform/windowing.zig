@@ -189,7 +189,7 @@ pub const PlatformInstance = struct {
         var extensionsCount: u32 = 0;
         const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
 
-        core.engine_log("glfw has requested extensions: {d}", .{extensionsCount});
+        core.engine_log("glfw has requested the following extensions: {d}", .{extensionsCount});
         if (extensionsCount > 0) {
             var i: usize = 0;
             while (i < extensionsCount) : (i += 1) {
@@ -321,4 +321,18 @@ pub fn scrollCallback(_: ?*c.GLFWwindow, xoffset: c_int, yoffset: c_int) callcon
 
 pub fn keyCallback(_: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     pushEventSafe(.{ .key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods } });
+}
+
+pub fn getPlatformExtensions(allocator: std.mem.Allocator) !std.ArrayList([*:0]const u8) {
+    var rv = std.ArrayList([*:0]const u8).init(allocator);
+
+    var extCount: u32 = 0;
+    const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extCount);
+
+    for (0..extCount) |i| {
+        var x = @as([*]const [*:0]const u8, @ptrCast(extensions));
+        try rv.append(x[i]);
+    }
+
+    return rv;
 }

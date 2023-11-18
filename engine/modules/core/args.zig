@@ -3,7 +3,7 @@
 const std = @import("std");
 
 pub fn ParseArgs(comptime T: type) !T {
-    var iter = std.process.args();
+    var iter = try std.process.argsWithAllocator(std.heap.c_allocator);
     var args: T = .{};
 
     var shortBuf: [32]u8 = undefined;

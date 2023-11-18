@@ -5,8 +5,6 @@ const windows = std.os.windows;
 const core = @import("core.zig");
 
 fn handleSegfaultWindows(info: *windows.EXCEPTION_POINTERS) callconv(windows.WINAPI) c_long {
-    core.engine_logs("PANIC!!");
-    core.forceFlush();
     switch (info.ExceptionRecord.ExceptionCode) {
         windows.EXCEPTION_DATATYPE_MISALIGNMENT => handleSegfaultWindowsExtra(info, 0, "Unaligned Memory Access"),
         windows.EXCEPTION_ACCESS_VIOLATION => handleSegfaultWindowsExtra(info, 1, null),
@@ -39,7 +37,8 @@ fn handleSegfaultWindowsExtra(
     label: ?[]const u8,
 ) noreturn {
     const exception_address = @intFromPtr(info.ExceptionRecord.ExceptionAddress);
-
+    core.engine_logs("PANIC!!");
+    core.forceFlush();
     if (!@hasDecl(windows, "CONTEXT")) {
         switch (msg) {
             0 => {
