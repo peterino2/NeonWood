@@ -1,4 +1,4 @@
-//
+// -- birch --
 // I think it's about time Peterino's tackling rendering.
 //
 // My first REAL crack at making a gpu driven proper vulkan renderer.
@@ -67,4 +67,34 @@
 //              -> writes into NTW
 //
 //  renderer subsystems: in vulkan the order that command buffers appear determin the submission order.
-//
+
+const std = @import("std");
+
+const core = @import("../core.zig");
+const platform = @import("../platform.zig");
+
+const vkc = @import("vk_constants.zig");
+
+const RhiCore = struct {
+    pub fn create(allocator: std.mem.Allocator) !@This() {
+        var self = try allocator.create(@This());
+        self.allocator = allocator;
+        try self.init();
+
+        return self;
+    }
+
+    pub fn destroy(allocator: std.mem.Allocator) void {
+        try allocator.destroy(@This());
+    }
+
+    pub fn init(self: *@This()) !void {
+        try self.initApi();
+    }
+
+    pub fn initApi(self: *@This()) !void {
+        self.vkb = try vkc.BaseDispatch.load(platform.vkLoadFunc);
+    }
+};
+
+// 1. initialize API

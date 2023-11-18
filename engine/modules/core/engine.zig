@@ -63,8 +63,7 @@ pub const Engine = struct {
     pub fn deinit(self: *@This()) void {
         self.jobManager.deinit();
         for (self.rttiObjects.items) |item| {
-            if(item.vtable.deinit_func)|deinitFn|
-            {
+            if (item.vtable.deinit_func) |deinitFn| {
                 deinitFn(item.ptr);
             }
         }

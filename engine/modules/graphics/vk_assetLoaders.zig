@@ -44,8 +44,8 @@ pub const TextureLoader = struct {
             gc: *NeonVkContext,
             properties: assets.AssetPropertiesBag,
 
-            pub fn func(ctx: @This(), job: *core.JobContext) void {
-                _ = job;
+            pub fn func(ctx: @This(), currentWorker: *core.JobContext) void {
+                _ = currentWorker;
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
                 var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;

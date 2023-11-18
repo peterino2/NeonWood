@@ -107,6 +107,12 @@ pub const PlatformInstance = struct {
         self.handlers.deinit();
         self.gameInput.deinit();
         self.allocator.destroy(self.gameInput);
+
+        for (self.listeners.items) |listener| {
+            _ = listener;
+        }
+
+        self.listeners.deinit();
     }
 
     pub fn init(
