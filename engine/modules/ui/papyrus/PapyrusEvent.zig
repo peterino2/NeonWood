@@ -6,8 +6,8 @@ const PapyrusContext = papyrus.PapyrusContext;
 
 const RingQueueU = @import("RingQueue.zig").RingQueueU;
 
-const utils = @import("utils.zig");
-const assertf = utils.assertf;
+const core = @import("root").neonwood.core;
+const assertf = core.assertf;
 
 pub const Key = enum(i32) {
     Unknown = -1,

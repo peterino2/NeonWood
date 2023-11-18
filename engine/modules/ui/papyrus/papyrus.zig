@@ -29,15 +29,13 @@ pub const localization = @import("localization.zig");
 pub const LocText = localization.LocText;
 pub const MakeText = localization.MakeText;
 
-const pool = @import("pool.zig");
-pub const DynamicPool = pool.DynamicPool;
-
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
+const IndexPool = core.IndexPool;
 const Name = core.Name;
 
-pub const NodeHandle = pool.Handle;
+pub const NodeHandle = core.IndexPoolHandle;
 
 // Mixed mode implementation agnostic UI library
 //
@@ -108,9 +106,11 @@ pub const PapyrusAnchorNode = enum {
 pub const PapyrusFillMode = enum {
     // zig fmt: off
     None,       // Size will be absolute as specified by content
-    FillX,  // Size will scale to X scaling of the parent (relative to reference), if set, then the size value of x will be interpreted as a percentage of the parent
-    FillY,  // Size will scale to Y scaling of the parent (relative to reference), if set, then the size value of y will be interpreted as a percentage of the parent
-    FillXY, // Size will scale to both X and Y of the parent (relative to reference), if set, then the size value of both x and y will be interpreted as a percentage of the parent
+    FillX,      // Size will scale to X scaling of the parent (relative to reference), if set, then the size value of x will be interpreted as a percentage of the parent
+    FillY,      // Size will scale to Y scaling of the parent (relative to reference), if set, then the size value of y will be interpreted as a percentage of the parent
+    FillXY,     // Size will scale to both X and Y of the parent (relative to reference), if set, then the size value of both x and y will be interpreted as a percentage of the parent
+    UniformX,   // Size will scale both X and Y based on a ratio of the parent's current X vs the parent's original X
+    UniformY,   // Size will scale both X and Y based on a ratio of the parent's current Y vs the parent's original Y
     // zig fmt: on
 };
 
@@ -190,7 +190,10 @@ pub const PapyrusNode = struct {
 
     // Resolutions and scalings are a real headspinner
     // DPI awareness and content scaling is also a huge problem.
+    baseSize: Vector2f = .{ .x = 0, .y = 0 },
+    sizeInitialized: bool = false,
     size: Vector2f = .{ .x = 0, .y = 0 },
+
     pos: Vector2f = .{ .x = 0, .y = 0 },
     anchor: PapyrusAnchorNode = .TopLeft,
     fill: PapyrusFillMode = .None,
@@ -211,10 +214,20 @@ pub const PapyrusNode = struct {
         _ = self;
         return .{};
     }
+
+    pub fn setSize(self: *@This(), s: Vector2f) void {
+        if (!self.sizeInitialized) {
+            self.baseSize = s;
+            self.sizeInitialized = true;
+        }
+
+        self.size = s;
+    }
 };
 
 // final resolved size
 const LayoutInfo = struct {
+    baseSize: Vector2f,
     pos: Vector2f,
     size: Vector2f,
 };
@@ -222,7 +235,7 @@ const LayoutInfo = struct {
 pub const PapyrusContext = struct {
     backingAllocator: std.mem.Allocator,
     allocator: std.mem.Allocator,
-    nodes: DynamicPool(PapyrusNode),
+    nodes: IndexPool(PapyrusNode),
     fonts: std.AutoHashMap(u32, PapyrusFont),
     fallbackFont: PapyrusFont,
     defaultMonoFont: PapyrusFont,
@@ -236,8 +249,8 @@ pub const PapyrusContext = struct {
     // internals
     _drawOrder: DrawOrderList,
     _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
-    _layout: std.ArrayListUnmanaged(PosSize),
-    _layoutPositions: std.AutoHashMapUnmanaged(NodeHandle, PosSize),
+    _layout: std.ArrayListUnmanaged(LayoutInfo),
+    _layoutPositions: std.AutoHashMapUnmanaged(NodeHandle, LayoutInfo),
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
@@ -266,7 +279,7 @@ pub const PapyrusContext = struct {
         self.* = .{
             .allocator = allocator,
             .backingAllocator = allocator,
-            .nodes = DynamicPool(PapyrusNode).init(allocator),
+            .nodes = IndexPool(PapyrusNode).init(allocator),
             .fonts = std.AutoHashMap(u32, PapyrusFont).init(allocator),
             .events = PapyrusEvent.init(allocator),
             .fallbackFont = PapyrusFont{
@@ -590,12 +603,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    const PosSize = struct {
-        pos: Vector2f,
-        size: Vector2f,
-    };
-
-    fn resolveAnchoredPosition(parent: PosSize, node: *const PapyrusNode) Vector2f {
+    fn resolveAnchoredPosition(parent: LayoutInfo, node: *const PapyrusNode) Vector2f {
         switch (node.anchor) {
             .Free => {
                 return node.pos;
@@ -636,19 +644,25 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn resolveAnchoredSize(parent: PosSize, node: *const PapyrusNode) Vector2f {
+    fn resolveAnchoredSize(parent: LayoutInfo, node: *const PapyrusNode) Vector2f {
         switch (node.fill) {
             .None => {
                 return node.size;
             },
             .FillX => {
-                return .{ .x = node.size.x * parent.size.x, .y = node.size.y };
+                return .{ .x = node.size.x * parent.size.x / parent.baseSize.x, .y = node.size.y };
             },
             .FillY => {
-                return .{ .x = node.size.x, .y = node.size.y * parent.size.y };
+                return .{ .x = node.size.x, .y = node.size.y * parent.size.y / parent.baseSize.y };
             },
             .FillXY => {
                 return node.size.vmul(parent.size);
+            },
+            .UniformX => {
+                return node.size.fmul(parent.size.x / parent.baseSize.x);
+            },
+            .UniformY => {
+                return node.size.fmul(parent.size.y / parent.baseSize.y);
             },
         }
     }
@@ -661,10 +675,14 @@ pub const PapyrusContext = struct {
 
         try self.assembleDrawOrderList(&self._drawOrder);
 
-        var layout = std.AutoHashMap(NodeHandle, PosSize).init(self.allocator);
+        var layout = std.AutoHashMap(NodeHandle, LayoutInfo).init(self.allocator);
         defer layout.deinit();
 
-        try layout.put(.{}, .{ .pos = .{ .x = 0, .y = 0 }, .size = Vector2f.from(self.extent) });
+        try layout.put(.{}, .{
+            .pos = .{ .x = 0, .y = 0 },
+            .size = Vector2f.from(self.extent),
+            .baseSize = Vector2f.from(self.extent),
+        });
 
         drawList.clearRetainingCapacity();
 
@@ -683,6 +701,7 @@ pub const PapyrusContext = struct {
             switch (n.nodeType) {
                 .Panel => |panel| {
                     try self._layout.append(self.allocator, .{
+                        .baseSize = n.baseSize,
                         .pos = resolvedPos,
                         .size = resolvedSize,
                     });
@@ -690,7 +709,7 @@ pub const PapyrusContext = struct {
                     try self._layoutPositions.put(
                         self.allocator,
                         node,
-                        .{ .pos = resolvedPos, .size = resolvedSize },
+                        .{ .pos = resolvedPos, .size = resolvedSize, .baseSize = n.baseSize },
                     );
 
                     if (panel.hasTitle) {
@@ -725,6 +744,7 @@ pub const PapyrusContext = struct {
                         } });
 
                         try layout.put(node, .{
+                            .baseSize = n.baseSize,
                             .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
                             .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2f.Ones),
                         });
@@ -739,6 +759,7 @@ pub const PapyrusContext = struct {
                         } });
 
                         try layout.put(node, .{
+                            .baseSize = n.baseSize,
                             .pos = resolvedPos.add(Vector2f.Ones),
                             .size = resolvedSize.add(Vector2f.Ones),
                         });
@@ -757,6 +778,7 @@ pub const PapyrusContext = struct {
                     } });
 
                     try layout.put(node, .{
+                        .baseSize = n.baseSize,
                         .pos = resolvedPos.add(Vector2f.Ones),
                         .size = resolvedSize.add(Vector2f.Ones),
                     });

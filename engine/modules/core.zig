@@ -35,13 +35,6 @@ const logging = @import("core/logging.zig");
 const vk = @import("vulkan");
 const c = @This();
 
-pub fn assertf(eval: anytype, comptime fmt: []const u8, args: anytype) !void {
-    if (!eval) {
-        logging.engine_err(fmt, args);
-        return error.AssertFailure;
-    }
-}
-
 const logs = logging.engine_logs;
 const log = logging.engine_log;
 

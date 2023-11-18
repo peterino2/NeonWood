@@ -142,8 +142,8 @@ pub const GameContext = struct {
         if (gIpsumDown) {
             var ctx = ui.getContext();
             var mousePos = platform.getInstance().getCursorPosition();
-            ctx.get(self.panel).pos = .{ .x = mousePos.x + gSavedMouseOffset.x, .y = mousePos.y + gSavedMouseOffset.y };
-            gIpsumPos = .{ .x = ctx.getRead(self.panel).pos.x, .y = ctx.getRead(self.panel).pos.y };
+            ctx.get(unk).pos = .{ .x = mousePos.x + gSavedMouseOffset.x, .y = mousePos.y + gSavedMouseOffset.y };
+            gIpsumPos = .{ .x = ctx.getRead(unk).pos.x, .y = ctx.getRead(unk).pos.y };
         }
     }
 
@@ -177,24 +177,24 @@ pub const GameContext = struct {
             ctx.get(panel).style.foregroundColor = ModernStyle.Yellow;
             ctx.get(panel).style.borderColor = ModernStyle.BrightGrey;
             ctx.get(panel).pos = .{ .x = gIpsumPos.x, .y = gIpsumPos.y };
-            ctx.get(panel).size = .{ .x = 500, .y = 150 };
-
-            try ctx.events.installOnPressedEvent(panel, .onPressed, .Mouse1, &onPressed);
-            try ctx.events.installOnPressedEvent(panel, .onReleased, .Mouse1, &onPressed);
+            ctx.get(panel).setSize(.{ .x = 500, .y = 150 });
         }
 
         gGame = self;
 
-        const unk = try ctx.addPanel(.{});
+        unk = try ctx.addPanel(.{});
         ctx.get(unk).pos = .{ .x = 900, .y = 30 };
-        ctx.get(unk).size = .{ .x = 300, .y = 300 };
+        ctx.get(unk).setSize(.{ .x = 300, .y = 300 });
         ctx.get(unk).style.borderColor = BurnStyle.Diminished;
         ctx.get(unk).style.backgroundColor = BurnStyle.DarkSlateGrey;
+
+        try ctx.events.installOnPressedEvent(unk, .onReleased, .Mouse1, &onPressed);
+        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, &onPressed);
 
         const unk2 = try ctx.addPanel(unk);
         {
             ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
-            ctx.get(unk2).size = .{ .x = 100, .y = 20 };
+            ctx.get(unk2).setSize(.{ .x = 100, .y = 20 });
             ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
             try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
@@ -202,7 +202,7 @@ pub const GameContext = struct {
 
             const unk2Text = try ctx.addText(unk2, "click me!");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
-            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2Text).setSize(.{ .x = 150, .y = 75 });
             ctx.setFont(unk2Text, "roboto");
             ctx.getText(unk2Text).textSize = 12;
         }
@@ -213,7 +213,8 @@ pub const GameContext = struct {
     }
 };
 
-var gIpsumPos: core.Vector2f = .{ .x = 30, .y = 30 };
+var unk: ui.NodeHandle = undefined;
+var gIpsumPos: core.Vector2f = .{ .x = 900, .y = 30 };
 var gSavedMouseOffset: core.Vector2f = .{};
 var gIpsumDown: bool = false;
 
