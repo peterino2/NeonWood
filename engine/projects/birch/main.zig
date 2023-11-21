@@ -2,6 +2,7 @@ const std = @import("std");
 const nw = @import("root").neonwood;
 
 const core = nw.core;
+const graphics = nw.graphics;
 const platform = nw.platform;
 
 const rend_core = @import("../../modules/graphics/rend_core.zig");
@@ -22,6 +23,8 @@ pub fn main() !void {
         }
     }
 
+    nw.graphics.setStartupSettings("maxObjectCount", 10);
+
     var allocator = gpa.allocator();
 
     core.start_module(allocator);
@@ -29,6 +32,12 @@ pub fn main() !void {
 
     try platform.start_module(allocator, "Birch Renderer", null);
     defer platform.shutdown_module(allocator);
+
+    nw.assets.start_module(allocator);
+    defer nw.assets.shutdown_module(allocator);
+
+    graphics.start_module(allocator);
+    defer graphics.shutdown_module();
 
     try core.gEngine.run();
 
