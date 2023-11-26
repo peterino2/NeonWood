@@ -24,9 +24,6 @@ pub const spng = @import("core/lib/zig-spng/spng.zig");
 
 pub const assert = std.debug.assert;
 
-const trace = @import("core/trace.zig");
-pub const TracesContext = trace.TracesContext;
-
 const std = @import("std");
 const tests = @import("core/tests.zig");
 const logging = @import("core/logging.zig");
@@ -70,14 +67,6 @@ pub var gEngine: *Engine = undefined;
 
 pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
     return gEngine.createObject(T, params);
-}
-
-pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
-    try gEngine.tracesContext.traces.getEntry(name.hash).?.value_ptr.*.traceFmt(
-        gEngine.tracesContext.allocator,
-        fmt,
-        args,
-    );
 }
 
 pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {

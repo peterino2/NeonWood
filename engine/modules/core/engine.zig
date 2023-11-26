@@ -6,11 +6,9 @@ const time = @import("engineTime.zig");
 const core = @import("../core.zig");
 const jobs = @import("jobs.zig");
 const tracy = core.tracy;
-const trace = @import("trace.zig");
 const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
 
-const TracesContext = trace.TracesContext;
 const Name = p2.Name;
 const MakeName = p2.MakeName;
 
@@ -33,7 +31,6 @@ pub const Engine = struct {
     eventors: ArrayListUnmanaged(NeonObjectRef),
     exitListeners: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
-    tracesContext: *TracesContext,
     jobManager: JobManager,
 
     lastEngineTime: f64,
@@ -48,14 +45,11 @@ pub const Engine = struct {
             .tickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
-            .tracesContext = try allocator.create(TracesContext),
             .jobManager = JobManager.init(allocator),
             .eventors = .{},
             .frameNumber = 0,
             .exitListeners = .{},
         };
-
-        rv.tracesContext.* = TracesContext.init(allocator);
 
         return rv;
     }
@@ -70,7 +64,6 @@ pub const Engine = struct {
         self.rttiObjects.deinit(self.allocator);
         self.eventors.deinit(self.allocator);
         self.tickables.deinit(self.allocator);
-        self.tracesContext.deinit();
         self.exitListeners.deinit(self.allocator);
     }
 
@@ -129,7 +122,7 @@ pub const Engine = struct {
             var z = tracy.Zone(@src());
             const objectRef = self.rttiObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
-            z.Name(objectRef.vtable.typeName.utf8);
+            z.Name(objectRef.vtable.typeName.utf8());
             z.End();
         }
         self.lastEngineTime = newTime;
