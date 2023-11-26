@@ -32,8 +32,8 @@ pub const RenderObject = struct {
     scale: Vectorf,
 
     // TODO factor this out into a metadata function
-    textureName: core.Name = core.NoName,
-    meshName: core.Name = core.NoName,
+    textureName: core.Name = core.NameInvalid,
+    meshName: core.Name = core.NameInvalid,
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
@@ -56,7 +56,7 @@ pub const RenderObject = struct {
     }
 
     pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.texture = gc.textureSets.get(name.hash).?;
+        self.texture = gc.textureSets.get(name.handle()).?;
         self.textureName = name;
     }
 

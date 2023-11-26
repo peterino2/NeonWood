@@ -259,8 +259,8 @@ pub const TextRenderer = struct {
         new.atlas = papyrusCtx.fallbackFont.atlas; // use default font instead of loading a font from text file
         const defaultName = core.MakeName("default");
         try new.prepareFont(defaultName);
-        try self.fonts.put(self.allocator, defaultName.hash, new);
-        self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.hash;
+        try self.fonts.put(self.allocator, defaultName.handle(), new);
+        self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.handle();
 
         var newMono = try self.allocator.create(FontAtlasVk);
         newMono.* = try FontAtlasVk.init(self.allocator, self.g);
@@ -269,8 +269,8 @@ pub const TextRenderer = struct {
 
         const monoName = core.MakeName("monospace");
         try newMono.prepareFont(monoName);
-        try self.fonts.put(self.allocator, monoName.hash, newMono);
-        self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.hash;
+        try self.fonts.put(self.allocator, monoName.handle(), newMono);
+        self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.handle();
 
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
@@ -301,7 +301,7 @@ pub const TextRenderer = struct {
     pub fn addFont(self: *@This(), ttfPath: []const u8, name: core.Name) !*FontAtlasVk {
         var new = try self.allocator.create(FontAtlasVk);
 
-        var textureName = try std.fmt.allocPrint(self.allocator, "texture.font.{s}", .{name.utf8});
+        var textureName = try std.fmt.allocPrint(self.allocator, "texture.font.{s}", .{name.utf8()});
         defer self.allocator.free(textureName);
 
         new.* = try FontAtlasVk.init(
@@ -311,9 +311,9 @@ pub const TextRenderer = struct {
 
         try new.loadFont(self.papyrusCtx, ttfPath);
         try new.prepareFont(core.Name.fromUtf8(textureName));
-        new.atlas.rendererHash = name.hash;
-        try self.papyrusCtx.installFontAtlas(name.utf8, new.atlas);
-        try self.fonts.put(self.allocator, name.hash, new);
+        new.atlas.rendererHash = name.handle();
+        try self.papyrusCtx.installFontAtlas(name.utf8(), new.atlas);
+        try self.fonts.put(self.allocator, name.handle(), new);
 
         return new;
     }
@@ -323,7 +323,7 @@ pub const TextRenderer = struct {
 
         new.* = try DisplayText.init(
             self.allocator,
-            self.fonts.get(fontName.hash).?,
+            self.fonts.get(fontName.handle()).?,
             opts,
         );
 

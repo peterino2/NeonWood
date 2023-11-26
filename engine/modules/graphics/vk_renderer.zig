@@ -418,13 +418,13 @@ pub const NeonVkContext = struct {
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
-        var meshRef = self.meshes.get(meshName.hash).?;
+        var meshRef = self.meshes.get(meshName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.meshName = meshName;
     }
 
     pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void {
-        var textureSet = self.textureSets.get(textureName.hash).?;
+        var textureSet = self.textureSets.get(textureName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.texture = textureSet;
     }
 
@@ -689,18 +689,18 @@ pub const NeonVkContext = struct {
     }
 
     pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: *vk.DescriptorSet) !void {
-        try self.textures.put(self.allocator, name.hash, textureRef);
-        try self.textureSets.put(self.allocator, name.hash, textureSet);
+        try self.textures.put(self.allocator, name.handle(), textureRef);
+        try self.textureSets.put(self.allocator, name.handle(), textureSet);
     }
 
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
         var newTexture = try self.upload_texture_from_file(texturePath);
-        try self.textures.put(self.allocator, textureName.hash, newTexture);
-        return self.textures.getEntry(textureName.hash).?.value_ptr.*;
+        try self.textures.put(self.allocator, textureName.handle(), newTexture);
+        return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
     }
 
     pub fn make_mesh_image_from_texture(self: *Self, name: core.Name, params: struct { useBlocky: bool = true }) !void {
-        if (self.textureSets.contains(name.hash)) {
+        if (self.textureSets.contains(name.handle())) {
             return;
         }
 
@@ -715,7 +715,7 @@ pub const NeonVkContext = struct {
 
         var imageBufferInfo = vk.DescriptorImageInfo{
             .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
-            .image_view = (self.textures.get(name.hash)).?.imageView,
+            .image_view = (self.textures.get(name.handle())).?.imageView,
             .image_layout = .shader_read_only_optimal,
         };
 
@@ -728,7 +728,7 @@ pub const NeonVkContext = struct {
 
         self.vkd.updateDescriptorSets(self.dev, 1, p2a(&writeDescriptorSet), 0, undefined);
 
-        try self.textureSets.put(self.allocator, name.hash, textureSet);
+        try self.textureSets.put(self.allocator, name.handle(), textureSet);
     }
 
     pub fn load_core_textures(self: *Self) !void {
@@ -887,7 +887,7 @@ pub const NeonVkContext = struct {
         quadMesh.*.vertices.items[5].uv = .{ .x = 1.0, .y = 0.0 };
 
         try quadMesh.upload(self);
-        try self.meshes.put(self.allocator, core.MakeName("mesh_quad").hash, quadMesh);
+        try self.meshes.put(self.allocator, core.MakeName("mesh_quad").handle(), quadMesh);
     }
 
     // we need a content filing system
@@ -896,7 +896,7 @@ pub const NeonVkContext = struct {
         newMesh.* = mesh.Mesh.init(self, self.allocator);
         try newMesh.load_from_obj_file(filename);
         try newMesh.upload(self);
-        try self.meshes.put(self.allocator, meshName.hash, newMesh);
+        try self.meshes.put(self.allocator, meshName.handle(), newMesh);
         return newMesh;
     }
 
@@ -1079,14 +1079,14 @@ pub const NeonVkContext = struct {
         // --------- set up the image
         var imageBufferInfo = vk.DescriptorImageInfo{
             .sampler = self.blockySampler,
-            .image_view = (self.textures.get(core.MakeName("missing_texture").hash)).?.imageView,
+            .image_view = (self.textures.get(core.MakeName("missing_texture").handle())).?.imageView,
             .image_layout = .shader_read_only_optimal,
         };
-        try self.materials.put(self.allocator, materialName.hash, material);
+        try self.materials.put(self.allocator, materialName.handle(), material);
 
         var descriptorSet = vkinit.writeDescriptorImage(
             .combined_image_sampler,
-            self.materials.get(materialName.hash).?.textureSet,
+            self.materials.get(materialName.handle()).?.textureSet,
             &imageBufferInfo,
             0,
         );
@@ -1096,7 +1096,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn add_material(self: *@This(), material: *Material) !void {
-        try self.materials.put(self.allocator, material.materialName.hash, material);
+        try self.materials.put(self.allocator, material.materialName.handle(), material);
     }
 
     pub fn create_white_material(self: *@This(), size: core.Vector2i) !void {
@@ -2548,8 +2548,8 @@ pub const NeonVkContext = struct {
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !RenderObject {
         var renderObject = RenderObject.fromTransform(params.init_transform);
 
-        var findMesh = self.meshes.getEntry(params.mesh_name.hash);
-        var findMat = self.materials.getEntry(params.material_name.hash);
+        var findMesh = self.meshes.getEntry(params.mesh_name.handle());
+        var findMat = self.materials.getEntry(params.material_name.handle());
 
         if (findMesh == null)
             return error.NoMeshFound;

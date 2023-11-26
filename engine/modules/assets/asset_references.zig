@@ -11,8 +11,8 @@ pub const AssetImportReference = struct {
 pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) AssetImportReference {
     return .{
         .assetRef = .{
-            .assetType = core.Name.fromUtf8(assetType),
-            .name = core.Name.fromUtf8(name),
+            .assetType = core.MakeName(assetType),
+            .name = core.MakeName(name),
         },
         .properties = .{ .path = path },
     };
@@ -22,8 +22,8 @@ pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) 
 pub fn MakeImportRefOptions(assetType: []const u8, name: []const u8, properties: AssetPropertiesBag) AssetImportReference {
     return .{
         .assetRef = .{
-            .assetType = core.Name.fromUtf8(assetType),
-            .name = core.Name.fromUtf8(name),
+            .assetType = core.MakeName(assetType),
+            .name = core.MakeName(name),
         },
         .properties = properties,
     };
@@ -155,7 +155,7 @@ pub const AssetReferenceSys = struct {
 
     pub fn registerLoader(self: *@This(), loader: anytype) !void {
         const vtable = &@field(@TypeOf(loader.*), "LoaderInterfaceVTable");
-        try self.loaders.put(self.allocator, vtable.assetType.hash, .{
+        try self.loaders.put(self.allocator, vtable.assetType.handle(), .{
             .vtable = vtable,
             .target = loader,
             .size = @sizeOf(@TypeOf(loader)),
@@ -165,11 +165,11 @@ pub const AssetReferenceSys = struct {
     pub fn loadRef(self: @This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
         var z = tracy.ZoneN(@src(), "AssetReferenceSys LoadRef");
         if (propertiesBag) |props| {
-            core.engine_log("loading asset {s} ({s}) [{s}]", .{ asset.name.utf8, asset.assetType.utf8, props.path });
+            core.engine_log("loading asset {s} ({s}) [{s}]", .{ asset.name.utf8(), asset.assetType.utf8(), props.path });
         } else {
-            core.engine_log("loading asset {s} ({s})", .{ asset.name.utf8, asset.assetType.utf8 });
+            core.engine_log("loading asset {s} ({s})", .{ asset.name.utf8(), asset.assetType.utf8() });
         }
-        try self.loaders.getPtr(asset.assetType.hash).?.loadAsset(asset, propertiesBag);
+        try self.loaders.getPtr(asset.assetType.handle()).?.loadAsset(asset, propertiesBag);
         z.End();
     }
 

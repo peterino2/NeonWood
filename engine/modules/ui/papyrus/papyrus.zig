@@ -304,10 +304,10 @@ pub const PapyrusContext = struct {
         }
 
         self.fallbackFont.atlas.* = try FontAtlas.initDefaultFont(allocator, 64);
-        try self.installFontAtlas(self.fallbackFont.name.utf8, self.fallbackFont.atlas);
+        try self.installFontAtlas(self.fallbackFont.name.utf8(), self.fallbackFont.atlas);
 
         self.defaultMonoFont.atlas.* = try FontAtlas.initMonoFont(allocator, 64);
-        try self.installFontAtlas(self.defaultMonoFont.name.utf8, self.defaultMonoFont.atlas);
+        try self.installFontAtlas(self.defaultMonoFont.name.utf8(), self.defaultMonoFont.atlas);
 
         // constructing the root node
         _ = try self.nodes.new(.{
@@ -358,7 +358,7 @@ pub const PapyrusContext = struct {
 
     pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
         const name = Name.fromUtf8(fontName);
-        try self.fonts.put(name.hash, .{ .atlas = atlas, .name = name });
+        try self.fonts.put(name.handle(), .{ .atlas = atlas, .name = name });
     }
 
     pub fn getPanel(self: *@This(), handle: NodeHandle) *NodeProperty_Panel {
@@ -377,12 +377,12 @@ pub const PapyrusContext = struct {
                 var text = &(self.nodes.get(handle).?.nodeType.DisplayText);
                 text.font = .{
                     .name = name,
-                    .atlas = (self.fonts.get(name.hash) orelse self.fonts.get(Name.fromUtf8("default").hash).?).atlas,
+                    .atlas = (self.fonts.get(name.handle()) orelse self.fonts.get(Name.fromUtf8("default").handle()).?).atlas,
                 };
             },
             .Panel => {
                 var panel = &(self.nodes.get(handle).?.nodeType.Panel);
-                panel.font = self.fonts.get(name.hash).?.atlas;
+                panel.font = self.fonts.get(name.handle()).?.atlas;
             },
             else => {},
         }

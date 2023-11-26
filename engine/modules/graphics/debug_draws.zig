@@ -129,9 +129,9 @@ pub const DebugDrawSubsystem = struct {
         try assets.loadList(Primitives);
 
         // assign debug meshes
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").hash).?;
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").hash).?;
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").hash).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").handle()).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").handle()).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").handle()).?;
         try self.createPipeData();
         try self.createMaterial();
     }

@@ -50,10 +50,10 @@ pub const TextureLoader = struct {
                 const gc = ctx.gc;
                 var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
 
-                tracy.Message(ctx.assetRef.name.utf8);
+                tracy.Message(ctx.assetRef.name.utf8());
                 tracy.Message(ctx.properties.path);
 
-                core.engine_log("loaded: {d} from: {d}", .{ ctx.assetRef.name.utf8, ctx.properties.path });
+                core.engine_log("loaded: {d} from: {d}", .{ ctx.assetRef.name.utf8(), ctx.properties.path });
                 var loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
                     .stagingResults = stagingResults,
@@ -87,10 +87,10 @@ pub const TextureLoader = struct {
             while (self.assetsReady.popFromUnlocked()) |assetReady| {
                 var z1 = tracy.ZoneN(@src(), "Uploading asset loaded by TextureLoader");
                 tracy.Message("TextureLoader");
-                tracy.Message(assetReady.assetRef.name.utf8);
+                tracy.Message(assetReady.assetRef.name.utf8());
                 tracy.Message(assetReady.properties.path);
 
-                core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8});
+                core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8()});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
                 var image = assetReady.stagingResults.image;
 

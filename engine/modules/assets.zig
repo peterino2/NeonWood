@@ -38,7 +38,7 @@ pub fn loadList(assetList: anytype) !void {
 
 pub fn load(assetImport: AssetImportReference) !void {
     var z1 = core.tracy.ZoneN(@src(), "Loading asset");
-    core.tracy.Message(assetImport.assetRef.name.utf8);
+    core.tracy.Message(assetImport.assetRef.name.utf8());
     core.tracy.Message(assetImport.properties.path);
     try gAssetSys.loadRef(assetImport.assetRef, assetImport.properties);
     z1.End();

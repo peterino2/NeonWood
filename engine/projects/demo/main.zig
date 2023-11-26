@@ -77,7 +77,7 @@ pub const GameContext = struct {
     pub fn tick(self: *@This(), deltaTime: f64) void {
         if (!self.assetReady) {
             const texName = core.MakeName("t_empire");
-            if (self.gc.textures.contains(texName.hash)) {
+            if (self.gc.textures.contains(texName.handle())) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
                 self.assetReady = true;
