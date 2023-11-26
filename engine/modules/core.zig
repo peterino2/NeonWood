@@ -36,6 +36,7 @@ const log = logging.engine_log;
 pub var gScene: *SceneSystem = undefined;
 
 pub fn start_module(allocator: std.mem.Allocator) void {
+    _ = algorithm.createNameRegistry(allocator) catch unreachable;
     gEngine = allocator.create(Engine) catch unreachable;
     gEngine.* = Engine.init(allocator) catch unreachable;
 
@@ -52,6 +53,7 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 pub fn run() void {}
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    algorithm.destroyNameRegistry();
     logs("core module shutting down...");
     logging.forceFlush();
     gEngine.deinit();

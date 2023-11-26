@@ -5,12 +5,6 @@ const core = nw.core;
 const graphics = nw.graphics;
 const platform = nw.platform;
 
-const rend_core = @import("../../modules/graphics/rend_core.zig");
-
-fn start_renderer(allocator: std.mem.Allocator) !void {
-    _ = allocator;
-}
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 20,
