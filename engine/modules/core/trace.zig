@@ -5,15 +5,15 @@
 //
 // also provides a unified Trace context for error handling and recovery.
 const std = @import("std");
-const names = @import("names.zig");
 const string = @import("string.zig");
 const engineTime = @import("engineTime.zig");
+const p2 = @import("lib/p2/algorithm.zig");
 
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
 
-const MakeName = names.MakeName;
-const Name = names.Name;
+const MakeName = p2.MakeName;
+const Name = p2.Name;
 const Mutex = std.Thread.mutex;
 
 const TraceEntry = struct {

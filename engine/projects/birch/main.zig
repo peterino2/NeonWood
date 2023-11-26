@@ -36,9 +36,6 @@ pub fn main() !void {
     nw.assets.start_module(allocator);
     defer nw.assets.shutdown_module(allocator);
 
-    graphics.start_module(allocator);
-    defer graphics.shutdown_module();
-
     try core.gEngine.run();
 
     while (!core.gEngine.exitConfirmed) {

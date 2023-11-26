@@ -1,6 +1,5 @@
 const std = @import("std");
 const logging = @import("logging.zig");
-const names = @import("names.zig");
 const input = @import("input.zig");
 const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
@@ -9,10 +8,11 @@ const jobs = @import("jobs.zig");
 const tracy = core.tracy;
 const trace = @import("trace.zig");
 const platform = @import("../platform.zig");
+const p2 = @import("lib/p2/algorithm.zig");
 
 const TracesContext = trace.TracesContext;
-const Name = names.Name;
-const MakeName = names.MakeName;
+const Name = p2.Name;
+const MakeName = p2.MakeName;
 
 const NeonObjectRef = rtti.NeonObjectRef;
 const ArrayList = std.ArrayList;

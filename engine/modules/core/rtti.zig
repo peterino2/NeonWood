@@ -1,13 +1,12 @@
 const std = @import("std");
 const logging = @import("logging.zig");
-const names = @import("names.zig");
 const input = @import("input.zig");
-const algorithm = @import("lib/p2/algorithm.zig");
+const p2 = @import("lib/p2/algorithm.zig");
 const engine_logs = logging.engine_logs;
 
-const ObjectHandle = algorithm.ObjectHandle;
-const Name = names.Name;
-const MakeName = names.MakeName;
+const ObjectHandle = p2.ObjectHandle;
+const Name = p2.Name;
+const MakeName = p2.MakeName;
 
 const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;

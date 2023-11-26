@@ -17,15 +17,12 @@ pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
 pub const lua = @import("core/lua.zig");
 
-pub const names = @import("core/names.zig");
-pub const Name = names.Name;
-pub const MakeName = names.MakeName;
 pub const Engine = engine.Engine;
 
+const Name = algorithm.Name;
 pub const spng = @import("core/lib/zig-spng/spng.zig");
 
 pub const assert = std.debug.assert;
-pub const DefaultName = MakeName("default");
 
 const trace = @import("core/trace.zig");
 pub const TracesContext = trace.TracesContext;
@@ -83,10 +80,6 @@ pub fn traceFmt(name: Name, comptime fmt: []const u8, args: anytype) !void {
     );
 }
 
-pub fn traceFmtDefault(comptime fmt: []const u8, args: anytype) !void {
-    try traceFmt(DefaultName, fmt, args);
-}
-
 pub fn splitIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8) {
     // find a \n and see if it has \r\n
     var index: u32 = 0;
@@ -134,8 +127,6 @@ pub fn implement_func_for_tagged_union_nonull(
 
     unreachable;
 }
-
-pub const NoName = MakeName("none");
 
 pub fn writeToFile(data: []const u8, path: []const u8) !void {
     const file = try std.fs.cwd().createFile(
