@@ -35,7 +35,7 @@ const AssetReferences = [_]assets.AssetImportReference{
 // basic engine onboarding
 pub const GameContext = struct {
     const Self = @This();
-    pub const NeonObjectTable = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
 
     camera: graphics.Camera,
     allocator: std.mem.Allocator,

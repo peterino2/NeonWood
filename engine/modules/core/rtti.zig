@@ -125,7 +125,7 @@ pub const NeonObjectRef = InterfaceRef(RttiData);
 const TestStruct = struct {
 
     // Static interface to being a rttiObject
-    pub const NeonObjectTable = RttiData.from(TestStruct);
+    pub var NeonObjectTable: RttiData = RttiData.from(TestStruct);
 
     wanker: u32,
     timeAccumulation: f64 = 0.0,

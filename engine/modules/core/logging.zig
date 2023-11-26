@@ -117,7 +117,7 @@ pub const FileLog = struct {
 };
 
 pub const LoggerSys = struct {
-    pub const NeonObjectTable = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 
     writeOutBuffer: std.ArrayList(u8),
     flushBuffer: std.ArrayList(u8),

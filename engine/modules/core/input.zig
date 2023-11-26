@@ -6,7 +6,7 @@ const rtti = @import("rtti.zig");
 
 pub const InputSubsystem = struct {
     const Self = @This();
-    pub const NeonObjectTable = rtti.RttiData.from(Self);
+    pub var NeonObjectTable: rtti.RttiData = rtti.RttiData.from(Self);
 
     allocator: std.mem.Allocator,
 

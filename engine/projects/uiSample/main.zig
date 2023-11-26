@@ -9,7 +9,7 @@ const c = nw.graphics.c;
 const NodeHandle = ui.NodeHandle;
 
 pub const GameContext = struct {
-    pub const NeonObjectTable = nw.core.RttiData.from(@This());
+    pub var NeonObjectTable: core.RttiData = nw.core.RttiData.from(@This());
 
     allocator: std.mem.Allocator,
     debugOpen: bool = true,

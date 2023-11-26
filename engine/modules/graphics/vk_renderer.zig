@@ -302,7 +302,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
-    pub const NeonObjectTable = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
 
     pub const maxMode = 3;
 

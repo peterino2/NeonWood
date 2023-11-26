@@ -105,7 +105,7 @@ pub const DebugDrawSubsystem = struct {
 
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
-    pub const NeonObjectTable = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 
     // Member functions
     allocator: std.mem.Allocator,

@@ -53,7 +53,7 @@ textRenderer: *TextRenderer,
 
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
-pub const NeonObjectTable = core.RttiData.from(@This());
+pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
 pub const PapyrusPushConstant = FontSDF_vert.constants;
