@@ -18,7 +18,7 @@ const Mesh = mesh.Mesh;
 const Texture = texture.Texture;
 
 pub const TextureLoader = struct {
-    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
+    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
     pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 
     const StagedTextureDescription = struct {
@@ -138,7 +138,7 @@ pub const TextureLoader = struct {
 };
 
 pub const MeshLoader = struct {
-    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
+    pub var LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
     pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
     gc: *NeonVkContext,
 

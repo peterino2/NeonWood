@@ -27,7 +27,7 @@ pub fn sound_errs(comptime fmt: []const u8) void {
 }
 
 pub const SoundLoader = struct {
-    pub const LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Sound"), @This());
+    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Sound"), @This());
 
     engine: *NeonSoundEngine,
 
