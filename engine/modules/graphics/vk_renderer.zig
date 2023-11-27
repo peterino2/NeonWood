@@ -2386,11 +2386,6 @@ pub const NeonVkContext = struct {
         return data;
     }
 
-    pub fn destroy_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
-        self.vkd.destroyCommandPool(self.dev, context.commandPool, null);
-        self.vkd.destroyFence(self.dev, context.uploadFence, null);
-    }
-
     pub fn destroy_syncs(self: *Self) !void {
         for (self.acquireSemaphores.items) |x| {
             self.vkd.destroySemaphore(self.dev, x, null);

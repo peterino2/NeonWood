@@ -50,6 +50,8 @@ pub const GameContext = struct {
     eulerX: f32 = 0,
     eulerY: f32 = 0,
 
+    vulkanValidation: bool = true,
+
     time: f64 = 0,
     movingAverage: f64 = 0,
     panel: NodeHandle = .{},
@@ -206,6 +208,14 @@ pub const GameContext = struct {
             ctx.setFont(unk2Text, "roboto");
             ctx.getText(unk2Text).textSize = 12;
         }
+
+        if (self.vulkanValidation) {
+            const validation = try ctx.addText(.{}, "Vulkan validation: on");
+            ctx.get(validation).pos = .{ .x = 20, .y = 20 };
+            ctx.get(validation).setSize(.{ .x = 500, .y = 50 });
+            ctx.get(validation).style.foregroundColor = Color.Red;
+            ctx.getText(validation).textSize = 36;
+        }
     }
 
     pub fn deinit(self: *Self) void {
@@ -231,6 +241,7 @@ fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandle
 }
 
 const BurnStyle = ui.papyrus.BurnStyle;
+const Color = ui.papyrus.Color;
 
 fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
     var ctx = ui.getContext();
@@ -364,6 +375,12 @@ pub fn main() anyerror!void {
         allocator = gpa.allocator();
     }
 
+    if (args.vulkanValidation) {
+        core.engine_logs("Using vulkan validation");
+    }
+
+    graphics.setStartupSettings("validationLayers", args.vulkanValidation);
+
     core.start_module(allocator);
     defer core.shutdown_module(allocator);
 
@@ -383,6 +400,7 @@ pub fn main() anyerror!void {
     defer ui.shutdown_module();
 
     var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
+    gameContext.vulkanValidation = args.vulkanValidation;
     try gameContext.prepare_game();
 
     try core.gEngine.run();

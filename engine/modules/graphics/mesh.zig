@@ -146,6 +146,7 @@ pub const DynamicMeshManager = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.uploader.deinit();
         self.dynMeshes.deinit(self.allocator);
     }
 
