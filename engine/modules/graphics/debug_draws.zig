@@ -158,6 +158,7 @@ pub const DebugDrawSubsystem = struct {
             gc.dev,
             gc.vkd,
             gc.allocator,
+            gc.vkAllocator,
             vert_spv,
             frag_spv,
         );

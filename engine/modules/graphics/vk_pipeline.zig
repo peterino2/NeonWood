@@ -7,6 +7,7 @@ const VkConstants = @import("vk_constants.zig");
 const meshes = @import("mesh.zig");
 const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 const assert = core.assert;
+const NeonVkAllocator = @import("vk_allocator.zig").NeonVkAllocator;
 
 pub const NeonVkMeshPushConstant = struct {
     data: core.Vector4f,
@@ -59,6 +60,7 @@ fn make_depth_stencil_create_info(
 pub const NeonVkPipelineBuilder = struct {
     vkd: DeviceDispatch,
     allocator: Allocator,
+    vkAllocator: *NeonVkAllocator,
     dev: vk.Device,
     vertShaderModule: vk.ShaderModule,
     fragShaderModule: vk.ShaderModule,
@@ -86,12 +88,15 @@ pub const NeonVkPipelineBuilder = struct {
 
     descriptorLayouts: ArrayList(vk.DescriptorSetLayout),
 
+    pipelineName: []const u8 = "unknown",
+
     // a seperate more convenient version of the default one
     pub fn initFromContext(ctx: *NeonVkContext, vert_resource: anytype, frag_resource: anytype) !@This() {
         return try NeonVkPipelineBuilder.init(
             ctx.dev,
             ctx.vkd,
             ctx.allocator,
+            ctx.vkAllocator,
             vert_resource.len,
             @as([*]const u32, @ptrCast(@alignCast(&vert_resource))),
             frag_resource.len,
@@ -173,6 +178,7 @@ pub const NeonVkPipelineBuilder = struct {
         dev: vk.Device,
         vkd: DeviceDispatch,
         allocator: Allocator,
+        vkAllocator: *NeonVkAllocator,
         vert_spv: []const u32,
         frag_spv: []const u32,
     ) !@This() {
@@ -180,6 +186,7 @@ pub const NeonVkPipelineBuilder = struct {
 
         self.vkd = vkd;
         self.allocator = allocator;
+        self.vkAllocator = vkAllocator;
         self.dev = dev;
         self.sscis = ArrayList(vk.PipelineShaderStageCreateInfo).init(allocator);
         self.plci = null;
@@ -352,7 +359,8 @@ pub const NeonVkPipelineBuilder = struct {
         if (self.plci == null)
             self.plci = default_pipeline_layout();
 
-        self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &(self.plci.?), null);
+        //self.pipelineLayout = try self.vkd.createPipelineLayout(self.dev, &(self.plci.?), null);
+        self.pipelineLayout = try self.vkAllocator.createPipelineLayout(self.dev, self.plci.?, "triangle pipeline");
     }
 
     pub fn add_shader_stage(

@@ -1031,13 +1031,19 @@ pub const NeonVkContext = struct {
         //     .pVulkanFunctions = &self.vmaFunctions,
         // });
 
-        self.vkAllocator = try NeonVkAllocator.create(.{
-            .instance = self.instance,
-            .physicalDevice = self.physicalDevice,
-            .device = self.dev,
-            .frameInUseCount = NumFrames,
-            .pVulkanFunctions = &self.vmaFunctions,
-        }, self.allocator);
+        self.vkAllocator = try NeonVkAllocator.create(
+            .{
+                .instance = self.instance,
+                .physicalDevice = self.physicalDevice,
+                .device = self.dev,
+                .frameInUseCount = NumFrames,
+                .pVulkanFunctions = &self.vmaFunctions,
+            },
+            self.allocator,
+            self.vkb,
+            self.vki,
+            self.vkd,
+        );
     }
 
     fn create_mesh_material(self: *Self) !void {
@@ -1055,6 +1061,7 @@ pub const NeonVkContext = struct {
             self.dev,
             self.vkd,
             self.allocator,
+            self.vkAllocator,
             vert_spv,
             frag_spv,
         );
@@ -2192,8 +2199,6 @@ pub const NeonVkContext = struct {
                 core.graphics_log("GPU minimum buffer alignment {d}", .{self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment});
 
                 for (pDeviceInfo.supportedExtensions.items) |item| {
-                    core.graphics_log("    - {s}", .{@as([:0]const u8, @ptrCast(&item.extension_name))});
-
                     const search: CStr = "VK_KHR_portability_subset";
                     const search2 = "VK_KHR_portability_subset";
 

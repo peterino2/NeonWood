@@ -27,6 +27,7 @@ gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
 pipeData: gpd.GpuPipeData = undefined,
 materialName: core.Name = core.MakeName("mat_papyrus"),
+materialNameText: core.Name = core.MakeName("mat_papyrus_text"),
 material: *graphics.Material = undefined,
 textMaterial: *graphics.Material = undefined,
 mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
@@ -199,7 +200,7 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
-    core.ui_log("building text pipeline", .{});
+    core.ui_log(">> PapyrusSystem.zig: buildTextPipeline", .{});
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     gpdBuilder.objectCount = 64;
     try gpdBuilder.addBufferBinding(
@@ -209,6 +210,7 @@ pub fn buildTextPipeline(self: *@This()) !void {
         .storageBuffer,
     );
 
+    core.ui_logs("text pipe data: Papyrus-Text");
     self.textPipeData = try gpdBuilder.build("Papyrus-Text");
     defer gpdBuilder.deinit();
 
@@ -217,10 +219,12 @@ pub fn buildTextPipeline(self: *@This()) !void {
     var frag_spv = try graphics.loadSpv(self.allocator, "FontSDF_frag.spv");
     defer self.allocator.free(frag_spv);
 
+    core.ui_logs("Building text pipeline builder");
     var builder = try graphics.NeonVkPipelineBuilder.init(
         self.gc.dev,
         self.gc.vkd,
         self.gc.allocator,
+        self.gc.vkAllocator,
         vert_spv,
         frag_spv,
     );
@@ -231,11 +235,12 @@ pub fn buildTextPipeline(self: *@This()) !void {
     try builder.add_layout(self.gc.singleTextureSetLayout);
     try builder.add_depth_stencil();
     try builder.add_push_constant_custom(PapyrusPushConstant);
+    core.ui_logs("creating triangle pipeline");
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
     self.textMaterial = try self.allocator.create(graphics.Material);
     self.textMaterial.* = graphics.Material{
-        .materialName = self.materialName,
+        .materialName = self.materialNameText,
         .pipeline = (try builder.build(self.gc.renderPass)).?,
         .layout = builder.pipelineLayout,
     };
@@ -266,6 +271,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
         self.gc.dev,
         self.gc.vkd,
         self.gc.allocator,
+        self.gc.vkAllocator,
         vert_spv,
         frag_spv,
     );

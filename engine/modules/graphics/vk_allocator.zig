@@ -69,6 +69,10 @@ pub const NeonVkAllocator = struct {
     allocator: std.mem.Allocator,
     eventsList: std.ArrayList(AllocationEvent),
     liveAllocations: std.ArrayList(LiveAlloc),
+    livePipelines: std.AutoHashMap(u64, []u8),
+    vkb: vk_constants.BaseDispatch,
+    vki: vk_constants.InstanceDispatch,
+    vkd: vk_constants.DeviceDispatch,
 
     const AllocatedObject = union {
         image: NeonVkImage,
@@ -101,6 +105,20 @@ pub const NeonVkAllocator = struct {
         };
 
         return self.createBuffer(bci, vmaCreateInfo, tag);
+    }
+
+    pub fn createPipelineLayout(self: *@This(), dev: vk.Device, plci: vk.PipelineLayoutCreateInfo, tag: []const u8) !vk.PipelineLayout {
+        var pipelineLayout = try self.vkd.createPipelineLayout(dev, &plci, null);
+
+        try self.livePipelines.put(@intFromEnum(pipelineLayout), try core.dupeString(self.allocator, tag));
+        core.graphics_log("constructing pipeline at @0x{x} tag: {s}", .{ @intFromEnum(pipelineLayout), tag });
+
+        return pipelineLayout;
+    }
+
+    pub fn destroyPipelineLayout(self: *@This(), dev: vk.Device, layout: vk.PipelineLayout) void {
+        _ = self.livePipelines.remove(@intFromEnum(layout));
+        self.vkd.destroyPipelineLayout(dev, layout, null);
     }
 
     pub fn createGpuBuffer(
@@ -143,6 +161,9 @@ pub const NeonVkAllocator = struct {
     pub fn create(
         vmaAllocatorCreateInfo: vma.AllocatorCreateInfo,
         allocator: std.mem.Allocator,
+        vkb: vk_constants.BaseDispatch,
+        vki: vk_constants.InstanceDispatch,
+        vkd: vk_constants.DeviceDispatch,
     ) !*@This() {
         var newAllocator = try allocator.create(@This());
 
@@ -151,6 +172,10 @@ pub const NeonVkAllocator = struct {
             .allocator = allocator,
             .eventsList = std.ArrayList(AllocationEvent).init(allocator),
             .liveAllocations = std.ArrayList(LiveAlloc).init(allocator),
+            .livePipelines = std.AutoHashMap(u64, []u8).init(allocator),
+            .vkb = vkb,
+            .vki = vki,
+            .vkd = vkd,
         };
 
         return newAllocator;
@@ -293,6 +318,14 @@ pub const NeonVkAllocator = struct {
     pub fn destroy(self: *@This()) void {
         self.eventsList.deinit();
         self.liveAllocations.deinit();
+        {
+            var iter = self.livePipelines.iterator();
+            while (iter.next()) |i| {
+                self.allocator.free(i.value_ptr.*);
+            }
+        }
+
+        self.livePipelines.deinit();
         self.vmaAllocator.destroy();
     }
 };
