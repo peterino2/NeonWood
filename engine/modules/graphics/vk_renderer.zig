@@ -408,7 +408,6 @@ pub const NeonVkContext = struct {
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
     rendererPlugins: ArrayListUnmanaged(RendererInterfaceRef),
-    uploadContext: NeonVkUploadContext,
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
     sceneManager: NeonVkSceneManager,
@@ -509,7 +508,6 @@ pub const NeonVkContext = struct {
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
-        self.uploadContext.mutex = .{};
         self.requiredExtensions = .{};
 
         for (required_device_extensions) |required| {
@@ -966,14 +964,14 @@ pub const NeonVkContext = struct {
         uploadedMesh.buffer = try self.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name ++ "-- mesh buffer");
 
         core.graphics_log("Staring upload context", .{});
-        try self.start_upload_context(&self.uploadContext);
+        try self.uploader.startUploadContext();
         {
             var copy = vk.BufferCopy{
                 .dst_offset = 0,
                 .src_offset = 0,
                 .size = bufferSize,
             };
-            const cmd = self.uploadContext.commandBuffer;
+            const cmd = self.uploader.commandBuffer;
             core.graphics_log("Starting command copy buffer", .{});
             self.vkd.cmdCopyBuffer(
                 cmd,
@@ -984,7 +982,7 @@ pub const NeonVkContext = struct {
             );
         }
         core.graphics_log("Finishing upload context", .{});
-        try self.finish_upload_context(&self.uploadContext);
+        try self.uploader.finishUploadContext();
     }
 
     pub fn upload_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !NeonVkBuffer {
@@ -1970,22 +1968,6 @@ pub const NeonVkContext = struct {
         for (core.count(NumFrames), 0..) |_, i| {
             self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
         }
-
-        var upload_fci = fci;
-        upload_fci.flags.signaled_bit = false;
-        self.uploadContext.uploadFence = try self.vkd.createFence(self.dev, &upload_fci, null);
-
-        var cbai2 = vk.CommandBufferAllocateInfo{
-            .command_pool = self.uploadContext.commandPool,
-            .level = vk.CommandBufferLevel.primary,
-            .command_buffer_count = 1,
-        };
-
-        try self.vkd.allocateCommandBuffers(
-            self.dev,
-            &cbai2,
-            @as([*]vk.CommandBuffer, @ptrCast(&self.uploadContext.commandBuffer)),
-        );
     }
 
     pub fn init_command_pools(self: *Self) !void {
@@ -1994,9 +1976,6 @@ pub const NeonVkContext = struct {
         cpci.queue_family_index = @as(u32, @intCast(self.graphicsFamilyIndex));
 
         self.commandPool = try self.vkd.createCommandPool(self.dev, &cpci, null);
-
-        var cpci2 = vkinit.commandPoolCreateInfo(@as(u32, @intCast(self.graphicsFamilyIndex)), .{ .reset_command_buffer_bit = true });
-        self.uploadContext.commandPool = try self.vkd.createCommandPool(self.dev, &cpci2, null);
     }
 
     fn init_api(self: *Self) !void {
@@ -2516,11 +2495,19 @@ pub const NeonVkContext = struct {
         }
     }
 
+    fn destroy_uploaders(self: *@This()) void {
+        self.uploader.deinit();
+    }
+
     pub fn deinit(self: *Self) void {
         self.allocator.destroy(self);
     }
 
     pub fn shutdown(self: *Self) void {
+        core.engine_logs("Tearing down renderer");
+        core.forceFlush();
+        std.time.sleep(1000 * 1000 * 25);
+
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
         self.destroy_textures() catch {
@@ -2544,9 +2531,8 @@ pub const NeonVkContext = struct {
         self.destroy_framebuffers() catch {
             core.engine_errs("unable to destroy framebuffers");
         };
-        self.destroy_upload_context(&self.uploadContext) catch {
-            core.engine_errs("unable to destroy upload context");
-        };
+
+        self.destroy_uploaders();
 
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
 
@@ -2555,6 +2541,7 @@ pub const NeonVkContext = struct {
         }
 
         self.vkAllocator.destroy();
+
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
@@ -2564,7 +2551,6 @@ pub const NeonVkContext = struct {
         }
         self.enumeratedPhysicalDevices.deinit();
         self.graph.deinit();
-
         self.requiredExtensions.deinit(self.allocator);
     }
 
@@ -2609,7 +2595,8 @@ pub const NeonVkContext = struct {
     }
 
     pub fn onExitSignal(self: @This()) core.RttiDataEventError!void {
-        _ = self;
+        core.engine_logs("Renderer exit signaled");
+        self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
     }
 };
 

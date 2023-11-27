@@ -188,10 +188,11 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage, mipLevel: u32) !void {
     var z1 = tracy.ZoneN(@src(), "submitting copy from staging buffer");
     defer z1.End();
-    try ctx.start_upload_context(&ctx.uploadContext);
+    //try ctx.start_upload_context(&ctx.uploadContext);
+    try ctx.uploader.startUploadContext();
     {
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
-        var cmd = ctx.uploadContext.commandBuffer;
+        var cmd = ctx.uploader.commandBuffer;
 
         transitions.into_transferDst(ctx.vkd, cmd, newImage.image, mipLevel);
 
@@ -228,12 +229,13 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
         transitions.transferDst_into_shaderReadOnly(ctx.vkd, cmd, newImage.image, mipLevel);
         z2.End();
     }
-    try ctx.finish_upload_context(&ctx.uploadContext);
+    try ctx.uploader.finishUploadContext();
+    //try ctx.finish_upload_context(&ctx.uploadContext);
 }
 
 fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !void {
     core.assert(mipLevels > 0);
-    var cmd = ctx.uploadContext.commandBuffer;
+    var cmd = ctx.uploader.commandBuffer;
     var img = vkImage.image;
 
     var range: vk.ImageSubresourceRange = .{
@@ -494,6 +496,11 @@ pub const NeonVkUploader = struct {
     pub fn finishUploadContext(self: *@This()) !void {
         try self.submitUploads();
         try self.waitForFences();
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.gc.vkd.destroyCommandPool(self.gc.dev, self.commandPool, null);
+        self.gc.vkd.destroyFence(self.gc.dev, self.uploadFence, null);
     }
 };
 

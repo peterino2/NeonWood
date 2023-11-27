@@ -446,6 +446,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 }
 
 pub fn shutdown(self: *@This()) void {
+    self.gc.vkd.deviceWaitIdle(self.gc.dev) catch unreachable;
     core.ui_logs("Shutting down UI");
     for (self.mappedBuffers) |*mapped| {
         mapped.unmap(self.gc);

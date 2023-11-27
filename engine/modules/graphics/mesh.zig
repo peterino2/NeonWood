@@ -91,7 +91,8 @@ pub const IndexBuffer = struct {
         };
 
         self.buffer = try gc.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name ++ " - gpu buffer");
-        try gc.start_upload_context(&gc.uploadContext);
+        //try gc.start_upload_context(&gc.uploadContext);
+        try gc.uploader.startUploadContext();
         {
             var copy = vk.BufferCopy{
                 .dst_offset = 0,
@@ -99,7 +100,7 @@ pub const IndexBuffer = struct {
                 .size = bufferSize,
             };
 
-            const cmd = gc.uploadContext.commandBuffer;
+            const cmd = gc.uploader.commandBuffer;
             core.graphics_log("Starting command copy buffer", .{});
 
             gc.vkd.cmdCopyBuffer(
@@ -111,7 +112,8 @@ pub const IndexBuffer = struct {
             );
         }
 
-        try gc.finish_upload_context(&gc.uploadContext);
+        //try gc.finish_upload_context(&gc.uploadContext);
+        try gc.uploader.finishUploadContext();
 
         return self;
     }
