@@ -26,7 +26,6 @@ const vk_allocator = @import("vk_allocator.zig");
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
 
-const enable_validation_layers: bool = build_opts.validation_layers;
 const force_mailbox: bool = build_opts.force_mailbox;
 const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
 
@@ -391,6 +390,8 @@ pub const NeonVkContext = struct {
     textures: std.AutoHashMapUnmanaged(u32, *Texture),
     cameraRef: ?*render_objects.Camera,
 
+    requiredExtensions: ArrayListUnmanaged(CStr),
+
     blockySampler: vk.Sampler,
     linearSampler: vk.Sampler,
 
@@ -414,6 +415,7 @@ pub const NeonVkContext = struct {
     dynamicMeshManager: *mesh.DynamicMeshManager,
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
+    uploader: vk_utils.NeonVkUploader,
 
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
@@ -508,6 +510,11 @@ pub const NeonVkContext = struct {
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.uploadContext.mutex = .{};
+        self.requiredExtensions = .{};
+
+        for (required_device_extensions) |required| {
+            try self.requiredExtensions.append(self.allocator, required);
+        }
 
         self.platformInstance = platform.getInstance();
     }
@@ -561,7 +568,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        core.graphics_log("validation_layers: {any}", .{enable_validation_layers});
+        core.graphics_log("validation_layers: {any}", .{gGraphicsStartupSettings.validationLayers});
         core.graphics_log("release_build: {any}", .{build_opts.release_build});
         return create_object(allocator) catch unreachable;
     }
@@ -586,6 +593,7 @@ pub const NeonVkContext = struct {
         try self.graph.write("  root->init_command_pools\n", .{});
         try self.init_command_pools();
 
+        // command buffer initialization
         try self.graph.write("  root->init_command_buffers\n", .{});
         try self.init_command_buffers();
 
@@ -604,6 +612,8 @@ pub const NeonVkContext = struct {
         try self.graph.write("  root->init_framebuffers\n", .{});
         try self.init_framebuffers();
 
+        // resource initialization
+        try self.init_uploader();
         try self.graph.write("  root->init_descriptors\n", .{});
         try self.init_descriptors();
 
@@ -628,6 +638,10 @@ pub const NeonVkContext = struct {
 
     pub fn postInit(self: *@This()) core.RttiDataEventError!void {
         self.init_dynamic_mesh() catch return core.RttiDataEventError.UnknownStatePanic;
+    }
+
+    pub fn init_uploader(self: *@This()) !void {
+        self.uploader = try vk_utils.NeonVkUploader.init(self);
     }
 
     pub fn init_dynamic_mesh(self: *@This()) !void {
@@ -2036,7 +2050,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = @bitCast(flagbits),
             .p_application_info = &appInfo,
-            .enabled_layer_count = if (enable_validation_layers) 1 else 0,
+            .enabled_layer_count = if (gGraphicsStartupSettings.validationLayers) 1 else 0,
             .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
             .enabled_extension_count = extensionsCount + 1,
             .pp_enabled_extension_names = @as(?[*]const [*:0]const u8, @ptrCast(&requestedExtensions)) orelse undefined,
@@ -2095,8 +2109,8 @@ pub const NeonVkContext = struct {
             .p_queue_create_infos = createQueueInfoList.items.ptr,
             .enabled_layer_count = 1,
             .pp_enabled_layer_names = undefined,
-            .enabled_extension_count = @as(u32, @intCast(required_device_extensions.len)),
-            .pp_enabled_extension_names = @ptrCast(&required_device_extensions),
+            .enabled_extension_count = @as(u32, @intCast(self.requiredExtensions.items.len)),
+            .pp_enabled_extension_names = self.requiredExtensions.items.ptr,
             .p_enabled_features = &desiredFeatures,
         };
 
@@ -2197,6 +2211,17 @@ pub const NeonVkContext = struct {
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
                 debug_struct("selected physical device:", self.physicalDevice);
                 core.graphics_log("GPU minimum buffer alignment {d}", .{self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment});
+
+                for (pDeviceInfo.supportedExtensions.items) |item| {
+                    core.graphics_log("    - {s}", .{@as([:0]const u8, @ptrCast(&item.extension_name))});
+
+                    const search: CStr = "VK_KHR_portability_subset";
+                    const search2 = "VK_KHR_portability_subset";
+
+                    if (std.mem.startsWith(u8, search2, item.extension_name[0..search2.len])) {
+                        try self.requiredExtensions.append(self.allocator, search);
+                    }
+                }
                 return;
             }
         }
@@ -2214,7 +2239,7 @@ pub const NeonVkContext = struct {
 
         _ = try self.vki.enumerateDeviceExtensionProperties(deviceInfo.physicalDevice, null, &count, extension_list.ptr);
 
-        for (required_device_extensions) |required_extension| {
+        for (self.requiredExtensions.items) |required_extension| {
             for (extension_list) |ext| {
                 const len = std.mem.indexOfScalar(u8, &ext.extension_name, 0).?;
                 const prop_ext_name = ext.extension_name[0..len];
@@ -2539,6 +2564,8 @@ pub const NeonVkContext = struct {
         }
         self.enumeratedPhysicalDevices.deinit();
         self.graph.deinit();
+
+        self.requiredExtensions.deinit(self.allocator);
     }
 
     /// ---------- renderObject functions
@@ -2597,4 +2624,5 @@ pub var gContext: *NeonVkContext = undefined;
 pub var gGraphicsStartupSettings: struct {
     maxObjectCount: u32 = MAX_OBJECTS,
     consoleEnabled: bool = true,
+    validationLayers: bool = true,
 } = .{};

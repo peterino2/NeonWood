@@ -75,7 +75,7 @@ const platform = @import("../platform.zig");
 const vkc = @import("vk_constants.zig");
 
 const RhiCore = struct {
-    pub fn create(allocator: std.mem.Allocator) !@This() {
+    pub fn create(allocator: std.mem.Allocator) !*@This() {
         var self = try allocator.create(@This());
         self.allocator = allocator;
         try self.init();
@@ -83,8 +83,8 @@ const RhiCore = struct {
         return self;
     }
 
-    pub fn destroy(allocator: std.mem.Allocator) void {
-        try allocator.destroy(@This());
+    pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
+        try allocator.destroy(self);
     }
 
     pub fn init(self: *@This()) !void {

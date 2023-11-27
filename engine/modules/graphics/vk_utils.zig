@@ -416,6 +416,7 @@ pub const NeonVkUploader = struct {
 
         // create the command pool
         var cpci = vkinit.commandPoolCreateInfo(@as(u32, @intCast(self.gc.graphicsFamilyIndex)), .{ .reset_command_buffer_bit = true });
+
         self.commandPool = try self.gc.vkd.createCommandPool(self.gc.dev, &cpci, null);
 
         // create the command buffer
