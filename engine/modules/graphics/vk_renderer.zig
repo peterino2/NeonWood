@@ -2205,12 +2205,37 @@ pub const NeonVkContext = struct {
                         try self.requiredExtensions.append(self.allocator, search);
                     }
                 }
+
+                {
+                    var sampleCounts: u32 = @bitCast(self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts);
+                    core.graphics_log("Sample counts available on device: 0x{x} {any}", .{ sampleCounts, self.getMsaaSampleCountFlag() });
+                }
                 return;
             }
         }
 
         core.engine_errs("Unable to find a physical device which fits.");
         return error.NoValidDevice;
+    }
+
+    pub fn getMsaaSampleCountFlag(self: *@This()) vk.SampleCountFlags {
+        const sampleCounts = self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts;
+
+        // @"1_bit": bool = false,
+        // @"2_bit": bool = false,
+        // @"4_bit": bool = false,
+        // @"8_bit": bool = false,
+        // @"16_bit": bool = false,
+        // @"32_bit": bool = false,
+        // @"64_bit": bool = false,
+        if (sampleCounts.@"64_bit") return .{ .@"64_bit" = true };
+        if (sampleCounts.@"32_bit") return .{ .@"32_bit" = true };
+        if (sampleCounts.@"16_bit") return .{ .@"16_bit" = true };
+        if (sampleCounts.@"8_bit") return .{ .@"8_bit" = true };
+        if (sampleCounts.@"4_bit") return .{ .@"4_bit" = true };
+        if (sampleCounts.@"2_bit") return .{ .@"2_bit" = true };
+
+        return .{ .@"1_bit" = true };
     }
 
     fn check_extension_support(self: *Self, deviceInfo: NeonVkPhysicalDeviceInfo) !bool {

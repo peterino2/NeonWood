@@ -214,6 +214,7 @@ pub const GameContext = struct {
             ctx.get(validation).pos = .{ .x = 20, .y = 20 };
             ctx.get(validation).setSize(.{ .x = 500, .y = 50 });
             ctx.get(validation).style.foregroundColor = Color.Red;
+            ctx.setFont(validation, "monospace");
             ctx.getText(validation).textSize = 36;
         }
     }
