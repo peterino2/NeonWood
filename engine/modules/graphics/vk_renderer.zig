@@ -398,7 +398,6 @@ pub const NeonVkContext = struct {
     descriptorPool: vk.DescriptorPool,
     globalDescriptorLayout: vk.DescriptorSetLayout,
     objectDescriptorLayout: vk.DescriptorSetLayout,
-    spriteDescriptorLayout: vk.DescriptorSetLayout,
 
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
@@ -2531,6 +2530,8 @@ pub const NeonVkContext = struct {
         self.destroy_framebuffers() catch {
             core.engine_errs("unable to destroy framebuffers");
         };
+
+        self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
         self.destroy_uploaders();
 

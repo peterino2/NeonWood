@@ -111,6 +111,7 @@ pub const GpuPipeData = struct {
     descriptorSetLayout: vk.DescriptorSetLayout,
     bindings: []GpuPipeDataBinding,
     descriptorSets: []vk.DescriptorSet, // one per frame
+    descriptorSetLayoutIsAllocated: bool = false,
 
     pub fn getDescriptorSet(self: @This(), frameIndex: usize) [*]const vk.DescriptorSet {
         return @as([*]const vk.DescriptorSet, @ptrCast(&self.descriptorSets[frameIndex]));
@@ -141,6 +142,9 @@ pub const GpuPipeData = struct {
 
     // pub fn unmapAll(self: *@This(), mappings: anytype);
     pub fn deinit(self: *@This(), allocator: std.mem.Allocator, gc: *NeonVkContext) void {
+        if (self.descriptorSetLayoutIsAllocated) {
+            gc.vkd.destroyDescriptorSetLayout(gc.dev, self.descriptorSetLayout, null);
+        }
         for (self.bindings) |*binding| {
             binding.deinit(gc.vkAllocator);
             allocator.free(binding.buffers);
@@ -234,7 +238,8 @@ pub const GpuPipeDataBuilder = struct {
         var gc: *NeonVkContext = self.gc;
         var setInfo = vk.DescriptorSetLayoutCreateInfo{ .binding_count = @as(u32, @intCast(self.bindings.items.len)), .flags = .{}, .p_bindings = self.bindings.items.ptr };
         rv.descriptorSetLayout = try gc.vkd.createDescriptorSetLayout(gc.dev, &setInfo, null);
-        core.graphics_log("finalizing build", .{});
+        rv.descriptorSetLayoutIsAllocated = true;
+        core.graphics_log("finalizing build creating descriptor set layout at 0x{x} buildName: {s}", .{ @intFromEnum(rv.descriptorSetLayout), buildName });
 
         for (rv.descriptorSets, 0..) |_, frameId| {
             var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
