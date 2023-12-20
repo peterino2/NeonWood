@@ -9,6 +9,10 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime pathPrefix:
         exe.addIncludePath(.{ .path = pathPrefix ++ "/lib/vulkan_inc" });
     }
 
+    if (graphicsBackend == .OpenGlES_UIOnly) {
+        exe.addIncludePath(.{ .path = pathPrefix ++ "/lib/gl/gles-2.0/include" });
+    }
+
     exe.addIncludePath(.{ .path = pathPrefix ++ "/lib" });
     exe.addIncludePath(.{ .path = pathPrefix });
 

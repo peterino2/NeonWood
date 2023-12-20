@@ -70,11 +70,12 @@ pub const NwBuildSystem = struct {
         var enginePath = std.fs.realpath(b.build_root.path.?, &enginePathBuffer) catch unreachable;
 
         const options = b.addOptions();
-        options.addOption(bool, "validation_layers", b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+
         options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
         //
+
         //
         const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
@@ -148,6 +149,11 @@ pub const NwBuildSystem = struct {
         exe.linkLibCpp();
 
         exe.addOptions("game_build_opts", self.options);
+
+        var options = self.b.addOptions();
+        options.addOption(bool, "UseVulkan", opts.graphicsBackend == .Vulkan);
+        options.addOption(bool, "UseGLES2", opts.graphicsBackend == .OpenGlES_UIOnly);
+        exe.addOptions("graphicsBackend", options);
 
         if (self.target.getOs().tag == .windows) {
             exe.linkSystemLibrary("glfw3dll");
