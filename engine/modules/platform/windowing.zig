@@ -4,6 +4,7 @@ const image = @import("../image.zig");
 const platform = @import("../platform.zig");
 const gameInput = @import("gameInput.zig");
 pub const c = @import("c.zig");
+const graphicsBackend = @import("graphicsBackend");
 
 const RingQueue = core.RingQueue;
 const tracy = core.tracy;
@@ -132,6 +133,13 @@ pub const PlatformInstance = struct {
 
         core.engine_log("Creating IO Buffer with {x} size", .{@sizeOf(IOEvent) * 8096});
 
+        if (graphicsBackend.UseVulkan) {
+            core.engine_logs("Initializing with Vulkan 1.3");
+        }
+        if (graphicsBackend.UseGLES2) {
+            core.engine_logs("Initializing with OpenGLES");
+        }
+
         return self;
     }
 
@@ -186,15 +194,17 @@ pub const PlatformInstance = struct {
         c.glfwSetWindowIcon(self.window, 1, &iconImage);
         c.glfwSetWindowAspectRatio(self.window, 16, 9);
 
-        var extensionsCount: u32 = 0;
-        const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
+        if (graphicsBackend.UseVulkan) {
+            var extensionsCount: u32 = 0;
+            const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
 
-        core.engine_log("glfw has requested the following extensions: {d}", .{extensionsCount});
-        if (extensionsCount > 0) {
-            var i: usize = 0;
-            while (i < extensionsCount) : (i += 1) {
-                var x = @as([*]const core.CStr, @ptrCast(extensions));
-                core.engine_log("  glfw_extension: {s}", .{x[i]});
+            core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
+            if (extensionsCount > 0) {
+                var i: usize = 0;
+                while (i < extensionsCount) : (i += 1) {
+                    var x = @as([*]const core.CStr, @ptrCast(extensions));
+                    core.engine_log("  glfw_extension: {s}", .{x[i]});
+                }
             }
         }
 
