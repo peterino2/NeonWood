@@ -26,6 +26,10 @@ pub fn loadFileAlloc(allocator: std.mem.Allocator, filename: []const u8) []const
 const BuildSystemOpts = struct {
     useTracy: bool = false,
 };
+fn root() []const u8 {
+    return comptime (std.fs.path.dirname(@src().file) orelse ".");
+}
+const build_root = root() ++ "/..";
 
 pub const NwBuildSystem = struct {
     b: *std.build.Builder,
@@ -77,7 +81,7 @@ pub const NwBuildSystem = struct {
             .spirvGen = SpirvGenerator.init(b, .{
                 .target = target,
                 .optimize = optimize,
-                .repoPath = "modules/graphics/lib/spirv-reflect-zig/src",
+                .repoPath = build_root ++ "/modules/graphics/lib/spirv-reflect-zig/src",
             }),
             .enableTracy = enableTracy,
             .options = options,
@@ -117,7 +121,7 @@ pub const NwBuildSystem = struct {
     ) *std.build.LibExeObjStep {
         const exe = self.b.addExecutable(.{
             .name = name,
-            .root_source_file = .{ .path = "root.zig" },
+            .root_source_file = .{ .path = build_root ++ "/root.zig" },
             .target = self.target,
             .optimize = self.optimize,
         });
@@ -147,13 +151,13 @@ pub const NwBuildSystem = struct {
         exe.linkSystemLibrary("m");
         self.generateVulkan(exe);
 
-        assets.addLib(self.b, exe, "modules/assets", self.cflags.items);
-        audio.addLib(self.b, exe, "modules/audio", self.cflags.items);
-        core.addLib(self.b, exe, "modules/core", self.cflags.items, self.enableTracy);
-        game.addLib(self.b, exe, "modules/game", self.cflags.items);
-        graphics.addLib(self.b, exe, "modules/graphics", self.cflags.items);
-        platform.addLib(self.b, exe, "modules/platform", self.cflags.items);
-        ui.addLib(self.b, exe, "modules/ui", self.cflags.items);
+        assets.addLib(self.b, exe, build_root ++ "/modules/assets", self.cflags.items);
+        audio.addLib(self.b, exe, build_root ++ "/modules/audio", self.cflags.items);
+        core.addLib(self.b, exe, build_root ++ "/modules/core", self.cflags.items, self.enableTracy);
+        game.addLib(self.b, exe, build_root ++ "/modules/game", self.cflags.items);
+        graphics.addLib(self.b, exe, build_root ++ "/modules/graphics", self.cflags.items);
+        platform.addLib(self.b, exe, build_root ++ "/modules/platform", self.cflags.items);
+        ui.addLib(self.b, exe, build_root ++ "/modules/ui", self.cflags.items);
 
         const runCmd = self.b.addRunArtifact(exe);
         runCmd.step.dependOn(&install.step);
@@ -167,17 +171,17 @@ pub const NwBuildSystem = struct {
         const runStep = self.b.step(self.b.fmt("run-{s}", .{name}), description);
         runStep.dependOn(&runCmd.step);
 
-        self.addShader(exe, "triangle_mesh_vert", "modules/graphics/shaders/triangle_mesh.vert");
-        self.addShader(exe, "default_lit", "modules/graphics/shaders/default_lit.frag");
+        self.addShader(exe, "triangle_mesh_vert", build_root ++ "/modules/graphics/shaders/triangle_mesh.vert");
+        self.addShader(exe, "default_lit", build_root ++ "/modules/graphics/shaders/default_lit.frag");
 
-        self.addShader(exe, "debug_vert", "modules/graphics/shaders/debug.vert");
-        self.addShader(exe, "debug_frag", "modules/graphics/shaders/debug.frag");
+        self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
+        self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
 
-        self.addShader(exe, "papyrus_vk_vert", "modules/ui/papyrus/shaders/papyrus_vk.vert");
-        self.addShader(exe, "papyrus_vk_frag", "modules/ui/papyrus/shaders/papyrus_vk.frag");
+        self.addShader(exe, "papyrus_vk_vert", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.vert");
+        self.addShader(exe, "papyrus_vk_frag", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.frag");
 
-        self.addShader(exe, "FontSDF_vert", "modules/ui/papyrus/shaders/FontSDF.vert");
-        self.addShader(exe, "FontSDF_frag", "modules/ui/papyrus/shaders/FontSDF.frag");
+        self.addShader(exe, "FontSDF_vert", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.vert");
+        self.addShader(exe, "FontSDF_frag", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.frag");
 
         return exe;
     }
@@ -195,7 +199,7 @@ pub const NwBuildSystem = struct {
         }
 
         // generate the vulkan package
-        const gen = vkgen.VkGenerateStep.init(self.b, "modules/graphics/lib/vk.xml", "vk.zig");
+        const gen = vkgen.VkGenerateStep.init(self.b, build_root ++ "/modules/graphics/lib/vk.xml", "vk.zig");
 
         exe.addModule("glslTypes", self.spirvGen.glslTypes);
         vma_build.link(exe, gen.package, self.optimize, self.target, self.b);
