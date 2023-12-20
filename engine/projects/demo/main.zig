@@ -202,9 +202,9 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me! \nlmao");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
-            ctx.get(unk2Text).setSize(.{ .x = 150, .y = 75 });
+            ctx.get(unk2Text).setSize(.{ .x = 150, .y = 150 });
             ctx.setFont(unk2Text, "roboto");
             ctx.getText(unk2Text).textSize = 12;
         }

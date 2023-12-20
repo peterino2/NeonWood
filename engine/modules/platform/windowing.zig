@@ -297,6 +297,9 @@ pub const IOEvent = union(enum(u8)) {
     key: struct { key: c_int, scancode: c_int, action: c_int, mods: c_int },
 };
 
+// push an io event onto the IOEventQueue
+//
+// Excessive events shall be dropped.
 pub fn pushEventSafe(event: IOEvent) void {
     platform.getInstance().eventQueue.pushLocked(event) catch {
         core.engine_logs("too many events queued, dropping event...");

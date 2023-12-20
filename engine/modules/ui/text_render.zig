@@ -70,6 +70,7 @@ pub const DisplayText = struct {
     mesh: *DynamicMesh, // we own this
     string: std.ArrayList(u8),
     stringHash: u32 = 0xffffffff,
+    renderMode: papyrus.PapyrusTextRenderMode,
 
     displaySize: f32 = 24.0,
     position: Vector2f = .{},
@@ -114,6 +115,7 @@ pub const DisplayText = struct {
             .g = atlas.g,
             .allocator = allocator,
             .atlas = atlas,
+            .renderMode = .Simple,
             .mesh = try graphics.DynamicMesh.init(atlas.g, atlas.g.allocator, .{
                 .maxVertexCount = opts.charLimit * 4,
             }),
@@ -143,6 +145,10 @@ pub const DisplayText = struct {
         vkd.cmdDrawIndexed(cmd, self.mesh.getIndexBufferLen(), 1, 0, 0, ssboId);
     }
 
+    pub fn setMode(self: *@This(), mode: papyrus.PapyrusTextParseMode) void {
+        self.renderMode = mode;
+    }
+
     pub fn setPosition(self: *@This(), position: Vector2f) void {
         self.position = position;
     }
@@ -165,6 +171,7 @@ pub const DisplayText = struct {
 
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
+        const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
 
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
@@ -176,8 +183,15 @@ pub const DisplayText = struct {
                 continue;
             }
 
-            if (ch == ' ' or ch == '\n') {
+            if (ch == ' ' or (ch == '\n' and self.renderMode == .NoControl)) {
                 xOffset += stride / 2;
+                continue;
+            }
+
+            // newline if we see newline and we're in simple or rich mode.
+            if (ch == '\n' and (self.renderMode == .Simple or self.renderMode == .Rich)) {
+                xOffset = 0;
+                yOffset += fontHeight * 1.2;
                 continue;
             }
 
@@ -189,7 +203,6 @@ pub const DisplayText = struct {
             const box = Vector2f.from(atlas.glyphBox1[ch]).fmul(ratio);
             const metrics = Vector2f.from(atlas.glyphMetrics[ch]).fmul(ratio);
             const baseMetrics = Vector2f.from(atlas.glyphMetrics[ch]);
-            const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
 
             const uv_tl = atlas.glyphCoordinates[ch][0];
 
