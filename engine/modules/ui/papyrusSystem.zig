@@ -140,6 +140,12 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, PapyrusImageGpu, 0);
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
     core.ui_log("Mapping buffers.", .{});
+    var extent = self.gc.actual_extent;
+
+    self.papyrusCtx.get(.{}).setSize(.{
+        .x = @floatFromInt(extent.width),
+        .y = @floatFromInt(extent.height),
+    });
 }
 
 pub fn preDraw(self: *@This(), frameId: usize) void {

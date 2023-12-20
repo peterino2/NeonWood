@@ -23,6 +23,15 @@ pub fn loadFileAlloc(allocator: std.mem.Allocator, filename: []const u8) []const
     return buffer;
 }
 
+pub const ProgramOptions = struct {
+    graphicsBackend: GraphicsBackend = .Vulkan,
+};
+
+pub const GraphicsBackend = enum {
+    Vulkan,
+    OpenGlES_UIOnly,
+};
+
 const BuildSystemOpts = struct {
     useTracy: bool = false,
 };
@@ -56,6 +65,8 @@ pub const NwBuildSystem = struct {
         if (target.getOs().tag == .macos) {
             if (macos_vulkan_sdk) |vk_sdk| {
                 std.debug.print("vulkan sdk at: VULKAN_SDK = {s} \n", .{vk_sdk});
+            } else {
+                std.debug.print("VULKAN_SDK variable not set for macos vulkan project. We will be unable to build vulkan applications for this platform", .{});
             }
         }
 
@@ -63,11 +74,12 @@ pub const NwBuildSystem = struct {
         var enginePath = std.fs.realpath(b.build_root.path.?, &enginePathBuffer) catch unreachable;
 
         const options = b.addOptions();
-        options.addOption(bool, "validation_layers", b.option(bool, "vulkan_validation", "Enables vulkan validation layers") orelse false);
+
         options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
         //
+
         //
         const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
 
@@ -105,12 +117,12 @@ pub const NwBuildSystem = struct {
         try self.cflags.append(try b.fmt("-fno-sanitize=all", .{}));
     }
 
-    pub fn addTest(self: *@This(), comptime name: []const u8) *std.build.LibExeObjStep {
-        return self.addProgram(name, "projects/tests/" ++ name ++ ".zig", "a test");
+    pub fn addTest(self: *@This(), comptime name: []const u8, opts: ProgramOptions) *std.build.LibExeObjStep {
+        return self.addProgram(name, "projects/tests/" ++ name ++ ".zig", "a test", opts);
     }
 
-    pub fn addGame(self: *@This(), comptime name: []const u8, comptime description: []const u8) *std.build.LibExeObjStep {
-        return self.addProgram(name, "projects/" ++ name ++ "/main.zig", description);
+    pub fn addGame(self: *@This(), comptime name: []const u8, comptime description: []const u8, opts: ProgramOptions) *std.build.LibExeObjStep {
+        return self.addProgram(name, "projects/" ++ name ++ "/main.zig", description, opts);
     }
 
     pub fn addProgram(
@@ -118,6 +130,7 @@ pub const NwBuildSystem = struct {
         comptime name: []const u8,
         comptime mainFile: []const u8,
         comptime description: []const u8,
+        opts: ProgramOptions,
     ) *std.build.LibExeObjStep {
         const exe = self.b.addExecutable(.{
             .name = name,
@@ -141,6 +154,11 @@ pub const NwBuildSystem = struct {
 
         exe.addOptions("game_build_opts", self.options);
 
+        var options = self.b.addOptions();
+        options.addOption(bool, "UseVulkan", opts.graphicsBackend == .Vulkan);
+        options.addOption(bool, "UseGLES2", opts.graphicsBackend == .OpenGlES_UIOnly);
+        exe.addOptions("graphicsBackend", options);
+
         if (self.target.getOs().tag == .windows) {
             exe.linkSystemLibrary("glfw3dll");
         } else {
@@ -149,13 +167,16 @@ pub const NwBuildSystem = struct {
             exe.linkSystemLibrary("pthread");
         }
         exe.linkSystemLibrary("m");
-        self.generateVulkan(exe);
+
+        if (opts.graphicsBackend == .Vulkan) {
+            self.generateVulkan(exe);
+        }
 
         assets.addLib(self.b, exe, build_root ++ "/modules/assets", self.cflags.items);
         audio.addLib(self.b, exe, build_root ++ "/modules/audio", self.cflags.items);
         core.addLib(self.b, exe, build_root ++ "/modules/core", self.cflags.items, self.enableTracy);
         game.addLib(self.b, exe, build_root ++ "/modules/game", self.cflags.items);
-        graphics.addLib(self.b, exe, build_root ++ "/modules/graphics", self.cflags.items);
+        graphics.addLib(self.b, exe, build_root ++ "/modules/graphics", self.cflags.items, opts.graphicsBackend);
         platform.addLib(self.b, exe, build_root ++ "/modules/platform", self.cflags.items);
         ui.addLib(self.b, exe, build_root ++ "/modules/ui", self.cflags.items);
 
@@ -171,18 +192,19 @@ pub const NwBuildSystem = struct {
         const runStep = self.b.step(self.b.fmt("run-{s}", .{name}), description);
         runStep.dependOn(&runCmd.step);
 
-        self.addShader(exe, "triangle_mesh_vert", build_root ++ "/modules/graphics/shaders/triangle_mesh.vert");
-        self.addShader(exe, "default_lit", build_root ++ "/modules/graphics/shaders/default_lit.frag");
+        if (opts.graphicsBackend == .Vulkan) {
+            self.addShader(exe, "triangle_mesh_vert", build_root ++ "/modules/graphics/shaders/triangle_mesh.vert");
+            self.addShader(exe, "default_lit", build_root ++ "/modules/graphics/shaders/default_lit.frag");
 
-        self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
-        self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
+            self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
+            self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
 
-        self.addShader(exe, "papyrus_vk_vert", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.vert");
-        self.addShader(exe, "papyrus_vk_frag", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.frag");
+            self.addShader(exe, "papyrus_vk_vert", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.vert");
+            self.addShader(exe, "papyrus_vk_frag", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.frag");
 
-        self.addShader(exe, "FontSDF_vert", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.vert");
-        self.addShader(exe, "FontSDF_frag", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.frag");
-
+            self.addShader(exe, "FontSDF_vert", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.vert");
+            self.addShader(exe, "FontSDF_frag", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.frag");
+        }
         return exe;
     }
 

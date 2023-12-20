@@ -82,12 +82,13 @@ pub const EventHandlerError = error{
     EventIgnored,
 };
 
-pub const SingleEventFn = *const fn (NodeHandle) EventHandlerError!void;
-pub const PressedEventFn = *const fn (NodeHandle, PressedEventType) EventHandlerError!void;
+pub const SingleEventFn = *const fn (NodeHandle, ?*anyopaque) EventHandlerError!void;
+pub const PressedEventFn = *const fn (NodeHandle, PressedEventType, ?*anyopaque) EventHandlerError!void;
 
 const EventListener = struct {
     node: NodeHandle,
     event: EventType,
+    context: ?*anyopaque,
     eventFn: SingleEventFn,
 };
 
@@ -95,6 +96,7 @@ const PressedEventListener = struct {
     node: NodeHandle,
     keycode: Key,
     event: PressedEventType,
+    context: ?*anyopaque,
     eventFn: PressedEventFn,
 };
 
@@ -107,6 +109,7 @@ pub fn installMouseOverEvent(
     self: *@This(),
     node: NodeHandle,
     event: EventType,
+    context: ?*anyopaque,
     eventFn: SingleEventFn,
 ) !void {
     var allocator = self.arena.allocator();
@@ -114,6 +117,7 @@ pub fn installMouseOverEvent(
     var listener: EventListener = .{
         .node = node,
         .event = event,
+        .context = context,
         .eventFn = eventFn,
     };
 
@@ -130,7 +134,7 @@ pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: EventType) Ev
     if (self.inputEvents.get(node)) |listeners| {
         for (listeners.items) |listener| {
             if (listener.event == event) {
-                try listener.eventFn(node);
+                try listener.eventFn(node, listener.context);
             }
         }
     }
@@ -140,17 +144,18 @@ pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventTyp
     if (self.pressEvents.get(node)) |listeners| {
         for (listeners.items) |listener| {
             if (listener.event == event and keycode == listener.keycode) {
-                try listener.eventFn(node, event);
+                try listener.eventFn(node, event, listener.context);
             }
         }
     }
 }
 
-pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key, eventFn: PressedEventFn) !void {
+pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key, context: ?*anyopaque, eventFn: PressedEventFn) !void {
     var listener: PressedEventListener = .{
         .node = node,
         .event = event,
         .keycode = keycode,
+        .context = context,
         .eventFn = eventFn,
     };
 

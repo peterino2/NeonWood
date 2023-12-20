@@ -11,10 +11,12 @@ pub fn build(b: *std.build.Builder) void {
     options.addOption(bool, "release_build", false);
 
     var system = nwbuild.NwBuildSystem.init(b, target, optimize, .{});
-    _ = system.addGame("demo", "simple flyover demo");
+    _ = system.addGame("demo", "simple flyover demo", .{});
     //_ = system.addGame("uiSample", "sample UI program");
 
-    _ = system.addGame("birch", "birch renderer bootstrap");
+    _ = system.addGame("birch", "birch renderer bootstrap", .{});
+
+    _ = system.addGame("gles2-ui", "Papyrus-only program running on opengles 2.0", .{ .graphicsBackend = .OpenGlES_UIOnly });
 
     //_ = system.addGame("vault", "demo program that runs the 'vault' runtime.");
 
