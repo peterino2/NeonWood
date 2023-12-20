@@ -190,17 +190,17 @@ pub const GameContext = struct {
         ctx.get(unk).style.borderColor = BurnStyle.Diminished;
         ctx.get(unk).style.backgroundColor = BurnStyle.DarkSlateGrey;
 
-        try ctx.events.installOnPressedEvent(unk, .onReleased, .Mouse1, &onPressed);
-        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, &onPressed);
+        try ctx.events.installOnPressedEvent(unk, .onReleased, .Mouse1, null, &onPressed);
+        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, null, &onPressed);
 
         const unk2 = try ctx.addPanel(unk);
         {
             ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
             ctx.get(unk2).setSize(.{ .x = 100, .y = 20 });
             ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
-            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
-            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
-            try ctx.events.installMouseOverEvent(unk2, .mouseOff, &onUnk2MouseOff);
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
             const unk2Text = try ctx.addText(unk2, "click me! \nlmao");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
@@ -229,7 +229,8 @@ var gIpsumPos: core.Vector2f = .{ .x = 900, .y = 30 };
 var gSavedMouseOffset: core.Vector2f = .{};
 var gIpsumDown: bool = false;
 
-fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*anyopaque) ui.EventHandlerError!void {
+    _ = context;
     _ = node;
     if (eventType == .onPressed) {
         gIpsumDown = true;
@@ -244,7 +245,8 @@ fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandle
 const BurnStyle = ui.papyrus.BurnStyle;
 const Color = ui.papyrus.Color;
 
-fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*anyopaque) ui.EventHandlerError!void {
+    _ = context;
     var ctx = ui.getContext();
 
     if (eventType == .onPressed) {
@@ -258,7 +260,8 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerEr
     }
 }
 
-fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+fn onUnk2MouseOff(node: ui.NodeHandle, context: ?*anyopaque) ui.EventHandlerError!void {
+    _ = context;
     ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
 }
 
