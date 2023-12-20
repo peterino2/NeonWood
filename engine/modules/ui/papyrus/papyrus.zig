@@ -171,9 +171,17 @@ pub const PapyrusNodeStyle = struct {
     borderColor: Color = BurnStyle.Bright2,
 };
 
+pub const PapyrusTextRenderMode = enum {
+    Simple,
+    NoControl,
+    Rich,
+};
+
 // this is going to follow a pretty object-oriented-like user facing api
 pub const PapyrusNode = struct {
     text: LocText = MakeText("hello world"),
+    textMode: PapyrusTextRenderMode = .Simple,
+
     parent: NodeHandle = .{}, // 0 corresponds to true root
 
     // all children of the same parent operate as a doubly linked list
@@ -557,6 +565,7 @@ pub const PapyrusContext = struct {
             Text: struct {
                 tl: Vector2f,
                 size: Vector2f,
+                renderMode: PapyrusTextRenderMode,
                 text: LocText,
                 color: Color,
                 textSize: f32,
@@ -675,6 +684,7 @@ pub const PapyrusContext = struct {
 
         try self.assembleDrawOrderList(&self._drawOrder);
 
+        // todo: remove this layout hashmap, stash it in the main context.
         var layout = std.AutoHashMap(NodeHandle, LayoutInfo).init(self.allocator);
         defer layout.deinit();
 
@@ -737,6 +747,7 @@ pub const PapyrusContext = struct {
                                 .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 3 }),
                                 .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
                                 .text = n.text,
+                                .renderMode = n.textMode,
                                 .color = panel.titleColor,
                                 .textSize = panel.titleSize - 4,
                                 .rendererHash = panel.font.rendererHash,
@@ -771,6 +782,7 @@ pub const PapyrusContext = struct {
                             .tl = resolvedPos,
                             .size = n.size,
                             .text = n.text,
+                            .renderMode = n.textMode,
                             .color = n.style.foregroundColor,
                             .textSize = txt.textSize,
                             .rendererHash = txt.font.atlas.rendererHash,
@@ -821,6 +833,7 @@ pub const PapyrusContext = struct {
                     .text = LocText.fromUtf8("Papyrus Debug:"),
                     .tl = .{ .x = 30, .y = yOffset },
                     .size = .{ .x = width, .y = 30 },
+                    .renderMode = .NoControl,
                     //.color = BurnStyle.Highlight3,
                     .color = Color.Yellow,
                     .textSize = defaultHeight,
@@ -842,6 +855,7 @@ pub const PapyrusContext = struct {
                     .Text = .{
                         .text = LocText.fromUtf8Z(textData),
                         .tl = .{ .x = 30, .y = yOffset },
+                        .renderMode = .NoControl,
                         .size = .{ .x = width, .y = 30 },
                         .color = Color.Yellow,
                         .textSize = defaultHeight,

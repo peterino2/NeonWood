@@ -367,11 +367,14 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 }
 
                 textDisplay.displaySize = text.textSize;
+                textDisplay.renderMode = text.renderMode;
                 textDisplay.boxSize = .{ .x = text.size.x, .y = text.size.y };
                 textDisplay.color = text.color;
                 textDisplay.position = .{ .x = text.tl.x, .y = text.tl.y };
                 textDisplay.string.clearRetainingCapacity();
-                // TODO this is really bad
+
+                // TODO this is really bad and confusing.
+                // The renderer should not be storing a hash on the papyrus resource.
                 if (text.rendererHash != 0) {
                     textDisplay.atlas = self.textRenderer.fonts.get(text.rendererHash).?;
                 }
