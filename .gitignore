@@ -15,3 +15,5 @@ CppProperties.json
 
 packages/
 *.blend1
+
+*.DS_Store

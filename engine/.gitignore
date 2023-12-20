@@ -7,3 +7,4 @@ imgui.ini
 CppProperties.json
 sampleOutput.json
 Saved/
+*.DS_Store
