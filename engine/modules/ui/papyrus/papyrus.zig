@@ -181,6 +181,7 @@ pub const PapyrusTextRenderMode = enum {
 pub const PapyrusNode = struct {
     text: LocText = MakeText("hello world"),
     textMode: PapyrusTextRenderMode = .Simple,
+    textRenderedSize: Vector2f = .{ .x = 0.0, .y = 0.0 },
 
     parent: NodeHandle = .{}, // 0 corresponds to true root
 
@@ -273,7 +274,9 @@ pub const PapyrusContext = struct {
         self.clearDebugText();
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
         if (self.mousePick.found) {
-            try self.pushDebugText("found node: {any}", .{self.mousePick.selectedNode});
+            const n = self.mousePick.selectedNode;
+            const s = self.getRead(n).textRenderedSize;
+            try self.pushDebugText("found node: {d},{d} textRenderedSize={d}x{d}", .{ n.index, n.generation, s.x, s.y });
         }
     }
 
