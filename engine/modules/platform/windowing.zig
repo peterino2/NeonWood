@@ -99,6 +99,8 @@ pub const PlatformInstance = struct {
 
     cursorPos: core.Vector2f = .{},
 
+    contentScale: core.Vector2f = .{},
+
     // Low level controls of the current state of input,
     inputState: InputState = .{},
 
@@ -246,6 +248,11 @@ pub const PlatformInstance = struct {
         _ = c.glfwSetCursorPosCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
         _ = c.glfwSetMouseButtonCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
         _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), keyCallback);
+        _ = c.glfwSetFramebufferSizeCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), windowResizeCallback);
+
+        c.glfwGetWindowContentScale(@as(?*c.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
+
+        core.engine_log("contentScale: {any}", .{self.contentScale});
     }
 
     pub fn pumpEvents(self: *@This()) !void {
@@ -277,6 +284,7 @@ pub const PlatformInstance = struct {
                     .windowFocused => {},
                     .scroll => {},
                     .key => {},
+                    .windowResize => {},
                 }
             }
 
@@ -315,7 +323,14 @@ pub const IOEvent = union(enum(u8)) {
     mouseButton: struct { button: c_int, action: c_int, mods: c_int },
     scroll: struct { xoffset: f64, yoffset: f64 },
     key: struct { key: c_int, scancode: c_int, action: c_int, mods: c_int },
+    windowResize: struct { newSize: core.Vector2f },
 };
+
+fn windowResizeCallback(_: ?*c.GLFWwindow, newWidth: c_int, newHeight: c_int) callconv(.C) void {
+    pushEventSafe(.{ .windowResize = .{
+        .newSize = .{ .x = @floatFromInt(newWidth), .y = @floatFromInt(newHeight) },
+    } });
+}
 
 // push an io event onto the IOEventQueue
 //
