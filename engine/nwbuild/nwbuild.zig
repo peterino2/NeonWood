@@ -186,6 +186,10 @@ pub const NwBuildSystem = struct {
             runCmd.addArgs(args);
         }
 
+        if (self.target.getOs().tag == .macos) {
+            exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
+        }
+
         const buildStep = self.b.step(name, description);
         buildStep.dependOn(&exe.step);
 

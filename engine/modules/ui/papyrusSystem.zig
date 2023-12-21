@@ -124,6 +124,14 @@ pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListener
             // todo: use the right error code here
             self.papyrusCtx.onKey(keycode, eventType) catch unreachable;
         },
+        .windowResize => |e| {
+            const pi = platform.getInstance();
+
+            self.papyrusCtx.get(.{}).setSize(.{
+                .x = e.newSize.x / pi.contentScale.x,
+                .y = e.newSize.y / pi.contentScale.y,
+            });
+        },
         else => {},
     }
 }
@@ -141,10 +149,11 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
     core.ui_log("Mapping buffers.", .{});
     var extent = self.gc.actual_extent;
+    const pi = platform.getInstance();
 
     self.papyrusCtx.get(.{}).setSize(.{
-        .x = @floatFromInt(extent.width),
-        .y = @floatFromInt(extent.height),
+        .x = @as(f32, @floatFromInt(extent.width)) / pi.contentScale.x,
+        .y = @as(f32, @floatFromInt(extent.height)) / pi.contentScale.y,
     });
 }
 

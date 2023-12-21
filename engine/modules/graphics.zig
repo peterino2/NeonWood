@@ -110,3 +110,13 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
 
 pub const rend = @import("graphics/rend_core.zig");
 pub usingnamespace @import("graphics/rend_core.zig");
+
+pub const gles_renderer = @import("graphics/gles_renderer.zig");
+
+pub fn start_gles(allocator: std.mem.Allocator) void {
+    gles_renderer.start(allocator);
+}
+
+pub fn shutdown_gles(allocator: std.mem.Allocator) void {
+    gles_renderer.shutdown(allocator);
+}
