@@ -9,7 +9,7 @@ const c = nw.graphics.c;
 const NodeHandle = ui.NodeHandle;
 
 pub const GameContext = struct {
-    pub var NeonObjectTable: core.RttiData = nw.core.RttiData.from(@This());
+    pub var NeonObjectTable: nw.core.RttiData = nw.core.RttiData.from(@This());
 
     allocator: std.mem.Allocator,
     debugOpen: bool = true,
@@ -71,8 +71,8 @@ pub const GameContext = struct {
         ctx.get(text).size = .{ .x = 600, .y = 600 };
         self.text = text;
 
-        try ctx.events.installMouseOverEvent(self.panel, .mouseOver, &onMouseOver);
-        try ctx.events.installMouseOverEvent(self.panel, .mouseOff, &onMouseOff);
+        try ctx.events.installMouseOverEvent(self.panel, .mouseOver, null, &onMouseOver);
+        try ctx.events.installMouseOverEvent(self.panel, .mouseOff, null, &onMouseOff);
 
         const fps = try ctx.addText(self.panel, "fps: {}");
         ctx.get(fps).style.foregroundColor = ui.papyrus.ModernStyle.Orange;
@@ -87,19 +87,56 @@ pub const GameContext = struct {
         ctx.get(unk).style.backgroundColor = BurnStyle.LightGrey;
         ctx.getPanel(unk).hasTitle = true;
 
-        try ctx.events.installMouseOverEvent(unk, .mouseOver, &onMouseOver);
-        try ctx.events.installMouseOverEvent(unk, .mouseOff, &onMouseOff);
+        try ctx.events.installMouseOverEvent(unk, .mouseOver, null, &onMouseOver);
+        try ctx.events.installMouseOverEvent(unk, .mouseOff, null, &onMouseOff);
 
-        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, &pressedUnk);
+        try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, null, &pressedUnk);
 
-        const unk2 = try ctx.addPanel(unk);
-        {
-            ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
+        ctx.getPanel(unk).layoutMode = .Vertical;
+
+        for (0..3) |i| {
+            _ = i;
+            const unk2 = try ctx.addPanel(unk);
+            ctx.get(unk2).justify = .Left;
+            ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
             ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
-            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, &onUnk2);
-            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, &onUnk2);
-            try ctx.events.installMouseOverEvent(unk2, .mouseOff, &onUnk2MouseOff);
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
+
+            const unk2Text = try ctx.addText(unk2, "click me!");
+            ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
+            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.getText(unk2Text).textSize = 32;
+        }
+
+        for (0..5) |i| {
+            const unk2 = try ctx.addPanel(unk);
+            ctx.get(unk2).justify = .Center;
+            ctx.get(unk2).pos = .{ .x = 10 * @as(f32, @floatFromInt(i)), .y = 0 };
+            ctx.get(unk2).size = .{ .x = 200, .y = 75 };
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
+
+            const unk2Text = try ctx.addText(unk2, "click me!");
+            ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
+            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.getText(unk2Text).textSize = 32;
+        }
+
+        for (0..3) |i| {
+            _ = i;
+            const unk2 = try ctx.addPanel(unk);
+            ctx.get(unk2).justify = .Right;
+            ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
+            ctx.get(unk2).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
+            try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
+            try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
+            try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
             const unk2Text = try ctx.addText(unk2, "click me!");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
@@ -113,7 +150,7 @@ pub const GameContext = struct {
 
 const BurnStyle = ui.papyrus.BurnStyle;
 
-fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) ui.EventHandlerError!void {
     var ctx = ui.getContext();
 
     if (eventType == .onPressed) {
@@ -127,21 +164,21 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerEr
     }
 }
 
-fn onUnk2MouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+fn onUnk2MouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
     ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
 }
 
-fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedEventType) ui.EventHandlerError!void {
+fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) ui.EventHandlerError!void {
     if (eventType == .onPressed) {
         nw.core.engine_log("clicked on {any}", .{node});
     }
 }
 
-fn onMouseOver(node: ui.NodeHandle) ui.EventHandlerError!void {
+fn onMouseOver(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
     nw.core.engine_log("Mouse over over {any}", .{node});
 }
 
-fn onMouseOff(node: ui.NodeHandle) ui.EventHandlerError!void {
+fn onMouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
     nw.core.engine_log("Mouse hover off {any}", .{node});
 }
 
