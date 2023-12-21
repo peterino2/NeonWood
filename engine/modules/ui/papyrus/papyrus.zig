@@ -507,6 +507,11 @@ pub const PapyrusContext = struct {
     pub fn removeFromParent(self: *@This(), node: NodeHandle) !void {
         // this also deletes all children
         // 1. gather all children.
+
+        if (!self.nodes.isValid(node)) {
+            return;
+        }
+
         try assertf(node.index != 0, "removeFromParent CANNOT be called on the root node", .{});
 
         var killList = std.ArrayList(NodeHandle).init(self.allocator);
