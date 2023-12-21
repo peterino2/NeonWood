@@ -25,10 +25,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "content/meshes/lost_empire.obj",
         },
     ),
-    assets.MakeImportRefOptions("Texture", "t_empire", .{
-        .path = testimage1,
-        .textureUseBlockySampler = false,
-    }),
+    // assets.MakeImportRefOptions("Texture", "t_empire", .{
+    //     .path = testimage1,
+    //     .textureUseBlockySampler = false,
+    // }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -185,18 +185,23 @@ pub const GameContext = struct {
         gGame = self;
 
         unk = try ctx.addPanel(.{});
-        ctx.get(unk).pos = .{ .x = 900, .y = 30 };
+        ctx.get(unk).pos = .{ .x = 900, .y = 0 };
         ctx.get(unk).setSize(.{ .x = 300, .y = 300 });
         ctx.get(unk).style.borderColor = BurnStyle.Diminished;
         ctx.get(unk).style.backgroundColor = BurnStyle.DarkSlateGrey;
+        ctx.get(unk).layoutPadding = 0.0;
+
+        var unkPanel = ctx.getPanel(unk);
+        unkPanel.layoutMode = .Vertical;
 
         try ctx.events.installOnPressedEvent(unk, .onReleased, .Mouse1, null, &onPressed);
         try ctx.events.installOnPressedEvent(unk, .onPressed, .Mouse1, null, &onPressed);
 
-        const unk2 = try ctx.addPanel(unk);
-        {
-            ctx.get(unk2).pos = .{ .x = 20, .y = 20 };
-            ctx.get(unk2).setSize(.{ .x = 100, .y = 20 });
+        for (0..4) |i| {
+            _ = i;
+            const unk2 = try ctx.addPanel(unk);
+            ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
+            ctx.get(unk2).setSize(.{ .x = 100, .y = 40 });
             ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
             try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
@@ -213,7 +218,7 @@ pub const GameContext = struct {
             const validation = try ctx.addText(.{}, "Vulkan validation: on");
             ctx.get(validation).pos = .{ .x = 20, .y = 20 };
             ctx.get(validation).setSize(.{ .x = 500, .y = 50 });
-            ctx.get(validation).style.foregroundColor = Color.Red;
+            ctx.get(validation).style.foregroundColor = Color.Orange;
             ctx.setFont(validation, "monospace");
             ctx.getText(validation).textSize = 36;
         }

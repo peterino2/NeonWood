@@ -73,14 +73,14 @@ pub fn addMousePickInfo(
     if (!self.found)
         return;
 
-    var posSize = papyrusCtx._layoutPositions.get(self.selectedNode).?;
+    var layoutInfo = papyrusCtx._displayLayout.items[self.selectedNode.index];
 
     try drawList.append(.{
         .node = .{},
         .primitive = .{
             .Rect = .{
-                .tl = posSize.pos,
-                .size = posSize.size,
+                .tl = layoutInfo.pos,
+                .size = layoutInfo.size,
                 .borderColor = Color.fromRGBA2(1.0, 0.0, 0.0, 1.0),
                 .backgroundColor = Color.fromRGBA2(0.0, 0.0, 0.0, 0.0),
             },

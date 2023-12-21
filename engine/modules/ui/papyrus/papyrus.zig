@@ -114,6 +114,16 @@ pub const PapyrusFillMode = enum {
     // zig fmt: on
 };
 
+// When this element is used as part of a VBox it's left/right position
+// shall be arranged according this justificiation value
+pub const PapyrusNodeJustify = enum {
+    // zig fmt: off
+    Left,
+    Center,
+    Right,
+    // zig fmt: on
+};
+
 pub const PapyrusHitTestability = enum {
     Testable,
     NotTestable,
@@ -188,10 +198,10 @@ pub const PapyrusNode = struct {
     // all children of the same parent operate as a doubly linked list
     child: NodeHandle = .{},
     end: NodeHandle = .{},
-    next: NodeHandle = .{}, //
+    next: NodeHandle = .{},
     prev: NodeHandle = .{},
 
-    zOrder: i32 = 0, // higher order goes first
+    zOrder: i32 = 0, // higher number is rendered on top.
 
     // Not sure what's the best way to go about this.
     // I want to provide good design time metrics
@@ -203,9 +213,14 @@ pub const PapyrusNode = struct {
     sizeInitialized: bool = false,
     size: Vector2f = .{ .x = 0, .y = 0 },
 
+    justify: PapyrusNodeJustify = .Center,
+
     pos: Vector2f = .{ .x = 0, .y = 0 },
     anchor: PapyrusAnchorNode = .TopLeft,
+    originAnchor: PapyrusAnchorNode = .TopLeft, // This specifies where within this node is used for an anchor.
+    originOffset: Vector2f = .{}, // this specifies an offset from the chosen origin position
     fill: PapyrusFillMode = .None,
+    layoutPadding: f32 = 5.0,
 
     // padding is the external
     padding: NodePadding = .{ .all = 0 },
@@ -218,11 +233,6 @@ pub const PapyrusNode = struct {
     style: PapyrusNodeStyle = .{},
 
     nodeType: NodePropertiesBag,
-
-    pub fn getSize(self: @This()) Vector2f {
-        _ = self;
-        return .{};
-    }
 
     pub fn setSize(self: *@This(), s: Vector2f) void {
         if (!self.sizeInitialized) {
@@ -239,6 +249,7 @@ const LayoutInfo = struct {
     baseSize: Vector2f,
     pos: Vector2f,
     size: Vector2f,
+    childLayoutOffsets: Vector2f,
 };
 
 pub const PapyrusContext = struct {
@@ -274,9 +285,19 @@ pub const PapyrusContext = struct {
         self.clearDebugText();
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
         if (self.mousePick.found) {
-            const n = self.mousePick.selectedNode;
-            const s = self.getRead(n).textRenderedSize;
-            try self.pushDebugText("found node: {d},{d} textRenderedSize={d}x{d}", .{ n.index, n.generation, s.x, s.y });
+            const node = self.mousePick.selectedNode;
+            const n = self.getRead(node);
+            const layout = self._displayLayout.items[node.index];
+            try self.pushDebugText("found node: {d},{d} size={d}x{d} layoutpos={d},{d} layoutsize={d},{d}", .{
+                node.index,
+                node.generation,
+                n.size.x,
+                n.size.y,
+                layout.pos.x,
+                layout.pos.y,
+                layout.size.x,
+                layout.size.y,
+            });
         }
     }
 
@@ -371,6 +392,24 @@ pub const PapyrusContext = struct {
     pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
         const name = Name.fromUtf8(fontName);
         try self.fonts.put(name.handle(), .{ .atlas = atlas, .name = name });
+    }
+
+    pub fn fetchPanel(self: *@This(), handle: NodeHandle) ?*NodeProperty_Panel {
+        if (self.nodes.get(handle)) |node| {
+            switch (node.nodeType) {
+                .Panel => {
+                    return &(node.nodeType.Panel);
+                },
+                else => {
+                    return null;
+                },
+            }
+        }
+        return null;
+    }
+
+    pub fn isValid(self: @This(), handle: NodeHandle) bool {
+        return self.nodes.isValid(handle);
     }
 
     pub fn getPanel(self: *@This(), handle: NodeHandle) *NodeProperty_Panel {
@@ -685,6 +724,62 @@ pub const PapyrusContext = struct {
         }
     }
 
+    const ChildLayoutRulesStruct = struct {
+        position: Vector2f,
+        size: Vector2f,
+    };
+
+    pub fn applyLayoutRulesAsChild(
+        self: *@This(),
+        parentAsPanel: *NodeProperty_Panel,
+        n: *const PapyrusNode,
+        resolvedSize: Vector2f,
+        resolvedPos: Vector2f,
+    ) ChildLayoutRulesStruct {
+        _ = resolvedPos;
+        var parentInfo = &self._displayLayout.items[n.parent.index];
+
+        switch (parentAsPanel.layoutMode) {
+            .Vertical => {
+                var offsetX: f32 = 0.0;
+
+                switch (n.justify) {
+                    .Left => {
+                        offsetX = n.pos.x;
+                    },
+                    .Center => {
+                        offsetX = n.pos.x + @divFloor(parentInfo.size.x - resolvedSize.x, 2);
+                    },
+                    .Right => {
+                        offsetX = n.pos.x + parentInfo.size.x - resolvedSize.x + offsetX - 1;
+                    },
+                }
+
+                var rv = ChildLayoutRulesStruct{
+                    .position = parentInfo.pos.add(.{
+                        .x = offsetX,
+                        .y = parentInfo.childLayoutOffsets.y,
+                    }),
+                    .size = resolvedSize,
+                };
+
+                // Make one more adjustment to the offsetX position based on the  justification.
+                // Justification is taken from the AnchorMode.
+
+                parentInfo.childLayoutOffsets.y += resolvedSize.y + self.get(n.parent).layoutPadding;
+
+                return rv;
+            },
+            .Horizontal => {},
+            .Free => {},
+        }
+
+        return .{
+            .size = resolveAnchoredSize(parentInfo.*, n),
+            .position = resolveAnchoredPosition(parentInfo.*, n),
+        };
+    }
+
     pub fn makeDrawList(self: *@This(), drawList: *DrawList) !void {
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
@@ -701,6 +796,7 @@ pub const PapyrusContext = struct {
             .pos = .{ .x = 0, .y = 0 },
             .size = Vector2f.from(self.extent),
             .baseSize = Vector2f.from(self.extent),
+            .childLayoutOffsets = .{},
         };
 
         drawList.clearRetainingCapacity();
@@ -714,8 +810,16 @@ pub const PapyrusContext = struct {
 
             var parentInfo = self._displayLayout.items[n.parent.index];
 
-            var resolvedPos = resolveAnchoredPosition(parentInfo, n);
+            // First, resolve positions and size as if it was a simple layout.
             var resolvedSize = resolveAnchoredSize(parentInfo, n);
+            var resolvedPos = resolveAnchoredPosition(parentInfo, n);
+
+            // if our parent is a panel then apply layout rules to it.
+            if (self.fetchPanel(n.parent)) |parentAsPanel| {
+                var results = self.applyLayoutRulesAsChild(parentAsPanel, n, resolvedSize, resolvedPos);
+                resolvedPos = results.position;
+                resolvedSize = results.size;
+            }
 
             switch (n.nodeType) {
                 .Panel => |panel| {
@@ -723,12 +827,18 @@ pub const PapyrusContext = struct {
                         .baseSize = n.baseSize,
                         .pos = resolvedPos,
                         .size = resolvedSize,
+                        .childLayoutOffsets = .{},
                     });
                     try self._layoutNodes.append(self.allocator, node);
                     try self._layoutPositions.put(
                         self.allocator,
                         node,
-                        .{ .pos = resolvedPos, .size = resolvedSize, .baseSize = n.baseSize },
+                        .{
+                            .pos = resolvedPos,
+                            .size = resolvedSize,
+                            .baseSize = n.baseSize,
+                            .childLayoutOffsets = .{},
+                        },
                     );
 
                     if (panel.hasTitle) {
@@ -766,7 +876,8 @@ pub const PapyrusContext = struct {
                         self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
                             .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
-                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2f.Ones),
+                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).sub(Vector2f.Ones).sub(.{ .x = 0, .y = 30 }),
+                            .childLayoutOffsets = .{},
                         };
                     } else {
                         try drawList.append(.{ .node = node, .primitive = .{
@@ -781,7 +892,8 @@ pub const PapyrusContext = struct {
                         self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
                             .pos = resolvedPos.add(Vector2f.Ones),
-                            .size = resolvedSize.add(Vector2f.Ones),
+                            .size = resolvedSize.sub(Vector2f.Ones.fmul(2)),
+                            .childLayoutOffsets = .{},
                         };
                     }
                 },
@@ -802,6 +914,7 @@ pub const PapyrusContext = struct {
                         .baseSize = n.baseSize,
                         .pos = resolvedPos.add(Vector2f.Ones),
                         .size = resolvedSize.add(Vector2f.Ones),
+                        .childLayoutOffsets = .{},
                     };
                 },
                 .Slot, .Button => {},

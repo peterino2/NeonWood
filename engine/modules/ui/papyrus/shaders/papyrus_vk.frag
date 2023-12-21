@@ -66,10 +66,9 @@ void main()
     
     // check to discard topright
     
-
     // determine border colors
 
-    if(panelPixelPosition.x < borderWidth 
+    if( panelPixelPosition.x < borderWidth 
         || panelPixelPosition.x > imageSize.x - borderWidth
         || panelPixelPosition.y < borderWidth
         || panelPixelPosition.y > imageSize.y - borderWidth
