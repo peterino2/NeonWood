@@ -78,6 +78,8 @@ pub const DisplayText = struct {
     color: Color = .{ .r = 1.0, .g = 1.0, .b = 1.0 },
     wordWrap: bool = true,
 
+    renderedSize: Vector2f = .{},
+
     pub fn deinit(self: *@This()) void {
         self.mesh.deinit();
         self.string.deinit();
@@ -173,6 +175,8 @@ pub const DisplayText = struct {
         var yOffset: f32 = 0;
         const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
 
+        var largestXOffset: f32 = 0;
+
         for (self.string.items) |ch| {
             if (!atlas.hasGlyph[ch]) {
                 xOffset += stride / 2;
@@ -236,7 +240,16 @@ pub const DisplayText = struct {
             );
 
             xOffset += box.x + metrics.x;
+
+            if (xOffset > largestXOffset) {
+                largestXOffset = xOffset;
+            }
         }
+
+        self.renderedSize = .{
+            .x = largestXOffset,
+            .y = yOffset + fontHeight * 1.2,
+        };
     }
 };
 
