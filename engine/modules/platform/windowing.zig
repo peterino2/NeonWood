@@ -166,7 +166,17 @@ pub const PlatformInstance = struct {
 
         core.engine_log("platform starting: GLFW", .{});
 
-        c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        if (graphicsBackend.UseVulkan) {
+            c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
+        } else if (graphicsBackend.UseGLES2) {
+            c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_OPENGL_ES_API);
+            c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 2);
+            c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 0);
+            c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_ANY_PROFILE);
+        } else {
+            @panic("Unknown graphics api configs");
+        }
+
         c.glfwWindowHint(c.GLFW_DECORATED, if (gPlatformSettings.decoratedWindow) c.GLFW_TRUE else c.GLFW_FALSE);
         c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) c.GLFW_TRUE else c.GLFW_FALSE);
 
