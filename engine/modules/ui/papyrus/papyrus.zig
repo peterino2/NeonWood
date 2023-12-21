@@ -257,8 +257,9 @@ pub const PapyrusContext = struct {
     // internals
     _drawOrder: DrawOrderList,
     _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
-    _layout: std.ArrayListUnmanaged(LayoutInfo),
+    _layout: std.ArrayListUnmanaged(LayoutInfo), // bad name, this is used for hittest, not display
     _layoutPositions: std.AutoHashMapUnmanaged(NodeHandle, LayoutInfo),
+    _displayLayout: std.ArrayListUnmanaged(LayoutInfo) = .{},
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
@@ -681,18 +682,18 @@ pub const PapyrusContext = struct {
         self._drawOrder.clearRetainingCapacity();
         self._layout.clearRetainingCapacity();
         self._layoutNodes.clearRetainingCapacity();
+        self._displayLayout.clearRetainingCapacity();
 
         try self.assembleDrawOrderList(&self._drawOrder);
 
         // todo: remove this layout hashmap, stash it in the main context.
-        var layout = std.AutoHashMap(NodeHandle, LayoutInfo).init(self.allocator);
-        defer layout.deinit();
+        try self._displayLayout.resize(self.allocator, self.nodes.count());
 
-        try layout.put(.{}, .{
+        self._displayLayout.items[0] = .{
             .pos = .{ .x = 0, .y = 0 },
             .size = Vector2f.from(self.extent),
             .baseSize = Vector2f.from(self.extent),
-        });
+        };
 
         drawList.clearRetainingCapacity();
 
@@ -703,7 +704,7 @@ pub const PapyrusContext = struct {
                 continue;
             }
 
-            var parentInfo = layout.get(n.parent).?;
+            var parentInfo = self._displayLayout.items[n.parent.index];
 
             var resolvedPos = resolveAnchoredPosition(parentInfo, n);
             var resolvedSize = resolveAnchoredSize(parentInfo, n);
@@ -754,11 +755,11 @@ pub const PapyrusContext = struct {
                             },
                         } });
 
-                        try layout.put(node, .{
+                        self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
                             .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
                             .size = resolvedSize.sub(.{ .y = -panel.titleSize }).add(Vector2f.Ones),
-                        });
+                        };
                     } else {
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
@@ -769,11 +770,11 @@ pub const PapyrusContext = struct {
                             },
                         } });
 
-                        try layout.put(node, .{
+                        self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
                             .pos = resolvedPos.add(Vector2f.Ones),
                             .size = resolvedSize.add(Vector2f.Ones),
-                        });
+                        };
                     }
                 },
                 .DisplayText => |txt| {
@@ -789,11 +790,11 @@ pub const PapyrusContext = struct {
                         },
                     } });
 
-                    try layout.put(node, .{
+                    self._displayLayout.items[node.index] = .{
                         .baseSize = n.baseSize,
                         .pos = resolvedPos.add(Vector2f.Ones),
                         .size = resolvedSize.add(Vector2f.Ones),
-                    });
+                    };
                 },
                 .Slot, .Button => {},
             }
@@ -855,8 +856,8 @@ pub const PapyrusContext = struct {
                     .Text = .{
                         .text = LocText.fromUtf8Z(textData),
                         .tl = .{ .x = 30, .y = yOffset },
-                        .renderMode = .NoControl,
                         .size = .{ .x = width, .y = 30 },
+                        .renderMode = .NoControl,
                         .color = Color.Yellow,
                         .textSize = defaultHeight,
                         .rendererHash = fontHash,
