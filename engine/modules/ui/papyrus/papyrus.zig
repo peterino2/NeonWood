@@ -159,6 +159,14 @@ pub const NodeProperty_Panel = struct {
     layoutMode: ChildLayout = .Free, // when set to anything other than free, we will override anchors from inferior nodes.
     hasTitle: bool = false,
     font: *FontAtlas,
+    useImage: bool = false,
+    imageReference: core.Name, // Image resource reference
+    rounding: struct {
+        tl: f32 = 0,
+        tr: f32 = 0,
+        bl: f32 = 0,
+        br: f32 = 0,
+    } = .{}, // rounding
 };
 
 pub const NodePropertiesBag = union(enum(u8)) {
@@ -482,6 +490,7 @@ pub const PapyrusContext = struct {
     pub fn addPanel(self: *@This(), parent: NodeHandle) !NodeHandle {
         var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{
             .font = self.fallbackFont.atlas,
+            .imageReference = core.NameInvalid,
         } } };
 
         if (parent.index == 0) {
@@ -609,6 +618,7 @@ pub const PapyrusContext = struct {
                     bl: f32 = 0,
                     br: f32 = 0,
                 } = .{},
+                imageRef: ?core.Name = null,
             },
             Text: struct {
                 tl: Vector2f,
@@ -842,22 +852,33 @@ pub const PapyrusContext = struct {
                     );
 
                     if (panel.hasTitle) {
+
+                        // draw the main image.
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
                                 .tl = resolvedPos.add(.{ .y = panel.titleSize }),
                                 .size = resolvedSize.sub(.{ .y = panel.titleSize }),
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.backgroundColor,
+                                .rounding = .{
+                                    .bl = panel.rounding.bl,
+                                    .br = panel.rounding.br,
+                                },
+                                .imageRef = if (panel.useImage) panel.imageReference else null,
                             },
                         } });
 
+                        // draw the title bar
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
                                 .tl = resolvedPos,
                                 .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.borderColor,
-                                .rounding = .{ .tl = 10, .tr = 10 },
+                                .rounding = .{
+                                    .tl = panel.rounding.tl,
+                                    .tr = panel.rounding.tr,
+                                },
                             },
                         } });
 
@@ -880,12 +901,21 @@ pub const PapyrusContext = struct {
                             .childLayoutOffsets = .{},
                         };
                     } else {
+
+                        // draw the main image
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
                                 .tl = resolvedPos,
                                 .size = resolvedSize,
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.backgroundColor,
+                                .rounding = .{
+                                    .tl = panel.rounding.tl,
+                                    .tr = panel.rounding.tr,
+                                    .bl = panel.rounding.bl,
+                                    .br = panel.rounding.br,
+                                },
+                                .imageRef = if (panel.useImage) panel.imageReference else null,
                             },
                         } });
 
