@@ -3,6 +3,7 @@ const nw = @import("root").neonwood;
 
 const ui = nw.ui;
 const platform = nw.platform;
+const core = nw.core;
 
 const assets = nw.assets;
 const c = nw.graphics.c;
@@ -52,6 +53,8 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *@This()) !void {
+        try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "content/textures/singleSpriteTest.png"));
+
         var ctx = ui.getContext();
         ctx.drawDebug = true;
 
@@ -111,7 +114,7 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
-        for (0..5) |i| {
+        for (0..2) |i| {
             const unk2 = try ctx.addPanel(unk);
             ctx.get(unk2).justify = .Center;
             ctx.get(unk2).pos = .{ .x = 10 * @as(f32, @floatFromInt(i)), .y = 0 };
@@ -133,7 +136,13 @@ pub const GameContext = struct {
             ctx.get(unk2).justify = .Right;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
-            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
+            ctx.get(unk2).style.backgroundColor = BurnStyle.Diminished;
+            ctx.getPanel(unk2).rounding = .{
+                .tl = 10.0,
+                .tr = 10.0,
+                .br = 10.0,
+                .bl = 10.0,
+            };
             try ctx.events.installOnPressedEvent(unk2, .onPressed, .Mouse1, null, &onUnk2);
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
@@ -142,6 +151,14 @@ pub const GameContext = struct {
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
             ctx.getText(unk2Text).textSize = 32;
+        }
+
+        {
+            const image = try ctx.addPanel(self.panel);
+            ctx.get(image).pos = .{ .x = 30, .y = 200 };
+            ctx.get(image).size = .{ .x = 200, .y = 200 };
+            ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
+            ctx.getPanel(image).useImage = true;
         }
 
         ctx.printTree(.{});
@@ -165,7 +182,7 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) u
 }
 
 fn onUnk2MouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
-    ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
+    _ = node;
 }
 
 fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) ui.EventHandlerError!void {
@@ -201,7 +218,7 @@ pub fn main() anyerror!void {
     }
     const allocator = std.heap.c_allocator;
 
-    nw.graphics.setStartupSettings("maxObjectCount", 100);
+    nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything(allocator, "NeonWood: ui");
     defer nw.shutdown_everything(allocator);
     try nw.run_no_input_tickable(GameContext);

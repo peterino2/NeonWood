@@ -23,6 +23,7 @@ struct ImageRenderData {
     vec2 scale;
     float alpha;
     float borderWidth;
+    uint flags;
 	vec4 baseColor;
 	vec4 rounding;
     vec4 borderColor;
@@ -44,6 +45,7 @@ void main()
     vec4 borderColor =  objectBuffer.objects[instanceId].borderColor;
     float borderWidth =  objectBuffer.objects[instanceId].borderWidth;
     float alpha = fragColor.w;
+    uint usesImage = objectBuffer.objects[instanceId].flags & 1;
 
     // check to discard topleft
     vec3 color = fragColor.xyz;
@@ -63,6 +65,24 @@ void main()
             discard;
          }
     }
+
+    // bottom Left
+    if(panelPixelPosition.x < rounding.x && panelPixelPosition.y > imageSize.y - rounding.y)
+    {
+         if(distance(panelPixelPosition, vec2(rounding.x, imageSize.y - rounding.y)) > rounding.y)
+         {
+            discard;
+         }
+    }
+
+    // bottom right
+    if(panelPixelPosition.x > imageSize.x - rounding.a && imageSize.y - panelPixelPosition.y < rounding.a )
+    {
+         if(distance(panelPixelPosition, vec2(imageSize.x - rounding.x, imageSize.y - rounding.y)) > rounding.y)
+         {
+            discard;
+         }
+    }
     
     // check to discard topright
     
@@ -78,7 +98,14 @@ void main()
         alpha = borderColor.w;
     }
 
-
     // scale the color
-    outFragColor = vec4(pow(color, vec3(2.2)), alpha);
+    if(usesImage > 0)
+    {
+        vec4 sampledColor = texture(tex, vec2(texCoord.x, 1 - texCoord.y));
+        outFragColor = vec4(sampledColor.rgb, sampledColor.a * alpha);
+    }
+    else 
+    {
+        outFragColor = vec4(pow(color, vec3(2.2)), alpha);
+    }
 }
