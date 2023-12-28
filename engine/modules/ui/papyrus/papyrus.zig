@@ -29,6 +29,8 @@ pub const localization = @import("localization.zig");
 pub const LocText = localization.LocText;
 pub const MakeText = localization.MakeText;
 
+pub const NodeProperty_Button = @import("primitives/button.zig");
+
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
@@ -141,12 +143,6 @@ pub const NodeProperty_Slot = struct {
     layoutMode: ChildLayout = .Free,
 };
 
-pub const NodeProperty_Button = struct {
-    textSignal: LocText,
-    onPressedSignal: u32,
-    genericListener: u32,
-};
-
 pub const NodeProperty_Text = struct {
     textSize: f32,
     color: Color,
@@ -230,7 +226,7 @@ pub const PapyrusNode = struct {
     fill: PapyrusFillMode = .None,
     layoutPadding: f32 = 5.0,
 
-    // padding is the external
+    // padding is the external padding factor
     padding: NodePadding = .{ .all = 0 },
 
     state: PapyrusState = .Visible,

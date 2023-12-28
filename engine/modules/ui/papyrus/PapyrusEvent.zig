@@ -183,7 +183,15 @@ pub fn deinit(self: *@This()) void {
     self.arena.deinit();
 }
 
-pub fn uninstallHandlers(self: @This(), node: NodeHandle) void {
+pub fn uninstallAllEvents(self: *@This(), node: NodeHandle) void {
     self.inputEvents.remove(node);
+    self.pressEvents.remove(node);
+}
+
+pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) void {
+    self.pressEvents.remove(node);
+}
+
+pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) void {
     self.pressEvents.remove(node);
 }
