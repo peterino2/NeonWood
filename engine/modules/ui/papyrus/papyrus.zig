@@ -552,6 +552,7 @@ pub const PapyrusContext = struct {
         return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
     }
 
+    // removes this node from its' parent as well as purges all subnodes.
     pub fn removeFromParent(self: *@This(), node: NodeHandle) !void {
         // this also deletes all children
         // 1. gather all children.
@@ -590,6 +591,9 @@ pub const PapyrusContext = struct {
         for (killList.items) |killed| {
             self.nodes.destroy(killed);
         }
+
+        // Uninstall handlers from the events system
+        self.events.uninstallHandlers(node);
     }
 
     fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(NodeHandle)) !void {
