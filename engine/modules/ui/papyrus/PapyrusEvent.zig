@@ -182,3 +182,8 @@ pub fn init(allocator: std.mem.Allocator) @This() {
 pub fn deinit(self: *@This()) void {
     self.arena.deinit();
 }
+
+pub fn uninstallHandlers(self: @This(), node: NodeHandle) void {
+    self.inputEvents.remove(node);
+    self.pressEvents.remove(node);
+}
