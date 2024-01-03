@@ -159,6 +159,16 @@ pub const GameContext = struct {
             ctx.get(image).size = .{ .x = 200, .y = 200 };
             ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
             ctx.getPanel(image).useImage = true;
+
+            const image2 = try ctx.addPanel(self.panel);
+            ctx.get(image2).pos = .{ .x = 30, .y = 200 };
+            ctx.get(image2).size = .{ .x = 200, .y = 200 };
+            ctx.getPanel(image2).imageReference = core.MakeName("t_sampleImage");
+            ctx.getPanel(image2).useImage = true;
+
+            core.engine_logs("removing image 2");
+            try ctx.removeFromParent(image2);
+            core.engine_logs("finished removing image 2");
         }
 
         ctx.printTree(.{});
