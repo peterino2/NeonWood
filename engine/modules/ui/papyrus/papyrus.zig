@@ -266,6 +266,9 @@ pub const PapyrusContext = struct {
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
     currentCursorPosition: Vector2f = .{},
 
+    styleStack: std.ArrayListUnmanaged(PapyrusNodeStyle) = .{},
+    resolvedStyle: PapyrusNodeStyle = .{},
+
     mousePick: PapyrusLayout,
 
     events: PapyrusEvent,
@@ -420,6 +423,10 @@ pub const PapyrusContext = struct {
         return &(self.nodes.get(handle).?.nodeType.Panel);
     }
 
+    pub fn getButton(self: *@This(), handle: NodeHandle) *NodeProperty_Button {
+        return &(self.nodes.get(handle).?.nodeType.Button);
+    }
+
     pub fn getText(self: *@This(), handle: NodeHandle) *NodeProperty_Text {
         return &(self.nodes.get(handle).?.nodeType.DisplayText);
     }
@@ -548,6 +555,11 @@ pub const PapyrusContext = struct {
         return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
     }
 
+    pub fn pushStyle(self: *@This(), node: PapyrusNodeStyle) void {
+        _ = node;
+        _ = self;
+    }
+
     // removes this node from its' parent as well as purges all subnodes.
     pub fn removeFromParent(self: *@This(), node: NodeHandle) !void {
         // this also deletes all children
@@ -589,7 +601,7 @@ pub const PapyrusContext = struct {
         }
 
         // Uninstall handlers from the events system
-        self.events.uninstallHandlers(node);
+        self.events.uninstallAllEvents(node);
     }
 
     fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(NodeHandle)) !void {

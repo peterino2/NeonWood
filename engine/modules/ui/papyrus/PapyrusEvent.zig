@@ -184,14 +184,14 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn uninstallAllEvents(self: *@This(), node: NodeHandle) void {
-    self.inputEvents.remove(node);
-    self.pressEvents.remove(node);
+    self.uninstallPressEvents(node);
+    self.uninstallBasicEvents(node);
 }
 
 pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) void {
-    self.pressEvents.remove(node);
+    _ = self.pressEvents.remove(node);
 }
 
 pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) void {
-    self.pressEvents.remove(node);
+    _ = self.pressEvents.remove(node);
 }
