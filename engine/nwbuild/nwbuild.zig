@@ -49,7 +49,7 @@ pub const NwBuildSystem = struct {
     opts: BuildSystemOpts,
     spirvGen: SpirvGenerator,
     options: *std.build.OptionsStep,
-    macos_vulkan_sdk: ?[]const u8,
+    vulkan_sdk: ?[]const u8,
     enableTracy: bool,
 
     pub fn init(
@@ -60,13 +60,13 @@ pub const NwBuildSystem = struct {
     ) *@This() {
         var self = b.allocator.create(@This()) catch unreachable;
 
-        var macos_vulkan_sdk = b.env_map.hash_map.get("VULKAN_SDK");
+        var vulkan_sdk = b.env_map.hash_map.get("VULKAN_SDK");
 
-        if (target.getOs().tag == .macos) {
-            if (macos_vulkan_sdk) |vk_sdk| {
+        if (target.getOs().tag == .macos or target.getOs() == .linux) {
+            if (vulkan_sdk) |vk_sdk| {
                 std.debug.print("vulkan sdk at: VULKAN_SDK = {s} \n", .{vk_sdk});
             } else {
-                std.debug.print("VULKAN_SDK variable not set for macos vulkan project. We will be unable to build vulkan applications for this platform", .{});
+                std.debug.print("VULKAN_SDK variable not set for vulkan project which requires . We will be unable to build vulkan applications for this platform", .{});
             }
         }
 
@@ -78,7 +78,6 @@ pub const NwBuildSystem = struct {
         options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.
-        //
 
         //
         const enableTracy = b.option(bool, "tracy", "Enables integration with tracy profiler") orelse false;
@@ -97,7 +96,7 @@ pub const NwBuildSystem = struct {
             }),
             .enableTracy = enableTracy,
             .options = options,
-            .macos_vulkan_sdk = macos_vulkan_sdk,
+            .vulkan_sdk = vulkan_sdk,
         };
 
         return self;
@@ -219,9 +218,22 @@ pub const NwBuildSystem = struct {
             exe.linkSystemLibrary("vulkan");
         }
 
+        //change in vulkan_sdk paths:
+        //vulkan sdk sould be at /path/to/vulkan_sdk/1.3.250.1/macOS
+        //on linux:
+        // /path/to/vulkan_sdk/1.3.250.1/aarch64
+        // /path/to/vulkan_sdk/1.3.250.1/x86_64
+
         if (self.target.getOs().tag == .macos) {
             exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
-            exe.addLibraryPath(.{ .path = self.b.fmt("{s}/1.3.250.1/macOS/lib/", .{self.macos_vulkan_sdk.?}) });
+            exe.addLibraryPath(.{ .path = self.b.fmt("{s}/lib/", .{self.vulkan_sdk.?}) });
+        }
+
+        if (self.target.getOs().tag == .linux) {
+            if (self.target.getCpu().Arch == .aarch64) {
+                // load VULKAN_SDK
+                exe.addLibraryPath(.{ .path = self.b.fmt("{s}/lib", .{self.vulkan_sdk.?}) });
+            }
         }
 
         // generate the vulkan package
