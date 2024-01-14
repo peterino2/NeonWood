@@ -24,6 +24,7 @@
 #include <string.h>
 #include <glad/glad.h>
 
+
 struct gladGLversionStruct GLVersion = { 0, 0 };
 
 #if defined(GL_ES_VERSION_3_0) || defined(GL_VERSION_3_0)

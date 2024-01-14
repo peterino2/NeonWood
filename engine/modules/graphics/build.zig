@@ -11,6 +11,7 @@ pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime pathPrefix:
 
     if (graphicsBackend == .OpenGlES_UIOnly) {
         exe.addIncludePath(.{ .path = pathPrefix ++ "/lib/gl/gles-2.0/include" });
+        exe.addCSourceFiles(&.{pathPrefix ++ "/lib/gl/gles-2.0/src/glad.c"}, &.{});
     }
 
     exe.addIncludePath(.{ .path = pathPrefix ++ "/lib" });
