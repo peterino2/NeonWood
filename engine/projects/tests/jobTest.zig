@@ -63,7 +63,7 @@ const GameContext = struct {
                 std.time.sleep(1000 * 1000 * 1000);
                 var v = ctx.game.count.fetchAdd(1, .SeqCst);
                 std.debug.print("job done!{d} {d}\n", .{ ctx.wanker.value, v });
-                ctx.game.complete[@intCast(usize, ctx.wanker.value)] = true;
+                ctx.game.complete[@intCast(ctx.wanker.value)] = true;
                 _ = job;
             }
         };
@@ -96,7 +96,7 @@ const GameContext = struct {
             var i: usize = 0;
 
             while (i < jobTestCount) : (i += 1) {
-                var d = @bitCast(u1, self.complete[i]);
+                var d = @as(u1, @bitCast(self.complete[i]));
                 std.debug.print("{d}", .{d});
             }
             std.debug.print("\n", .{});
@@ -144,7 +144,7 @@ const GameContext = struct {
         if (self.count.load(.SeqCst) >= jobTestCount) {
             var i: usize = 0;
             while (i < jobTestCount) : (i += 1) {
-                var d = @bitCast(u1, self.complete[i]);
+                var d = @as(u1, @bitCast(self.complete[i]));
                 std.debug.print("{d}", .{d});
             }
             std.debug.print("shutting down due to count loaded full\n", .{});
@@ -177,7 +177,7 @@ pub fn main() anyerror!void {
     core.start_module(allocator);
     defer core.shutdown_module(allocator);
 
-    try neonwood.platform.start_module(allocator, "jobTest", null);
+    try neonwood.platform.start_module(allocator, .{ .windowName = "jobTest" });
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });

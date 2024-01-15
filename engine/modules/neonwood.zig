@@ -20,12 +20,12 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
-pub fn start_everything(allocator: std.mem.Allocator, windowName: []const u8) !void {
-    graphics.setWindowName(windowName);
+pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams) !void {
+    graphics.setWindowName(params.windowName);
     core.engine_log("Starting up", .{});
 
     core.start_module(allocator); // 1
-    try platform.start_module(std.heap.c_allocator, windowName, null); // 2
+    try platform.start_module(std.heap.c_allocator, params); // 2
     assets.start_module(allocator); // 3
     audio.start_module(allocator); //4
     graphics.start_module(allocator); //5
