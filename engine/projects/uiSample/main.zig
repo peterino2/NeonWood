@@ -153,7 +153,6 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
-
         ctx.printTree(.{});
     }
 };
@@ -212,7 +211,7 @@ pub fn main() anyerror!void {
     const allocator = std.heap.c_allocator;
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
-    try nw.start_everything(allocator, "NeonWood: ui");
+    try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
     defer nw.shutdown_everything(allocator);
     try nw.run_no_input_tickable(GameContext);
 }

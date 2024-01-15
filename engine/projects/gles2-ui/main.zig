@@ -24,7 +24,7 @@ pub fn main() !void {
     core.start_module(allocator);
     defer core.shutdown_module(allocator);
 
-    try platform.start_module(allocator, "OpenGLES UI demo", null);
+    try platform.start_module(allocator, .{ .windowName = "OpenGLES UI demo" });
     defer platform.shutdown_module(allocator);
 
     nw.assets.start_module(allocator);

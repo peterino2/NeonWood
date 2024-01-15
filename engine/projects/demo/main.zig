@@ -393,7 +393,7 @@ pub fn main() anyerror!void {
     core.start_module(allocator);
     defer core.shutdown_module(allocator);
 
-    try platform.start_module(allocator, "Neonwood: flyaround demo", null);
+    try platform.start_module(allocator, .{ .windowName = "Neonwood: flyaround demo" });
     defer platform.shutdown_module(allocator);
 
     assets.start_module(allocator);

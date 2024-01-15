@@ -8,13 +8,7 @@ pub const windowing = @import("platform/windowing.zig");
 
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 
-pub fn start_module(allocator: std.mem.Allocator, windowName: []const u8, iconPath: ?[]const u8) !void {
-    var params: windowing.PlatformParams = .{};
-    params.windowName = windowName;
-    if (iconPath) |path| {
-        params.icon = path;
-    }
-
+pub fn start_module(allocator: std.mem.Allocator, params: windowing.PlatformParams) !void {
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
     try gPlatformInstance.setup();
