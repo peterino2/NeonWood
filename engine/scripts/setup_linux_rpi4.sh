@@ -2,7 +2,7 @@
 cd "$(dirname "$0")"
 pwd
 cd ../sdks/vulkan_sdk/1.3.268.0/
-#unzip aarch64.zip
+unzip aarch64.zip
 VULKAN_SDK_SETUP_PATH=$(pwd)/aarch64
 echo "I want to add the following variables to your .bashrc"
 line1="export VULKAN_SDK=$VULKAN_SDK_SETUP_PATH"
