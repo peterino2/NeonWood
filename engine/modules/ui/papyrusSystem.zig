@@ -369,8 +369,10 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 var imageSet: ?*vk.DescriptorSet = null;
 
                 if (rect.imageRef) |_imageRef| {
-                    imageSet = self.gc.textureSets.get(_imageRef.handle()).?;
-                    imagesGpu[self.ssboCount].flags = 1;
+                    if (self.gc.textureSets.get(_imageRef.handle())) |maybeImageSet| {
+                        imageSet = maybeImageSet;
+                        imagesGpu[self.ssboCount].flags = 1;
+                    }
                 }
 
                 try self.drawCommands.append(.{
