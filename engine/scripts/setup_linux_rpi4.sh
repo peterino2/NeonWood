@@ -1,7 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 pwd
-sudo apt install mesa-vulkan-drivers
 cd ../sdks/vulkan_sdk/1.3.268.0/
 #unzip aarch64.zip
 VULKAN_SDK_SETUP_PATH=$(pwd)/aarch64
