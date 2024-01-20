@@ -151,8 +151,6 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     var pngContents = try PngContents.init(ctx.allocator, filePath);
 
-    var stagingBuffer = try stagePixels(pngContents, ctx);
-
     var imageExtent = vk.Extent3D{
         .width = @as(u32, @intCast(pngContents.size.x)),
         .height = @as(u32, @intCast(pngContents.size.y)),
@@ -175,6 +173,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     };
 
     var newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
+    var stagingBuffer = try stagePixels(pngContents, ctx);
 
     pngContents.deinit();
 
