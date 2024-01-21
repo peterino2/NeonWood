@@ -153,6 +153,9 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
+        const btn = try ctx.addButton(unk, "click me!");
+        try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
+
         ctx.printTree(.{});
     }
 };
