@@ -4,6 +4,10 @@ style: ButtonStyle = .{},
 disabled: bool = false,
 buttonState: ButtonState = .Normal,
 
+// documentation:
+// Each PapyrusNode has a common set of fields, these are defined in PapyrusNode
+//
+
 const std = @import("std");
 const papyrus = @import("../papyrus.zig");
 const LocText = papyrus.LocText;
@@ -21,10 +25,10 @@ pub const ButtonStyle = struct {
         .borderColor = BurnStyle.Diminished,
     },
     pressed: papyrus.PapyrusNodeStyle = .{
-        .backgroundColor = BurnStyle.DarkSlateGrey,
+        .backgroundColor = BurnStyle.BrightGrey,
     },
     hovered: papyrus.PapyrusNodeStyle = .{
-        .backgroundColor = BurnStyle.SlateGrey,
+        .backgroundColor = BurnStyle.LightGrey,
     },
     disabled: papyrus.PapyrusNodeStyle = .{
         .foregroundColor = BurnStyle.DarkSlateGrey,
@@ -46,23 +50,27 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
     var borderColor = button.style.normal.borderColor;
     var backgroundColor = button.style.normal.backgroundColor;
     var foregroundColor = button.style.normal.foregroundColor;
+    var borderWidth = button.style.normal.borderWidth;
 
     if (button.buttonState == .Hovered) {
         borderColor = button.style.hovered.borderColor;
         backgroundColor = button.style.hovered.backgroundColor;
         foregroundColor = button.style.hovered.foregroundColor;
+        borderWidth = button.style.hovered.borderWidth;
     }
 
     if (button.buttonState == .Pressed) {
         borderColor = button.style.pressed.borderColor;
         backgroundColor = button.style.pressed.backgroundColor;
         foregroundColor = button.style.pressed.foregroundColor;
+        borderWidth = button.style.pressed.borderWidth;
     }
 
     if (button.disabled) {
         borderColor = button.style.disabled.borderColor;
         backgroundColor = button.style.disabled.backgroundColor;
         foregroundColor = button.style.disabled.foregroundColor;
+        borderWidth = button.style.disabled.borderWidth;
     }
 
     try drawlist.append(
@@ -71,6 +79,7 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
             .size = dlb.resolvedSize,
             .borderColor = borderColor,
             .backgroundColor = backgroundColor,
+            .borderWidth = borderWidth,
         } } },
     );
 

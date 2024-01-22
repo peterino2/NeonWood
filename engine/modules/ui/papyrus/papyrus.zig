@@ -185,6 +185,7 @@ pub const PapyrusNodeStyle = struct {
     foregroundColor: Color = BurnStyle.Normal,
     backgroundColor: Color = BurnStyle.SlateGrey,
     borderColor: Color = BurnStyle.Bright2,
+    borderWidth: f32 = 1.1,
 };
 
 pub const PapyrusTextRenderMode = enum {
@@ -660,6 +661,7 @@ pub const PapyrusContext = struct {
                     bl: f32 = 0,
                     br: f32 = 0,
                 } = .{},
+                borderWidth: f32 = 1.1,
                 imageRef: ?core.Name = null,
             },
             Text: struct {
@@ -913,6 +915,7 @@ pub const PapyrusContext = struct {
                                     .br = panel.rounding.br,
                                 },
                                 .imageRef = if (panel.useImage) panel.imageReference else null,
+                                .borderWidth = n.style.borderWidth,
                             },
                         } });
 
@@ -927,6 +930,7 @@ pub const PapyrusContext = struct {
                                     .tl = panel.rounding.tl,
                                     .tr = panel.rounding.tr,
                                 },
+                                .borderWidth = n.style.borderWidth,
                             },
                         } });
 
@@ -963,6 +967,7 @@ pub const PapyrusContext = struct {
                                     .bl = panel.rounding.bl,
                                     .br = panel.rounding.br,
                                 },
+                                .borderWidth = n.style.borderWidth,
                                 .imageRef = if (panel.useImage) panel.imageReference else null,
                             },
                         } });
