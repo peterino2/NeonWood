@@ -3,7 +3,7 @@ const vk = @import("vulkan");
 
 const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
-const papyrus = @import("papyrus/papyrus.zig");
+const papyrus = @import("papyrus.zig");
 const gpd = graphics.gpu_pipe_data;
 
 const FontAtlas = papyrus.FontAtlas;
@@ -40,7 +40,7 @@ pub const FontAtlasVk = struct {
         return self;
     }
 
-    pub fn loadFont(self: *@This(), papyrusCtx: *papyrus.PapyrusContext, fontPath: []const u8) !void {
+    pub fn loadFont(self: *@This(), papyrusCtx: *papyrus.Context, fontPath: []const u8) !void {
         self.atlas = try papyrusCtx.allocator.create(FontAtlas);
         self.atlas.* = try FontAtlas.initFromFileSDF(papyrusCtx.allocator, fontPath, 64);
     }
@@ -70,7 +70,7 @@ pub const DisplayText = struct {
     mesh: *DynamicMesh, // we own this
     string: std.ArrayList(u8),
     stringHash: u32 = 0xffffffff,
-    renderMode: papyrus.PapyrusTextRenderMode,
+    renderMode: papyrus.TextRenderMode,
 
     displaySize: f32 = 24.0,
     position: Vector2f = .{},
@@ -147,7 +147,7 @@ pub const DisplayText = struct {
         vkd.cmdDrawIndexed(cmd, self.mesh.getIndexBufferLen(), 1, 0, 0, ssboId);
     }
 
-    pub fn setMode(self: *@This(), mode: papyrus.PapyrusTextParseMode) void {
+    pub fn setMode(self: *@This(), mode: papyrus.TextParseMode) void {
         self.renderMode = mode;
     }
 
@@ -263,9 +263,9 @@ pub const TextRenderer = struct {
     smallDisplays: ArrayListU(*DisplayText) = .{},
     fonts: AutoHashMapU(u32, *FontAtlasVk) = .{},
     small_limit: u32,
-    papyrusCtx: *papyrus.PapyrusContext,
+    papyrusCtx: *papyrus.Context,
 
-    pub fn init(backingAllocator: std.mem.Allocator, g: *graphics.NeonVkContext, papyrusCtx: *papyrus.PapyrusContext) !*@This() {
+    pub fn init(backingAllocator: std.mem.Allocator, g: *graphics.NeonVkContext, papyrusCtx: *papyrus.Context) !*@This() {
         var self = try backingAllocator.create(@This());
 
         self.* = .{
