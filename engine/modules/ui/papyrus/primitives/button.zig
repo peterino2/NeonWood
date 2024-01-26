@@ -3,7 +3,7 @@ displayText: ?LocText = MakeText("Test Button"),
 //};
 
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("../../papyrus.zig");
 const LocText = papyrus.LocText;
 const MakeText = papyrus.MakeText;
 

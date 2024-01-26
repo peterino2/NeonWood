@@ -3,33 +3,31 @@ const c = @cImport({
     @cInclude("stb_ttf.h");
 });
 
-pub const PapyrusLayout = @import("PapyrusMousePick.zig");
-pub const PapyrusEvent = @import("PapyrusEvent.zig");
+pub const Layout = @import("papyrus/MousePick.zig");
+pub const Event = @import("papyrus/Event.zig");
 
-pub usingnamespace PapyrusEvent;
-
-pub const PapyrusFont = @import("PapyrusFont.zig");
-pub const FontAtlas = PapyrusFont.FontAtlas;
-pub const BmpRenderer = @import("BmpRenderer.zig");
+pub const Font = @import("papyrus/Font.zig");
+pub const FontAtlas = Font.FontAtlas;
+pub const BmpRenderer = @import("papyrus/BmpRenderer.zig");
 pub const BmpWriter = BmpRenderer.BmpWriter;
 
-pub const colors = @import("colors.zig");
+pub const colors = @import("papyrus/colors.zig");
 pub const Color = colors.Color;
 pub const ColorRGBA8 = colors.RGBA8;
 pub const ModernStyle = colors.ModernStyle;
 pub const BurnStyle = colors.BurnStyle;
 
-pub const utils = @import("utils.zig");
+pub const utils = @import("papyrus/utils.zig");
 pub const FileLog = utils.FileLog;
 pub const grapvizDotToPng = utils.grapvizDotToPng;
 pub const loadFileAlloc = utils.loadFileAlloc;
 pub const assertf = utils.assertf;
 
-pub const localization = @import("localization.zig");
+pub const localization = @import("papyrus/localization.zig");
 pub const LocText = localization.LocText;
 pub const MakeText = localization.MakeText;
 
-pub const NodeProperty_Button = @import("primitives/button.zig");
+pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");
 
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
@@ -87,10 +85,10 @@ pub const NodeHandle = core.IndexPoolHandle;
 //
 // =================================== /Document: How should the layout engine work ===========================
 
-pub var gPapyrusContext: *PapyrusContext = undefined;
-pub var gPapyrusIsInitialized: bool = false;
+pub var gContext: *Context = undefined;
+pub var gIsInitialized: bool = false;
 
-pub const PapyrusAnchorNode = enum {
+pub const AnchorNode = enum {
     // zig fmt: off
     Free,       // Anchored to 0,0 absolute on the screen
     TopLeft,    // Anchored such that 0,0 corresponds to the top left corner of the parent node
@@ -105,7 +103,7 @@ pub const PapyrusAnchorNode = enum {
     // zig fmt: on
 };
 
-pub const PapyrusFillMode = enum {
+pub const FillMode = enum {
     // zig fmt: off
     None,       // Size will be absolute as specified by content
     FillX,      // Size will scale to X scaling of the parent (relative to reference), if set, then the size value of x will be interpreted as a percentage of the parent
@@ -118,7 +116,7 @@ pub const PapyrusFillMode = enum {
 
 // When this element is used as part of a VBox it's left/right position
 // shall be arranged according this justificiation value
-pub const PapyrusNodeJustify = enum {
+pub const NodeJustify = enum {
     // zig fmt: off
     Left,
     Center,
@@ -126,12 +124,12 @@ pub const PapyrusNodeJustify = enum {
     // zig fmt: on
 };
 
-pub const PapyrusHitTestability = enum {
+pub const HitTestability = enum {
     Testable,
     NotTestable,
 };
 
-pub const PapyrusState = enum {
+pub const State = enum {
     Visible,
     Collapsed,
     Hidden,
@@ -146,7 +144,7 @@ pub const NodeProperty_Slot = struct {
 pub const NodeProperty_Text = struct {
     textSize: f32,
     color: Color,
-    font: PapyrusFont,
+    font: Font,
 };
 
 pub const NodeProperty_Panel = struct {
@@ -179,22 +177,22 @@ pub const NodePadding = union(enum(u8)) {
     allSides: [2]Vector2f,
 };
 
-pub const PapyrusNodeStyle = struct {
+pub const NodeStyle = struct {
     foregroundColor: Color = BurnStyle.Normal,
     backgroundColor: Color = BurnStyle.SlateGrey,
     borderColor: Color = BurnStyle.Bright2,
 };
 
-pub const PapyrusTextRenderMode = enum {
+pub const TextRenderMode = enum {
     Simple,
     NoControl,
     Rich,
 };
 
 // this is going to follow a pretty object-oriented-like user facing api
-pub const PapyrusNode = struct {
+pub const Node = struct {
     text: LocText = MakeText("hello world"),
-    textMode: PapyrusTextRenderMode = .Simple,
+    textMode: TextRenderMode = .Simple,
     textRenderedSize: Vector2f = .{ .x = 0.0, .y = 0.0 },
 
     parent: NodeHandle = .{}, // 0 corresponds to true root
@@ -217,24 +215,24 @@ pub const PapyrusNode = struct {
     sizeInitialized: bool = false,
     size: Vector2f = .{ .x = 0, .y = 0 },
 
-    justify: PapyrusNodeJustify = .Center,
+    justify: NodeJustify = .Center,
 
     pos: Vector2f = .{ .x = 0, .y = 0 },
-    anchor: PapyrusAnchorNode = .TopLeft,
-    originAnchor: PapyrusAnchorNode = .TopLeft, // This specifies where within this node is used for an anchor.
+    anchor: AnchorNode = .TopLeft,
+    originAnchor: AnchorNode = .TopLeft, // This specifies where within this node is used for an anchor.
     originOffset: Vector2f = .{}, // this specifies an offset from the chosen origin position
-    fill: PapyrusFillMode = .None,
+    fill: FillMode = .None,
     layoutPadding: f32 = 5.0,
 
     // padding is the external padding factor
     padding: NodePadding = .{ .all = 0 },
 
-    state: PapyrusState = .Visible,
-    hittest: PapyrusHitTestability = .Testable,
+    state: State = .Visible,
+    hittest: HitTestability = .Testable,
     dockingPolicy: enum { Dockable, NotDockable } = .Dockable,
 
     // standard styling options that all nodes have
-    style: PapyrusNodeStyle = .{},
+    style: NodeStyle = .{},
 
     nodeType: NodePropertiesBag,
 
@@ -256,22 +254,22 @@ const LayoutInfo = struct {
     childLayoutOffsets: Vector2f,
 };
 
-pub const PapyrusContext = struct {
+pub const Context = struct {
     backingAllocator: std.mem.Allocator,
     allocator: std.mem.Allocator,
-    nodes: IndexPool(PapyrusNode),
-    fonts: std.AutoHashMap(u32, PapyrusFont),
-    fallbackFont: PapyrusFont,
-    defaultMonoFont: PapyrusFont,
+    nodes: IndexPool(Node),
+    fonts: std.AutoHashMap(u32, Font),
+    fallbackFont: Font,
+    defaultMonoFont: Font,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
     currentCursorPosition: Vector2f = .{},
 
-    styleStack: std.ArrayListUnmanaged(PapyrusNodeStyle) = .{},
-    resolvedStyle: PapyrusNodeStyle = .{},
+    styleStack: std.ArrayListUnmanaged(NodeStyle) = .{},
+    resolvedStyle: NodeStyle = .{},
 
-    mousePick: PapyrusLayout,
+    mousePick: Layout,
 
-    events: PapyrusEvent,
+    events: Event,
 
     // internals
     _drawOrder: DrawOrderList,
@@ -291,8 +289,7 @@ pub const PapyrusContext = struct {
 
         self.clearDebugText();
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
-        if (self.mousePick.found) {
-            const node = self.mousePick.selectedNode;
+        if (self.mousePick.selected_node) |node| {
             const n = self.getRead(node);
             const layout = self._displayLayout.items[node.index];
             try self.pushDebugText("found node: {d},{d} size={d}x{d} layoutpos={d},{d} layoutsize={d},{d}", .{
@@ -319,14 +316,14 @@ pub const PapyrusContext = struct {
         self.* = .{
             .allocator = allocator,
             .backingAllocator = allocator,
-            .nodes = IndexPool(PapyrusNode).init(allocator),
-            .fonts = std.AutoHashMap(u32, PapyrusFont).init(allocator),
-            .events = PapyrusEvent.init(allocator),
-            .fallbackFont = PapyrusFont{
+            .nodes = IndexPool(Node).init(allocator),
+            .fonts = std.AutoHashMap(u32, Font).init(allocator),
+            .events = Event.init(allocator),
+            .fallbackFont = Font{
                 .name = Name.fromUtf8(fallbackFontName),
                 .atlas = try allocator.create(FontAtlas),
             },
-            .defaultMonoFont = PapyrusFont{
+            .defaultMonoFont = Font{
                 .name = Name.fromUtf8(defaultMonoName),
                 .atlas = try allocator.create(FontAtlas),
             },
@@ -335,7 +332,7 @@ pub const PapyrusContext = struct {
             ._layoutNodes = .{},
             ._layoutPositions = .{},
             .debugText = std.ArrayList([]u8).init(allocator),
-            .mousePick = PapyrusLayout.init(allocator),
+            .mousePick = Layout.init(allocator),
         };
 
         for (0..debugTextMax) |_| {
@@ -452,21 +449,24 @@ pub const PapyrusContext = struct {
 
     // converts a handle to a node pointer
     // invalid after AddNode
-    pub fn get(self: *@This(), handle: NodeHandle) *PapyrusNode {
+    pub fn get(self: *@This(), handle: NodeHandle) *Node {
         return self.nodes.get(handle).?;
     }
 
     // gets a node as read only
-    pub fn getRead(self: @This(), handle: NodeHandle) *const PapyrusNode {
+    pub fn getRead(self: @This(), handle: NodeHandle) *const Node {
+        if (!self.isValid(handle))
+            @panic("handle is invalid");
+
         return self.nodes.getRead(handle).?;
     }
 
-    fn newNode(self: *@This(), node: PapyrusNode) !NodeHandle {
+    fn newNode(self: *@This(), node: Node) !NodeHandle {
         return try self.nodes.new(node);
     }
 
     pub fn addSlot(self: *@This(), parent: NodeHandle) !NodeHandle {
-        var slotNode = PapyrusNode{ .nodeType = .{ .Slot = .{} } };
+        var slotNode = Node{ .nodeType = .{ .Slot = .{} } };
         var slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
@@ -475,7 +475,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addText(self: *@This(), parent: NodeHandle, text: []const u8) !NodeHandle {
-        var slotNode = PapyrusNode{
+        var slotNode = Node{
             .text = LocText.fromUtf8(text),
             .nodeType = .{ .DisplayText = .{
                 .textSize = 24,
@@ -491,7 +491,7 @@ pub const PapyrusContext = struct {
     }
 
     pub fn addPanel(self: *@This(), parent: NodeHandle) !NodeHandle {
-        var slotNode = PapyrusNode{ .nodeType = .{ .Panel = .{
+        var slotNode = Node{ .nodeType = .{ .Panel = .{
             .font = self.fallbackFont.atlas,
             .imageReference = core.NameInvalid,
         } } };
@@ -555,7 +555,7 @@ pub const PapyrusContext = struct {
         return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
     }
 
-    pub fn pushStyle(self: *@This(), node: PapyrusNodeStyle) void {
+    pub fn pushStyle(self: *@This(), node: NodeStyle) void {
         _ = node;
         _ = self;
     }
@@ -635,7 +635,7 @@ pub const PapyrusContext = struct {
             Text: struct {
                 tl: Vector2f,
                 size: Vector2f,
-                renderMode: PapyrusTextRenderMode,
+                renderMode: TextRenderMode,
                 text: LocText,
                 color: Color,
                 textSize: f32,
@@ -664,7 +664,7 @@ pub const PapyrusContext = struct {
         }
 
         const SortFunc = struct {
-            pub fn lessThan(ctx: PapyrusContext, lhs: NodeHandle, rhs: NodeHandle) bool {
+            pub fn lessThan(ctx: Context, lhs: NodeHandle, rhs: NodeHandle) bool {
                 return ctx.getRead(lhs).zOrder < ctx.getRead(rhs).zOrder;
             }
         };
@@ -682,7 +682,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn resolveAnchoredPosition(parent: LayoutInfo, node: *const PapyrusNode) Vector2f {
+    fn resolveAnchoredPosition(parent: LayoutInfo, node: *const Node) Vector2f {
         switch (node.anchor) {
             .Free => {
                 return node.pos;
@@ -717,13 +717,12 @@ pub const PapyrusContext = struct {
         }
     }
 
-    pub fn onKey(self: *@This(), keycode: PapyrusEvent.Key, eventType: PapyrusEvent.PressedEventType) !void {
-        if (self.mousePick.found) {
-            try self.events.pushPressedEvent(self.mousePick.selectedNode, eventType, keycode);
-        }
+    pub fn onKey(self: *@This(), keycode: Event.Key, eventType: Event.PressedType) !void {
+        if (self.mousePick.selected_node) |node|
+            try self.events.pushPressedEvent(node, eventType, keycode);
     }
 
-    fn resolveAnchoredSize(parent: LayoutInfo, node: *const PapyrusNode) Vector2f {
+    fn resolveAnchoredSize(parent: LayoutInfo, node: *const Node) Vector2f {
         switch (node.fill) {
             .None => {
                 return node.size;
@@ -754,7 +753,7 @@ pub const PapyrusContext = struct {
     pub fn applyLayoutRulesAsChild(
         self: *@This(),
         parentAsPanel: *NodeProperty_Panel,
-        n: *const PapyrusNode,
+        n: *const Node,
         resolvedSize: Vector2f,
         resolvedPos: Vector2f,
     ) ChildLayoutRulesStruct {
@@ -968,7 +967,7 @@ pub const PapyrusContext = struct {
         }
     }
 
-    fn addDebugInfo(self: @This(), drawList: *PapyrusContext.DrawList) !void {
+    fn addDebugInfo(self: @This(), drawList: *Context.DrawList) !void {
         const defaultHeight = 16;
         const offsetPerLine: f32 = defaultHeight + 2;
         var yOffset: f32 = offsetPerLine;
@@ -1081,18 +1080,18 @@ pub const PapyrusContext = struct {
     }
 };
 
-pub fn getContext() *PapyrusContext {
-    try assertf(gPapyrusIsInitialized == true, "Unable to initialize Papyrus, already initialized", .{});
-    return gPapyrusContext;
+pub fn getContext() *Context {
+    try assertf(gIsInitialized == true, "Unable to initialize Papyrus, already initialized", .{});
+    return gContext;
 }
 
-pub fn initialize(allocator: std.mem.Allocator) !*PapyrusContext {
-    try assertf(gPapyrusIsInitialized == false, "Unable to initialize Papyrus, already initialized", .{});
-    gPapyrusIsInitialized = true;
-    gPapyrusContext = try PapyrusContext.create(allocator);
-    return gPapyrusContext;
+pub fn initialize(allocator: std.mem.Allocator) !*Context {
+    try assertf(gIsInitialized == false, "Unable to initialize Papyrus, already initialized", .{});
+    gIsInitialized = true;
+    gContext = try Context.create(allocator);
+    return gContext;
 }
 
 pub fn deinitialize() void {
-    gPapyrusContext.deinit();
+    gContext.deinit();
 }
