@@ -4,10 +4,11 @@ const graphics = @import("graphics.zig");
 
 pub const papyrus = @import("ui/papyrus.zig");
 pub const NodeHandle = papyrus.NodeHandle;
+pub const PapyrusSystem = @import("ui/PapyrusSystem.zig");
 
-var gPapyrus: *papyrus.System = undefined;
+var gPapyrus: *PapyrusSystem = undefined;
 
-pub fn getSystem() *papyrus.System {
+pub fn getSystem() *PapyrusSystem {
     return gPapyrus;
 }
 
@@ -17,7 +18,7 @@ pub fn getContext() *papyrus.Context {
 
 pub fn start_module(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    gPapyrus = try core.gEngine.createObject(papyrus.System, .{ .can_tick = true });
+    gPapyrus = try core.gEngine.createObject(PapyrusSystem, .{ .can_tick = true });
     try gPapyrus.setup(graphics.getContext());
 }
 

@@ -3,7 +3,6 @@ const c = @cImport({
     @cInclude("stb_ttf.h");
 });
 
-pub const System = @import("papyrus/System.zig");
 pub const Layout = @import("papyrus/MousePick.zig");
 pub const Event = @import("papyrus/Event.zig");
 

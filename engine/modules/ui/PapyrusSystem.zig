@@ -29,12 +29,12 @@ drawCommands: std.ArrayList(DrawCommand),
 textRenderer: *TextRenderer,
 
 const std = @import("std");
-const core = @import("../../core.zig");
-const assets = @import("../../assets.zig");
-const graphics = @import("../../graphics.zig");
+const core = @import("../core.zig");
+const assets = @import("../assets.zig");
+const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
-const platform = @import("../../platform.zig");
-const papyrus = @import("../papyrus.zig");
+const platform = @import("../platform.zig");
+const papyrus = @import("papyrus.zig");
 
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");
@@ -45,8 +45,8 @@ const vk = @import("vulkan");
 const tracy = core.tracy;
 
 const Text = papyrus.Text;
-const DrawCommand = @import("../drawCommand.zig").DrawCommand;
-const text_render = @import("../text_render.zig");
+const DrawCommand = @import("drawCommand.zig").DrawCommand;
+const text_render = @import("text_render.zig");
 
 const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
