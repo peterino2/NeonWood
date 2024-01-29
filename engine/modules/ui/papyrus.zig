@@ -26,6 +26,10 @@ pub const assertf = utils.assertf;
 pub const localization = @import("papyrus/localization.zig");
 pub const LocText = localization.LocText;
 pub const MakeText = localization.MakeText;
+pub const HandlerError = Event.HandlerError;
+pub const PressedType = Event.PressedType;
+
+pub const DrawListBuilder = @import("papyrus/DrawListBuilder.zig");
 
 pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");
 
@@ -181,6 +185,7 @@ pub const NodeStyle = struct {
     foregroundColor: Color = BurnStyle.Normal,
     backgroundColor: Color = BurnStyle.SlateGrey,
     borderColor: Color = BurnStyle.Bright2,
+    borderWidth: f32 = 1.1,
 };
 
 pub const TextRenderMode = enum {
@@ -247,7 +252,7 @@ pub const Node = struct {
 };
 
 // final resolved size
-const LayoutInfo = struct {
+pub const LayoutInfo = struct {
     baseSize: Vector2f,
     pos: Vector2f,
     size: Vector2f,
@@ -550,9 +555,26 @@ pub const Context = struct {
     }
 
     // helper functions for a whole bunch of shit
-    pub fn addButton(self: *@This(), text: LocText) !NodeHandle {
-        var button = NodeProperty_Button{ .text = text };
-        return try self.nodes.new(.{ .nodeType = .{ .Button = button } });
+    pub fn addButton(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
+        var buttonProperty = NodeProperty_Button{
+            .font = self.fallbackFont,
+        };
+
+        var button = try self.nodes.new(.{ .nodeType = .{ .Button = buttonProperty } });
+        try self.setParent(button, parent);
+        self.get(button).size = .{ .x = 100, .y = 50 };
+
+        if (text) |t| {
+            self.get(button).text = LocText.fromUtf8(t);
+        }
+
+        try self.events.installMouseOverEvent(button, .mouseOver, null, NodeProperty_Button.buttonMouseOverListener);
+        try self.events.installMouseOverEvent(button, .mouseOff, null, NodeProperty_Button.buttonMouseOffListener);
+
+        try self.events.installOnPressedEvent(button, .onPressed, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent);
+        try self.events.installOnPressedEvent(button, .onReleased, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent);
+
+        return button;
     }
 
     pub fn pushStyle(self: *@This(), node: NodeStyle) void {
@@ -630,6 +652,7 @@ pub const Context = struct {
                     bl: f32 = 0,
                     br: f32 = 0,
                 } = .{},
+                borderWidth: f32 = 1.1,
                 imageRef: ?core.Name = null,
             },
             Text: struct {
@@ -831,23 +854,29 @@ pub const Context = struct {
 
             var parentInfo = self._displayLayout.items[n.parent.index];
 
-            // First, resolve positions and size as if it was a simple layout.
-            var resolvedSize = resolveAnchoredSize(parentInfo, n);
-            var resolvedPos = resolveAnchoredPosition(parentInfo, n);
+            var dlb = DrawListBuilder{
+                .ctx = self,
+                .node = node,
+                .drawList = drawList,
+                .n = n,
+                .parentInfo = self._displayLayout.items[n.parent.index],
+                .resolvedSize = resolveAnchoredSize(parentInfo, n),
+                .resolvedPos = resolveAnchoredPosition(parentInfo, n),
+            };
 
             // if our parent is a panel then apply layout rules to it.
             if (self.fetchPanel(n.parent)) |parentAsPanel| {
-                var results = self.applyLayoutRulesAsChild(parentAsPanel, n, resolvedSize, resolvedPos);
-                resolvedPos = results.position;
-                resolvedSize = results.size;
+                var results = self.applyLayoutRulesAsChild(parentAsPanel, n, dlb.resolvedSize, dlb.resolvedPos);
+                dlb.resolvedPos = results.position;
+                dlb.resolvedSize = results.size;
             }
 
             switch (n.nodeType) {
                 .Panel => |panel| {
                     try self._layout.append(self.allocator, .{
                         .baseSize = n.baseSize,
-                        .pos = resolvedPos,
-                        .size = resolvedSize,
+                        .pos = dlb.resolvedPos,
+                        .size = dlb.resolvedSize,
                         .childLayoutOffsets = .{},
                     });
                     try self._layoutNodes.append(self.allocator, node);
@@ -855,8 +884,8 @@ pub const Context = struct {
                         self.allocator,
                         node,
                         .{
-                            .pos = resolvedPos,
-                            .size = resolvedSize,
+                            .pos = dlb.resolvedPos,
+                            .size = dlb.resolvedSize,
                             .baseSize = n.baseSize,
                             .childLayoutOffsets = .{},
                         },
@@ -867,8 +896,8 @@ pub const Context = struct {
                         // draw the main image.
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
-                                .tl = resolvedPos.add(.{ .y = panel.titleSize }),
-                                .size = resolvedSize.sub(.{ .y = panel.titleSize }),
+                                .tl = dlb.resolvedPos.add(.{ .y = panel.titleSize }),
+                                .size = dlb.resolvedSize.sub(.{ .y = panel.titleSize }),
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.backgroundColor,
                                 .rounding = .{
@@ -882,8 +911,8 @@ pub const Context = struct {
                         // draw the title bar
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
-                                .tl = resolvedPos,
-                                .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
+                                .tl = dlb.resolvedPos,
+                                .size = .{ .x = dlb.resolvedSize.x, .y = panel.titleSize },
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.borderColor,
                                 .rounding = .{
@@ -895,8 +924,8 @@ pub const Context = struct {
 
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Text = .{
-                                .tl = resolvedPos.add(.{ .x = 3 + 5, .y = 3 }),
-                                .size = .{ .x = resolvedSize.x, .y = panel.titleSize },
+                                .tl = dlb.resolvedPos.add(.{ .x = 3 + 5, .y = 3 }),
+                                .size = .{ .x = dlb.resolvedSize.x, .y = panel.titleSize },
                                 .text = n.text,
                                 .renderMode = n.textMode,
                                 .color = panel.titleColor,
@@ -907,8 +936,8 @@ pub const Context = struct {
 
                         self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
-                            .pos = resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
-                            .size = resolvedSize.sub(.{ .y = -panel.titleSize }).sub(Vector2f.Ones).sub(.{ .x = 0, .y = 30 }),
+                            .pos = dlb.resolvedPos.add(.{ .y = panel.titleSize }).add(Vector2f.Ones),
+                            .size = dlb.resolvedSize.sub(.{ .y = -panel.titleSize }).sub(Vector2f.Ones).sub(.{ .x = 0, .y = 30 }),
                             .childLayoutOffsets = .{},
                         };
                     } else {
@@ -916,8 +945,8 @@ pub const Context = struct {
                         // draw the main image
                         try drawList.append(.{ .node = node, .primitive = .{
                             .Rect = .{
-                                .tl = resolvedPos,
-                                .size = resolvedSize,
+                                .tl = dlb.resolvedPos,
+                                .size = dlb.resolvedSize,
                                 .borderColor = n.style.borderColor,
                                 .backgroundColor = n.style.backgroundColor,
                                 .rounding = .{
@@ -932,8 +961,8 @@ pub const Context = struct {
 
                         self._displayLayout.items[node.index] = .{
                             .baseSize = n.baseSize,
-                            .pos = resolvedPos.add(Vector2f.Ones),
-                            .size = resolvedSize.sub(Vector2f.Ones.fmul(2)),
+                            .pos = dlb.resolvedPos.add(Vector2f.Ones),
+                            .size = dlb.resolvedSize.sub(Vector2f.Ones.fmul(2)),
                             .childLayoutOffsets = .{},
                         };
                     }
@@ -941,7 +970,7 @@ pub const Context = struct {
                 .DisplayText => |txt| {
                     try drawList.append(.{ .node = node, .primitive = .{
                         .Text = .{
-                            .tl = resolvedPos,
+                            .tl = dlb.resolvedPos,
                             .size = n.size,
                             .text = n.text,
                             .renderMode = n.textMode,
@@ -953,12 +982,15 @@ pub const Context = struct {
 
                     self._displayLayout.items[node.index] = .{
                         .baseSize = n.baseSize,
-                        .pos = resolvedPos.add(Vector2f.Ones),
-                        .size = resolvedSize.add(Vector2f.Ones),
+                        .pos = dlb.resolvedPos.add(Vector2f.Ones),
+                        .size = dlb.resolvedSize.add(Vector2f.Ones),
                         .childLayoutOffsets = .{},
                     };
                 },
-                .Slot, .Button => {},
+                .Button => {
+                    try NodeProperty_Button.addToDrawList(dlb);
+                },
+                .Slot => {},
             }
         }
 
@@ -1081,7 +1113,6 @@ pub const Context = struct {
 };
 
 pub fn getContext() *Context {
-    try assertf(gIsInitialized == true, "Unable to initialize Papyrus, already initialized", .{});
     return gContext;
 }
 

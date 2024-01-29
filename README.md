@@ -4,7 +4,7 @@
 
 # Neonwood
 
-This is a vulkan based gamedev toolkit targeting the vulkan renderer for now.
+This is a gamedev toolkit targeting the vulkan renderer for now.
 It's been written over the last two months as a learning project but has so far
 already released a game jam game: Cognesia.
 
@@ -65,16 +65,14 @@ make real and playable games, and prefer to drive feature development by making 
 * Screen effects such as vignette and fading.
 * Custom sprite animation system with support for footsteps and animation montage events
 * The most ghetto collision and boundary detection system you've ever seen.
-* All written content was created in a single afternoon.
+* All story content was created in a single afternoon.
 
 
 ## Building
 
-build flags for shipping with any moderately recent zig 0.10 version:
+build flags for shipping with any moderately recent zig 0.11 version:
 
-`zig build -fstage1 -Drelease-safe -Dtarget=x86_64-windows`
-
-(now that the gamejam is over i will be switching to the stage 2 compiler...)
+`zig build -Drelease-safe -Dtarget=x86_64-windows`
 
 ## Dependencies
 

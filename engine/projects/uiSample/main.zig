@@ -153,13 +153,16 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
+        const btn = try ctx.addButton(unk, "click me!");
+        try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
+
         ctx.printTree(.{});
     }
 };
 
 const BurnStyle = ui.papyrus.BurnStyle;
 
-fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) ui.EventHandlerError!void {
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     var ctx = ui.getContext();
 
     if (eventType == .onPressed) {
@@ -173,21 +176,21 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) u
     }
 }
 
-fn onUnk2MouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
+fn onUnk2MouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
     _ = node;
 }
 
-fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedEventType, _: ?*anyopaque) ui.EventHandlerError!void {
+fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     if (eventType == .onPressed) {
         nw.core.engine_log("clicked on {any}", .{node});
     }
 }
 
-fn onMouseOver(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
+fn onMouseOver(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
     nw.core.engine_log("Mouse over over {any}", .{node});
 }
 
-fn onMouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.EventHandlerError!void {
+fn onMouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
     nw.core.engine_log("Mouse hover off {any}", .{node});
 }
 

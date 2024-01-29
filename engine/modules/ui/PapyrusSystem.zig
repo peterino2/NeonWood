@@ -363,7 +363,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                         .z = rect.borderColor.b,
                         .w = rect.borderColor.a,
                     },
-                    .borderWidth = 1.1,
+                    .borderWidth = rect.borderWidth,
                     .flags = 0,
                 };
                 var imageSet: ?*vk.DescriptorSet = null;

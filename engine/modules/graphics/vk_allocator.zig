@@ -65,6 +65,7 @@ pub const AllocationEvent = union(enum) {
 };
 
 pub const NeonVkAllocator = struct {
+    mutex: std.Thread.Mutex = .{},
     vmaAllocator: vma.Allocator,
     allocator: std.mem.Allocator,
     eventsList: std.ArrayList(AllocationEvent),
@@ -234,6 +235,8 @@ pub const NeonVkAllocator = struct {
         aci: AllocationCreateInfo,
         comptime tag: []const u8,
     ) !NeonVkBuffer {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         const results = try self.vmaAllocator.createBuffer(bci, aci);
 
         var object: AllocatedObject = .{
@@ -249,11 +252,15 @@ pub const NeonVkAllocator = struct {
     }
 
     pub fn destroyBuffer(self: *@This(), buffer: *NeonVkBuffer) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         self.pushDestroy(buffer.allocation);
         self.vmaAllocator.destroyBuffer(buffer.buffer, buffer.allocation);
     }
 
     pub fn destroyImage(self: *@This(), image: *NeonVkImage) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         self.pushDestroy(image.allocation);
         self.vmaAllocator.destroyImage(image.image, image.allocation);
     }
@@ -264,6 +271,8 @@ pub const NeonVkAllocator = struct {
         aci: AllocationCreateInfo,
         comptime tag: []const u8,
     ) !NeonVkImage {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         var result = try self.vmaAllocator.createImage(ici, aci);
 
         var object: AllocatedObject = .{ .image = .{

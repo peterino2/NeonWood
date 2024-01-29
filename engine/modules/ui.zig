@@ -3,7 +3,10 @@ const core = @import("core.zig");
 const graphics = @import("graphics.zig");
 
 pub const papyrus = @import("ui/papyrus.zig");
+pub const HandlerError = papyrus.HandlerError;
 pub const NodeHandle = papyrus.NodeHandle;
+pub const LocText = papyrus.LocText;
+pub const PressedType = papyrus.PressedType;
 pub const PapyrusSystem = @import("ui/PapyrusSystem.zig");
 
 var gPapyrus: *PapyrusSystem = undefined;
