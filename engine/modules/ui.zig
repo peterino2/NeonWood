@@ -1,15 +1,13 @@
 const std = @import("std");
-const PapyrusSystem = @import("ui/papyrusSystem.zig");
 const core = @import("core.zig");
 const graphics = @import("graphics.zig");
 
-pub usingnamespace @import("ui/papyrus/PapyrusEvent.zig");
-
-pub const papyrus = PapyrusSystem.papyrus;
-
-pub const PapyrusContext = papyrus.PapyrusContext;
-
+pub const papyrus = @import("ui/papyrus.zig");
+pub const HandlerError = papyrus.HandlerError;
 pub const NodeHandle = papyrus.NodeHandle;
+pub const LocText = papyrus.LocText;
+pub const PressedType = papyrus.PressedType;
+pub const PapyrusSystem = @import("ui/PapyrusSystem.zig");
 
 var gPapyrus: *PapyrusSystem = undefined;
 
@@ -17,7 +15,7 @@ pub fn getSystem() *PapyrusSystem {
     return gPapyrus;
 }
 
-pub fn getContext() *papyrus.PapyrusContext {
+pub fn getContext() *papyrus.Context {
     return gPapyrus.papyrusCtx;
 }
 

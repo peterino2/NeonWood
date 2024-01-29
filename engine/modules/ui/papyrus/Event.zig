@@ -1,8 +1,13 @@
+backingAllocator: std.mem.Allocator,
+arena: std.heap.ArenaAllocator,
+inputEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(Listener)),
+pressEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(PressedListener)),
+
 const std = @import("std");
-const papyrus = @import("papyrus.zig");
+const papyrus = @import("../papyrus.zig");
 
 const NodeHandle = papyrus.NodeHandle;
-const PapyrusContext = papyrus.PapyrusContext;
+const Context = papyrus.Context;
 
 const RingQueueU = @import("RingQueue.zig").RingQueueU;
 
@@ -65,56 +70,51 @@ pub const Key = enum(i32) {
     _,
 };
 
-pub const EventType = enum {
+pub const Type = enum {
     mouseOver,
     mouseOff,
 };
 
-pub const PressedEventType = enum {
+pub const PressedType = enum {
     onPressed,
     onReleased,
 };
 
-pub const EventHandlerError = error{
+pub const HandlerError = error{
     UnknownError,
     EventPanic,
     EventDropped,
     EventIgnored,
 };
 
-pub const SingleEventFn = *const fn (NodeHandle, ?*anyopaque) EventHandlerError!void;
-pub const PressedEventFn = *const fn (NodeHandle, PressedEventType, ?*anyopaque) EventHandlerError!void;
+pub const SingleFn = *const fn (NodeHandle, ?*anyopaque) HandlerError!void;
+pub const PressedFn = *const fn (NodeHandle, PressedType, ?*anyopaque) HandlerError!void;
 
-const EventListener = struct {
+const Listener = struct {
     node: NodeHandle,
-    event: EventType,
+    event: Type,
     context: ?*anyopaque,
-    eventFn: SingleEventFn,
+    eventFn: SingleFn,
 };
 
-const PressedEventListener = struct {
+const PressedListener = struct {
     node: NodeHandle,
     keycode: Key,
-    event: PressedEventType,
+    event: PressedType,
     context: ?*anyopaque,
-    eventFn: PressedEventFn,
+    eventFn: PressedFn,
 };
-
-backingAllocator: std.mem.Allocator,
-arena: std.heap.ArenaAllocator,
-inputEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(EventListener)),
-pressEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(PressedEventListener)),
 
 pub fn installMouseOverEvent(
     self: *@This(),
     node: NodeHandle,
-    event: EventType,
+    event: Type,
     context: ?*anyopaque,
-    eventFn: SingleEventFn,
+    eventFn: SingleFn,
 ) !void {
     var allocator = self.arena.allocator();
 
-    var listener: EventListener = .{
+    var listener: Listener = .{
         .node = node,
         .event = event,
         .context = context,
@@ -124,13 +124,13 @@ pub fn installMouseOverEvent(
     if (self.inputEvents.getPtr(node)) |listenerList| {
         try listenerList.append(allocator, listener);
     } else {
-        var newListenerList: std.ArrayListUnmanaged(EventListener) = .{};
+        var newListenerList: std.ArrayListUnmanaged(Listener) = .{};
         try newListenerList.append(allocator, listener);
         try self.inputEvents.put(allocator, node, newListenerList);
     }
 }
 
-pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: EventType) EventHandlerError!void {
+pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: Type) HandlerError!void {
     if (self.inputEvents.get(node)) |listeners| {
         for (listeners.items) |listener| {
             if (listener.event == event) {
@@ -140,7 +140,7 @@ pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: EventType) Ev
     }
 }
 
-pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key) !void {
+pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key) !void {
     if (self.pressEvents.get(node)) |listeners| {
         for (listeners.items) |listener| {
             if (listener.event == event and keycode == listener.keycode) {
@@ -150,8 +150,8 @@ pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventTyp
     }
 }
 
-pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEventType, keycode: Key, context: ?*anyopaque, eventFn: PressedEventFn) !void {
-    var listener: PressedEventListener = .{
+pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key, context: ?*anyopaque, eventFn: PressedFn) !void {
+    var listener: PressedListener = .{
         .node = node,
         .event = event,
         .keycode = keycode,
@@ -164,7 +164,7 @@ pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedEve
     if (self.pressEvents.getPtr(node)) |listenerList| {
         try listenerList.append(allocator, listener);
     } else {
-        var newListenerList: std.ArrayListUnmanaged(PressedEventListener) = .{};
+        var newListenerList: std.ArrayListUnmanaged(PressedListener) = .{};
         try newListenerList.append(allocator, listener);
         try self.pressEvents.put(allocator, node, newListenerList);
     }

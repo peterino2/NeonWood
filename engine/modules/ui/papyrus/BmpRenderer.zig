@@ -1,5 +1,5 @@
 const std = @import("std");
-const PapyrusContext = @import("papyrus.zig").PapyrusContext;
+const Context = @import("../papyrus.zig").Context;
 
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
@@ -11,21 +11,21 @@ const Color = colors.Color;
 
 const LocText = @import("localization.zig").LocText;
 
-const PapyrusFont = @import("PapyrusFont.zig");
-const FontAtlas = PapyrusFont.FontAtlas;
+const Font = @import("Font.zig");
+const FontAtlas = Font.FontAtlas;
 
 // Bmp software renderer
 // This is a backend agnostic testing renderer which just renders outlines to a bmp file
 // Used for testing Layouts.
 
 allocator: std.mem.Allocator,
-ui: *PapyrusContext,
+ui: *Context,
 extent: Vector2i,
 r: BmpWriter,
 outFile: []const u8 = "Saved/frame.bmp",
 baseColor: ColorRGBA8 = ColorRGBA8.fromHex(0x080808ff),
 
-pub fn init(allocator: std.mem.Allocator, ui: *PapyrusContext, extent: Vector2i) !@This() {
+pub fn init(allocator: std.mem.Allocator, ui: *Context, extent: Vector2i) !@This() {
     return .{
         .allocator = allocator,
         .ui = ui,
@@ -48,7 +48,7 @@ pub fn render(self: *@This()) !void {
     var timer = try std.time.Timer.start();
     const tstart = timer.read();
 
-    var drawList = PapyrusContext.DrawList.init(self.ui.allocator);
+    var drawList = Context.DrawList.init(self.ui.allocator);
     try self.ui.makeDrawList(&drawList);
     defer drawList.deinit();
 

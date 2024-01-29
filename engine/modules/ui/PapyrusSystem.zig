@@ -1,10 +1,40 @@
+gc: *graphics.NeonVkContext,
+allocator: std.mem.Allocator,
+pipeData: gpd.GpuPipeData = undefined,
+materialName: core.Name = core.MakeName("mat_papyrus"),
+materialNameText: core.Name = core.MakeName("mat_papyrus_text"),
+material: *graphics.Material = undefined, // main material used for anything that isn't text
+defaultTextureSet: *vk.DescriptorSet,
+textMaterial: *graphics.Material = undefined, // main material used for text
+mappedBuffers: []gpd.GpuMappingData(ImageGpu) = undefined,
+textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
+indexBuffer: graphics.IndexBuffer = undefined,
+
+drawList: papyrus.Context.DrawList,
+fontTexture: *graphics.Texture = undefined,
+
+papyrusCtx: *papyrus.Context,
+quad: *graphics.Mesh,
+
+ssboCount: u32 = 0,
+textSsboCount: u32 = 0,
+time: f64 = 0,
+
+textPipeData: gpd.GpuPipeData = undefined,
+
+displayDemo: bool = true,
+
+drawCommands: std.ArrayList(DrawCommand),
+
+textRenderer: *TextRenderer,
+
 const std = @import("std");
 const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const graphics = @import("../graphics.zig");
 const gpd = graphics.gpu_pipe_data;
 const platform = @import("../platform.zig");
-pub const papyrus = @import("papyrus/papyrus.zig");
+const papyrus = @import("papyrus.zig");
 
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");
@@ -21,46 +51,16 @@ const text_render = @import("text_render.zig");
 const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
-const Key = papyrus.PapyrusEvent.Key;
-
-gc: *graphics.NeonVkContext,
-allocator: std.mem.Allocator,
-pipeData: gpd.GpuPipeData = undefined,
-materialName: core.Name = core.MakeName("mat_papyrus"),
-materialNameText: core.Name = core.MakeName("mat_papyrus_text"),
-material: *graphics.Material = undefined, // main material used for anything that isn't text
-defaultTextureSet: *vk.DescriptorSet,
-textMaterial: *graphics.Material = undefined, // main material used for text
-mappedBuffers: []gpd.GpuMappingData(PapyrusImageGpu) = undefined,
-textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
-indexBuffer: graphics.IndexBuffer = undefined,
-
-drawList: papyrus.PapyrusContext.DrawList,
-fontTexture: *graphics.Texture = undefined,
-
-papyrusCtx: *papyrus.PapyrusContext,
-quad: *graphics.Mesh,
-
-ssboCount: u32 = 0,
-textSsboCount: u32 = 0,
-time: f64 = 0,
-
-textPipeData: gpd.GpuPipeData = undefined,
-
-displayDemo: bool = true,
-
-drawCommands: std.ArrayList(DrawCommand),
-
-textRenderer: *TextRenderer,
+const Key = papyrus.Event.Key;
 
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
 pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
-pub const PapyrusPushConstant = FontSDF_vert.constants;
+pub const PushConstant = FontSDF_vert.constants;
 
-pub const PapyrusImageGpu = papyrus_vk_vert.ImageRenderData;
+pub const ImageGpu = papyrus_vk_vert.ImageRenderData;
 pub const FontInfo = FontSDF_vert.FontInfo;
 
 pub fn init(allocator: std.mem.Allocator) !*@This() {
@@ -73,7 +73,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .quad = try allocator.create(graphics.Mesh),
         .drawCommands = std.ArrayList(DrawCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
-        .drawList = papyrus.PapyrusContext.DrawList.init(allocator),
+        .drawList = papyrus.Context.DrawList.init(allocator),
         .defaultTextureSet = undefined,
     };
 
@@ -88,7 +88,7 @@ pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListener
         },
         .mouseButton => |mouseButton| {
             var keycode: Key = .Unknown;
-            var eventType: papyrus.PressedEventType = .onPressed;
+            var eventType: papyrus.Event.PressedType = .onPressed;
             switch (mouseButton.button) {
                 0 => {
                     // left click
@@ -148,7 +148,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.gc.registerRendererPlugin(self);
     self.defaultTextureSet = self.gc.textureSets.get(core.MakeName("t_white").handle()).?;
 
-    self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, PapyrusImageGpu, 0);
+    self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, ImageGpu, 0);
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
     core.ui_log("Mapping buffers.", .{});
     var extent = self.gc.actual_extent;
@@ -252,7 +252,7 @@ pub fn buildTextPipeline(self: *@This()) !void {
     try builder.add_layout(self.textPipeData.descriptorSetLayout);
     try builder.add_layout(self.gc.singleTextureSetLayout);
     try builder.add_depth_stencil();
-    try builder.add_push_constant_custom(PapyrusPushConstant);
+    try builder.add_push_constant_custom(PushConstant);
     core.ui_logs("creating triangle pipeline");
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
@@ -271,7 +271,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
 
     var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     try spriteDataBuilder.addBufferBinding(
-        PapyrusImageGpu,
+        ImageGpu,
         .storage_buffer,
         .{ .vertex_bit = true, .fragment_bit = true },
         .storageBuffer,
@@ -300,7 +300,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
     try builder.add_layout(self.pipeData.descriptorSetLayout);
     try builder.add_layout(self.gc.singleTextureSetLayout);
     try builder.add_depth_stencil();
-    try builder.add_push_constant_custom(PapyrusPushConstant);
+    try builder.add_push_constant_custom(PushConstant);
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
     var material = try self.gc.allocator.create(graphics.Material);
@@ -338,7 +338,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     for (self.drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
-                imagesGpu[self.ssboCount] = PapyrusImageGpu{
+                imagesGpu[self.ssboCount] = ImageGpu{
                     .imagePosition = .{ .x = rect.tl.x, .y = rect.tl.y },
                     .imageSize = .{ .x = rect.size.x, .y = rect.size.y },
                     .anchorPoint = .{ .x = -1.0, .y = -1.0 },
@@ -453,7 +453,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 
     self.uploadSSBOData(frameIndex) catch unreachable;
 
-    var constants = PapyrusPushConstant{
+    var constants = PushConstant{
         .extent = .{
             .x = @as(f32, @floatFromInt(self.gc.extent.width)),
             .y = @as(f32, @floatFromInt(self.gc.extent.height)),
@@ -463,7 +463,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     for (self.drawCommands.items) |command| {
         switch (command) {
             .text => |t| {
-                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
                     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
@@ -473,7 +473,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 }
             },
             .image => |img| {
-                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PapyrusPushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
                 var index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));

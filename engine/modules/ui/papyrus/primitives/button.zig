@@ -1,5 +1,5 @@
 textSize: f32 = 16,
-font: papyrus.PapyrusFont,
+font: papyrus.Font,
 style: ButtonStyle = .{},
 disabled: bool = false,
 buttonState: ButtonState = .Normal,
@@ -9,11 +9,10 @@ buttonState: ButtonState = .Normal,
 //
 
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("../../papyrus.zig");
 const LocText = papyrus.LocText;
 const MakeText = papyrus.MakeText;
 
-const PapyrusNode = papyrus.PapyrusNode;
 const DrawListBuilder = @import("../DrawListBuilder.zig");
 const core = @import("root").neonwood.core;
 const Vector2f = core.Vector2f;
@@ -21,16 +20,16 @@ const colors = @import("../colors.zig");
 const BurnStyle = colors.BurnStyle;
 
 pub const ButtonStyle = struct {
-    normal: papyrus.PapyrusNodeStyle = .{
+    normal: papyrus.NodeStyle = .{
         .borderColor = BurnStyle.Diminished,
     },
-    pressed: papyrus.PapyrusNodeStyle = .{
+    pressed: papyrus.NodeStyle = .{
         .backgroundColor = BurnStyle.BrightGrey,
     },
-    hovered: papyrus.PapyrusNodeStyle = .{
+    hovered: papyrus.NodeStyle = .{
         .backgroundColor = BurnStyle.LightGrey,
     },
-    disabled: papyrus.PapyrusNodeStyle = .{
+    disabled: papyrus.NodeStyle = .{
         .foregroundColor = BurnStyle.DarkSlateGrey,
     },
 };
@@ -115,7 +114,7 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
     };
 }
 
-pub fn buttonMouseOverListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus.EventHandlerError!void {
+pub fn buttonMouseOverListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus.HandlerError!void {
     var ctx = papyrus.getContext();
     var btn = ctx.getButton(node);
     if (btn.disabled == false) {
@@ -123,7 +122,7 @@ pub fn buttonMouseOverListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus
     }
 }
 
-pub fn buttonMouseOffListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus.EventHandlerError!void {
+pub fn buttonMouseOffListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus.HandlerError!void {
     var ctx = papyrus.getContext();
     var btn = ctx.getButton(node);
     if (btn.disabled == false) {
@@ -131,7 +130,7 @@ pub fn buttonMouseOffListener(node: papyrus.NodeHandle, _: ?*anyopaque) papyrus.
     }
 }
 
-pub fn buttonOnPressedEvent(node: papyrus.NodeHandle, eventType: papyrus.PressedEventType, _: ?*anyopaque) papyrus.EventHandlerError!void {
+pub fn buttonOnPressedEvent(node: papyrus.NodeHandle, eventType: papyrus.PressedType, _: ?*anyopaque) papyrus.HandlerError!void {
     var ctx = papyrus.getContext();
     var btn = ctx.getButton(node);
 
