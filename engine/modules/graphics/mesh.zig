@@ -200,12 +200,15 @@ pub const DynamicMesh = struct {
 
     isDirty: bool = true,
 
+    maxVertexCount: u32,
+
     pub fn init(gc: *NeonVkContext, allocator: std.mem.Allocator, opts: struct {
         maxVertexCount: u32 = 4096,
         mode: GeometryMode = .quads,
     }) !*@This() {
         var self = try allocator.create(@This());
         self.* = .{
+            .maxVertexCount = opts.maxVertexCount,
             .allocator = allocator,
             .vertices = try allocator.alloc(Vertex, opts.maxVertexCount),
             .gc = gc,

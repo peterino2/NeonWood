@@ -177,7 +177,10 @@ pub const DisplayText = struct {
 
         var largestXOffset: f32 = 0;
 
-        for (self.string.items) |ch| {
+        for (self.string.items, 0..) |ch, i| {
+            if (i * 4 > self.mesh.maxVertexCount)
+                break;
+
             if (!atlas.hasGlyph[ch]) {
                 xOffset += stride / 2;
                 continue;

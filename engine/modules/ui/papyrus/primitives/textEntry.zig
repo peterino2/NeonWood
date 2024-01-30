@@ -3,6 +3,7 @@ font: papyrus.PapyrusFont,
 disabled: bool = false,
 entryState: TextEntryState = .Normal,
 entryStubPosition: u32 = 0,
+textEntryStyle: TextEntryStyle = .{},
 
 pub const TextEntryStyle = struct {
     normal: papyrus.PapyrusNodeStyle = .{
@@ -40,9 +41,9 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
     const button = dlb.n.nodeType.Button;
 
     // 0. select colors
-    // 1. draw the rect
+    // 1. draw the main rect for Text.
+    try drawlist.append(.{});
     // 2.
 
-    _ = drawlist;
     _ = button;
 }
