@@ -32,6 +32,9 @@ pub const PressedType = Event.PressedType;
 pub const DrawListBuilder = @import("papyrus/DrawListBuilder.zig");
 
 pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");
+pub const NodeProperty_TextEntry = @import("papyrus/primitives/TextEntry.zig");
+
+pub const TextEntrySystem = @import("papyrus/TextEntrySystem.zig");
 
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
@@ -172,6 +175,7 @@ pub const NodePropertiesBag = union(enum(u8)) {
     DisplayText: NodeProperty_Text,
     Button: NodeProperty_Button,
     Panel: NodeProperty_Panel,
+    TextEntry: NodeProperty_TextEntry,
 };
 
 pub const NodePadding = union(enum(u8)) {
@@ -276,6 +280,8 @@ pub const Context = struct {
 
     events: Event,
 
+    textEntry: *TextEntrySystem,
+
     // internals
     _drawOrder: DrawOrderList,
     _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
@@ -332,6 +338,7 @@ pub const Context = struct {
                 .name = Name.fromUtf8(defaultMonoName),
                 .atlas = try allocator.create(FontAtlas),
             },
+            .textEntry = try TextEntrySystem.create(allocator),
             ._drawOrder = DrawOrderList.init(allocator),
             ._layout = .{},
             ._layoutNodes = .{},
@@ -431,6 +438,10 @@ pub const Context = struct {
 
     pub fn getText(self: *@This(), handle: NodeHandle) *NodeProperty_Text {
         return &(self.nodes.get(handle).?.nodeType.DisplayText);
+    }
+
+    pub fn getTextEntry(self: *@This(), node: NodeHandle) *NodeProperty_TextEntry {
+        return &(self.nodes.get(node).?.nodeType.TextEntry);
     }
 
     pub fn setFont(self: *@This(), handle: NodeHandle, font: []const u8) void {
@@ -554,6 +565,25 @@ pub const Context = struct {
         parentNode.*.end = node;
     }
 
+    pub fn addTextEntry_experimental(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
+        var textProperty = NodeProperty_TextEntry{
+            .editText = std.ArrayList(u8).init(self.allocator),
+            .font = self.fallbackFont,
+        };
+
+        if (text) |t| {
+            try textProperty.editText.appendSlice(t);
+        } else {
+            try textProperty.editText.appendSlice("click to edit...");
+        }
+
+        var n = try self.nodes.new(.{ .nodeType = .{ .TextEntry = textProperty } });
+        try self.setParent(n, parent);
+        self.get(n).size = .{ .x = 350, .y = 30 };
+
+        return n;
+    }
+
     // helper functions for a whole bunch of shit
     pub fn addButton(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
         var buttonProperty = NodeProperty_Button{
@@ -609,6 +639,10 @@ pub const Context = struct {
         {
             var parent = self.get(thisNode.parent);
 
+            if (thisNode.nodeType == .TextEntry) {
+                NodeProperty_TextEntry.tearDown(self, node);
+            }
+
             if (parent.child.eql(node)) {
                 parent.child = thisNode.next;
             }
@@ -623,7 +657,7 @@ pub const Context = struct {
         }
 
         // Uninstall handlers from the events system
-        self.events.uninstallAllEvents(node);
+        self.events.uninstallAllEvents_OnDestroy(node);
     }
 
     fn walkNodesToRemove(self: @This(), root: NodeHandle, killList: *std.ArrayList(NodeHandle)) !void {
@@ -989,6 +1023,9 @@ pub const Context = struct {
                 },
                 .Button => {
                     try NodeProperty_Button.addToDrawList(dlb);
+                },
+                .TextEntry => {
+                    try NodeProperty_TextEntry.addToDrawList(dlb);
                 },
                 .Slot => {},
             }

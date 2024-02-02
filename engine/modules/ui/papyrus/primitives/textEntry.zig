@@ -1,25 +1,26 @@
 textSize: f32 = 24,
-font: papyrus.PapyrusFont,
+font: papyrus.Font,
 disabled: bool = false,
 entryState: TextEntryState = .Normal,
 entryStubPosition: u32 = 0,
 textEntryStyle: TextEntryStyle = .{},
+editText: std.ArrayList(u8),
 
 pub const TextEntryStyle = struct {
-    normal: papyrus.PapyrusNodeStyle = .{
+    normal: papyrus.NodeStyle = .{
         .borderColor = BurnStyle.Diminished,
     },
-    typing: papyrus.PapyrusNodeStyle = .{
+    typing: papyrus.NodeStyle = .{
         .borderColor = BurnStyle.LightGrey,
     },
 };
 
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("../../papyrus.zig");
 const LocText = papyrus.LocText;
 const MakeText = papyrus.MakeText;
 
-const PapyrusNode = papyrus.PapyrusNode;
+const Node = papyrus.Node;
 const DrawListBuilder = @import("../DrawListBuilder.zig");
 const core = @import("root").neonwood.core;
 const Vector2f = core.Vector2f;
@@ -38,12 +39,64 @@ pub const TextEntrySystem = struct {
 
 pub fn addToDrawList(dlb: DrawListBuilder) !void {
     var drawlist = dlb.drawList;
-    const button = dlb.n.nodeType.Button;
+    const te = dlb.n.nodeType.TextEntry;
+
+    var backgroundColor = te.textEntryStyle.normal.backgroundColor;
+    var foregroundColor = te.textEntryStyle.normal.foregroundColor;
+    var borderColor = te.textEntryStyle.normal.borderColor;
+    var borderWidth = te.textEntryStyle.normal.borderWidth;
 
     // 0. select colors
-    // 1. draw the main rect for Text.
-    try drawlist.append(.{});
-    // 2.
+    if (te.entryState == .Pressed) {
+        backgroundColor = te.textEntryStyle.typing.backgroundColor;
+        foregroundColor = te.textEntryStyle.typing.foregroundColor;
+        borderColor = te.textEntryStyle.typing.borderColor;
+        borderWidth = te.textEntryStyle.typing.borderWidth;
+    }
 
-    _ = button;
+    // 1. draw the main rect for Text.
+    try drawlist.append(.{
+        .node = dlb.node,
+        .primitive = .{ .Rect = .{
+            .tl = dlb.resolvedPos,
+            .size = dlb.resolvedSize,
+            .backgroundColor = backgroundColor,
+            .borderColor = borderColor,
+            .borderWidth = borderWidth,
+        } },
+    });
+
+    try drawlist.append(.{
+        .node = dlb.node,
+        .primitive = .{ .Text = .{
+            .color = foregroundColor,
+            .tl = dlb.resolvedPos.add(.{ .x = 5, .y = 2 }),
+            .size = dlb.resolvedSize,
+            .renderMode = dlb.n.textMode,
+            .textSize = te.textSize,
+            .text = LocText.fromUtf8(te.editText.items),
+            .rendererHash = te.font.atlas.rendererHash,
+        } },
+    });
+
+    try dlb.ctx._layout.append(dlb.ctx.allocator, .{
+        .baseSize = dlb.n.baseSize,
+        .pos = dlb.resolvedPos,
+        .size = dlb.resolvedSize,
+        .childLayoutOffsets = .{},
+    });
+
+    try dlb.ctx._layoutNodes.append(dlb.ctx.allocator, dlb.node);
+
+    dlb.ctx._displayLayout.items[dlb.node.index] = .{
+        .baseSize = dlb.n.baseSize,
+        .pos = dlb.resolvedPos.add(Vector2f.Ones),
+        .size = dlb.resolvedSize.add(Vector2f.Ones.fmul(2)),
+        .childLayoutOffsets = .{},
+    };
+}
+
+pub fn tearDown(ctx: papyrus.Context, node: papyrus.NodeHandle) void {
+    var textEntry = ctx.getTextEntry(node);
+    textEntry.editText.deinit();
 }
