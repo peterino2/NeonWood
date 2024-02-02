@@ -568,11 +568,11 @@ pub const Context = struct {
             self.get(button).text = LocText.fromUtf8(t);
         }
 
-        try self.events.installMouseOverEvent(button, .mouseOver, null, NodeProperty_Button.buttonMouseOverListener);
-        try self.events.installMouseOverEvent(button, .mouseOff, null, NodeProperty_Button.buttonMouseOffListener);
+        try self.events.installMouseOverEventAdvanced(button, .mouseOver, null, NodeProperty_Button.buttonMouseOverListener, true);
+        try self.events.installMouseOverEventAdvanced(button, .mouseOff, null, NodeProperty_Button.buttonMouseOffListener, true);
 
-        try self.events.installOnPressedEvent(button, .onPressed, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent);
-        try self.events.installOnPressedEvent(button, .onReleased, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent);
+        try self.events.installOnPressedEventAdvanced(button, .onPressed, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent, true);
+        try self.events.installOnPressedEventAdvanced(button, .onReleased, .Mouse1, null, NodeProperty_Button.buttonOnPressedEvent, true);
 
         return button;
     }
