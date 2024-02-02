@@ -66,6 +66,7 @@ pub const InstalledEvents = struct {
     onWindowFocused: std.ArrayListUnmanaged(c.GLFWwindowfocusfun) = .{},
     onMouseButton: std.ArrayListUnmanaged(c.GLFWmousebuttonfun) = .{},
     onCursorPos: std.ArrayListUnmanaged(c.GLFWcursorposfun) = .{},
+    onTextEntry: std.ArrayListUnmanaged(c.GLFWcharfun) = .{},
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         return .{
@@ -77,6 +78,7 @@ pub const InstalledEvents = struct {
         self.onWindowFocused.deinit(self.allocator);
         self.onMouseButton.deinit(self.allocator);
         self.onCursorPos.deinit(self.allocator);
+        self.onTextEntry.deinit(self.allocator);
     }
 };
 
@@ -249,6 +251,7 @@ pub const PlatformInstance = struct {
         _ = c.glfwSetMouseButtonCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
         _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), keyCallback);
         _ = c.glfwSetFramebufferSizeCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), windowResizeCallback);
+        _ = c.glfwSetCharCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), charCallback);
 
         c.glfwGetWindowContentScale(@as(?*c.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
 
@@ -273,11 +276,12 @@ pub const PlatformInstance = struct {
                 switch (event) {
                     .mousePosition => |mousePos| {
                         for (self.handlers.onCursorPos.items) |handler| {
-                            handler.?(self.window, mousePos.x, mousePos.y);
-                            self.cursorPos.x = @floatCast(mousePos.x);
-                            self.cursorPos.y = @floatCast(mousePos.y);
+                            _ = handler;
+                            // handler.?(self.window, mousePos.x, mousePos.y);
                         }
 
+                        self.cursorPos.x = @floatCast(mousePos.x);
+                        self.cursorPos.y = @floatCast(mousePos.y);
                         self.inputState.mousePos = core.Vector2{ .x = mousePos.x, .y = mousePos.y };
                     },
                     .mouseButton => {},
@@ -285,6 +289,12 @@ pub const PlatformInstance = struct {
                     .scroll => {},
                     .key => {},
                     .windowResize => {},
+                    .codepoint => |codepoint| {
+                        // core.ui_log("codepoint recieved: {c}", .{@as([4]u8, @bitCast(codepoint))[0]});
+                        for (self.handlers.onTextEntry.items) |handler| {
+                            handler.?(self.window, codepoint);
+                        }
+                    },
                 }
             }
 
@@ -315,6 +325,10 @@ pub const PlatformInstance = struct {
     pub fn installCursorPosCallback(self: *@This(), pfn: c.GLFWcursorposfun) !void {
         try self.handlers.onCursorPos.append(self.handlers.allocator, pfn);
     }
+
+    pub fn installCodepointCallback(self: *@This(), pfn: c.GLFWcharfun) !void {
+        try self.handlers.onCursorPos.append(self.handlers.allocator, pfn);
+    }
 };
 
 pub const IOEvent = union(enum(u8)) {
@@ -324,6 +338,7 @@ pub const IOEvent = union(enum(u8)) {
     scroll: struct { xoffset: f64, yoffset: f64 },
     key: struct { key: c_int, scancode: c_int, action: c_int, mods: c_int },
     windowResize: struct { newSize: core.Vector2f },
+    codepoint: c_uint,
 };
 
 fn windowResizeCallback(_: ?*c.GLFWwindow, newWidth: c_int, newHeight: c_int) callconv(.C) void {
@@ -359,6 +374,10 @@ pub fn scrollCallback(_: ?*c.GLFWwindow, xoffset: c_int, yoffset: c_int) callcon
 
 pub fn keyCallback(_: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     pushEventSafe(.{ .key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods } });
+}
+
+pub fn charCallback(_: ?*c.GLFWwindow, codepoint: c_uint) callconv(.C) void {
+    pushEventSafe(.{ .codepoint = codepoint });
 }
 
 pub fn getPlatformExtensions(allocator: std.mem.Allocator) !std.ArrayList([*:0]const u8) {

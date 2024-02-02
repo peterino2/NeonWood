@@ -5,6 +5,7 @@ const std = @import("std");
 
 pub usingnamespace @import("platform/windowing.zig");
 pub const windowing = @import("platform/windowing.zig");
+pub const glfw = @import("platform/glfw_defs.zig");
 
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 

@@ -95,6 +95,7 @@ const Listener = struct {
     event: Type,
     context: ?*anyopaque,
     eventFn: SingleFn,
+    innate: bool,
 };
 
 const PressedListener = struct {
@@ -103,14 +104,16 @@ const PressedListener = struct {
     event: PressedType,
     context: ?*anyopaque,
     eventFn: PressedFn,
+    innate: bool,
 };
 
-pub fn installMouseOverEvent(
+pub fn installMouseOverEventAdvanced(
     self: *@This(),
     node: NodeHandle,
     event: Type,
     context: ?*anyopaque,
     eventFn: SingleFn,
+    innate: bool,
 ) !void {
     var allocator = self.arena.allocator();
 
@@ -119,6 +122,7 @@ pub fn installMouseOverEvent(
         .event = event,
         .context = context,
         .eventFn = eventFn,
+        .innate = innate,
     };
 
     if (self.inputEvents.getPtr(node)) |listenerList| {
@@ -128,6 +132,16 @@ pub fn installMouseOverEvent(
         try newListenerList.append(allocator, listener);
         try self.inputEvents.put(allocator, node, newListenerList);
     }
+}
+
+pub fn installMouseOverEvent(
+    self: *@This(),
+    node: NodeHandle,
+    event: Type,
+    context: ?*anyopaque,
+    eventFn: SingleFn,
+) !void {
+    try installMouseOverEventAdvanced(self, node, event, context, eventFn, false);
 }
 
 pub fn pushMouseOverEvent(self: *@This(), node: NodeHandle, event: Type) HandlerError!void {
@@ -150,13 +164,14 @@ pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, ke
     }
 }
 
-pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key, context: ?*anyopaque, eventFn: PressedFn) !void {
+pub fn installOnPressedEventAdvanced(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key, context: ?*anyopaque, eventFn: PressedFn, innate: bool) !void {
     var listener: PressedListener = .{
         .node = node,
         .event = event,
         .keycode = keycode,
         .context = context,
         .eventFn = eventFn,
+        .innate = innate,
     };
 
     var allocator = self.arena.allocator();
@@ -168,6 +183,10 @@ pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedTyp
         try newListenerList.append(allocator, listener);
         try self.pressEvents.put(allocator, node, newListenerList);
     }
+}
+
+pub fn installOnPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key, context: ?*anyopaque, eventFn: PressedFn) !void {
+    try installOnPressedEventAdvanced(self, node, event, keycode, context, eventFn, false);
 }
 
 pub fn init(allocator: std.mem.Allocator) @This() {
@@ -183,15 +202,43 @@ pub fn deinit(self: *@This()) void {
     self.arena.deinit();
 }
 
-pub fn uninstallAllEvents(self: *@This(), node: NodeHandle) void {
-    self.uninstallPressEvents(node);
-    self.uninstallBasicEvents(node);
+pub fn uninstallAllEvents(self: *@This(), node: NodeHandle) !void {
+    try self.uninstallPressEvents(node);
+    try self.uninstallBasicEvents(node);
 }
 
-pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) void {
-    _ = self.pressEvents.remove(node);
+pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) !void {
+    if (self.pressEvents.contains(node)) {
+        var allocator = self.arena.allocator();
+        var newList = std.ArrayListUnmanaged(PressedListener){};
+        var items = self.pressEvents.get(node).?;
+        for (items.items) |i| {
+            if (i.innate) {
+                try newList.append(allocator, i);
+            }
+        }
+        try self.pressEvents.put(allocator, node, newList);
+        items.deinit(allocator);
+    }
 }
 
-pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) void {
-    _ = self.pressEvents.remove(node);
+pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) !void {
+    if (self.inputEvents.contains(node)) {
+        var allocator = self.arena.allocator();
+        var newList = std.ArrayListUnmanaged(Listener){};
+        var items = self.inputEvents.get(node).?;
+        for (items.items) |i| {
+            if (i.innate) {
+                try newList.append(allocator, i);
+            }
+        }
+        try self.inputEvents.put(allocator, node, newList);
+        items.deinit(allocator);
+    }
+}
+
+// a more extreme version of uninstallAllEvents that purges even builtin events
+pub fn uninstallAllEvents_OnDestroy(self: @This(), node: NodeHandle) void {
+    self.inputEvents.remove(node);
+    self.pressEvents.remove(node);
 }

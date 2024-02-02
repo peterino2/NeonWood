@@ -82,6 +82,10 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
 }
 
 pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
+    try OnIoEvent_GLFW(self, event);
+}
+
+pub fn OnIoEvent_GLFW(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
     switch (event) {
         .mousePosition => |mousePosition| {
             _ = mousePosition;
@@ -133,6 +137,64 @@ pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListener
                 .x = e.newSize.x / pi.contentScale.x,
                 .y = e.newSize.y / pi.contentScale.y,
             });
+        },
+        .codepoint => |codepoint| {
+            try self.papyrusCtx.textEntry.sendCodePoint(@as(u32, codepoint));
+        },
+        .key => |keyEvent| {
+            var te = self.papyrusCtx.textEntry;
+
+            const actions = platform.glfw.actions;
+            const keys = platform.glfw.keys;
+
+            if (@as(actions, @enumFromInt(keyEvent.action)) == actions.Press or
+                @as(actions, @enumFromInt(keyEvent.action)) == actions.Repeat)
+            {
+
+                // reference glfw3.h
+                switch (@as(keys, @enumFromInt(keyEvent.key))) {
+                    keys.Escape => {
+                        try te.sendEscape();
+                    },
+                    keys.Enter => {
+                        try te.sendEnter();
+                    },
+                    keys.Tab => {
+                        try te.sendTab();
+                    },
+                    keys.Backspace => {
+                        try te.sendBackspace();
+                    },
+                    keys.Delete => {
+                        try te.sendDelete();
+                    },
+                    keys.Right => {
+                        try te.sendRight();
+                    },
+                    keys.Left => {
+                        try te.sendLeft();
+                    },
+                    keys.Up => {
+                        try te.sendUp();
+                    },
+                    keys.Down => {
+                        try te.sendDown();
+                    },
+                    keys.Pageup => {
+                        try te.sendPageup();
+                    },
+                    keys.Pagedown => {
+                        try te.sendPagedown();
+                    },
+                    keys.Home => {
+                        try te.sendHome();
+                    },
+                    keys.End => {
+                        try te.sendEnd();
+                    },
+                    else => {},
+                }
+            }
         },
         else => {},
     }

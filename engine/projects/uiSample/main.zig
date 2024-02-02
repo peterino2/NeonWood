@@ -72,6 +72,7 @@ pub const GameContext = struct {
         ctx.getText(text).textSize = 48;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 600, .y = 600 };
+        ctx.getText(text).font = ctx.defaultMonoFont;
         self.text = text;
 
         try ctx.events.installMouseOverEvent(self.panel, .mouseOver, null, &onMouseOver);
@@ -155,6 +156,10 @@ pub const GameContext = struct {
 
         const btn = try ctx.addButton(unk, "click me!");
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
+        try ctx.events.uninstallAllEvents(btn);
+
+        const te = try ctx.addTextEntry_experimental(unk, null);
+        _ = te;
 
         ctx.printTree(.{});
     }
@@ -195,7 +200,7 @@ fn onMouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
 }
 
 const ipsum =
-    \\ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque gravida nec urna at porta. Interdum et malesuada fames ac ante ipsum primis in faucibus. Morbi non felis nisi. Aliquam lectus enim, cursus a mollis sed, aliquam ut risus. Nam dolor urna, fermentum consectetur enim vitae, tempus scelerisque urna. Vestibulum quam sem, faucibus ac volutpat ut, semper in ipsum. Maecenas ornare lectus massa, in lacinia nulla feugiat et. Vestibulum blandit justo at ipsum aliquet, consectetur ultrices libero finibus. Vestibulum ut risus ac metus gravida aliquet. Quisque vel neque eu nisl consectetur iaculis id tincidunt odio. Maecenas rhoncus tristique ullamcorper. Vivamus egestas massa in nulla malesuada ullamcorper. Nullam sed nibh id lacus rutrum interdum a ut ex. Mauris nec odio tempor, pretium arcu et, auctor purus.
+    \\ + - () / { } Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque gravida nec urna at porta. Interdum et malesuada fames ac ante ipsum primis in faucibus. Morbi non felis nisi. Aliquam lectus enim, cursus a mollis sed, aliquam ut risus. Nam dolor urna, fermentum consectetur enim vitae, tempus scelerisque urna. Vestibulum quam sem, faucibus ac volutpat ut, semper in ipsum. Maecenas ornare lectus massa, in lacinia nulla feugiat et. Vestibulum blandit justo at ipsum aliquet, consectetur ultrices libero finibus. Vestibulum ut risus ac metus gravida aliquet. Quisque vel neque eu nisl consectetur iaculis id tincidunt odio. Maecenas rhoncus tristique ullamcorper. Vivamus egestas massa in nulla malesuada ullamcorper. Nullam sed nibh id lacus rutrum interdum a ut ex. Mauris nec odio tempor, pretium arcu et, auctor purus.
     \\ Morbi imperdiet sapien eros, at mollis velit efficitur ac. Ut dictum sapien erat, nec pulvinar justo congue at. Integer ac fringilla mauris. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla lacinia arcu et dignissim bibendum. Cras feugiat consequat ante ac fermentum. Ut luctus ante quis est efficitur laoreet. Donec consequat, nisl vel fringilla condimentum, purus leo finibus dolor, imperdiet rutrum risus orci non sapien. Phasellus in maximus augue. Praesent rhoncus sagittis mi vitae elementum. Integer id blandit diam. Sed ut augue id orci venenatis suscipit nec at velit. Vestibulum luctus pretium nisl, quis pretium neque tristique a. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Interdum et malesuada fames ac ante ipsum primis in faucibus. Suspendisse in pretium sapien.
     \\ Sed non interdum tellus. Quisque id ipsum ut arcu fringilla auctor non et nulla. Maecenas convallis, eros sit amet dapibus consectetur, ante risus placerat diam, vel porta felis nisi eget nisi. Sed justo turpis, accumsan eget nunc non, condimentum consequat quam. Vivamus varius nibh ex, eu luctus tellus tempor sed. In egestas ultricies massa, in pulvinar nulla. Phasellus sit amet erat sit amet massa ultrices finibus. Nullam elementum odio non auctor finibus. Phasellus ultrices, purus nec semper finibus, nunc libero fermentum odio, non aliquam risus risus eget ipsum. Nam urna ligula, vestibulum et arcu et, egestas sollicitudin justo.
     \\ Donec cursus placerat massa et vulputate. Duis egestas malesuada erat, quis finibus tellus finibus vitae. Ut malesuada blandit ultrices. Maecenas faucibus volutpat risus, in fringilla libero. Etiam pharetra interdum mi, malesuada sagittis neque feugiat at. Nullam pellentesque ultricies consequat. Ut consectetur, orci id gravida pellentesque, tortor ante fringilla dui, at condimentum neque ligula sed eros. Cras vulputate velit urna, vitae volutpat enim varius quis. Curabitur lorem mi, viverra vel tellus vehicula, eleifend viverra mauris. Proin fringilla eleifend elit, sed dapibus purus porttitor non.
