@@ -24,7 +24,7 @@ textPipeData: gpd.GpuPipeData = undefined,
 
 displayDemo: bool = true,
 
-drawCommands: std.ArrayList(DrawCommand),
+drawCommands: std.ArrayList(VkCommand),
 
 textRenderer: *TextRenderer,
 
@@ -45,7 +45,7 @@ const vk = @import("vulkan");
 const tracy = core.tracy;
 
 const Text = papyrus.Text;
-const DrawCommand = @import("drawCommand.zig").DrawCommand;
+const VkCommand = @import("VkPapyrusRenderCommand.zig").VkCommand;
 const text_render = @import("text_render.zig");
 
 const TextRenderer = text_render.TextRenderer;
@@ -71,7 +71,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .gc = graphics.getContext(),
         .papyrusCtx = papyrusCtx,
         .quad = try allocator.create(graphics.Mesh),
-        .drawCommands = std.ArrayList(DrawCommand).init(allocator),
+        .drawCommands = std.ArrayList(VkCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
         .drawList = papyrus.Context.DrawList.init(allocator),
         .defaultTextureSet = undefined,
