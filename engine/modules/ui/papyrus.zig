@@ -338,7 +338,7 @@ pub const Context = struct {
                 .name = Name.fromUtf8(defaultMonoName),
                 .atlas = try allocator.create(FontAtlas),
             },
-            .textEntry = try TextEntrySystem.create(allocator),
+            .textEntry = try TextEntrySystem.create(self, allocator),
             ._drawOrder = DrawOrderList.init(allocator),
             ._layout = .{},
             ._layoutNodes = .{},
@@ -580,6 +580,8 @@ pub const Context = struct {
         var n = try self.nodes.new(.{ .nodeType = .{ .TextEntry = textProperty } });
         try self.setParent(n, parent);
         self.get(n).size = .{ .x = 350, .y = 30 };
+
+        try self.events.installOnPressedEventAdvanced(n, .onPressed, .Mouse1, null, NodeProperty_TextEntry.onPressedEvent, true);
 
         return n;
     }

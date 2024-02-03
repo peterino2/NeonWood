@@ -2,17 +2,19 @@
 
 backingAllocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
+ctx: *papyrus.Context,
 
 const std = @import("std");
-const papyrus = @import("../papyrus");
+const papyrus = @import("../papyrus.zig");
 const NodeHandle = papyrus.NodeHandle;
 const Context = papyrus.Context;
 const core = @import("../../core.zig");
 
-pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
+pub fn create(ctx: *papyrus.Context, backingAllocator: std.mem.Allocator) !*@This() {
     var self = try backingAllocator.create(@This());
 
     self.* = .{
+        .ctx = ctx,
         .backingAllocator = backingAllocator,
         .arena = std.heap.ArenaAllocator.init(backingAllocator),
     };
@@ -27,6 +29,10 @@ pub fn sendCodePoint(self: *@This(), codepoint: u32) !void {
 
 pub fn tickUpdates(self: *@This()) !void {
     _ = self;
+}
+
+pub fn selectTextForEdit(self: *@This(), node: NodeHandle) void {
+    self.ctx.getTextEntry(node).entryState = .Pressed;
 }
 
 pub fn destroy(self: *@This()) void {

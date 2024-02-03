@@ -100,3 +100,15 @@ pub fn tearDown(ctx: papyrus.Context, node: papyrus.NodeHandle) void {
     var textEntry = ctx.getTextEntry(node);
     textEntry.editText.deinit();
 }
+
+// ======
+pub fn onPressedEvent(
+    node: papyrus.NodeHandle,
+    eventType: papyrus.PressedType,
+    _: ?*anyopaque,
+) papyrus.HandlerError!void {
+    if (eventType == .onPressed) {
+        var ctx = papyrus.getContext();
+        ctx.textEntry.selectTextForEdit(node);
+    }
+}
