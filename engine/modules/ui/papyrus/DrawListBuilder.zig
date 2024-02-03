@@ -12,5 +12,5 @@ const core = @import("root").neonwood.core;
 const Context = papyrus.Context;
 const LayoutInfo = papyrus.LayoutInfo;
 const Vector2f = core.Vector2f;
-const DrawList = Context.DrawList;
+const DrawList = papyrus.DrawList;
 const NodeHandle = papyrus.NodeHandle;

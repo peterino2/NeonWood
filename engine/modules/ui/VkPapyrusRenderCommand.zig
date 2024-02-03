@@ -1,7 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-pub const DrawCommand = union(enum(u8)) {
+pub const VkCommand = union(enum(u8)) {
     image: struct {
         index: u32,
         imageSet: ?*vk.DescriptorSet,

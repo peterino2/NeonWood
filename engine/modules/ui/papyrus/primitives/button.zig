@@ -94,6 +94,9 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
                 .textSize = button.textSize,
                 .rendererHash = button.font.atlas.rendererHash,
                 // TODO: figure out centering.
+                .flags = .{
+                    .setSourceGeometry = false,
+                },
             },
         },
     });
