@@ -25,6 +25,7 @@ pub fn loadFileAlloc(allocator: std.mem.Allocator, filename: []const u8) []const
 
 pub const ProgramOptions = struct {
     graphicsBackend: GraphicsBackend = .Vulkan,
+    dependencies: []const std.Build.ModuleDependency = &.{},
 };
 
 pub const GraphicsBackend = enum {
@@ -141,7 +142,10 @@ pub const NwBuildSystem = struct {
 
         const mainModule = self.b.addModule(
             name,
-            .{ .source_file = .{ .path = mainFile } },
+            .{
+                .source_file = .{ .path = mainFile },
+                .dependencies = opts.dependencies,
+            },
         );
         exe.addModule("main", mainModule);
 
