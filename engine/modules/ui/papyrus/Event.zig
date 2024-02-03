@@ -9,7 +9,7 @@ const papyrus = @import("../papyrus.zig");
 const NodeHandle = papyrus.NodeHandle;
 const Context = papyrus.Context;
 
-const RingQueueU = @import("RingQueue.zig").RingQueueU;
+const RingQueueU = @import("../../core.zig").RingQueueU;
 
 const core = @import("root").neonwood.core;
 const assertf = core.assertf;
