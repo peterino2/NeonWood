@@ -76,6 +76,9 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
             .textSize = te.textSize,
             .text = LocText.fromUtf8(te.editText.items),
             .rendererHash = te.font.atlas.rendererHash,
+            .flags = .{
+                .setSourceGeometry = false,
+            },
         } },
     });
 

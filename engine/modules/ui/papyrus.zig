@@ -36,6 +36,9 @@ pub const NodeProperty_TextEntry = @import("papyrus/primitives/TextEntry.zig");
 
 pub const TextEntrySystem = @import("papyrus/TextEntrySystem.zig");
 
+pub const DrawCommand = @import("papyrus/DrawCommand.zig");
+pub const DrawList = std.ArrayList(DrawCommand);
+
 const core = @import("root").neonwood.core;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
@@ -674,35 +677,6 @@ pub const Context = struct {
     }
 
     // ============================= Rendering and Layout ==================
-    pub const DrawCommand = struct {
-        node: NodeHandle,
-        primitive: union(enum(u8)) {
-            Rect: struct {
-                tl: Vector2f,
-                size: Vector2f,
-                borderColor: Color,
-                backgroundColor: Color,
-                rounding: struct {
-                    tl: f32 = 0,
-                    tr: f32 = 0,
-                    bl: f32 = 0,
-                    br: f32 = 0,
-                } = .{},
-                borderWidth: f32 = 1.1,
-                imageRef: ?core.Name = null,
-            },
-            Text: struct {
-                tl: Vector2f,
-                size: Vector2f,
-                renderMode: TextRenderMode,
-                text: LocText,
-                color: Color,
-                textSize: f32,
-                rendererHash: u32,
-            },
-        },
-    };
-    pub const DrawList = std.ArrayList(DrawCommand);
     const DrawOrderList = std.ArrayList(NodeHandle);
 
     fn assembleDrawOrderListForNode(self: @This(), node: NodeHandle, list: *DrawOrderList) !void {
@@ -967,6 +941,9 @@ pub const Context = struct {
                                 .color = panel.titleColor,
                                 .textSize = panel.titleSize - 4,
                                 .rendererHash = panel.font.rendererHash,
+                                .flags = .{
+                                    .setSourceGeometry = false,
+                                },
                             },
                         } });
 
@@ -1013,6 +990,9 @@ pub const Context = struct {
                             .color = n.style.foregroundColor,
                             .textSize = txt.textSize,
                             .rendererHash = txt.font.atlas.rendererHash,
+                            .flags = .{
+                                .setSourceGeometry = false,
+                            },
                         },
                     } });
 
@@ -1038,7 +1018,7 @@ pub const Context = struct {
         }
     }
 
-    fn addDebugInfo(self: @This(), drawList: *Context.DrawList) !void {
+    fn addDebugInfo(self: @This(), drawList: *DrawList) !void {
         const defaultHeight = 16;
         const offsetPerLine: f32 = defaultHeight + 2;
         var yOffset: f32 = offsetPerLine;
@@ -1072,6 +1052,9 @@ pub const Context = struct {
                     .color = Color.Yellow,
                     .textSize = defaultHeight,
                     .rendererHash = fontHash,
+                    .flags = .{
+                        .setSourceGeometry = false,
+                    },
                 },
             },
         });
@@ -1094,6 +1077,9 @@ pub const Context = struct {
                         .color = Color.Yellow,
                         .textSize = defaultHeight,
                         .rendererHash = fontHash,
+                        .flags = .{
+                            .setSourceGeometry = false,
+                        },
                     },
                 },
             });
@@ -1157,6 +1143,9 @@ pub fn getContext() *Context {
 
 pub fn initialize(allocator: std.mem.Allocator) !*Context {
     try assertf(gIsInitialized == false, "Unable to initialize Papyrus, already initialized", .{});
+    core.ui_log("Papyrus initialized here's some stats:", .{});
+    core.ui_log("  - DrawListCommand size: {d}", .{@sizeOf(DrawList)});
+    core.ui_log("  - Node size: {d}", .{@sizeOf(Node)});
     gIsInitialized = true;
     gContext = try Context.create(allocator);
     return gContext;

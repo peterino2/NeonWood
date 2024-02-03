@@ -10,7 +10,7 @@ mappedBuffers: []gpd.GpuMappingData(ImageGpu) = undefined,
 textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
-drawList: papyrus.Context.DrawList,
+drawList: papyrus.DrawList,
 fontTexture: *graphics.Texture = undefined,
 
 papyrusCtx: *papyrus.Context,
@@ -73,7 +73,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .quad = try allocator.create(graphics.Mesh),
         .drawCommands = std.ArrayList(VkCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
-        .drawList = papyrus.Context.DrawList.init(allocator),
+        .drawList = papyrus.DrawList.init(allocator),
         .defaultTextureSet = undefined,
     };
 
