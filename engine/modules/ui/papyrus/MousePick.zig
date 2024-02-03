@@ -67,7 +67,7 @@ pub fn deinit(self: *@This()) void {
 pub fn addMousePickInfo(
     self: @This(),
     papyrusCtx: *const Context,
-    drawList: *Context.DrawList,
+    drawList: *papyrus.DrawList,
 ) !void {
     const selected_node = self.selected_node orelse return;
     var layoutInfo = papyrusCtx._displayLayout.items[selected_node.index];
