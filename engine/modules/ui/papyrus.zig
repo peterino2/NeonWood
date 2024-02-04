@@ -32,7 +32,7 @@ pub const PressedType = Event.PressedType;
 pub const DrawListBuilder = @import("papyrus/DrawListBuilder.zig");
 
 pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");
-pub const NodeProperty_TextEntry = @import("papyrus/primitives/TextEntry.zig");
+pub const NodeProperty_TextEntry = @import("papyrus/primitives/textEntry.zig");
 
 pub const TextEntrySystem = @import("papyrus/TextEntrySystem.zig");
 
