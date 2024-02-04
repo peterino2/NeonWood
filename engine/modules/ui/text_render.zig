@@ -80,28 +80,37 @@ pub const DisplayText = struct {
 
     renderedSize: Vector2f = .{},
 
+    renderedGeo: *papyrus.TextRenderGeometry,
+
     pub fn deinit(self: *@This()) void {
         self.mesh.deinit();
         self.string.deinit();
         self.allocator.destroy(self.mesh);
+        self.renderedGeo.destroy();
     }
 
     pub fn getHash(self: *@This()) u32 {
         var hash: u32 = 5381;
+
+        // todo: swap the hash into a new function.
+        //
+        // walk up the string list until we are alignment = 4,
+        // sum everything using u32s
+        // sum up the missing chars at the end.
 
         for (self.string.items) |c| {
             hash = @mulWithOverflow(hash, 33)[0];
             hash = @addWithOverflow(hash, @as(u32, @intCast(c)))[0];
         }
 
-        hash = @addWithOverflow(hash, @as(u32, @intFromFloat(self.displaySize)))[0];
-        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.position.x)))[0];
-        hash = @addWithOverflow(hash, @as(u32, @intFromFloat(self.position.y)))[0];
+        hash = @addWithOverflow(hash, @as(u32, @bitCast(self.displaySize)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @bitCast(self.position.x)))[0];
+        hash = @addWithOverflow(hash, @as(u32, @bitCast(self.position.y)))[0];
 
-        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.boxSize.x)))[0];
-        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(self.boxSize.y)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @bitCast(self.boxSize.x)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @bitCast(self.boxSize.y)))[0];
         const color = self.color;
-        hash = @mulWithOverflow(hash, @as(u32, @intFromFloat(color.r + color.g * 10 + color.b * 100)))[0];
+        hash = @mulWithOverflow(hash, @as(u32, @bitCast(color.r + color.g * 10 + color.b * 100)))[0];
 
         return hash;
     }
@@ -122,6 +131,7 @@ pub const DisplayText = struct {
                 .maxVertexCount = opts.charLimit * 4,
             }),
             .string = std.ArrayList(u8).init(allocator),
+            .renderedGeo = try papyrus.TextRenderGeometry.create(allocator),
         };
 
         return self;
@@ -164,8 +174,10 @@ pub const DisplayText = struct {
         try self.string.appendSlice(str);
     }
 
-    pub fn updateMesh(self: *@This()) !void {
+    pub fn updateMesh(self: *@This(), buildHitboxes: bool) !void {
+        _ = buildHitboxes;
         self.mesh.clearVertices();
+        try self.renderedGeo.resetAllLines();
 
         const atlas = self.atlas.atlas;
         const ratio = (self.displaySize) / atlas.fontSize;
@@ -182,6 +194,7 @@ pub const DisplayText = struct {
                 break;
 
             if (!atlas.hasGlyph[ch]) {
+                // todo insert geo
                 xOffset += stride / 2;
                 continue;
             }
@@ -191,18 +204,21 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ' or (ch == '\n' and self.renderMode == .NoControl)) {
+                // todo insert geo
                 xOffset += stride / 2;
                 continue;
             }
 
             // newline if we see newline and we're in simple or rich mode.
             if (ch == '\n' and (self.renderMode == .Simple or self.renderMode == .Rich)) {
+                // todo insert geo
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
                 continue;
             }
 
             if (ch == ' ') {
+                // todo insert geo
                 xOffset += stride / 2;
                 continue;
             }
@@ -242,6 +258,7 @@ pub const DisplayText = struct {
                 .{ .r = color.r, .g = color.g, .b = color.b }, // color
             );
 
+            // todo insert geo
             xOffset += box.x + metrics.x;
 
             if (xOffset > largestXOffset) {

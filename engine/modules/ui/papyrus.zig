@@ -29,6 +29,8 @@ pub const MakeText = localization.MakeText;
 pub const HandlerError = Event.HandlerError;
 pub const PressedType = Event.PressedType;
 
+pub const TextRenderGeometry = @import("papyrus/textRender/textRenderGeometry.zig");
+
 pub const DrawListBuilder = @import("papyrus/DrawListBuilder.zig");
 
 pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");

@@ -472,7 +472,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 }
                 try textDisplay.string.appendSlice(text.text.utf8);
 
-                try textDisplay.updateMesh();
+                try textDisplay.updateMesh(text.flags.setSourceGeometry);
                 self.papyrusCtx.get(drawCmd.node).textRenderedSize = textDisplay.renderedSize;
 
                 // core.ui_log("nextDisplay = {any}, font = {d} sdf={any} ssbo={d}", .{
