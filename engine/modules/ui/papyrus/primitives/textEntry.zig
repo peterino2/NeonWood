@@ -77,7 +77,7 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
             .text = LocText.fromUtf8(te.editText.items),
             .rendererHash = te.font.atlas.rendererHash,
             .flags = .{
-                .setSourceGeometry = false,
+                .setSourceGeometry = (te.entryState == .Pressed),
             },
         } },
     });
