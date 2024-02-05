@@ -238,7 +238,7 @@ pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) !void {
 }
 
 // a more extreme version of uninstallAllEvents that purges even builtin events
-pub fn uninstallAllEvents_OnDestroy(self: @This(), node: NodeHandle) void {
-    self.inputEvents.remove(node);
-    self.pressEvents.remove(node);
+pub fn uninstallAllEvents_OnDestroy(self: *@This(), node: NodeHandle) void {
+    _ = self.inputEvents.remove(node);
+    _ = self.pressEvents.remove(node);
 }

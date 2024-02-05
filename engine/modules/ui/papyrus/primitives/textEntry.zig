@@ -121,7 +121,7 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
     }
 }
 
-pub fn tearDown(ctx: papyrus.Context, node: papyrus.NodeHandle) void {
+pub fn tearDown(ctx: *papyrus.Context, node: papyrus.NodeHandle) void {
     var textEntry = ctx.getTextEntry(node);
     textEntry.editText.deinit();
 }
