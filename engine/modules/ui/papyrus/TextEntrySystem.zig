@@ -3,12 +3,18 @@
 backingAllocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 ctx: *papyrus.Context,
+trg: ?*const TextRenderGeometry = null,
+hitResults: ?TextRenderGeometry.HitResults = null,
 
 const std = @import("std");
 const papyrus = @import("../papyrus.zig");
 const NodeHandle = papyrus.NodeHandle;
 const Context = papyrus.Context;
 const core = @import("../../core.zig");
+const platform = @import("../../platform.zig");
+const TextRenderGeometry = @import("textRender/textRenderGeometry.zig");
+
+// couple of things we'll need to do...
 
 pub fn create(ctx: *papyrus.Context, backingAllocator: std.mem.Allocator) !*@This() {
     var self = try backingAllocator.create(@This());
@@ -27,8 +33,16 @@ pub fn sendCodePoint(self: *@This(), codepoint: u32) !void {
     core.ui_log("codepoint recieved (4): {s}", .{@as([4]u8, @bitCast(codepoint))});
 }
 
-pub fn tickUpdates(self: *@This()) !void {
-    _ = self;
+pub fn tick(self: *@This(), deltaTime: f64) !void {
+    _ = deltaTime;
+    // todo: seriously rethink where the mousehit testing should happen for this.
+    if (self.trg) |trg| {
+        var cursorPos = platform.getInstance().cursorPos;
+        self.hitResults = trg.testHit(cursorPos);
+        if (self.hitResults) |hr| {
+            try self.ctx.pushDebugText("text entry hittest found found: line={d} index={d}", .{ hr.line, hr.index });
+        }
+    }
 }
 
 pub fn selectTextForEdit(self: *@This(), node: NodeHandle) void {

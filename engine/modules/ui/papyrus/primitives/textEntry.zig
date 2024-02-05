@@ -97,9 +97,31 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
         .size = dlb.resolvedSize.add(Vector2f.Ones.fmul(2)),
         .childLayoutOffsets = .{},
     };
+
+    // if we are the currently selected one, then draw a rect representing our
+    // textentry cursor
+    if (te.entryState == .Pressed) {
+        if (dlb.ctx.textEntry.hitResults) |hr| {
+            const geo = hr.characterGeo;
+            const width: f32 = 2.0;
+
+            try drawlist.append(.{
+                .node = dlb.node,
+                .primitive = .{
+                    .Rect = .{
+                        .tl = geo.pos,
+                        .size = .{ .x = width, .y = geo.size.y },
+                        .backgroundColor = foregroundColor,
+                        .borderColor = foregroundColor,
+                        .borderWidth = 0.0,
+                    },
+                },
+            });
+        }
+    }
 }
 
-pub fn tearDown(ctx: papyrus.Context, node: papyrus.NodeHandle) void {
+pub fn tearDown(ctx: *papyrus.Context, node: papyrus.NodeHandle) void {
     var textEntry = ctx.getTextEntry(node);
     textEntry.editText.deinit();
 }

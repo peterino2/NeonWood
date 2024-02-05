@@ -174,6 +174,11 @@ pub const DisplayText = struct {
         try self.string.appendSlice(str);
     }
 
+    const RenderState = struct {
+        xOffset: f32 = 0,
+        yOffset: f32 = 0,
+    };
+
     pub fn updateMesh(self: *@This(), buildHitboxes: bool) !void {
         _ = buildHitboxes;
         self.mesh.clearVertices();
@@ -183,9 +188,17 @@ pub const DisplayText = struct {
         const ratio = (self.displaySize) / atlas.fontSize;
         const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
 
+        if (self.string.items.len <= 0) {
+            return;
+        }
+
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
         const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
+
+        self.renderedGeo.setCharHeight(fontHeight);
+        self.renderedGeo.setPosition(self.position);
+        try self.renderedGeo.addGeoLine(yOffset + self.position.y);
 
         var largestXOffset: f32 = 0;
 
@@ -194,7 +207,7 @@ pub const DisplayText = struct {
                 break;
 
             if (!atlas.hasGlyph[ch]) {
-                // todo insert geo
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
                 xOffset += stride / 2;
                 continue;
             }
@@ -204,21 +217,22 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ' or (ch == '\n' and self.renderMode == .NoControl)) {
-                // todo insert geo
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
                 xOffset += stride / 2;
                 continue;
             }
 
             // newline if we see newline and we're in simple or rich mode.
             if (ch == '\n' and (self.renderMode == .Simple or self.renderMode == .Rich)) {
-                // todo insert geo
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
+                try self.renderedGeo.addGeoLine(yOffset + self.position.y);
                 continue;
             }
 
             if (ch == ' ') {
-                // todo insert geo
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
                 xOffset += stride / 2;
                 continue;
             }
@@ -234,6 +248,7 @@ pub const DisplayText = struct {
             if (xOffset + box.x + metrics.x > self.boxSize.x) {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
+                try self.renderedGeo.addGeoLine(yOffset + self.position.y);
             }
 
             var color = self.color;
@@ -259,6 +274,7 @@ pub const DisplayText = struct {
             );
 
             // todo insert geo
+            try self.renderedGeo.addCharGeo(self.position.x + xOffset, box.x + metrics.x, @intCast(i));
             xOffset += box.x + metrics.x;
 
             if (xOffset > largestXOffset) {
@@ -270,6 +286,8 @@ pub const DisplayText = struct {
             .x = largestXOffset,
             .y = yOffset + fontHeight * 1.2,
         };
+
+        self.renderedGeo.setBoundsX(self.position.x, self.position.x + self.renderedSize.x);
     }
 };
 
