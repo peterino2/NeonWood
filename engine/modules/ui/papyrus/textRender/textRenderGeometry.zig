@@ -1,6 +1,7 @@
 backingAllocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 
+position: core.Vector2f = .{},
 geo: GeometryCache = .{},
 charHeight: f32 = 0.0,
 boundsX: struct {
@@ -26,15 +27,6 @@ pub const GeometryEntry = struct {
     x: f32,
     width: f32,
     index: u32,
-
-    pub fn testHit(self: @This(), yOffset: f32, charHeight: f32, check: core.Vector2f) bool {
-        // zig fmt: off
-        return check.x >= self.x 
-            and check.x < self.x + self.width 
-            and check.y >= yOffset 
-            and check.y < yOffset + charHeight;
-        // zig fmt: on
-    }
 };
 
 // how the fuck do i use This
@@ -64,31 +56,50 @@ pub const GeometryEntry = struct {
 // results.charGeo =
 //      xPos, yPos,
 //      xSize, ySize, of character
-//
+
+pub fn addCharGeo(self: *@This(), xOffset: f32, width: f32, charIndex: u32) !void {
+    var newCharGeo: GeometryEntry = .{
+        .x = xOffset,
+        .index = charIndex,
+        .width = width,
+    };
+    try self.geo.items[self.geo.items.len - 1].lineGeo.append(self.arena.allocator(), newCharGeo);
+}
+
+pub fn addGeoLine(self: *@This(), yOffset: f32) !void {
+    var geoLine = self.recycleOrNewGeoLine();
+    geoLine.yOffset = yOffset;
+    try self.geo.append(self.arena.allocator(), geoLine);
+}
 
 pub const HitResults = struct {
-    line: u32, // 0-indexed line that the character appears in
-    index: u32,
+    line: u32 = 0, // 0-indexed line that the character appears in
+    index: u32 = 0,
     characterGeo: struct {
-        pos: core.Vector2f,
-        size: core.Vector2f,
+        pos: core.Vector2f = .{},
+        size: core.Vector2f = .{},
     },
 };
 
 pub fn testHit(self: @This(), mouseHit: core.Vector2f) ?HitResults {
+    var converted = mouseHit; //mouseHit.sub(self.position);
     if (self.geo.items.len < 1) {
+        // core.engine_logs("didnt hit due no geometry");
         return null;
     }
 
-    if (mouseHit.y < self.geo.items[0].yOffset) {
+    if (converted.y < self.geo.items[0].yOffset) {
+        // core.engine_log("didnt hit due to out of bounds y too high converted.y = {d}  yoffset={d}", .{ converted.y, self.geo.items[0].yOffset });
         return null;
     }
 
-    if (mouseHit.y > self.geo.items[self.geo.items.len - 1].y + self.charHeight) {
+    if (converted.y > self.geo.items[self.geo.items.len - 1].yOffset + self.charHeight) {
+        // core.engine_log("didnt hit due to out of bounds y too low converted.y={d} maxy={d}", .{ converted.y, self.geo.items[self.geo.items.len - 1].yOffset + self.charHeight });
         return null;
     }
 
-    if (mouseHit.x < self.boundsX.left or mouseHit.x > self.boundsX.y) {
+    if (converted.x < self.boundsX.left or converted.x > self.boundsX.right) {
+        // core.engine_log("didnt hit due to out of bounds x converted.x={d} left={d} right={d}", .{ converted.x, self.boundsX.left, self.boundsX.right });
         return null;
     }
 
@@ -101,18 +112,18 @@ pub fn testHit(self: @This(), mouseHit: core.Vector2f) ?HitResults {
     }
 
     // search along the y indexer
-    var line: u32 = 0;
-    while (line < self.geo.items.len) : (line += 1) {
-        var lineEntry = self.geo.items[line];
+    var line: i32 = @as(i32, @intCast(self.geo.items.len)) - 1;
+    while (line >= 0) : (line -= 1) {
+        var lineEntry = self.geo.items[@intCast(line)];
 
         // todo this could be binary search
         // we have found our line, search through the line and find the character
-        if (mouseHit.y > lineEntry.yOffset) {
+        if (converted.y > lineEntry.yOffset) {
             for (lineEntry.lineGeo.items) |charGeo| {
-                if (mouseHit.x > charGeo.x) {
+                if (converted.x > charGeo.x and converted.x < charGeo.x + charGeo.width) {
                     // we found our character
                     return .{
-                        .line = line,
+                        .line = @intCast(line),
                         .index = charGeo.index,
                         .characterGeo = .{
                             .pos = .{
@@ -140,6 +151,10 @@ pub fn setBoundsX(self: *@This(), left: f32, right: f32) void {
 
 pub fn setCharHeight(self: *@This(), charHeight: f32) void {
     self.charHeight = charHeight;
+}
+
+pub fn setPosition(self: *@This(), position: core.Vector2f) void {
+    self.position = position;
 }
 
 pub fn create(backingAllocator: std.mem.Allocator) !*@This() {

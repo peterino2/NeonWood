@@ -301,9 +301,11 @@ pub const Context = struct {
     const debugTextMax = 32;
 
     pub fn tick(self: *@This(), deltaTime: f64) !void {
-        try self.mousePick.tick(self, deltaTime);
-
         self.clearDebugText();
+
+        try self.mousePick.tick(self, deltaTime);
+        try self.textEntry.tick(deltaTime);
+
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
         if (self.mousePick.selected_node) |node| {
             const n = self.getRead(node);

@@ -158,8 +158,8 @@ pub const GameContext = struct {
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
         try ctx.events.uninstallAllEvents(btn);
 
-        const te = try ctx.addTextEntry_experimental(unk, null);
-        _ = te;
+        const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
+        ctx.get(te).size = .{ .x = 300, .y = 200 };
 
         ctx.printTree(.{});
     }
