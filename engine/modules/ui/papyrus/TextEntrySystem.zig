@@ -4,7 +4,13 @@ backingAllocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 ctx: *papyrus.Context,
 trg: ?*const TextRenderGeometry = null,
-hitResults: ?TextRenderGeometry.HitResults = null,
+cursorResults: ?TextRenderGeometry.HitResults = null,
+selected: ?*papyrus.NodeProperty_TextEntry = null,
+firstFrame: bool = false,
+cursorBlink: bool = true,
+cursorBlinkTime: f64 = 0.4,
+cursorBlinkResetTime: f64 = 0.4,
+insertIndex: u32 = 0,
 
 const std = @import("std");
 const papyrus = @import("../papyrus.zig");
@@ -15,7 +21,6 @@ const platform = @import("../../platform.zig");
 const TextRenderGeometry = @import("textRender/textRenderGeometry.zig");
 
 // couple of things we'll need to do...
-
 pub fn create(ctx: *papyrus.Context, backingAllocator: std.mem.Allocator) !*@This() {
     var self = try backingAllocator.create(@This());
 
@@ -29,24 +34,50 @@ pub fn create(ctx: *papyrus.Context, backingAllocator: std.mem.Allocator) !*@Thi
 }
 
 pub fn sendCodePoint(self: *@This(), codepoint: u32) !void {
-    _ = self;
-    core.ui_log("codepoint recieved (4): {s}", .{@as([4]u8, @bitCast(codepoint))});
+    const codepoints = @as([4]u8, @bitCast(codepoint));
+    if (self.selected) |te| {
+        te.editText.insert(self.insertIndex, codepoints[0]) catch unreachable;
+        self.insertIndex += 1;
+    }
 }
 
 pub fn tick(self: *@This(), deltaTime: f64) !void {
-    _ = deltaTime;
-    // todo: seriously rethink where the mousehit testing should happen for this.
+    if (self.firstFrame) {
+        if (self.trg) |trg| {
+            self.firstFrame = false;
+            self.cursorResults = trg.getCurrentEndGeo();
+        }
+    }
+
+    self.cursorBlinkTime -= deltaTime;
+
+    if (self.cursorBlinkTime < 0) {
+        self.cursorBlinkTime = self.cursorBlinkResetTime + self.cursorBlinkTime;
+        self.cursorBlink = !self.cursorBlink;
+    }
+
+    if (self.trg) |trg| {
+        self.cursorResults = trg.getGeometryAtIndex(self.insertIndex);
+    }
+}
+
+pub fn testHits(self: *@This()) !void {
     if (self.trg) |trg| {
         var cursorPos = platform.getInstance().cursorPos;
-        self.hitResults = trg.testHit(cursorPos);
-        if (self.hitResults) |hr| {
+        self.cursorResults = trg.testHit(cursorPos);
+        if (self.cursorResults) |hr| {
             try self.ctx.pushDebugText("text entry hittest found found: line={d} index={d}", .{ hr.line, hr.index });
+            self.insertIndex = hr.index;
         }
     }
 }
 
 pub fn selectTextForEdit(self: *@This(), node: NodeHandle) void {
     self.ctx.getTextEntry(node).entryState = .Pressed;
+    self.selected = self.ctx.getTextEntry(node);
+    self.firstFrame = true;
+    self.cursorBlink = true;
+    self.cursorBlinkTime = self.cursorBlinkResetTime;
 }
 
 pub fn destroy(self: *@This()) void {
@@ -61,8 +92,14 @@ pub fn sendEscape(self: *@This()) !void {
 }
 
 pub fn sendEnter(self: *@This()) !void {
-    _ = self;
     core.ui_logs("enter recieved");
+
+    if (self.selected) |te| {
+        if (te.enterSendsNewline) {
+            te.editText.insert(self.insertIndex, '\n') catch unreachable;
+            self.insertIndex += 1;
+        }
+    }
 }
 
 pub fn sendTab(self: *@This()) !void {
@@ -71,13 +108,26 @@ pub fn sendTab(self: *@This()) !void {
 }
 
 pub fn sendBackspace(self: *@This()) !void {
-    _ = self;
     core.ui_logs("backspace recieved");
+    if (self.selected) |te| {
+        if (self.insertIndex == 0) {
+            return;
+        } else {
+            _ = te.editText.orderedRemove(@max(self.insertIndex - 1, 0));
+            self.insertIndex -= 1;
+        }
+    }
 }
 
 pub fn sendDelete(self: *@This()) !void {
-    _ = self;
     core.ui_logs("delete recieved");
+    if (self.selected) |te| {
+        if (self.insertIndex >= te.editText.items.len) {
+            return;
+        } else {
+            _ = te.editText.orderedRemove(self.insertIndex);
+        }
+    }
 }
 
 pub fn sendRight(self: *@This()) !void {

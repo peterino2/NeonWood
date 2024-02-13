@@ -198,7 +198,7 @@ pub const DisplayText = struct {
 
         self.renderedGeo.setCharHeight(fontHeight);
         self.renderedGeo.setPosition(self.position);
-        try self.renderedGeo.addGeoLine(yOffset + self.position.y);
+        try self.renderedGeo.addGeoLine(yOffset + self.position.y, 0);
 
         var largestXOffset: f32 = 0;
 
@@ -227,7 +227,7 @@ pub const DisplayText = struct {
                 try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
-                try self.renderedGeo.addGeoLine(yOffset + self.position.y);
+                try self.renderedGeo.addGeoLine(yOffset + self.position.y, @intCast(i));
                 continue;
             }
 
@@ -248,7 +248,7 @@ pub const DisplayText = struct {
             if (xOffset + box.x + metrics.x > self.boxSize.x) {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
-                try self.renderedGeo.addGeoLine(yOffset + self.position.y);
+                try self.renderedGeo.addGeoLine(yOffset + self.position.y, @intCast(i));
             }
 
             var color = self.color;
@@ -282,6 +282,7 @@ pub const DisplayText = struct {
             }
         }
 
+        try self.renderedGeo.addCharGeo(self.position.x + xOffset, 200.0, @intCast(self.string.items.len));
         self.renderedSize = .{
             .x = largestXOffset,
             .y = yOffset + fontHeight * 1.2,
