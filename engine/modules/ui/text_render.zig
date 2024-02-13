@@ -203,8 +203,9 @@ pub const DisplayText = struct {
         var largestXOffset: f32 = 0;
 
         for (self.string.items, 0..) |ch, i| {
-            if (i * 4 > self.mesh.maxVertexCount)
+            if (i * 4 > self.mesh.maxVertexCount) {
                 break;
+            }
 
             if (!atlas.hasGlyph[ch]) {
                 try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
@@ -353,7 +354,7 @@ pub const TextRenderer = struct {
         for (0..256) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 512,
+                .charLimit = 512 * 2,
             });
 
             k += 1;

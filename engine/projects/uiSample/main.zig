@@ -69,7 +69,7 @@ pub const GameContext = struct {
         ctx.get(self.panel).style.backgroundColor = BurnStyle.LightGrey;
 
         const text = try ctx.addText(self.panel, ipsum);
-        ctx.getText(text).textSize = 48;
+        ctx.getText(text).textSize = 24;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 600, .y = 600 };
         ctx.getText(text).font = ctx.defaultMonoFont;
@@ -98,7 +98,7 @@ pub const GameContext = struct {
 
         ctx.getPanel(unk).layoutMode = .Vertical;
 
-        for (0..3) |i| {
+        for (0..1) |i| {
             _ = i;
             const unk2 = try ctx.addPanel(unk);
             ctx.get(unk2).justify = .Left;
@@ -115,7 +115,7 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
-        for (0..2) |i| {
+        for (0..1) |i| {
             const unk2 = try ctx.addPanel(unk);
             ctx.get(unk2).justify = .Center;
             ctx.get(unk2).pos = .{ .x = 10 * @as(f32, @floatFromInt(i)), .y = 0 };
@@ -159,7 +159,7 @@ pub const GameContext = struct {
         try ctx.events.uninstallAllEvents(btn);
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
-        ctx.get(te).size = .{ .x = 600, .y = 200 };
+        ctx.get(te).size = .{ .x = 600, .y = 600 };
 
         const te2 = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         try ctx.removeFromParent(te2);
