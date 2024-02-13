@@ -19,6 +19,10 @@ const BmpWriter = @import("BmpRenderer.zig").BmpWriter;
 name: Name,
 atlas: *FontAtlas,
 
+pub const FontCreateOpts = struct {
+    isMonospace: bool = false,
+};
+
 pub const FontAtlas = struct {
     font: c.stbtt_fontinfo = undefined,
     allocator: std.mem.Allocator,
@@ -38,6 +42,7 @@ pub const FontAtlas = struct {
     hasGlyph: [256]bool = undefined,
     rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
     isEmbedded: bool = false,
+    isMonospace: bool = false,
 
     meshes: [256][4]Vector2f = undefined,
     glyphCoordinates: [256][2]Vector2f = undefined,
@@ -59,14 +64,14 @@ pub const FontAtlas = struct {
     const defaultMonoEmbed = @embedFile("fonts/FiraMono-Medium.ttf");
 
     pub fn initMonoFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
-        return try initEmbeddedFont(allocator, defaultMonoEmbed, fontSize);
+        return try initEmbeddedFont(allocator, defaultMonoEmbed, fontSize, .{ .isMonospace = true });
     }
 
     pub fn initDefaultFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
-        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize);
+        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize, .{});
     }
 
-    pub fn initEmbeddedFont(allocator: std.mem.Allocator, fontContent: []const u8, fontSize: f32) !@This() {
+    pub fn initEmbeddedFont(allocator: std.mem.Allocator, fontContent: []const u8, fontSize: f32, opts: FontCreateOpts) !@This() {
         var self = @This(){
             .allocator = allocator,
             .filePath = "embedded_file",
@@ -75,6 +80,7 @@ pub const FontAtlas = struct {
             .fontSize = fontSize,
             .isSDF = true,
             .isEmbedded = true,
+            .isMonospace = opts.isMonospace,
         };
 
         _ = c.stbtt_InitFont(
@@ -88,7 +94,7 @@ pub const FontAtlas = struct {
         return self;
     }
 
-    pub fn initFromFileSDF(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
+    pub fn initFromFileSDF(allocator: std.mem.Allocator, file: []const u8, fontSize: f32, opts: FontCreateOpts) !@This() {
         var self = @This(){
             .allocator = allocator,
             .filePath = file,
@@ -96,6 +102,7 @@ pub const FontAtlas = struct {
             .atlasBuffer = null,
             .fontSize = fontSize,
             .isSDF = true,
+            .isMonospace = opts.isMonospace,
         };
 
         _ = c.stbtt_InitFont(
@@ -120,13 +127,14 @@ pub const FontAtlas = struct {
     }
 
     // creates a font atlas from
-    pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32) !@This() {
+    pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8, fontSize: f32, opts: FontCreateOpts) !@This() {
         var self = @This(){
             .allocator = allocator,
             .filePath = file,
             .fileContent = try loadFileAlloc(file, 8, allocator),
             .atlasBuffer = null,
             .fontSize = fontSize,
+            .isMonospace = opts.isMonospace,
         };
 
         _ = c.stbtt_InitFont(&self.font, self.fileContent.ptr, c.stbtt_GetFontOffsetForIndex(self.fileContent.ptr, 0));
@@ -252,6 +260,16 @@ pub const FontAtlas = struct {
                 } else {
                     c.stbtt_FreeBitmap(ptr, null);
                 }
+            }
+        }
+
+        if (self.isMonospace) {
+            var i: usize = 0;
+
+            var fixedSize = self.glyphBox1['a'].x + self.glyphMetrics['a'].x;
+
+            while (i < self.glyphMetrics.len) : (i += 1) {
+                self.glyphMetrics[i].x = fixedSize - self.glyphBox1[i].x;
             }
         }
     }
