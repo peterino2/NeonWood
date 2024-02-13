@@ -72,7 +72,17 @@ pub fn testHits(self: *@This()) !void {
     }
 }
 
+pub fn maybeResetSelection(self: *@This()) void {
+    if (self.selected) |te| {
+        te.entryState = .Normal;
+    }
+    self.selected = null;
+    self.trg = null;
+    self.cursorResults = null;
+}
+
 pub fn selectTextForEdit(self: *@This(), node: NodeHandle) void {
+    self.maybeResetSelection();
     self.ctx.getTextEntry(node).entryState = .Pressed;
     self.selected = self.ctx.getTextEntry(node);
     self.firstFrame = true;
@@ -87,8 +97,8 @@ pub fn destroy(self: *@This()) void {
 
 // ===== key events =====
 pub fn sendEscape(self: *@This()) !void {
-    _ = self;
     core.ui_logs("escape recieved");
+    self.maybeResetSelection();
 }
 
 pub fn sendEnter(self: *@This()) !void {
