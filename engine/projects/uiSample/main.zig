@@ -159,7 +159,7 @@ pub const GameContext = struct {
         try ctx.events.uninstallAllEvents(btn);
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
-        ctx.get(te).size = .{ .x = 300, .y = 200 };
+        ctx.get(te).size = .{ .x = 600, .y = 200 };
 
         const te2 = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         try ctx.removeFromParent(te2);

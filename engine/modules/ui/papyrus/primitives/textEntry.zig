@@ -5,6 +5,7 @@ entryState: TextEntryState = .Normal,
 entryStubPosition: u32 = 0,
 textEntryStyle: TextEntryStyle = .{},
 editText: std.ArrayList(u8),
+enterSendsNewline: bool = true,
 
 pub const TextEntryStyle = struct {
     normal: papyrus.NodeStyle = .{
@@ -100,8 +101,8 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
 
     // if we are the currently selected one, then draw a rect representing our
     // textentry cursor
-    if (te.entryState == .Pressed) {
-        if (dlb.ctx.textEntry.hitResults) |hr| {
+    if (te.entryState == .Pressed and dlb.ctx.textEntry.cursorBlink) {
+        if (dlb.ctx.textEntry.cursorResults) |hr| {
             const geo = hr.characterGeo;
             const width: f32 = 2.0;
 
@@ -134,6 +135,12 @@ pub fn onPressedEvent(
 ) papyrus.HandlerError!void {
     if (eventType == .onPressed) {
         var ctx = papyrus.getContext();
-        ctx.textEntry.selectTextForEdit(node);
+        var te = ctx.getTextEntry(node);
+
+        if (te.entryState == .Normal) {
+            ctx.textEntry.selectTextForEdit(node);
+        } else if (te.entryState == .Pressed) {
+            ctx.textEntry.testHits() catch return papyrus.HandlerError.EventPanic;
+        }
     }
 }

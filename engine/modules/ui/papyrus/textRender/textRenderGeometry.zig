@@ -9,6 +9,14 @@ boundsX: struct {
     right: f32 = 0.0,
 } = .{},
 
+endGeo: GeometryEntry = .{
+    .x = 0,
+    .width = 0.0,
+    .index = 0,
+},
+
+geoCount: u32 = 0,
+
 // rather than creating/destroying these lines every single frame
 // i'd rather keep the allocations alive.
 geoPool: std.ArrayListUnmanaged(GeometryLine) = .{},
@@ -29,9 +37,6 @@ pub const GeometryEntry = struct {
     index: u32,
 };
 
-// how the fuck do i use This
-//
-//
 // var geo = create...
 //
 //
@@ -63,10 +68,31 @@ pub fn addCharGeo(self: *@This(), xOffset: f32, width: f32, charIndex: u32) !voi
         .index = charIndex,
         .width = width,
     };
+    self.geoCount = charIndex + 1;
     try self.geo.items[self.geo.items.len - 1].lineGeo.append(self.arena.allocator(), newCharGeo);
 }
 
-pub fn addGeoLine(self: *@This(), yOffset: f32) !void {
+inline fn getCurrentLine(self: *const @This()) *const GeometryLine {
+    return @ptrCast(&self.geo.items[self.geo.items.len - 1]);
+}
+
+pub fn getCurrentLineEndGeo(self: *const @This()) GeometryEntry {
+    if (self.geo.items.len > 0) {
+        const line = self.getCurrentLine();
+        if (line.items.len > 0) {
+            return line.items[line.items.len - 1];
+        }
+    }
+
+    return .{ .x = 0, .index = self.geoCount, .width = 20.0 };
+}
+
+pub fn addGeoLine(self: *@This(), yOffset: f32, newlineIndex: u32) !void {
+    if (self.geoCount != 0) {
+        const lineEndGeo = self.getCurrentLineEndGeo();
+        try self.addCharGeo(lineEndGeo.x, 20000.0, newlineIndex);
+        self.geoCount += 1;
+    }
     var geoLine = self.recycleOrNewGeoLine();
     geoLine.yOffset = yOffset;
     try self.geo.append(self.arena.allocator(), geoLine);
@@ -175,6 +201,7 @@ pub fn resetAllLines(self: *@This()) !void {
     self.geo.clearRetainingCapacity();
     self.boundsX = .{};
     self.charHeight = 0.0;
+    self.geoCount = 0;
 }
 
 // get yourself a new GeometryLineEntry
@@ -204,4 +231,64 @@ pub fn returnLine(self: *@This(), lineIndex: usize) !void {
 pub fn destroy(self: *@This()) void {
     self.arena.deinit();
     self.backingAllocator.destroy(self);
+}
+
+pub fn getGeometryAtIndex(
+    self: @This(),
+    index: u32,
+) ?HitResults {
+    var i: u32 = index;
+    var lineId: u32 = 0;
+    while (lineId < self.geo.items.len and i > self.geo.items[lineId].lineGeo.items.len - 1) {
+        i -= @intCast(self.geo.items[lineId].lineGeo.items.len - 1);
+        lineId += 1;
+    }
+
+    if (lineId >= self.geo.items.len) {
+        return null;
+    }
+
+    if (i == self.geo.items[lineId].lineGeo.items.len - 1) {
+        if (lineId + 1 < self.geo.items.len) {
+            lineId += 1;
+            i = 0;
+        }
+    }
+
+    if (i >= self.geo.items[lineId].lineGeo.items.len) {
+        return null;
+    }
+
+    const indexGeo: GeometryEntry = self.geo.items[lineId].lineGeo.items[i];
+    const pos: core.Vector2f = .{
+        .x = indexGeo.x,
+        .y = self.geo.items[lineId].yOffset,
+    };
+    const size: core.Vector2f = .{ .y = self.charHeight, .x = indexGeo.width };
+
+    return .{
+        .line = lineId,
+        .index = indexGeo.index,
+        .characterGeo = .{
+            .pos = pos,
+            .size = size,
+        },
+    };
+}
+
+pub fn getCurrentEndGeo(self: *const @This()) HitResults {
+    const endGeo = self.getCurrentLineEndGeo();
+    const pos: core.Vector2f = .{
+        .x = endGeo.x,
+        .y = self.geo.items[self.geo.items.len - 1].yOffset,
+    };
+    const size: core.Vector2f = .{ .y = self.charHeight, .x = 20.0 };
+    return .{
+        .line = @intCast(self.geo.items.len - 1),
+        .index = self.geoCount,
+        .characterGeo = .{
+            .pos = pos,
+            .size = size,
+        },
+    };
 }
