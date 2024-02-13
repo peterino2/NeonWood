@@ -9,52 +9,8 @@ layout (location = 0) out vec4 outFragColor;
 
 layout (set = 1, binding = 0) uniform sampler2D tex;
 
-layout (push_constant) uniform constants {
-	vec2 extent;
-} PushConstants;
-
-struct FontInfo {
-    vec2 position;
-    vec2 size;
-    uint isSdf;
-    uint pad0;
-    vec2 pad2;
-};
-
-layout(std140, set = 0, binding = 0) readonly buffer FontInfoBuffer{ 
-    FontInfo fontInfo[];
-} fontBuffer;
-
-
-float contour(float dist, float edge, float width) {
-  return clamp(smoothstep(edge - width, edge + width, dist), 0.0, 1.0);
-}
-
-float getSample(vec2 texCoord, float edge, float width) {
-  return contour(texture(tex, texCoord).r, edge, width);
-}
-
-bool scissor(vec2 position, vec2 topleft, vec2 size)
-{
-    if(position.x >= topleft.x && position.x <= topleft.x + size.x &&
-       position.y >= topleft.y && position.y <= topleft.y + size.y )
-    {
-        return true;
-    }
-
-    return false;
-}
-
-bool rect(vec2 position, vec2 topleft, vec2 size)
-{
-    if(position.x >= topleft.x && position.x <= topleft.x + size.x &&
-       position.y >= topleft.y && position.y <= topleft.y + size.y )
-    {
-        return true;
-    }
-
-    return false;
-}
+#include "FontSDFShared.glsl"
+#include "FragmentHelpers.glsl"
 
 void main() {
     vec4 tex = texture(tex, texCoord);

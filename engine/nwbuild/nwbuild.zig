@@ -207,8 +207,8 @@ pub const NwBuildSystem = struct {
             self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
             self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
 
-            self.addShader(exe, "papyrus_vk_vert", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.vert");
-            self.addShader(exe, "papyrus_vk_frag", build_root ++ "/modules/ui/papyrus/shaders/papyrus_vk.frag");
+            self.addShader(exe, "papyrus_vk_vert", build_root ++ "/modules/ui/papyrus/shaders/PapyrusRect.vert");
+            self.addShader(exe, "papyrus_vk_frag", build_root ++ "/modules/ui/papyrus/shaders/PapyrusRect.frag");
 
             self.addShader(exe, "FontSDF_vert", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.vert");
             self.addShader(exe, "FontSDF_frag", build_root ++ "/modules/ui/papyrus/shaders/FontSDF.frag");
