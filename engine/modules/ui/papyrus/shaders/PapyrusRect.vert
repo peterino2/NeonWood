@@ -11,28 +11,8 @@ layout (location = 1) out vec2 texCoord;
 layout (location = 2) out vec2 panelPixelPosition;
 layout (location = 3) out int instanceId;
 
-// has to match what's in the vertex shader
-struct ImageRenderData {
-    vec2 imagePosition;
-    vec2 imageSize;
-    vec2 anchorPoint;
-    vec2 scale;
-    float alpha;
-    float borderWidth;
-    uint flags;
-	vec4 baseColor;
-	vec4 rounding;
-    vec4 borderColor;
-};
+#include "PapyrusRectShared.glsl"
 
-layout(std140, set = 0, binding = 0) readonly buffer ImageBufferObjects {
-    ImageRenderData objects[];
-} objectBuffer;
-
-layout (push_constant) uniform constants 
-{
-	vec2 extent;
-} PushConstants;
 
 void main()
 {
