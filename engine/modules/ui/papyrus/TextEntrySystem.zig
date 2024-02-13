@@ -131,23 +131,65 @@ pub fn sendDelete(self: *@This()) !void {
 }
 
 pub fn sendRight(self: *@This()) !void {
-    _ = self;
     core.ui_logs("right recieved");
+
+    if (self.selected) |te| {
+        if (self.insertIndex < te.editText.items.len) {
+            self.insertIndex = @min(self.insertIndex + 1, te.editText.items.len);
+        }
+    }
+    self.cursorBlinkTime = self.cursorBlinkResetTime;
+    self.resetCursorBlink();
 }
 
 pub fn sendLeft(self: *@This()) !void {
-    _ = self;
     core.ui_logs("left recieved");
+    if (self.selected) |te| {
+        _ = te;
+        if (self.insertIndex > 0) {
+            self.insertIndex = self.insertIndex - 1;
+        }
+    }
+    self.cursorBlinkTime = self.cursorBlinkResetTime;
+    self.resetCursorBlink();
+}
+
+fn cursorJumpRelative(self: *@This(), offset: core.Vector2f) !void {
+    if (self.selected) |te| {
+        _ = te;
+        if (self.trg) |trg| {
+            if (self.cursorResults) |cr| {
+                const jumpTo = cr.characterGeo.pos.add(offset).add(.{ .x = 1.0 });
+                if (trg.testHit(jumpTo)) |newCr| {
+                    self.cursorResults = newCr;
+                    self.insertIndex = newCr.index;
+                } else {}
+            } else {}
+        } else {}
+    }
 }
 
 pub fn sendUp(self: *@This()) !void {
-    _ = self;
     core.ui_logs("up recieved");
+    if (self.cursorResults) |cr| {
+        _ = cr;
+        self.cursorJumpRelative(.{ .x = 1.0, .y = self.cursorResults.?.characterGeo.size.y * 1.5 }) catch unreachable;
+    }
+    self.resetCursorBlink();
 }
 
 pub fn sendDown(self: *@This()) !void {
-    _ = self;
     core.ui_logs("down recieved");
+    if (self.cursorResults) |cr| {
+        _ = cr;
+        self.cursorJumpRelative(.{ .x = 1.0, .y = -self.cursorResults.?.characterGeo.size.y * 0.5 }) catch unreachable;
+    }
+    self.resetCursorBlink();
+}
+
+inline fn resetCursorBlink(self: *@This()) void {
+    self.cursorBlinkTime = self.cursorBlinkResetTime;
+    self.cursorBlink = true;
 }
 
 pub fn sendPageup(self: *@This()) !void {
