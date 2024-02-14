@@ -17,9 +17,10 @@ pub fn addLib(b: *std.Build, exe: *std.build.CompileStep, comptime pathPrefix: [
         exe.linkFramework("AppKit");
     } else if (target.getOs().tag == .windows) {
         exe.addCSourceFile(.{
-            .file = .{ .path = pathPrefix ++ "/nfd_win.c" },
+            .file = .{ .path = pathPrefix ++ "/nfd_win.cpp" },
             .flags = &.{},
         });
+        exe.linkSystemLibrary("ole32");
     } else if (target.getOs().tag == .linux) {
         exe.addCSourceFile(.{
             .file = .{ .path = pathPrefix ++ "/nfd_gtk.c" },
