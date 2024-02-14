@@ -344,20 +344,20 @@ pub const TextRenderer = struct {
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
-        for (0..32) |i| {
+        for (0..8) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 8192 * 2,
+                .charLimit = 8192,
             });
 
             k += 1;
             try self.displays.append(self.allocator, newDisplay);
         }
 
-        for (0..256) |i| {
+        for (0..16) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 512 * 2,
+                .charLimit = 512,
             });
 
             k += 1;

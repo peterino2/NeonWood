@@ -131,7 +131,7 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
-        for (0..3) |i| {
+        for (0..1) |i| {
             _ = i;
             const unk2 = try ctx.addPanel(unk);
             ctx.get(unk2).justify = .Right;
@@ -154,9 +154,15 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 32;
         }
 
+        const image = try ctx.addPanel(unk);
+        ctx.getPanel(image).useImage = true;
+        ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
+        ctx.get(image).size = .{ .x = 100, .y = 100 };
+
         const btn = try ctx.addButton(unk, "click me!");
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
         try ctx.events.uninstallAllEvents(btn);
+        try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &openDialogue);
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         ctx.get(te).size = .{ .x = 600, .y = 200 };
@@ -172,12 +178,17 @@ pub const GameContext = struct {
 };
 
 const BurnStyle = ui.papyrus.BurnStyle;
+fn openDialogue(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
+    _ = node;
+    if (eventType == .onPressed) {
+        nw.testFileDialogue();
+    }
+}
 
 fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     var ctx = ui.getContext();
 
     if (eventType == .onPressed) {
-        nw.core.engine_logs("I GOT CLICKED!!!");
         ctx.get(node).style.backgroundColor = BurnStyle.DarkSlateGrey;
         ui.getContext().drawDebug = !ui.getContext().drawDebug;
     }
@@ -192,17 +203,16 @@ fn onUnk2MouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
 }
 
 fn pressedUnk(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
-    if (eventType == .onPressed) {
-        nw.core.engine_log("clicked on {any}", .{node});
-    }
+    _ = node;
+    if (eventType == .onPressed) {}
 }
 
 fn onMouseOver(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
-    nw.core.engine_log("Mouse over over {any}", .{node});
+    _ = node;
 }
 
 fn onMouseOff(node: ui.NodeHandle, _: ?*anyopaque) ui.HandlerError!void {
-    nw.core.engine_log("Mouse hover off {any}", .{node});
+    _ = node;
 }
 
 const ipsum =

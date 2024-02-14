@@ -20,6 +20,12 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
+var gTestFileDialogue: bool = false;
+
+pub fn testFileDialogue() void {
+    gTestFileDialogue = true;
+}
+
 pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams) !void {
     graphics.setWindowName(params.windowName);
     core.engine_log("Starting up", .{});
@@ -51,6 +57,11 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     while (!core.gEngine.exitConfirmed) {
+        if (gTestFileDialogue) {
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder(".", &x);
+        }
         graphics.getContext().pollEventsFunc();
     }
 }
@@ -63,6 +74,11 @@ pub fn run_no_input_tickable(comptime T: type) !void {
     try core.gEngine.run();
 
     while (!core.gEngine.exitConfirmed) {
+        if (gTestFileDialogue) {
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder(".", &x);
+        }
         platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 25);
     }
@@ -80,6 +96,11 @@ pub fn run_no_input(comptime T: type) !void {
     try core.gEngine.run();
 
     while (!core.gEngine.exitSignal) {
+        if (gTestFileDialogue) {
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder(".", &x);
+        }
         platform.getInstance().pollEvents();
     }
 }
