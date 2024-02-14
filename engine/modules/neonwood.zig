@@ -23,6 +23,7 @@ pub fn getArgs() !NwArgs {
 var gTestFileDialogue: bool = false;
 
 pub fn testFileDialogue() void {
+    core.engine_logs("testing");
     gTestFileDialogue = true;
 }
 
@@ -75,9 +76,11 @@ pub fn run_no_input_tickable(comptime T: type) !void {
 
     while (!core.gEngine.exitConfirmed) {
         if (gTestFileDialogue) {
+            core.engine_logs("Opening file picker");
             gTestFileDialogue = false;
             var x: [*c]u8 = null;
-            _ = core.nfd.c.NFD_PickFolder(".", &x);
+            _ = core.nfd.c.NFD_PickFolder("C:\\", &x);
+            core.engine_log("selected folder: {s}", .{x});
         }
         platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 25);
@@ -97,6 +100,7 @@ pub fn run_no_input(comptime T: type) !void {
 
     while (!core.gEngine.exitSignal) {
         if (gTestFileDialogue) {
+            core.engine_logs("Opening file picker");
             gTestFileDialogue = false;
             var x: [*c]u8 = null;
             _ = core.nfd.c.NFD_PickFolder(".", &x);
