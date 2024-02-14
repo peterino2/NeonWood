@@ -414,6 +414,7 @@ pub const NeonVkContext = struct {
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
     uploader: vk_utils.NeonVkUploader,
+    vulkanValidation: bool,
 
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
@@ -573,6 +574,7 @@ pub const NeonVkContext = struct {
     // this is the old version
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
+        self.vulkanValidation = gGraphicsStartupSettings.validationLayers;
         try self.init_zig_data(allocator);
 
         self.graph = try core.FileLog.init(allocator);
@@ -2035,7 +2037,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = @bitCast(flagbits),
             .p_application_info = &appInfo,
-            .enabled_layer_count = 0,//if (gGraphicsStartupSettings.validationLayers) 1 else 0,
+            .enabled_layer_count = if (gGraphicsStartupSettings.validationLayers) 1 else 0,
             .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
             .enabled_extension_count = extensionsCount + 1,
             .pp_enabled_extension_names = @as(?[*]const [*:0]const u8, @ptrCast(&requestedExtensions)) orelse undefined,
@@ -2081,16 +2083,15 @@ pub const NeonVkContext = struct {
         // desiredFeatures.image_cube_array = vk.TRUE;
         // desiredFeatures.depth_clamp = vk.TRUE;
         // desiredFeatures.depth_bias_clamp = vk.TRUE;
-        // desiredFeatures.fill_mode_non_solid = vk.TRUE;
+        desiredFeatures.fill_mode_non_solid = vk.TRUE;
 
         var shaderDrawFeatures = vk.PhysicalDeviceShaderDrawParametersFeatures{
-            //.shader_draw_parameters = vk.TRUE,
+            .shader_draw_parameters = vk.TRUE,
         };
 
-	for(self.requiredExtensions.items) |required|
-	{
-	    core.graphics_log("required extension: {s}", .{required});
-	}
+        for (self.requiredExtensions.items) |required| {
+            core.graphics_log("required extension: {s}", .{required});
+        }
 
         var dci = vk.DeviceCreateInfo{
             .flags = .{},

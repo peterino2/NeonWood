@@ -102,7 +102,7 @@ pub fn sendEscape(self: *@This()) !void {
 }
 
 pub fn sendEnter(self: *@This()) !void {
-    core.ui_logs("enter recieved");
+    // core.ui_logs("enter recieved");
 
     if (self.selected) |te| {
         if (te.enterSendsNewline) {
@@ -118,7 +118,7 @@ pub fn sendTab(self: *@This()) !void {
 }
 
 pub fn sendBackspace(self: *@This()) !void {
-    core.ui_logs("backspace recieved");
+    // core.ui_logs("backspace recieved");
     if (self.selected) |te| {
         if (self.insertIndex == 0) {
             return;

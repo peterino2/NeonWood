@@ -277,6 +277,10 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     });
 
     self.papyrusCtx.tick(deltaTime) catch unreachable;
+
+    if (self.gc.vulkanValidation) {
+        self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;
+    }
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
