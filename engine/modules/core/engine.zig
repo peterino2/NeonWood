@@ -9,6 +9,8 @@ const tracy = core.tracy;
 const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
 
+const RttiDataEventError = rtti.RttiDataEventError;
+
 const Name = p2.Name;
 const MakeName = p2.MakeName;
 
@@ -19,6 +21,8 @@ const AutoHashMap = std.AutoHashMap;
 const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
+
+pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
 
 pub const Engine = struct {
     exitSignal: bool,
@@ -36,6 +40,9 @@ pub const Engine = struct {
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
     frameNumber: u64,
+
+    platformPollCtx: *anyopaque = undefined,
+    platformPollFunc: ?PollFuncFn = null,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
@@ -149,10 +156,29 @@ pub const Engine = struct {
             }
         };
         try core.dispatchJob(L{ .engine = self });
+
+        try self.mainLoop();
+    }
+
+    fn mainLoop(self: *@This()) !void {
+        while (!self.exitConfirmed) {
+            if (self.platformPollFunc) |pollFunc| {
+                try pollFunc(self.platformPollCtx);
+            }
+
+            try self.pollNfd();
+
+            if (self.platform)
+                std.time.sleep(1000 * 1000 * 10);
+        }
     }
 
     pub fn exit(self: *@This()) void {
         self.exitSignal = true;
+    }
+
+    fn pollNFD(self: *@This()) void {
+        _ = self;
     }
 };
 
