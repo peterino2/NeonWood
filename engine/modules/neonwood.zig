@@ -55,7 +55,6 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     // run the game
     core.gEngine.run();
     _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
-    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     while (!core.gEngine.exitConfirmed) {
         if (gTestFileDialogue) {
@@ -83,17 +82,13 @@ pub fn run_no_input_tickable(comptime T: type) !void {
             core.engine_log("selected folder: {s}", .{x});
         }
         platform.getInstance().pollEvents();
-        std.time.sleep(1000 * 1000 * 25);
+        std.time.sleep(1000 * 1000 * 10);
     }
 }
 
 pub fn run_no_input(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{});
     try gameContext.prepare_game();
-
-    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
-    _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
-    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     // run the game
     try core.gEngine.run();
@@ -107,25 +102,4 @@ pub fn run_no_input(comptime T: type) !void {
         }
         platform.getInstance().pollEvents();
     }
-}
-
-pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    _ = window;
-    _ = xpos;
-    _ = ypos;
-}
-
-pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = window;
-    _ = button;
-    _ = action;
-    _ = mods;
-}
-
-pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = window;
-    _ = key;
-    _ = scancode;
-    _ = action;
-    _ = mods;
 }

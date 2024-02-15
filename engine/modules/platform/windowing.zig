@@ -150,6 +150,14 @@ pub const PlatformInstance = struct {
     pub fn setup(self: *@This()) !void {
         try self.initGlfw();
         try self.initInput();
+
+        core.setupEnginePoll(self, enginePoll);
+    }
+
+    pub fn enginePoll(opaqueSelf: *anyopaque) core.RttiDataEventError!void {
+        var self: *@This() = @alignCast(@ptrCast(opaqueSelf));
+
+        self.pollEvents();
     }
 
     pub fn initInput(self: *@This()) !void {

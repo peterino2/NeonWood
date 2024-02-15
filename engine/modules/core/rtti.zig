@@ -27,6 +27,8 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
     return MakeName(hashedName);
 }
 
+// todo.. rtti is not the right word for this
+
 pub const RttiDataEventError = error{
     UnknownStatePanic,
     BadInit,
