@@ -159,10 +159,10 @@ pub const GameContext = struct {
         ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
-        const btn = try ctx.addButton(unk, "click me!");
+        const btn = try ctx.addButton(unk, "select file...");
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
         try ctx.events.uninstallAllEvents(btn);
-        try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &openDialogue);
+        try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &openDialog);
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         ctx.get(te).size = .{ .x = 600, .y = 200 };
@@ -178,10 +178,14 @@ pub const GameContext = struct {
 };
 
 const BurnStyle = ui.papyrus.BurnStyle;
-fn openDialogue(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
+fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     _ = node;
     if (eventType == .onPressed) {
-        nw.testFileDialogue();
+        //var selected_path = core.openFileDialog("", "") catch unreachable;
+        var selected_path = core.openFolderDialog("") catch unreachable;
+        if (selected_path != null) {
+            core.ui_log("selected path: {s}", .{selected_path});
+        }
     }
 }
 

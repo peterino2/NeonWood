@@ -8,6 +8,7 @@ const jobs = @import("jobs.zig");
 const tracy = core.tracy;
 const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
+const nfd = @import("lib/nfd/nfd.zig");
 
 const RttiDataEventError = rtti.RttiDataEventError;
 
@@ -44,6 +45,8 @@ pub const Engine = struct {
     platformPollCtx: *anyopaque = undefined,
     platformPollFunc: ?PollFuncFn = null,
 
+    nfdRuntime: *nfd.NFDRuntime,
+
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
             .allocator = allocator,
@@ -56,6 +59,7 @@ pub const Engine = struct {
             .eventors = .{},
             .frameNumber = 0,
             .exitListeners = .{},
+            .nfdRuntime = try nfd.NFDRuntime.create(allocator),
         };
 
         return rv;
@@ -72,6 +76,7 @@ pub const Engine = struct {
         self.eventors.deinit(self.allocator);
         self.tickables.deinit(self.allocator);
         self.exitListeners.deinit(self.allocator);
+        self.nfdRuntime.destroy();
     }
 
     // creates an engine object using the engine's allocator.
@@ -166,19 +171,14 @@ pub const Engine = struct {
                 try pollFunc(self.platformPollCtx);
             }
 
-            try self.pollNfd();
+            try self.nfdRuntime.processMessages();
 
-            if (self.platform)
-                std.time.sleep(1000 * 1000 * 10);
+            std.time.sleep(1000 * 1000 * 10);
         }
     }
 
     pub fn exit(self: *@This()) void {
         self.exitSignal = true;
-    }
-
-    fn pollNFD(self: *@This()) void {
-        _ = self;
     }
 };
 

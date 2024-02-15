@@ -19,6 +19,7 @@ const algorithm = @import("core/lib/p2/algorithm.zig");
 pub usingnamespace @import("core/math.zig");
 pub usingnamespace @import("core/string.zig");
 pub usingnamespace @import("core/args.zig");
+pub usingnamespace @import("core/file_dialogue.zig");
 
 pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
@@ -78,4 +79,8 @@ pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
 pub fn setupEnginePoll(ctx: *anyopaque, func: engine.PollFuncFn) void {
     gEngine.platformPollFunc = func;
     gEngine.platformPollCtx = ctx;
+}
+
+pub fn getEngine() *Engine {
+    return gEngine;
 }
