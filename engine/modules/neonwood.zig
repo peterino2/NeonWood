@@ -20,6 +20,13 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
+var gTestFileDialogue: bool = false;
+
+pub fn testFileDialogue() void {
+    core.engine_logs("testing");
+    gTestFileDialogue = true;
+}
+
 pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams) !void {
     graphics.setWindowName(params.windowName);
     core.engine_log("Starting up", .{});
@@ -48,9 +55,13 @@ pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
     // run the game
     core.gEngine.run();
     _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
-    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
 
     while (!core.gEngine.exitConfirmed) {
+        if (gTestFileDialogue) {
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder(".", &x);
+        }
         graphics.getContext().pollEventsFunc();
     }
 }
@@ -63,8 +74,15 @@ pub fn run_no_input_tickable(comptime T: type) !void {
     try core.gEngine.run();
 
     while (!core.gEngine.exitConfirmed) {
+        if (gTestFileDialogue) {
+            core.engine_logs("Opening file picker");
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder("C:\\", &x);
+            core.engine_log("selected folder: {s}", .{x});
+        }
         platform.getInstance().pollEvents();
-        std.time.sleep(1000 * 1000 * 25);
+        std.time.sleep(1000 * 1000 * 10);
     }
 }
 
@@ -72,35 +90,16 @@ pub fn run_no_input(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{});
     try gameContext.prepare_game();
 
-    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, inputCallback);
-    _ = platform.c.glfwSetCursorPosCallback(platform.getInstance().window, mousePositionCallback);
-    _ = platform.c.glfwSetMouseButtonCallback(platform.getInstance().window, mouseInputCallback);
-
     // run the game
     try core.gEngine.run();
 
     while (!core.gEngine.exitSignal) {
+        if (gTestFileDialogue) {
+            core.engine_logs("Opening file picker");
+            gTestFileDialogue = false;
+            var x: [*c]u8 = null;
+            _ = core.nfd.c.NFD_PickFolder(".", &x);
+        }
         platform.getInstance().pollEvents();
     }
-}
-
-pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
-    _ = window;
-    _ = xpos;
-    _ = ypos;
-}
-
-pub fn mouseInputCallback(window: ?*platform.c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = window;
-    _ = button;
-    _ = action;
-    _ = mods;
-}
-
-pub fn inputCallback(window: ?*platform.c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    _ = window;
-    _ = key;
-    _ = scancode;
-    _ = action;
-    _ = mods;
 }

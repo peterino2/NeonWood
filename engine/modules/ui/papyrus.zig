@@ -306,6 +306,11 @@ pub const Context = struct {
         try self.mousePick.tick(self, deltaTime);
         try self.textEntry.tick(deltaTime);
 
+        try self.tickDebug(deltaTime);
+    }
+
+    pub fn tickDebug(self: *@This(), deltaTime: f64) !void {
+        _ = deltaTime;
         try self.pushDebugText("mouse Position: {d}, {d}", .{ self.currentCursorPosition.x, self.currentCursorPosition.y });
         if (self.mousePick.selected_node) |node| {
             const n = self.getRead(node);

@@ -8,6 +8,9 @@ const jobs = @import("jobs.zig");
 const tracy = core.tracy;
 const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
+const nfd = @import("lib/nfd/nfd.zig");
+
+const RttiDataEventError = rtti.RttiDataEventError;
 
 const Name = p2.Name;
 const MakeName = p2.MakeName;
@@ -19,6 +22,8 @@ const AutoHashMap = std.AutoHashMap;
 const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
+
+pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
 
 pub const Engine = struct {
     exitSignal: bool,
@@ -37,6 +42,11 @@ pub const Engine = struct {
     deltaTime: f64, // delta time for this frame from the previous frame
     frameNumber: u64,
 
+    platformPollCtx: *anyopaque = undefined,
+    platformPollFunc: ?PollFuncFn = null,
+
+    nfdRuntime: *nfd.NFDRuntime,
+
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
             .allocator = allocator,
@@ -49,6 +59,7 @@ pub const Engine = struct {
             .eventors = .{},
             .frameNumber = 0,
             .exitListeners = .{},
+            .nfdRuntime = try nfd.NFDRuntime.create(allocator),
         };
 
         return rv;
@@ -65,6 +76,7 @@ pub const Engine = struct {
         self.eventors.deinit(self.allocator);
         self.tickables.deinit(self.allocator);
         self.exitListeners.deinit(self.allocator);
+        self.nfdRuntime.destroy();
     }
 
     // creates an engine object using the engine's allocator.
@@ -149,6 +161,20 @@ pub const Engine = struct {
             }
         };
         try core.dispatchJob(L{ .engine = self });
+
+        try self.mainLoop();
+    }
+
+    fn mainLoop(self: *@This()) !void {
+        while (!self.exitConfirmed) {
+            if (self.platformPollFunc) |pollFunc| {
+                try pollFunc(self.platformPollCtx);
+            }
+
+            try self.nfdRuntime.processMessages();
+
+            std.time.sleep(1000 * 1000 * 10);
+        }
     }
 
     pub fn exit(self: *@This()) void {

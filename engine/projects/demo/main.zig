@@ -234,7 +234,7 @@ var gIpsumPos: core.Vector2f = .{ .x = 900, .y = 30 };
 var gSavedMouseOffset: core.Vector2f = .{};
 var gIpsumDown: bool = false;
 
-fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*anyopaque) ui.EventHandlerError!void {
+fn onPressed(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     _ = context;
     _ = node;
     if (eventType == .onPressed) {
@@ -250,7 +250,7 @@ fn onPressed(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*any
 const BurnStyle = ui.papyrus.BurnStyle;
 const Color = ui.papyrus.Color;
 
-fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*anyopaque) ui.EventHandlerError!void {
+fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     _ = context;
     var ctx = ui.getContext();
 
@@ -265,7 +265,7 @@ fn onUnk2(node: ui.NodeHandle, eventType: ui.PressedEventType, context: ?*anyopa
     }
 }
 
-fn onUnk2MouseOff(node: ui.NodeHandle, context: ?*anyopaque) ui.EventHandlerError!void {
+fn onUnk2MouseOff(node: ui.NodeHandle, context: ?*anyopaque) ui.HandlerError!void {
     _ = context;
     ui.getContext().get(node).style.backgroundColor = BurnStyle.LightGrey;
 }

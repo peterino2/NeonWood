@@ -178,7 +178,7 @@ pub const NwBuildSystem = struct {
 
         assets.addLib(self.b, exe, build_root ++ "/modules/assets", self.cflags.items);
         audio.addLib(self.b, exe, build_root ++ "/modules/audio", self.cflags.items);
-        core.addLib(self.b, exe, build_root ++ "/modules/core", self.cflags.items, self.enableTracy);
+        core.addLib(self.b, exe, build_root ++ "/modules/core", self.cflags.items, self.enableTracy, self.target);
         game.addLib(self.b, exe, build_root ++ "/modules/game", self.cflags.items);
         graphics.addLib(self.b, exe, build_root ++ "/modules/graphics", self.cflags.items, opts.graphicsBackend);
         platform.addLib(self.b, exe, build_root ++ "/modules/platform", self.cflags.items);

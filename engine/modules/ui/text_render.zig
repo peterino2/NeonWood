@@ -68,7 +68,7 @@ pub const DisplayText = struct {
     g: *graphics.NeonVkContext, // ref
     atlas: *FontAtlasVk, // ref
     mesh: *DynamicMesh, // we own this
-    string: std.ArrayList(u8),
+    string: ?*const []const u8,
     stringHash: u32 = 0xffffffff,
     renderMode: papyrus.TextRenderMode,
 
@@ -84,7 +84,6 @@ pub const DisplayText = struct {
 
     pub fn deinit(self: *@This()) void {
         self.mesh.deinit();
-        self.string.deinit();
         self.allocator.destroy(self.mesh);
         self.renderedGeo.destroy();
     }
@@ -98,7 +97,7 @@ pub const DisplayText = struct {
         // sum everything using u32s
         // sum up the missing chars at the end.
 
-        for (self.string.items) |c| {
+        for (self.string.?) |c| {
             hash = @mulWithOverflow(hash, 33)[0];
             hash = @addWithOverflow(hash, @as(u32, @intCast(c)))[0];
         }
@@ -130,7 +129,7 @@ pub const DisplayText = struct {
             .mesh = try graphics.DynamicMesh.init(atlas.g, atlas.g.allocator, .{
                 .maxVertexCount = opts.charLimit * 4,
             }),
-            .string = std.ArrayList(u8).init(allocator),
+            .string = null,
             .renderedGeo = try papyrus.TextRenderGeometry.create(allocator),
         };
 
@@ -169,9 +168,8 @@ pub const DisplayText = struct {
         self.boxSize = boxSize;
     }
 
-    pub fn setString(self: *@This(), str: []const u8) !void {
-        self.string.clearRetainingCapacity();
-        try self.string.appendSlice(str);
+    pub fn setString(self: *@This(), str: *const []const u8) void {
+        self.string = str;
     }
 
     const RenderState = struct {
@@ -186,15 +184,16 @@ pub const DisplayText = struct {
 
         const atlas = self.atlas.atlas;
         const ratio = (self.displaySize) / atlas.fontSize;
-        const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
+        //const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
+        const stride = @as(f32, @floatFromInt(atlas.glyphMetrics['l'].x)) * ratio;
 
-        if (self.string.items.len <= 0) {
+        if (self.string.?.len <= 0) {
             return;
         }
 
         var xOffset: f32 = 0;
         var yOffset: f32 = 0;
-        const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['A'].y)) * ratio;
+        const fontHeight = @as(f32, @floatFromInt(atlas.glyphMetrics['l'].y)) * ratio;
 
         self.renderedGeo.setCharHeight(fontHeight);
         self.renderedGeo.setPosition(self.position);
@@ -202,14 +201,14 @@ pub const DisplayText = struct {
 
         var largestXOffset: f32 = 0;
 
-        for (self.string.items, 0..) |ch, i| {
+        for (self.string.?.*, 0..) |ch, i| {
             if (i * 4 > self.mesh.maxVertexCount) {
                 break;
             }
 
             if (!atlas.hasGlyph[ch]) {
-                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
-                xOffset += stride / 2;
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride, @intCast(i));
+                xOffset += stride;
                 continue;
             }
 
@@ -218,14 +217,14 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ' or (ch == '\n' and self.renderMode == .NoControl)) {
-                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
-                xOffset += stride / 2;
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride, @intCast(i));
+                xOffset += stride;
                 continue;
             }
 
             // newline if we see newline and we're in simple or rich mode.
             if (ch == '\n' and (self.renderMode == .Simple or self.renderMode == .Rich)) {
-                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride, @intCast(i));
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
                 try self.renderedGeo.addGeoLine(yOffset + self.position.y, @intCast(i));
@@ -233,8 +232,8 @@ pub const DisplayText = struct {
             }
 
             if (ch == ' ') {
-                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride / 2, @intCast(i));
-                xOffset += stride / 2;
+                try self.renderedGeo.addCharGeo(self.position.x + xOffset, stride, @intCast(i));
+                xOffset += stride;
                 continue;
             }
 
@@ -246,6 +245,7 @@ pub const DisplayText = struct {
 
             xOffset += box.x;
 
+            //if (xOffset + box.x + metrics.x > self.boxSize.x) {
             if (xOffset + box.x + metrics.x > self.boxSize.x) {
                 xOffset = 0;
                 yOffset += fontHeight * 1.2;
@@ -275,15 +275,18 @@ pub const DisplayText = struct {
             );
 
             // todo insert geo
-            try self.renderedGeo.addCharGeo(self.position.x + xOffset, box.x + metrics.x, @intCast(i));
-            xOffset += box.x + metrics.x;
+            //try self.renderedGeo.addCharGeo(self.position.x + xOffset, box.x + metrics.x, @intCast(i));
+            //xOffset += box.x + metrics.x;
+
+            try self.renderedGeo.addCharGeo(self.position.x + xOffset, metrics.x, @intCast(i));
+            xOffset += metrics.x;
 
             if (xOffset > largestXOffset) {
                 largestXOffset = xOffset;
             }
         }
 
-        try self.renderedGeo.addCharGeo(self.position.x + xOffset, 200.0, @intCast(self.string.items.len));
+        try self.renderedGeo.addCharGeo(self.position.x + xOffset, 200.0, @intCast(self.string.?.len));
         self.renderedSize = .{
             .x = largestXOffset,
             .y = yOffset + fontHeight * 1.2,
@@ -341,20 +344,20 @@ pub const TextRenderer = struct {
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
-        for (0..32) |i| {
+        for (0..8) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 8192 * 2,
+                .charLimit = 8192,
             });
 
             k += 1;
             try self.displays.append(self.allocator, newDisplay);
         }
 
-        for (0..256) |i| {
+        for (0..16) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
-                .charLimit = 512 * 2,
+                .charLimit = 512,
             });
 
             k += 1;
