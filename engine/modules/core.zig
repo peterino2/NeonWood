@@ -49,8 +49,6 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 
     gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
 
-    try lua.test_lua();
-
     logging.setupLogging(gEngine) catch unreachable;
 
     logs("core module starting up... ");
