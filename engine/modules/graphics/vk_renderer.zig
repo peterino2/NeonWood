@@ -706,6 +706,18 @@ pub const NeonVkContext = struct {
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
     }
 
+    pub fn updateTextureFromPixelsSync(
+        self: *@This(),
+        textureToUpdate: core.Name,
+        pixels: []const u8, // format = rgba8, size must equal dimensions.x * dimensions.y * 4
+        dimensions: core.Vector2u,
+    ) void {
+        core.asserts(pixels.len == dimensions.x * dimensions.y, "invalid pixel buffer length", .{}, @src());
+
+        _ = textureToUpdate;
+        _ = self;
+    }
+
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
         var newTexture = try self.upload_texture_from_file(texturePath);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);

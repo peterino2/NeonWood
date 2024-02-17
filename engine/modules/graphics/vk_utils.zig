@@ -106,9 +106,15 @@ pub fn createTextureFromPixelsSync(
     descriptor: *vk.DescriptorSet,
 } {
     core.graphics_log("createTextureFromPixelsSync: {s}", .{textureName.utf8()});
+
+    // copy pixels into staging buffer
     var miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
+
+    // create image memory resources
     var createdImage = try newVkImage(size, ctx, miplevel);
+
+    // upload staging buffer
     try submit_copy_from_staging(ctx, stagingBuffer, createdImage, miplevel);
 
     stagingBuffer.deinit(ctx.vkAllocator);
@@ -128,6 +134,7 @@ pub fn createTextureFromPixelsSync(
         .imageView = imageView,
     };
 
+    // create descriptors for
     var textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
         .useBlocky = useBlocky,
     }) catch unreachable;

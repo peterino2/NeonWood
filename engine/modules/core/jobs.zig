@@ -132,12 +132,9 @@ pub const JobWorker = struct {
                 self.manager.?.mutex.unlock();
             }
         }
-
-        core.engine_log("worker {d}: dying now", .{self.workerId});
     }
 
     pub fn deinit(self: *@This()) void {
-        core.engine_logs("deiniting worker");
         self.shouldDie.store(true, .SeqCst);
         self.wake();
         self.workerThread.join();

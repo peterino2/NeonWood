@@ -47,6 +47,19 @@ pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
 pub const RenderObject = render_object.RenderObject;
 
+pub const PixelBuffferRGBA8 = struct {
+    pixels: []u8, // format = rgba,rgba each pixel is 4x8 bit chars.
+    // pixels.len must equal extents.x * extents.y * 4
+    extents: core.Vector2u,
+
+    pub fn init(allocator: std.mem.Allocator, extents: core.Vector2u) !@This() {
+        return .{
+            .pixels = try allocator.create(extents.x * extents.y * 4),
+            .extents = extents,
+        };
+    }
+};
+
 pub fn registerRendererPlugin(value: anytype) !void {
     var ref = RendererInterfaceRef{
         .ptr = value,
