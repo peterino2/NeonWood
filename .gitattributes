@@ -1,0 +1,6 @@
+/engine/modules/core/lib/ linguist-vendored
+/engine/modules/audio/lib/ linguist-vendored
+/engine/modules/assets/lib/ linguist-vendored
+/engine/modules/graphics/lib/ linguist-vendored
+/engine/modules/platform/lib/ linguist-vendored
+/engine/modules/ui/papyrus/stb_ttf.h linguist-vendored

@@ -28,3 +28,6 @@
 [submodule "engine/modules/graphics/lib/spirv-reflect-zig"]
 	path = engine/modules/graphics/lib/spirv-reflect-zig
 	url = https://github.com/peterino2/spirv-reflect-zig.git
+[submodule "engine/modules/core/lib/zig_tracy"]
+	path = engine/modules/core/lib/zig_tracy
+	url = https://github.com/peterino2/zig_tracy.git

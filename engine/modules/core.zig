@@ -23,7 +23,6 @@ pub usingnamespace @import("core/file_dialogue.zig");
 
 pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
-pub const lua = @import("core/lua.zig");
 
 pub const Engine = engine.Engine;
 
@@ -48,8 +47,6 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     gEngine.* = Engine.init(allocator) catch unreachable;
 
     gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
-
-    try lua.test_lua();
 
     logging.setupLogging(gEngine) catch unreachable;
 
