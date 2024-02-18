@@ -17,7 +17,7 @@ pub const Texture = struct {
     image: NeonVkImage,
     imageView: vk.ImageView,
 
-    pub fn deinit(self: *@This(), ctx: *NeonVkContext) !void {
+    pub fn deinit(self: *@This(), ctx: *NeonVkContext) void {
         ctx.vkd.destroyImageView(ctx.dev, self.imageView, null);
         self.image.deinit(ctx.vkAllocator);
     }

@@ -705,18 +705,31 @@ pub const NeonVkContext = struct {
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
     }
 
+    const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");
+
     pub fn updateTextureFromPixelsSync(
         self: *@This(),
         textureToUpdate: core.Name,
-        pixels: []const u8, // format = rgba8, size must equal dimensions.x * dimensions.y * 4
-        dimensions: core.Vector2u,
-    ) void {
-        core.asserts(pixels.len == dimensions.x * dimensions.y, "invalid pixel buffer length", .{}, @src());
+        pixelBuffer: PixelBufferRGBA8,
+        useBlockySampler: bool,
+    ) !void {
+        core.asserts(
+            pixelBuffer.pixels.len == pixelBuffer.extent.x * pixelBuffer.extent.y * 4,
+            "invalid pixel buffer length (expected:{d}, got:{d})",
+            .{
+                pixelBuffer.pixels.len,
+                pixelBuffer.extent.x * pixelBuffer.extent.y,
+            },
+            @src().fn_name,
+        );
 
-        // vk_utils.createTextureFromPixelsSync(textureName: core.Name, pixels: []const u8, size: core.Vector2i, ctx: *NeonVkContext, useBlocky: bool)
+        var texRef: *Texture = self.textures.get(textureToUpdate.handle()).?;
+        texRef.deinit(self);
 
-        _ = textureToUpdate;
-        _ = self;
+        var results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
+
+        try self.textures.put(self.allocator, textureToUpdate.handle(), results.texture);
+        try self.textureSets.put(self.allocator, textureToUpdate.handle(), results.descriptor);
     }
 
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
@@ -1109,7 +1122,7 @@ pub const NeonVkContext = struct {
             pixels[i] = 255;
         }
 
-        _ = try vk_utils.createTextureFromPixelsSync(core.MakeName("t_white"), pixels, size, self, false);
+        _ = try vk_utils.createAndInstallTextureFromPixels(core.MakeName("t_white"), pixels, size, self, false);
     }
 
     pub fn init_pipelines(self: *Self) !void {
@@ -2491,7 +2504,7 @@ pub const NeonVkContext = struct {
             var iter = self.textures.iterator();
 
             while (iter.next()) |i| {
-                try i.value_ptr.*.deinit(self);
+                i.value_ptr.*.deinit(self);
                 self.allocator.destroy(i.value_ptr.*);
             }
             self.textures.deinit(self.allocator);

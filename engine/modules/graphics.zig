@@ -25,7 +25,9 @@ pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
 pub const vk_util = @import("graphics/vk_utils.zig");
-pub const createTextureFromPixelsSync = vk_util.createTextureFromPixelsSync;
+pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
+
+pub const PixelBufferRGBA8 = @import("graphics/PixelBufferRGBA8.zig");
 
 pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
 
@@ -46,19 +48,6 @@ pub fn getContext() *NeonVkContext {
 pub const render_object = @import("graphics/render_object.zig");
 pub const Camera = render_object.Camera;
 pub const RenderObject = render_object.RenderObject;
-
-pub const PixelBuffferRGBA8 = struct {
-    pixels: []u8, // format = rgba,rgba each pixel is 4x8 bit chars.
-    // pixels.len must equal extents.x * extents.y * 4
-    extents: core.Vector2u,
-
-    pub fn init(allocator: std.mem.Allocator, extents: core.Vector2u) !@This() {
-        return .{
-            .pixels = try allocator.create(extents.x * extents.y * 4),
-            .extents = extents,
-        };
-    }
-};
 
 pub fn registerRendererPlugin(value: anytype) !void {
     var ref = RendererInterfaceRef{

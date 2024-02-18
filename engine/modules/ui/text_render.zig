@@ -48,7 +48,7 @@ pub const FontAtlasVk = struct {
     pub fn prepareFont(self: *@This(), fontName: core.Name) !void {
         var pixels = try self.atlas.makeBitmapRGBA(self.allocator);
         defer self.allocator.free(pixels);
-        var res = try graphics.createTextureFromPixelsSync(
+        var res = try graphics.createAndInstallTextureFromPixels(
             fontName,
             pixels,
             .{ .x = self.atlas.atlasSize.x, .y = self.atlas.atlasSize.y },

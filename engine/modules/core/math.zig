@@ -53,7 +53,7 @@ pub fn fabs(x: anytype) @TypeOf(x) {
 }
 
 pub fn Vector2Type(comptime T: type) type {
-    return struct {
+    return extern struct {
         x: T = 0,
         y: T = 0,
 
@@ -182,7 +182,7 @@ pub fn Vector2Type(comptime T: type) type {
 }
 
 pub fn Vector3Type(comptime T: type) type {
-    return struct {
+    return extern struct {
         x: T = 0,
         y: T = 0,
         z: T = 0,
@@ -350,7 +350,7 @@ pub fn Vector3Type(comptime T: type) type {
 }
 
 pub fn Vector4Type(comptime T: type) type {
-    return struct {
+    return extern struct {
         x: T = 0,
         y: T = 0,
         z: T = 0,
@@ -443,15 +443,24 @@ pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
     };
 }
 
-pub const LinearColor = struct {
+pub const LinearColor = extern struct {
     r: f32 = 1.0,
     g: f32 = 1.0,
     b: f32 = 1.0,
     a: f32 = 1.0,
 };
-pub const Color = struct {
+pub const Color = extern struct {
     r: u8 = 255,
     g: u8 = 255,
     b: u8 = 255,
     a: u8 = 255,
+
+    pub fn fromHex(hex: u32) @This() {
+        return .{
+            .r = @as(u8, @intCast((hex >> 24) & 0xFF)),
+            .g = @as(u8, @intCast((hex >> 16) & 0xFF)),
+            .b = @as(u8, @intCast((hex >> 8) & 0xFF)),
+            .a = @as(u8, @intCast((hex) & 0xFF)),
+        };
+    }
 };
