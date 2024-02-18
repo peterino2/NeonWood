@@ -29,9 +29,10 @@ pub const GameContext = struct {
         var self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 1000, .y = 1000 }),
+            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 100, .y = 100 }),
         };
         self.pixelBuffer.clear(core.Color.fromHex(0x101010ff));
+        self.pixelBuffer.getPixel(.{ .x = 42, .y = 42 }).* = core.Color.fromHex(0xFF0000FF);
         return self;
     }
 
