@@ -12,7 +12,6 @@ const Texture = @import("texture.zig").Texture;
 const image = @import("../image.zig");
 const PngContents = image.PngContents;
 
-const p2a = core.p_to_a;
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
@@ -95,20 +94,20 @@ pub fn getMiplevelFromSize(size: core.Vector2i) u32 {
     return std.math.log2(@as(u32, @intCast(@max(size.x, size.y)))) + 1;
 }
 
-pub fn createTextureFromPixelsSync(
-    textureName: core.Name,
+pub fn createTextureFromPixels(
     pixels: []const u8,
     size: core.Vector2i,
     ctx: *NeonVkContext,
     useBlocky: bool,
-) !struct {
-    texture: *Texture,
-    descriptor: *vk.DescriptorSet,
-} {
-    core.graphics_log("createTextureFromPixelsSync: {s}", .{textureName.utf8()});
+) !CreateTextureResults {
+    // copy pixels into staging buffer
     var miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
+
+    // create image memory resources
     var createdImage = try newVkImage(size, ctx, miplevel);
+
+    // upload staging buffer
     try submit_copy_from_staging(ctx, stagingBuffer, createdImage, miplevel);
 
     stagingBuffer.deinit(ctx.vkAllocator);
@@ -128,12 +127,29 @@ pub fn createTextureFromPixelsSync(
         .imageView = imageView,
     };
 
+    // create descriptors for
     var textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
         .useBlocky = useBlocky,
     }) catch unreachable;
 
-    ctx.install_texture_into_registry(textureName, newTexture, textureSet) catch return error.UnknownStatePanic;
     return .{ .texture = newTexture, .descriptor = textureSet };
+}
+
+const CreateTextureResults = struct { texture: *Texture, descriptor: vk.DescriptorSet };
+
+pub fn createAndInstallTextureFromPixels(
+    textureName: core.Name,
+    pixels: []const u8,
+    size: core.Vector2i,
+    ctx: *NeonVkContext,
+    useBlocky: bool,
+) !CreateTextureResults {
+    core.graphics_log("createAndInstallTextureFromPixels: {s}", .{textureName.utf8()});
+    var res = try createTextureFromPixels(pixels, size, ctx, useBlocky);
+
+    ctx.install_texture_into_registry(textureName, res.texture, res.descriptor) catch return error.UnknownStatePanic;
+
+    return res;
 }
 
 pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
@@ -219,7 +235,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             newImage.image,
             .transfer_dst_optimal,
             1,
-            p2a(&copyRegion),
+            @ptrCast(&copyRegion),
         );
 
         core.graphics_log("miplevel count: {d}", .{mipLevel});
@@ -274,7 +290,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             .transfer_bit = true,
         }, .{
             .transfer_bit = true,
-        }, .{}, 0, undefined, 0, undefined, 1, p2a(&imb));
+        }, .{}, 0, undefined, 0, undefined, 1, @ptrCast(&imb));
 
         var blit: vk.ImageBlit = undefined;
         blit.src_offsets[0] = .{ .x = 0, .y = 0, .z = 0 };
@@ -311,7 +327,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             img,
             .transfer_dst_optimal,
             1,
-            p2a(&blit),
+            @ptrCast(&blit),
             .linear,
         );
 

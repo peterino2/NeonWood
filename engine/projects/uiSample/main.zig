@@ -4,6 +4,7 @@ const nw = @import("root").neonwood;
 const ui = nw.ui;
 const platform = nw.platform;
 const core = nw.core;
+const graphics = nw.graphics;
 
 const assets = nw.assets;
 const c = nw.graphics.c;
@@ -22,9 +23,15 @@ pub const GameContext = struct {
 
     fpsText: ?[]u8 = null,
 
+    pixelBuffer: graphics.PixelBufferRGBA8,
+
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         var self = try allocator.create(@This());
-        self.* = .{ .allocator = allocator };
+        self.* = .{
+            .allocator = allocator,
+            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 1000, .y = 1000 }),
+        };
+        self.pixelBuffer.clear(core.Color.fromHex(0x101010ff));
         return self;
     }
 
@@ -32,6 +39,7 @@ pub const GameContext = struct {
         if (self.fpsText) |text| {
             self.allocator.free(text);
         }
+        self.pixelBuffer.deinit(self.allocator);
     }
 
     pub fn tick(self: *@This(), dt: f64) void {
@@ -159,6 +167,9 @@ pub const GameContext = struct {
         ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
+        const imageChangeBtn = try ctx.addButton(unk, "change image");
+        try ctx.events.installOnPressedEvent(imageChangeBtn, .onPressed, .Mouse1, &self.pixelBuffer, &changeImage);
+
         const btn = try ctx.addButton(unk, "select file...");
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
         try ctx.events.uninstallAllEvents(btn);
@@ -176,6 +187,14 @@ pub const GameContext = struct {
         ctx.get(te3).size = .{ .x = 600, .y = 200 };
     }
 };
+
+fn changeImage(node: ui.NodeHandle, eventType: ui.PressedType, pixelBufferPtr: ?*anyopaque) ui.HandlerError!void {
+    _ = node;
+    if (eventType == .onPressed) {
+        var pixelBuffer = @as(*const graphics.PixelBufferRGBA8, @alignCast(@ptrCast(pixelBufferPtr)));
+        graphics.getContext().updateTextureFromPixelsSync(core.MakeName("t_sampleImage"), pixelBuffer.*, true) catch unreachable;
+    }
+}
 
 const BurnStyle = ui.papyrus.BurnStyle;
 fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {

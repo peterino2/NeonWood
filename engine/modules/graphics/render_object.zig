@@ -22,7 +22,7 @@ pub const RenderObject = struct {
     const Self = @This();
     mesh: ?*Mesh = null,
     material: ?*Material = null,
-    texture: ?*vk.DescriptorSet = null,
+    texture: ?vk.DescriptorSet = null,
     transform: core.Mat,
     visibility: bool = true,
 

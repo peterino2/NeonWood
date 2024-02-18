@@ -21,7 +21,7 @@ pub const FontAtlasVk = struct {
     isDefault: bool = false,
     atlas: *FontAtlas,
     texture: *graphics.Texture = undefined,
-    textureSet: *vk.DescriptorSet = undefined,
+    textureSet: vk.DescriptorSet = undefined,
 
     pub fn deinit(self: @This()) void {
         _ = self;
@@ -48,7 +48,7 @@ pub const FontAtlasVk = struct {
     pub fn prepareFont(self: *@This(), fontName: core.Name) !void {
         var pixels = try self.atlas.makeBitmapRGBA(self.allocator);
         defer self.allocator.free(pixels);
-        var res = try graphics.createTextureFromPixelsSync(
+        var res = try graphics.createAndInstallTextureFromPixels(
             fontName,
             pixels,
             .{ .x = self.atlas.atlasSize.x, .y = self.atlas.atlasSize.y },
@@ -149,10 +149,10 @@ pub const DisplayText = struct {
         var vertexBufferOffset: u64 = 0;
 
         vkd.cmdBindPipeline(cmd, .graphics, textMaterial.pipeline);
-        vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.mesh.getVertexBuffer().buffer), core.p_to_a(&vertexBufferOffset));
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.mesh.getVertexBuffer().buffer), @ptrCast(&vertexBufferOffset));
         vkd.cmdBindIndexBuffer(cmd, self.mesh.getIndexBuffer().buffer, 0, .uint32);
         vkd.cmdBindDescriptorSets(cmd, .graphics, textMaterial.layout, 0, 1, textPipeData.getDescriptorSet(frameIndex), 0, undefined);
-        vkd.cmdBindDescriptorSets(cmd, .graphics, textMaterial.layout, 1, 1, core.p_to_a(fontSet), 0, undefined);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, textMaterial.layout, 1, 1, @ptrCast(&fontSet), 0, undefined);
         vkd.cmdDrawIndexed(cmd, self.mesh.getIndexBufferLen(), 1, 0, 0, ssboId);
     }
 

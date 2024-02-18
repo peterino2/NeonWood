@@ -162,6 +162,15 @@ pub const LoggerSys = struct {
         self.lock.unlock();
     }
 
+    pub fn shutdownFlush(self: *@This()) !void {
+        try self.flush();
+
+        self.flushLock.lock();
+        try self.logFile.writer().writeAll(self.writeOutBuffer.items);
+        try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
+        self.flushLock.unlock();
+    }
+
     pub fn flushWriteBuffer(self: *@This()) !void {
         self.flushLock.lock();
         try self.logFile.writer().writeAll(self.writeOutBuffer.items);
@@ -213,6 +222,7 @@ pub const LoggerSys = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.flushWriteBuffer() catch {};
         self.allocator.free(self.logFilePath);
         self.logFile.close();
 

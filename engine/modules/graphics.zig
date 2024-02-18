@@ -25,7 +25,9 @@ pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
 pub const vk_util = @import("graphics/vk_utils.zig");
-pub const createTextureFromPixelsSync = vk_util.createTextureFromPixelsSync;
+pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
+
+pub const PixelBufferRGBA8 = @import("graphics/PixelBufferRGBA8.zig");
 
 pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
 

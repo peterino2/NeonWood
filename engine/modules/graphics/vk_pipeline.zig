@@ -23,8 +23,6 @@ const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
 const debug_struct = core.debug_struct;
-const p2a = core.p_to_a;
-const p2av = core.p_to_av;
 
 pub fn default_pipeline_layout() vk.PipelineLayoutCreateInfo {
     return vk.PipelineLayoutCreateInfo{
@@ -109,16 +107,16 @@ pub const NeonVkPipelineBuilder = struct {
         var pvsci = vk.PipelineViewportStateCreateInfo{
             .flags = .{},
             .viewport_count = 1,
-            .p_viewports = p2a(&self.viewport),
+            .p_viewports = @ptrCast(&self.viewport),
             .scissor_count = 1,
-            .p_scissors = p2a(&self.scissor),
+            .p_scissors = @ptrCast(&self.scissor),
         };
 
         var pcbsci = vk.PipelineColorBlendStateCreateInfo{
             .flags = .{},
             .logic_op_enable = vk.FALSE,
             .attachment_count = 1,
-            .p_attachments = p2a(&self.colorBlendAttachment),
+            .p_attachments = @ptrCast(&self.colorBlendAttachment),
             .logic_op = .copy,
             .blend_constants = [4]f32{ 1.0, 1.0, 1.0, 1.0 },
         };
@@ -163,7 +161,7 @@ pub const NeonVkPipelineBuilder = struct {
 
         var pipeline: vk.Pipeline = undefined;
 
-        _ = try self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, p2a(&gpci), null, p2av(&pipeline));
+        _ = try self.vkd.createGraphicsPipelines(self.dev, .null_handle, 1, @ptrCast(&gpci), null, @ptrCast(&pipeline));
 
         return pipeline;
     }
@@ -237,7 +235,7 @@ pub const NeonVkPipelineBuilder = struct {
         };
 
         self.plci.?.push_constant_range_count = 1;
-        self.plci.?.p_push_constant_ranges = p2a(&(self.pushConstantRange.?));
+        self.plci.?.p_push_constant_ranges = @ptrCast(&(self.pushConstantRange.?));
     }
 
     pub fn add_push_constant(self: *NeonVkPipelineBuilder) !void {
@@ -252,7 +250,7 @@ pub const NeonVkPipelineBuilder = struct {
         };
 
         self.plci.?.push_constant_range_count = 1;
-        self.plci.?.p_push_constant_ranges = p2a(&(self.pushConstantRange.?));
+        self.plci.?.p_push_constant_ranges = @ptrCast(&(self.pushConstantRange.?));
     }
 
     pub fn add_mesh_description(self: *NeonVkPipelineBuilder) !void {

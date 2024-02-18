@@ -233,7 +233,7 @@ pub const DebugDrawSubsystem = struct {
         const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.vk_renderer.NeonVkSceneDataGpu))));
         var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
 
-        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, core.p_to_a(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, core.p_to_a(&startOffset));
+        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
         while (offset < count) {
             var primitive: DebugPrimitive = self.debugDraws.pop().?;
             vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
@@ -251,7 +251,7 @@ pub const DebugDrawSubsystem = struct {
                 },
             }
 
-            vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&mesh.buffer.buffer), core.p_to_a(&bindOffset));
+            vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
             vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
 
             offset += 1;

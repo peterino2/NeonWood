@@ -1,8 +1,6 @@
 const vk = @import("vulkan");
 const core = @import("../core.zig");
 
-const p2a = core.p_to_a;
-
 pub fn descriptorSetLayoutBinding(
     descriptorType: vk.DescriptorType,
     stageFlags: vk.ShaderStageFlags,
@@ -28,7 +26,7 @@ pub fn writeDescriptorSet(
         .dst_set = dst_set,
         .descriptor_count = 1,
         .descriptor_type = descriptorType,
-        .p_buffer_info = p2a(bufferInfo),
+        .p_buffer_info = @ptrCast(bufferInfo),
         .dst_array_element = 0,
         .p_image_info = undefined,
         .p_texel_buffer_view = undefined,
@@ -170,7 +168,7 @@ pub fn writeDescriptorImage(
         .descriptor_type = descriptorType,
         .p_buffer_info = undefined,
         .dst_array_element = 0,
-        .p_image_info = p2a(imageInfo),
+        .p_image_info = @ptrCast(imageInfo),
         .p_texel_buffer_view = undefined,
     };
 

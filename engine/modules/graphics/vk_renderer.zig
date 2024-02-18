@@ -116,8 +116,6 @@ pub const RendererInterface = struct {
 };
 
 // Aliases
-const p2a = core.p_to_a;
-const p2av = core.p_to_av;
 const Vector4f = core.Vector4f;
 const Vectorf = core.Vectorf;
 const Vector2 = core.Vector2;
@@ -383,7 +381,7 @@ pub const NeonVkContext = struct {
     renderObjectsByMaterial: ArrayListUnmanaged(u32),
     renderObjectSet: RenderObjectSet,
 
-    textureSets: std.AutoHashMapUnmanaged(u32, *vk.DescriptorSet),
+    textureSets: std.AutoHashMapUnmanaged(u32, vk.DescriptorSet),
 
     materials: std.AutoHashMapUnmanaged(u32, *Material),
     meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
@@ -402,7 +400,7 @@ pub const NeonVkContext = struct {
     frameData: [NumFrames]NeonVkFrameData,
     lastMaterial: ?*Material,
     lastMesh: ?*Mesh,
-    lastTextureSet: ?*vk.DescriptorSet,
+    lastTextureSet: ?vk.DescriptorSet,
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
@@ -426,7 +424,7 @@ pub const NeonVkContext = struct {
 
     pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void {
         var textureSet = self.textureSets.get(textureName.handle()).?;
-        self.renderObjectSet.get(objectHandle, .renderObject).?.*.texture = textureSet;
+        self.renderObjectSet.get(objectHandle, .renderObject).?.texture = textureSet;
     }
 
     pub fn getNormRayFromActiveCamera(
@@ -672,15 +670,16 @@ pub const NeonVkContext = struct {
         return newTexture;
     }
 
-    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: *Texture, params: struct { useBlocky: bool = true }) !*vk.DescriptorSet {
-        var textureSet = try self.allocator.create(vk.DescriptorSet);
+    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: *Texture, params: struct { useBlocky: bool = true }) !vk.DescriptorSet {
+        // var textureSet = try self.allocator.create(vk.DescriptorSet);
+        var textureSet: vk.DescriptorSet = undefined;
         var allocInfo = vk.DescriptorSetAllocateInfo{
             .descriptor_pool = self.descriptorPool,
             .descriptor_set_count = 1,
-            .p_set_layouts = p2a(&self.singleTextureSetLayout),
+            .p_set_layouts = @ptrCast(&self.singleTextureSetLayout),
         };
 
-        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(textureSet)));
+        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(&textureSet)));
 
         var imageBufferInfo = vk.DescriptorImageInfo{
             //.sampler = self.blockySampler,
@@ -691,57 +690,53 @@ pub const NeonVkContext = struct {
 
         var writeDescriptorSet = vkinit.writeDescriptorImage(
             .combined_image_sampler,
-            textureSet.*,
+            textureSet,
             &imageBufferInfo,
             0,
         );
 
-        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&writeDescriptorSet), 0, undefined);
+        self.vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
 
         return textureSet;
     }
 
-    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: *vk.DescriptorSet) !void {
+    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet) !void {
         try self.textures.put(self.allocator, name.handle(), textureRef);
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
+    }
+
+    const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");
+
+    pub fn updateTextureFromPixelsSync(
+        self: *@This(),
+        textureToUpdate: core.Name,
+        pixelBuffer: PixelBufferRGBA8,
+        useBlockySampler: bool,
+    ) !void {
+        core.asserts(
+            pixelBuffer.pixels.len == pixelBuffer.extent.x * pixelBuffer.extent.y * 4,
+            "invalid pixel buffer length (expected:{d}, got:{d})",
+            .{
+                pixelBuffer.pixels.len,
+                pixelBuffer.extent.x * pixelBuffer.extent.y,
+            },
+            @src().fn_name,
+        );
+
+        // todo, defer this texture's destruction by 2 frames.
+        var texRef: *Texture = self.textures.get(textureToUpdate.handle()).?;
+        texRef.deinit(self);
+
+        var results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
+
+        try self.textures.put(self.allocator, textureToUpdate.handle(), results.texture);
+        try self.textureSets.put(self.allocator, textureToUpdate.handle(), results.descriptor);
     }
 
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
         var newTexture = try self.upload_texture_from_file(texturePath);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);
         return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
-    }
-
-    pub fn make_mesh_image_from_texture(self: *Self, name: core.Name, params: struct { useBlocky: bool = true }) !void {
-        if (self.textureSets.contains(name.handle())) {
-            return;
-        }
-
-        var textureSet = try self.allocator.create(vk.DescriptorSet);
-
-        var allocInfo = vk.DescriptorSetAllocateInfo{
-            .descriptor_pool = self.descriptorPool,
-            .descriptor_set_count = 1,
-            .p_set_layouts = p2a(&self.singleTextureSetLayout),
-        };
-        try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(textureSet)));
-
-        var imageBufferInfo = vk.DescriptorImageInfo{
-            .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
-            .image_view = (self.textures.get(name.handle())).?.imageView,
-            .image_layout = .shader_read_only_optimal,
-        };
-
-        var writeDescriptorSet = vkinit.writeDescriptorImage(
-            .combined_image_sampler,
-            textureSet.*,
-            &imageBufferInfo,
-            0,
-        );
-
-        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&writeDescriptorSet), 0, undefined);
-
-        try self.textureSets.put(self.allocator, name.handle(), textureSet);
     }
 
     pub fn load_core_textures(self: *Self) !void {
@@ -754,7 +749,7 @@ pub const NeonVkContext = struct {
         var singleTextureInfo = vk.DescriptorSetLayoutCreateInfo{
             .binding_count = 1,
             .flags = .{},
-            .p_bindings = p2a(&textureBinding),
+            .p_bindings = @ptrCast(&textureBinding),
         };
         self.singleTextureSetLayout = try self.vkd.createDescriptorSetLayout(self.dev, &singleTextureInfo, null);
     }
@@ -816,7 +811,7 @@ pub const NeonVkContext = struct {
             var objectDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
-                .p_set_layouts = p2a(&self.objectDescriptorLayout),
+                .p_set_layouts = @ptrCast(&self.objectDescriptorLayout),
             };
 
             try self.vkd.allocateDescriptorSets(self.dev, &objectDescriptorSetAllocInfo, @as([*]vk.DescriptorSet, @ptrCast(&self.frameData[i].objectDescriptorSet)));
@@ -843,7 +838,7 @@ pub const NeonVkContext = struct {
             var allocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
-                .p_set_layouts = p2a(&self.globalDescriptorLayout),
+                .p_set_layouts = @ptrCast(&self.globalDescriptorLayout),
             };
             try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(&self.frameData[i].globalDescriptorSet)));
 
@@ -1088,7 +1083,7 @@ pub const NeonVkContext = struct {
         var allocInfo = vk.DescriptorSetAllocateInfo{
             .descriptor_pool = self.descriptorPool,
             .descriptor_set_count = 1,
-            .p_set_layouts = p2a(&self.singleTextureSetLayout),
+            .p_set_layouts = @ptrCast(&self.singleTextureSetLayout),
         };
         try self.vkd.allocateDescriptorSets(
             self.dev,
@@ -1111,7 +1106,7 @@ pub const NeonVkContext = struct {
             0,
         );
 
-        self.vkd.updateDescriptorSets(self.dev, 1, p2a(&descriptorSet), 0, undefined);
+        self.vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&descriptorSet), 0, undefined);
         // ---------------
     }
 
@@ -1128,7 +1123,7 @@ pub const NeonVkContext = struct {
             pixels[i] = 255;
         }
 
-        _ = try vk_utils.createTextureFromPixelsSync(core.MakeName("t_white"), pixels, size, self, false);
+        _ = try vk_utils.createAndInstallTextureFromPixels(core.MakeName("t_white"), pixels, size, self, false);
     }
 
     pub fn init_pipelines(self: *Self) !void {
@@ -1296,8 +1291,8 @@ pub const NeonVkContext = struct {
 
         self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
-        self.vkd.cmdSetViewport(cmd, 0, 1, p2a(&self.viewport));
-        self.vkd.cmdSetScissor(cmd, 0, 1, p2a(&self.scissor));
+        self.vkd.cmdSetViewport(cmd, 0, 1, @ptrCast(&self.viewport));
+        self.vkd.cmdSetScissor(cmd, 0, 1, @ptrCast(&self.scissor));
     }
 
     pub fn finish_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
@@ -1397,16 +1392,16 @@ pub const NeonVkContext = struct {
         if (self.lastMaterial != render_object.material) {
             self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
             self.lastMaterial = render_object.material;
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, p2a(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, p2a(&startOffset));
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, p2a(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
         }
         defer z1.End();
 
         // if the renderobject has a textureset as an override use that instead of the default one on the material.
         if (render_object.texture) |textureSet| {
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(textureSet), 0, undefined);
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
         } else {
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, p2a(&render_object.material.?.textureSet), 0, undefined);
+            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&render_object.material.?.textureSet), 0, undefined);
         }
 
         // let plugins bind the render object.
@@ -1416,12 +1411,12 @@ pub const NeonVkContext = struct {
 
         if (self.lastMesh != render_object.mesh) {
             self.lastMesh = render_object.mesh;
-            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
         }
 
         // if (self.lastMesh != render_object.mesh) {
         //     self.lastMesh = render_object.mesh;
-        //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, p2a(&object_mesh.buffer.buffer), p2a(&offset));
+        //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
         // }
 
         var final = render_object.transform;
@@ -2510,17 +2505,17 @@ pub const NeonVkContext = struct {
             var iter = self.textures.iterator();
 
             while (iter.next()) |i| {
-                try i.value_ptr.*.deinit(self);
+                i.value_ptr.*.deinit(self);
                 self.allocator.destroy(i.value_ptr.*);
             }
             self.textures.deinit(self.allocator);
         }
 
         {
-            var iter = self.textureSets.iterator();
-            while (iter.next()) |i| {
-                self.allocator.destroy(i.value_ptr.*);
-            }
+            // var iter = self.textureSets.iterator();
+            // while (iter.next()) |i| {
+            //     self.allocator.destroy(i.value_ptr.*);
+            // }
             self.textureSets.deinit(self.allocator);
         }
     }
