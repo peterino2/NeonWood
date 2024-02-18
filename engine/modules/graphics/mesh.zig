@@ -18,8 +18,6 @@ const Vector2f = core.Vector2f;
 const LinearColor = core.LinearColor;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
-const p2a = core.p_to_a;
-
 const debug_struct = core.debug_struct;
 
 pub const DynamicMesh = vk_dynamic_mesh.DynamicMesh;

@@ -12,7 +12,6 @@ const tracy = core.tracy;
 
 const spng = core.spng;
 
-const p2a = core.p_to_a;
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;

@@ -25,7 +25,6 @@ const assets = neonwood.assets;
 const engine_log = core.engine_log;
 const audio = neonwood.audio;
 const c = graphics.c;
-const p2a = core.p_to_a;
 
 const gpd = graphics.gpu_pipe_data;
 const Vectorf = core.Vectorf;

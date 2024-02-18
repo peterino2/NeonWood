@@ -6,13 +6,13 @@ const vk = @import("vulkan");
 const obj_loader = @import("lib/objLoader/obj_loader.zig");
 const vkinit = @import("vk_init.zig");
 
-const p2a = core.p_to_a;
 const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
 
 pub const PixelPos = vk_renderer.PixelPos;
 
+// This is a simple display texture
 pub const Texture = struct {
     image: NeonVkImage,
     imageView: vk.ImageView,

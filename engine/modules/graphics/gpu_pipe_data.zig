@@ -11,7 +11,6 @@ const vma = @import("vma");
 
 const NeonVkContext = graphics.NeonVkContext;
 const NeonVkBuffer = graphics.NeonVkBuffer;
-const p2a = core.p_to_a;
 
 const NeonVkAllocator = graphics.NeonVkAllocator;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
@@ -245,7 +244,7 @@ pub const GpuPipeDataBuilder = struct {
             var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = gc.descriptorPool,
                 .descriptor_set_count = 1,
-                .p_set_layouts = p2a(&rv.descriptorSetLayout),
+                .p_set_layouts = @ptrCast(&rv.descriptorSetLayout),
             };
 
             try gc.vkd.allocateDescriptorSets(gc.dev, &descriptorAllocInfo, @as([*]vk.DescriptorSet, @ptrCast(&rv.descriptorSets[frameId])));
@@ -297,7 +296,7 @@ pub const GpuPipeDataBuilder = struct {
                     &bufferInfo,
                     @as(u32, @intCast(bindingId)),
                 );
-                gc.vkd.updateDescriptorSets(gc.dev, 1, p2a(&descriptorWrite), 0, undefined);
+                gc.vkd.updateDescriptorSets(gc.dev, 1, @ptrCast(&descriptorWrite), 0, undefined);
             }
         }
 

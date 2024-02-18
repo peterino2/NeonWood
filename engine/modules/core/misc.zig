@@ -36,10 +36,6 @@ pub fn debug_struct(preamble: []const u8, s: anytype) void {
     logging.graphics_log("  {any}", .{s});
 }
 
-pub fn p_to_a(a: anytype) [*]const @TypeOf(a.*) {
-    return @as([*]const @TypeOf(a.*), @ptrCast(a));
-}
-
 pub fn p_to_av(a: anytype) [*]@TypeOf(a.*) {
     return @as([*]@TypeOf(a.*), @ptrCast(a));
 }

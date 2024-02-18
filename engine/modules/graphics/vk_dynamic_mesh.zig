@@ -19,8 +19,6 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const mesh = @import("mesh.zig");
 const Vertex = mesh.Vertex;
 
-const p2a = core.p_to_a;
-
 const debug_struct = core.debug_struct;
 
 pub const DynamicMeshManager = struct {
@@ -213,7 +211,7 @@ pub const DynamicMesh = struct {
             0,
             undefined,
             1,
-            p2a(&indexMemoryBarrier),
+            @ptrCast(&indexMemoryBarrier),
             0,
             undefined,
         );
@@ -255,7 +253,7 @@ pub const DynamicMesh = struct {
             0,
             undefined,
             1,
-            p2a(&vertexMemoryBarrier),
+            @ptrCast(&vertexMemoryBarrier),
             0,
             undefined,
         );

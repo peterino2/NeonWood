@@ -4,7 +4,7 @@ pipeData: gpd.GpuPipeData = undefined,
 materialName: core.Name = core.MakeName("mat_papyrus"),
 materialNameText: core.Name = core.MakeName("mat_papyrus_text"),
 material: *graphics.Material = undefined, // main material used for anything that isn't text
-defaultTextureSet: *vk.DescriptorSet,
+defaultTextureSet: vk.DescriptorSet,
 textMaterial: *graphics.Material = undefined, // main material used for text
 mappedBuffers: []gpd.GpuMappingData(ImageGpu) = undefined,
 textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
@@ -432,7 +432,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                     .borderWidth = rect.borderWidth,
                     .flags = 0,
                 };
-                var imageSet: ?*vk.DescriptorSet = null;
+                var imageSet: ?vk.DescriptorSet = null;
 
                 if (rect.imageRef) |_imageRef| {
                     if (self.gc.textureSets.get(_imageRef.handle())) |maybeImageSet| {
@@ -545,14 +545,14 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
                 var index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-                self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, core.p_to_a(&self.quad.buffer.buffer), core.p_to_a(&vertexBufferOffset));
+                self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
                 self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
                 self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
 
                 if (img.imageSet) |imageSet| {
-                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(imageSet), 0, undefined);
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&imageSet), 0, undefined);
                 } else {
-                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, core.p_to_a(self.defaultTextureSet), 0, undefined);
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&self.defaultTextureSet), 0, undefined);
                 }
 
                 self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);

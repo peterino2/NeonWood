@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const core = @import("../core.zig");
-const p2a = core.p_to_a;
 const vk = @import("vulkan");
 const vma = @import("vma");
 const vk_constants = @import("vk_constants.zig");
@@ -49,7 +48,7 @@ pub fn transferDst_into_shaderReadOnly(
         0,
         undefined,
         1,
-        p2a(&imageBarrier_toReadable),
+        @ptrCast(&imageBarrier_toReadable),
     );
 }
 
@@ -93,6 +92,6 @@ pub fn into_transferDst(
         0,
         undefined,
         1,
-        p2a(&imageBarrier_toTransfer),
+        @ptrCast(&imageBarrier_toTransfer),
     );
 }

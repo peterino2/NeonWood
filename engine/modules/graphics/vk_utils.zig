@@ -12,7 +12,6 @@ const Texture = @import("texture.zig").Texture;
 const image = @import("../image.zig");
 const PngContents = image.PngContents;
 
-const p2a = core.p_to_a;
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
@@ -103,7 +102,7 @@ pub fn createTextureFromPixelsSync(
     useBlocky: bool,
 ) !struct {
     texture: *Texture,
-    descriptor: *vk.DescriptorSet,
+    descriptor: vk.DescriptorSet,
 } {
     core.graphics_log("createTextureFromPixelsSync: {s}", .{textureName.utf8()});
 
@@ -142,6 +141,8 @@ pub fn createTextureFromPixelsSync(
     ctx.install_texture_into_registry(textureName, newTexture, textureSet) catch return error.UnknownStatePanic;
     return .{ .texture = newTexture, .descriptor = textureSet };
 }
+
+pub fn createTextureFromPixelsSyncInner() !struct { texture: *Texture, descriptor: *vk.DescriptorSet } {}
 
 pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
     // When you record command buffers, their command pools can only be used from
@@ -226,7 +227,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             newImage.image,
             .transfer_dst_optimal,
             1,
-            p2a(&copyRegion),
+            @ptrCast(&copyRegion),
         );
 
         core.graphics_log("miplevel count: {d}", .{mipLevel});
@@ -281,7 +282,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             .transfer_bit = true,
         }, .{
             .transfer_bit = true,
-        }, .{}, 0, undefined, 0, undefined, 1, p2a(&imb));
+        }, .{}, 0, undefined, 0, undefined, 1, @ptrCast(&imb));
 
         var blit: vk.ImageBlit = undefined;
         blit.src_offsets[0] = .{ .x = 0, .y = 0, .z = 0 };
@@ -318,7 +319,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             img,
             .transfer_dst_optimal,
             1,
-            p2a(&blit),
+            @ptrCast(&blit),
             .linear,
         );
 
