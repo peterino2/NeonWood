@@ -723,6 +723,7 @@ pub const NeonVkContext = struct {
             @src().fn_name,
         );
 
+        // todo, defer this texture's destruction by 2 frames.
         var texRef: *Texture = self.textures.get(textureToUpdate.handle()).?;
         texRef.deinit(self);
 
