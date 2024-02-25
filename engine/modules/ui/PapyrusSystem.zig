@@ -32,6 +32,7 @@ const std = @import("std");
 const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const graphics = @import("../graphics.zig");
+const memory = @import("../memory.zig");
 const gpd = graphics.gpu_pipe_data;
 const platform = @import("../platform.zig");
 const papyrus = @import("papyrus.zig");
@@ -277,6 +278,9 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     });
 
     self.papyrusCtx.tick(deltaTime) catch unreachable;
+    self.papyrusCtx.pushDebugText("memory used: {d:.3}MB", .{
+        @as(f32, @floatFromInt(memory.getMemTracker().totalAllocSize)) / 1e6,
+    }) catch {};
 
     if (self.gc.vulkanValidation) {
         self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;

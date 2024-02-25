@@ -21,6 +21,9 @@ pub usingnamespace @import("core/string.zig");
 pub usingnamespace @import("core/args.zig");
 pub usingnamespace @import("core/file_dialogue.zig");
 
+// pub usingnamespace @import("core/mem_trackek.zig");
+// pub const memory_tracker = @import("core/mem_tracker.zig");
+
 pub const scene = @import("core/scene.zig");
 pub const SceneSystem = scene.SceneSystem;
 
@@ -30,6 +33,8 @@ const Name = algorithm.Name;
 pub const spng = @import("core/lib/zig-spng/spng.zig");
 
 pub const assert = std.debug.assert;
+
+pub const MemoryTracker = @import("core/MemoryTracker.zig");
 
 const tests = @import("core/tests.zig");
 const logging = @import("core/logging.zig");

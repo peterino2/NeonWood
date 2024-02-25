@@ -26,5 +26,6 @@ pub fn addLib(b: *std.Build, exe: *std.build.CompileStep, comptime pathPrefix: [
             .file = .{ .path = pathPrefix ++ "/nfd_gtk.c" },
             .flags = &.{},
         });
+        exe.linkSystemLibrary("gtk");
     }
 }

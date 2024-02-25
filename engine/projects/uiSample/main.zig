@@ -256,7 +256,14 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const allocator = std.heap.c_allocator;
+    const memory = nw.memory;
+    memory.setupMemTracker(std.heap.c_allocator);
+    defer memory.shutdownMemTracker();
+    var tracker = memory.getMemTracker();
+
+    var allocator = tracker.allocator();
+
+    //const allocator = std.heap.c_allocator;
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
