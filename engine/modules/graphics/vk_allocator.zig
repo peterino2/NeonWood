@@ -7,6 +7,7 @@ const std = @import("std");
 const vk = @import("vulkan");
 const vma = @import("vma");
 const core = @import("../core.zig");
+const memory = @import("../memory.zig");
 const vk_constants = @import("vk_constants.zig");
 
 const DeviceDispatch = vk_constants.DeviceDispatch;
@@ -246,6 +247,7 @@ pub const NeonVkAllocator = struct {
             },
         };
 
+        memory.MTAddUntrackedAllocation(bci.size);
         try self.pushAllocation(results.allocation, tag, object);
 
         return object.buffer;

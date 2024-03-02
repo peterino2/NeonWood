@@ -2100,14 +2100,15 @@ pub const NeonVkContext = struct {
         }
 
         var desiredFeatures = vk.PhysicalDeviceFeatures{};
+        // TODO: disable these features as they become unavailable on rpi
         //desiredFeatures.texture_compression_bc = vk.TRUE;
         // desiredFeatures.image_cube_array = vk.TRUE;
         // desiredFeatures.depth_clamp = vk.TRUE;
         // desiredFeatures.depth_bias_clamp = vk.TRUE;
-        desiredFeatures.fill_mode_non_solid = vk.TRUE;
+        // desiredFeatures.fill_mode_non_solid = vk.TRUE;
 
         var shaderDrawFeatures = vk.PhysicalDeviceShaderDrawParametersFeatures{
-            .shader_draw_parameters = vk.TRUE,
+            // .shader_draw_parameters = vk.TRUE,
         };
 
         for (self.requiredExtensions.items) |required| {

@@ -59,19 +59,10 @@ pub fn deinit(self: *@This()) void {
     _ = self;
 }
 
-var gMemTracker: *@This() = undefined;
-
-pub fn setup(backingAllocator: std.mem.Allocator) void {
-    gMemTracker = backingAllocator.create(@This()) catch unreachable;
-    gMemTracker.* = @This(){ .backingAllocator = backingAllocator };
+pub fn addUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
+    self.totalAllocSize += allocatedSize;
 }
 
-pub fn shutdown() void {
-    var backingAllocator = gMemTracker.backingAllocator;
-    gMemTracker.deinit();
-    backingAllocator.destroy(gMemTracker);
-}
-
-pub fn get() *@This() {
-    return gMemTracker;
+pub fn removeUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
+    self.totalAllocSize += allocatedSize;
 }

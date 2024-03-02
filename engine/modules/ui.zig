@@ -1,6 +1,7 @@
 const std = @import("std");
 const core = @import("core.zig");
 const graphics = @import("graphics.zig");
+const memory = @import("memory.zig");
 
 pub const papyrus = @import("ui/papyrus.zig");
 pub const HandlerError = papyrus.HandlerError;
@@ -23,6 +24,8 @@ pub fn start_module(allocator: std.mem.Allocator) !void {
     _ = allocator;
     gPapyrus = try core.gEngine.createObject(PapyrusSystem, .{ .can_tick = true });
     try gPapyrus.setup(graphics.getContext());
+    core.engine_logs("ui start_module");
+    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module() void {

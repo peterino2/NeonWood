@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("root");
+const memory = @import("memory.zig");
 
 pub usingnamespace @import("core/misc.zig");
 pub usingnamespace @import("core/logging.zig");
@@ -56,6 +57,7 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     logging.setupLogging(gEngine) catch unreachable;
 
     logs("core module starting up... ");
+    memory.MTPrintStatsDelta();
     return;
 }
 

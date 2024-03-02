@@ -78,6 +78,9 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .defaultTextureSet = undefined,
     };
 
+    core.engine_logs("PapyrusSystem init");
+    memory.MTPrintStatsDelta();
+
     try platform.getInstance().installListener(self);
     return self;
 }
@@ -278,9 +281,11 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     });
 
     self.papyrusCtx.tick(deltaTime) catch unreachable;
-    self.papyrusCtx.pushDebugText("memory used: {d:.3}MB", .{
-        @as(f32, @floatFromInt(memory.getMemTracker().totalAllocSize)) / 1e6,
-    }) catch {};
+    if (memory.MTGet()) |mt| {
+        self.papyrusCtx.pushDebugText("memory used: {d:.3}MB", .{
+            @as(f32, @floatFromInt(mt.totalAllocSize)) / 1e6,
+        }) catch {};
+    }
 
     if (self.gc.vulkanValidation) {
         self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;
