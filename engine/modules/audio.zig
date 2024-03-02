@@ -1,6 +1,7 @@
 const core = @import("core.zig");
 const assets = @import("assets.zig");
 const std = @import("std");
+const memory = @import("memory.zig");
 
 const soundEngine = @import("audio/sound_engine.zig");
 pub const NeonSoundEngine = soundEngine.NeonSoundEngine;
@@ -19,6 +20,9 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 
     assets.gAssetSys.registerLoader(gSoundLoader) catch unreachable;
     gSoundEngine.loadSound(core.MakeName("s_test"), "content/sounds/engineTick.wav", .{}) catch unreachable;
+
+    core.engine_logs("sound start_module");
+    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module() void {

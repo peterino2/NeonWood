@@ -304,10 +304,10 @@ pub const NeonVkContext = struct {
     pub const maxMode = 3;
 
     const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
-        .{ .type = .uniform_buffer, .descriptor_count = 100 },
-        .{ .type = .uniform_buffer_dynamic, .descriptor_count = 100 },
-        .{ .type = .storage_buffer, .descriptor_count = 100 },
-        .{ .type = .combined_image_sampler, .descriptor_count = 100 },
+        .{ .type = .uniform_buffer, .descriptor_count = 1000 },
+        .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
+        .{ .type = .storage_buffer, .descriptor_count = 1000 },
+        .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
     };
 
     mode: u32,
@@ -387,6 +387,9 @@ pub const NeonVkContext = struct {
     meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
     textures: std.AutoHashMapUnmanaged(u32, *Texture),
     cameraRef: ?*render_objects.Camera,
+
+    deferredTextureDestroy: std.ArrayListUnmanaged(*Texture),
+    deferredDescriptorsDestroy: std.ArrayListUnmanaged(vk.DescriptorSet),
 
     requiredExtensions: ArrayListUnmanaged(CStr),
 
@@ -498,6 +501,8 @@ pub const NeonVkContext = struct {
         self.textures = .{};
         self.meshes = .{};
         self.materials = .{};
+        self.deferredTextureDestroy = .{};
+        self.deferredDescriptorsDestroy = .{};
         self.lastMaterial = null;
         self.cameraRef = null;
         self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
@@ -700,6 +705,22 @@ pub const NeonVkContext = struct {
         return textureSet;
     }
 
+    pub fn destroyDeferredDestroyTextures(self: *@This()) void {
+        for (self.deferredDescriptorsDestroy.items) |descriptor| {
+            self.vkd.freeDescriptorSets(self.dev, self.descriptorPool, 1, @ptrCast(&descriptor)) catch {
+                core.engine_errs("unable to free descriptor pool");
+            };
+        }
+
+        for (self.deferredTextureDestroy.items) |tex| {
+            tex.deinit(self);
+            self.allocator.destroy(tex);
+        }
+
+        self.deferredDescriptorsDestroy.clearRetainingCapacity();
+        self.deferredTextureDestroy.clearRetainingCapacity();
+    }
+
     pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet) !void {
         try self.textures.put(self.allocator, name.handle(), textureRef);
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
@@ -725,7 +746,8 @@ pub const NeonVkContext = struct {
 
         // todo, defer this texture's destruction by 2 frames.
         var texRef: *Texture = self.textures.get(textureToUpdate.handle()).?;
-        texRef.deinit(self);
+        try self.deferredTextureDestroy.append(self.allocator, texRef);
+        try self.deferredDescriptorsDestroy.append(self.allocator, self.textureSets.get(textureToUpdate.handle()).?);
 
         var results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
 
@@ -756,7 +778,9 @@ pub const NeonVkContext = struct {
 
     pub fn init_descriptors(self: *Self) !void {
         var poolInfo = vk.DescriptorPoolCreateInfo{
-            .flags = .{},
+            .flags = .{
+                .free_descriptor_set_bit = true,
+            },
             .max_sets = 100,
             .pool_size_count = @as(u32, @intCast(descriptorPoolSizes.len)),
             .p_pool_sizes = &descriptorPoolSizes,
@@ -1323,6 +1347,8 @@ pub const NeonVkContext = struct {
             var x = tracy.ZoneN(@src(), "End of Frame");
             try self.finish_frame();
             x.End();
+
+            self.destroyDeferredDestroyTextures();
         } else {
             var w: c_int = undefined;
             var h: c_int = undefined;
@@ -2074,14 +2100,15 @@ pub const NeonVkContext = struct {
         }
 
         var desiredFeatures = vk.PhysicalDeviceFeatures{};
+        // TODO: disable these features as they become unavailable on rpi
         //desiredFeatures.texture_compression_bc = vk.TRUE;
         // desiredFeatures.image_cube_array = vk.TRUE;
         // desiredFeatures.depth_clamp = vk.TRUE;
         // desiredFeatures.depth_bias_clamp = vk.TRUE;
-        desiredFeatures.fill_mode_non_solid = vk.TRUE;
+        // desiredFeatures.fill_mode_non_solid = vk.TRUE;
 
         var shaderDrawFeatures = vk.PhysicalDeviceShaderDrawParametersFeatures{
-            .shader_draw_parameters = vk.TRUE,
+            // .shader_draw_parameters = vk.TRUE,
         };
 
         for (self.requiredExtensions.items) |required| {

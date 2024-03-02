@@ -42,6 +42,7 @@ pub const DrawCommand = @import("papyrus/DrawCommand.zig");
 pub const DrawList = std.ArrayList(DrawCommand);
 
 const core = @import("root").neonwood.core;
+const memory = @import("root").neonwood.memory;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
 const IndexPool = core.IndexPool;
@@ -330,6 +331,8 @@ pub const Context = struct {
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const fallbackFontName: []const u8 = "default";
+        core.engine_logs("PapyrusSystem init");
+        memory.MTPrintStatsDelta();
 
         const defaultMonoName: []const u8 = "monospace";
 
@@ -364,11 +367,19 @@ pub const Context = struct {
             try self.debugText.append(textBuffer);
         }
 
+        core.engine_logs("PapyrusSystem post internal creation");
+        memory.MTPrintStatsDelta();
         self.fallbackFont.atlas.* = try FontAtlas.initDefaultFont(allocator, 64);
         try self.installFontAtlas(self.fallbackFont.name.utf8(), self.fallbackFont.atlas);
 
+        core.engine_logs("fallback font created");
+        memory.MTPrintStatsDelta();
+
         self.defaultMonoFont.atlas.* = try FontAtlas.initMonoFont(allocator, 64);
         try self.installFontAtlas(self.defaultMonoFont.name.utf8(), self.defaultMonoFont.atlas);
+
+        core.engine_logs("monospace font created");
+        memory.MTPrintStatsDelta();
 
         // constructing the root node
         _ = try self.nodes.new(.{

@@ -1,5 +1,6 @@
 const std = @import("std");
 const core = @import("core.zig");
+const memory = @import("memory.zig");
 
 pub const asset_references = @import("assets/asset_references.zig");
 pub const asset_jobs = @import("assets/asset_jobs.zig");
@@ -22,6 +23,9 @@ pub var gAssetSys: *AssetReferenceSys = undefined;
 pub fn start_module(allocator: std.mem.Allocator) void {
     gAssetSys = allocator.create(AssetReferenceSys) catch unreachable;
     gAssetSys.* = AssetReferenceSys.init(allocator);
+
+    core.engine_logs("sound start_module");
+    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {

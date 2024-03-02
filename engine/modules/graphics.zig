@@ -1,5 +1,6 @@
 const core = @import("core.zig");
 const std = @import("std");
+const memory = @import("memory.zig");
 pub const vk_renderer = @import("graphics/vk_renderer.zig");
 const materials = @import("graphics/materials.zig");
 
@@ -71,6 +72,9 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
     debug_draw.init_debug_draw_subsystem() catch unreachable;
+
+    core.engine_logs("graphics start_module");
+    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module() void {

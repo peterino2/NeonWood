@@ -29,9 +29,11 @@ pub const GameContext = struct {
         var self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 1000, .y = 1000 }),
+            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 100, .y = 100 }),
         };
         self.pixelBuffer.clear(core.Color.fromHex(0x101010ff));
+        self.pixelBuffer.getPixel(.{ .x = 42, .y = 42 }).* = core.Color.fromHex(0xFF0000FF);
+        self.pixelBuffer.getPixel(.{ .x = 43, .y = 43 }).* = core.Color.fromHex(0xFF0000FF);
         return self;
     }
 
@@ -255,7 +257,18 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const allocator = std.heap.c_allocator;
+    var args = try nw.getArgs();
+
+    if (args.vulkanValidation) {
+        core.engine_logs("Using vulkan validation");
+    }
+
+    nw.graphics.setStartupSettings("validationLayers", args.vulkanValidation);
+    const memory = nw.memory;
+    memory.MTSetup(std.heap.c_allocator);
+    defer memory.MTShutdown();
+    var tracker = memory.MTGet().?;
+    var allocator = tracker.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" });

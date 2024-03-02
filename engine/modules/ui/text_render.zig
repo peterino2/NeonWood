@@ -3,6 +3,7 @@ const vk = @import("vulkan");
 
 const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
+const memory = @import("../memory.zig");
 const papyrus = @import("papyrus.zig");
 const gpd = graphics.gpu_pipe_data;
 
@@ -320,6 +321,9 @@ pub const TextRenderer = struct {
             .small_limit = 512,
         };
 
+        core.engine_logs("Text renderer init");
+        memory.MTPrintStatsDelta();
+
         self.allocator = self.arena.allocator();
 
         var new = try self.allocator.create(FontAtlasVk);
@@ -330,6 +334,8 @@ pub const TextRenderer = struct {
         try new.prepareFont(defaultName);
         try self.fonts.put(self.allocator, defaultName.handle(), new);
         self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.handle();
+        core.engine_logs("creating font atlas for default");
+        memory.MTPrintStatsDelta();
 
         var newMono = try self.allocator.create(FontAtlasVk);
         newMono.* = try FontAtlasVk.init(self.allocator, self.g);
@@ -341,10 +347,13 @@ pub const TextRenderer = struct {
         try self.fonts.put(self.allocator, monoName.handle(), newMono);
         self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.handle();
 
+        core.engine_logs("creating font atlas for monospace");
+        memory.MTPrintStatsDelta();
+
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
-        for (0..8) |i| {
+        for (0..4) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 8192,
@@ -354,7 +363,10 @@ pub const TextRenderer = struct {
             try self.displays.append(self.allocator, newDisplay);
         }
 
-        for (0..16) |i| {
+        core.engine_logs("large displays created");
+        memory.MTPrintStatsDelta();
+
+        for (0..64) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 512,
@@ -363,6 +375,9 @@ pub const TextRenderer = struct {
             k += 1;
             try self.smallDisplays.append(self.allocator, newDisplay);
         }
+
+        core.engine_logs("small displays created");
+        memory.MTPrintStatsDelta();
 
         return self;
     }

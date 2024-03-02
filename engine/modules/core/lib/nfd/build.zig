@@ -26,5 +26,10 @@ pub fn addLib(b: *std.Build, exe: *std.build.CompileStep, comptime pathPrefix: [
             .file = .{ .path = pathPrefix ++ "/nfd_gtk.c" },
             .flags = &.{},
         });
+        exe.linkSystemLibrary("gdk-3");
+        exe.linkSystemLibrary("atk-1.0");
+        exe.linkSystemLibrary("gtk-3");
+        exe.linkSystemLibrary("glib-2.0");
+        exe.linkSystemLibrary("gobject-2.0");
     }
 }
