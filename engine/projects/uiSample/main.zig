@@ -82,7 +82,8 @@ pub const GameContext = struct {
         ctx.getText(text).textSize = 24;
         ctx.get(text).pos = .{ .x = 32, .y = 64 };
         ctx.get(text).size = .{ .x = 600, .y = 600 };
-        ctx.getText(text).font = ctx.defaultMonoFont;
+        ctx.setFont(text, "bitmap");
+        ctx.getText(text).textSize = 16;
         self.text = text;
 
         try ctx.events.installMouseOverEvent(self.panel, .mouseOver, null, &onMouseOver);
@@ -111,6 +112,7 @@ pub const GameContext = struct {
         for (0..1) |i| {
             _ = i;
             const unk2 = try ctx.addPanel(unk);
+            ctx.setFont(unk2, "bitmap");
             ctx.get(unk2).justify = .Left;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
@@ -127,6 +129,7 @@ pub const GameContext = struct {
 
         for (0..1) |i| {
             const unk2 = try ctx.addPanel(unk);
+            ctx.setFont(unk2, "bitmap");
             ctx.get(unk2).justify = .Center;
             ctx.get(unk2).pos = .{ .x = 10 * @as(f32, @floatFromInt(i)), .y = 0 };
             ctx.get(unk2).size = .{ .x = 200, .y = 75 };
@@ -161,7 +164,8 @@ pub const GameContext = struct {
             const unk2Text = try ctx.addText(unk2, "click me!");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.setFont(unk2Text, "bitmap");
+            ctx.getText(unk2Text).textSize = 16;
         }
 
         const image = try ctx.addPanel(unk);
@@ -173,6 +177,7 @@ pub const GameContext = struct {
         try ctx.events.installOnPressedEvent(imageChangeBtn, .onPressed, .Mouse1, &self.pixelBuffer, &changeImage);
 
         const btn = try ctx.addButton(unk, "select file...");
+        ctx.setFont(btn, "bitmap");
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &onUnk2);
         try ctx.events.uninstallAllEvents(btn);
         try ctx.events.installOnPressedEvent(btn, .onPressed, .Mouse1, null, &openDialog);
@@ -264,8 +269,9 @@ pub fn main() anyerror!void {
     }
 
     nw.graphics.setStartupSettings("validationLayers", args.vulkanValidation);
+
     const memory = nw.memory;
-    memory.MTSetup(std.heap.c_allocator);
+    memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
     var tracker = memory.MTGet().?;
     var allocator = tracker.allocator();

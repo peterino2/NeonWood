@@ -64,5 +64,5 @@ pub fn addUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
 }
 
 pub fn removeUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
-    self.totalAllocSize += allocatedSize;
+    self.totalAllocSize -= allocatedSize;
 }

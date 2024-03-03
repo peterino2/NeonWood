@@ -57,6 +57,7 @@ void main() {
         float alpha = 1.0;
         float gray = dot(color.xyz, vec3(0.2126, 0.7152, 0.0722));
         outFragColor = vec4(color.xyz , pow(tex.x / gray, 1/(2.2)) );//textColor.* alpha);
+        //outFragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
 
     /* debug test.

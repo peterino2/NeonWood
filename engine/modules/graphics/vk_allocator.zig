@@ -21,6 +21,7 @@ pub const AllocationCreateInfo = vma.AllocationCreateInfo;
 pub const NeonVkBuffer = struct {
     buffer: vk.Buffer,
     allocation: vma.Allocation,
+    size: usize,
 
     pub fn deinit(self: *@This(), vkAllocator: *NeonVkAllocator) void {
         vkAllocator.destroyBuffer(self);
@@ -244,6 +245,7 @@ pub const NeonVkAllocator = struct {
             .buffer = NeonVkBuffer{
                 .buffer = results.buffer,
                 .allocation = results.allocation,
+                .size = bci.size,
             },
         };
 
@@ -256,6 +258,9 @@ pub const NeonVkAllocator = struct {
     pub fn destroyBuffer(self: *@This(), buffer: *NeonVkBuffer) void {
         self.mutex.lock();
         defer self.mutex.unlock();
+
+        memory.MTRemoveAllocation(buffer.size);
+
         self.pushDestroy(buffer.allocation);
         self.vmaAllocator.destroyBuffer(buffer.buffer, buffer.allocation);
     }

@@ -5,6 +5,7 @@ const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
 pub const c = @import("c.zig");
+const memory = @import("../memory.zig");
 const graphics = @import("../graphics.zig");
 const vma = @import("vma");
 const core = @import("../core.zig");
@@ -34,11 +35,6 @@ const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 pub const NeonVkBuffer = vk_allocator.NeonVkBuffer;
 pub const NeonVkImage = vk_allocator.NeonVkImage;
-
-// Changes to be made before integrating papyrus UI.
-// - switch draw commands to drawIndex
-// - switch the solo upload context to a queue of upload contexts
-// - unique-queue the renderer.
 
 pub const PixelPos = struct {
     x: u32,
@@ -745,10 +741,8 @@ pub const NeonVkContext = struct {
         );
 
         // todo, defer this texture's destruction by 2 frames.
-        var texRef: *Texture = self.textures.get(textureToUpdate.handle()).?;
-        try self.deferredTextureDestroy.append(self.allocator, texRef);
+        try self.deferredTextureDestroy.append(self.allocator, self.textures.get(textureToUpdate.handle()).?);
         try self.deferredDescriptorsDestroy.append(self.allocator, self.textureSets.get(textureToUpdate.handle()).?);
-
         var results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
 
         try self.textures.put(self.allocator, textureToUpdate.handle(), results.texture);
@@ -1042,14 +1036,6 @@ pub const NeonVkContext = struct {
 
     pub fn init_vma(self: *Self) !void {
         self.vmaFunctions = vma.VulkanFunctions.init(self.instance, self.dev, self.vkb.dispatch.vkGetInstanceProcAddr);
-
-        // self.vmaAllocator = try vma.Allocator.create(.{
-        //     .instance = self.instance,
-        //     .physicalDevice = self.physicalDevice,
-        //     .device = self.dev,
-        //     .frameInUseCount = NumFrames,
-        //     .pVulkanFunctions = &self.vmaFunctions,
-        // });
 
         self.vkAllocator = try NeonVkAllocator.create(
             .{

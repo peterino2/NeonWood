@@ -19,8 +19,13 @@ const BmpWriter = @import("BmpRenderer.zig").BmpWriter;
 name: Name,
 atlas: *FontAtlas,
 
+pub fn setRendererHash(self: *@This(), hash: u32) void {
+    self.atlas.rendererHash = hash;
+}
+
 pub const FontCreateOpts = struct {
     isMonospace: bool = false,
+    isSDF: bool = true,
 };
 
 pub const FontAtlas = struct {
@@ -63,6 +68,10 @@ pub const FontAtlas = struct {
     const defaultFontEmbed = @embedFile("fonts/Roboto-Regular.ttf");
     const defaultMonoEmbed = @embedFile("fonts/FiraMono-Medium.ttf");
 
+    pub fn initDefaultBitmapFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
+        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize, .{ .isSDF = false });
+    }
+
     pub fn initMonoFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
         return try initEmbeddedFont(allocator, defaultMonoEmbed, fontSize, .{ .isMonospace = true });
     }
@@ -78,7 +87,7 @@ pub const FontAtlas = struct {
             .fileContent = fontContent,
             .atlasBuffer = null,
             .fontSize = fontSize,
-            .isSDF = true,
+            .isSDF = opts.isSDF,
             .isEmbedded = true,
             .isMonospace = opts.isMonospace,
         };

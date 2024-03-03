@@ -47,6 +47,7 @@ const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
 const IndexPool = core.IndexPool;
 const Name = core.Name;
+const asserts = core.asserts;
 
 pub const NodeHandle = core.IndexPoolHandle;
 
@@ -274,8 +275,9 @@ pub const Context = struct {
     allocator: std.mem.Allocator,
     nodes: IndexPool(Node),
     fonts: std.AutoHashMap(u32, Font),
-    fallbackFont: Font,
+    defaultFont: Font,
     defaultMonoFont: Font,
+    defaultBitmapFont: Font,
     extent: Vector2i = .{ .x = 1920, .y = 1080 },
     currentCursorPosition: Vector2f = .{},
 
@@ -330,11 +332,9 @@ pub const Context = struct {
     }
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
-        const fallbackFontName: []const u8 = "default";
-        core.engine_logs("PapyrusSystem init");
-        memory.MTPrintStatsDelta();
-
+        const defaultFontName: []const u8 = "default";
         const defaultMonoName: []const u8 = "monospace";
+        const defaultBitmapFontName: []const u8 = "bitmap";
 
         var self = try backingAllocator.create(@This());
         var allocator = backingAllocator;
@@ -345,12 +345,16 @@ pub const Context = struct {
             .nodes = IndexPool(Node).init(allocator),
             .fonts = std.AutoHashMap(u32, Font).init(allocator),
             .events = Event.init(allocator),
-            .fallbackFont = Font{
-                .name = Name.fromUtf8(fallbackFontName),
+            .defaultFont = Font{
+                .name = Name.fromUtf8(defaultFontName),
                 .atlas = try allocator.create(FontAtlas),
             },
             .defaultMonoFont = Font{
                 .name = Name.fromUtf8(defaultMonoName),
+                .atlas = try allocator.create(FontAtlas),
+            },
+            .defaultBitmapFont = Font{
+                .name = Name.fromUtf8(defaultBitmapFontName),
                 .atlas = try allocator.create(FontAtlas),
             },
             .textEntry = try TextEntrySystem.create(self, allocator),
@@ -367,19 +371,24 @@ pub const Context = struct {
             try self.debugText.append(textBuffer);
         }
 
-        core.engine_logs("PapyrusSystem post internal creation");
-        memory.MTPrintStatsDelta();
-        self.fallbackFont.atlas.* = try FontAtlas.initDefaultFont(allocator, 64);
-        try self.installFontAtlas(self.fallbackFont.name.utf8(), self.fallbackFont.atlas);
-
-        core.engine_logs("fallback font created");
-        memory.MTPrintStatsDelta();
+        self.defaultFont.atlas.* = try FontAtlas.initDefaultFont(allocator, 64);
+        try self.installFontAtlas(self.defaultFont.name.utf8(), self.defaultFont.atlas);
 
         self.defaultMonoFont.atlas.* = try FontAtlas.initMonoFont(allocator, 64);
         try self.installFontAtlas(self.defaultMonoFont.name.utf8(), self.defaultMonoFont.atlas);
 
-        core.engine_logs("monospace font created");
-        memory.MTPrintStatsDelta();
+        // this is a 16 px sized default font
+        self.defaultBitmapFont.atlas.* = try FontAtlas.initDefaultBitmapFont(allocator, 16);
+        try self.installFontAtlas(self.defaultBitmapFont.name.utf8(), self.defaultBitmapFont.atlas);
+
+        // difference between asserts and assertf is asserts is not recoverable,
+        // instantly crashes.
+        asserts(
+            self.defaultBitmapFont.atlas.atlasBuffer != null,
+            "expected atlas buffer to be valid {any}",
+            .{self.defaultBitmapFont.atlas.atlasBuffer},
+            @src().fn_name,
+        );
 
         // constructing the root node
         _ = try self.nodes.new(.{
@@ -475,7 +484,7 @@ pub const Context = struct {
                 var text = &(self.nodes.get(handle).?.nodeType.DisplayText);
                 text.font = .{
                     .name = name,
-                    .atlas = (self.fonts.get(name.handle()) orelse self.fonts.get(Name.fromUtf8("default").handle()).?).atlas,
+                    .atlas = (self.fonts.get(name.handle())).?.atlas,
                 };
             },
             .Panel => {
@@ -519,7 +528,7 @@ pub const Context = struct {
             .nodeType = .{ .DisplayText = .{
                 .textSize = 24,
                 .color = Color.White,
-                .font = self.fallbackFont,
+                .font = self.defaultFont,
             } },
         };
         var slot = try self.newNode(slotNode);
@@ -531,7 +540,7 @@ pub const Context = struct {
 
     pub fn addPanel(self: *@This(), parent: NodeHandle) !NodeHandle {
         var slotNode = Node{ .nodeType = .{ .Panel = .{
-            .font = self.fallbackFont.atlas,
+            .font = self.defaultFont.atlas,
             .imageReference = core.NameInvalid,
         } } };
 
@@ -591,7 +600,7 @@ pub const Context = struct {
     pub fn addTextEntry_experimental(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
         var textProperty = NodeProperty_TextEntry{
             .editText = std.ArrayList(u8).init(self.allocator),
-            .font = self.fallbackFont,
+            .font = self.defaultFont,
         };
 
         if (text) |t| {
@@ -612,7 +621,7 @@ pub const Context = struct {
     // helper functions for a whole bunch of shit
     pub fn addButton(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
         var buttonProperty = NodeProperty_Button{
-            .font = self.fallbackFont,
+            .font = self.defaultFont,
         };
 
         var button = try self.nodes.new(.{ .nodeType = .{ .Button = buttonProperty } });

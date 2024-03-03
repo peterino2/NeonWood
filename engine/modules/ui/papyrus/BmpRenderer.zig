@@ -71,7 +71,7 @@ pub fn render(self: *@This()) !void {
             },
             .Text => |t| {
                 var tl = Vector2i.fromVector2(t.tl);
-                self.r.drawText(self.ui.fallbackFont.atlas, tl, t.text, t.color);
+                self.r.drawText(self.ui.defaultFont.atlas, tl, t.text, t.color);
             },
         }
     }
