@@ -38,3 +38,8 @@ pub fn MTPrintStatsDelta() void {
         core.engine_log("allocated size: {d}", .{mt.totalAllocSize});
     }
 }
+
+pub fn PrintStatsWithTag(comptime tag: []const u8) void {
+    core.engine_logs(tag);
+    MTPrintStatsDelta();
+}

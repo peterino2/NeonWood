@@ -8,6 +8,7 @@ const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
 const Texture = @import("texture.zig").Texture;
+const memory = @import("../memory.zig");
 
 const image = @import("../image.zig");
 const PngContents = image.PngContents;
@@ -88,8 +89,14 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
     return try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
 }
 
+inline fn isPowerOfTwo(n: anytype) bool {
+    return n != 0 and (n & (n - 1)) == 0;
+}
+
 pub fn getMiplevelFromSize(size: core.Vector2i) u32 {
     if (size.x != size.y)
+        return 1;
+    if (!isPowerOfTwo(size.x))
         return 1;
     return std.math.log2(@as(u32, @intCast(@max(size.x, size.y)))) + 1;
 }
@@ -103,7 +110,6 @@ pub fn createTextureFromPixels(
     // copy pixels into staging buffer
     var miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
-
     // create image memory resources
     var createdImage = try newVkImage(size, ctx, miplevel);
 
@@ -120,6 +126,7 @@ pub fn createTextureFromPixels(
     );
 
     var imageView = try ctx.vkd.createImageView(ctx.dev, &imageViewCreate, null);
+
     var newTexture = try ctx.allocator.create(Texture);
 
     newTexture.* = Texture{
@@ -144,7 +151,6 @@ pub fn createAndInstallTextureFromPixels(
     ctx: *NeonVkContext,
     useBlocky: bool,
 ) !CreateTextureResults {
-    core.graphics_log("createAndInstallTextureFromPixels: {s}", .{textureName.utf8()});
     var res = try createTextureFromPixels(pixels, size, ctx, useBlocky);
 
     ctx.install_texture_into_registry(textureName, res.texture, res.descriptor) catch return error.UnknownStatePanic;

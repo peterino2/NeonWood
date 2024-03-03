@@ -1,7 +1,7 @@
 struct FontInfo {
   vec2 position; // 8 bytes alignment 0
   vec2 size;     // 8 bytes alignment 8
-  uint isSdf; // 4 bytes 16
+  uint isSdf;    // 4 bytes 16
   uint pad0;     // 4 bytes
   vec2 pad2;     // 8 bytes
 };

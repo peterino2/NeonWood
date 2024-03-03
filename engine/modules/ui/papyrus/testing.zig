@@ -151,7 +151,7 @@ test "Testing a render" {
     rend.baseColor = ColorRGBA8.fromHex(0x888888ff);
     defer rend.deinit();
     rend.setRenderFile("Saved/frame.bmp");
-    try ctx.fallbackFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
+    try ctx.defaultFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
     var panel = try ctx.addPanel(.{});
     ctx.get(panel).style.backgroundColor = ModernStyle.Grey;

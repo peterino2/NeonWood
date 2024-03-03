@@ -23,6 +23,7 @@ pub const FontAtlasVk = struct {
     atlas: *FontAtlas,
     texture: *graphics.Texture = undefined,
     textureSet: vk.DescriptorSet = undefined,
+    fontName: core.Name = undefined,
 
     pub fn deinit(self: @This()) void {
         _ = self;
@@ -58,7 +59,7 @@ pub const FontAtlasVk = struct {
         );
 
         self.atlas.cleanUp();
-
+        self.fontName = fontName;
         self.texture = res.texture;
         self.textureSet = res.descriptor;
     }
@@ -321,21 +322,16 @@ pub const TextRenderer = struct {
             .small_limit = 512,
         };
 
-        core.engine_logs("Text renderer init");
-        memory.MTPrintStatsDelta();
-
         self.allocator = self.arena.allocator();
 
         var new = try self.allocator.create(FontAtlasVk);
         new.* = try FontAtlasVk.init(self.allocator, self.g);
         new.isDefault = true;
-        new.atlas = papyrusCtx.fallbackFont.atlas; // use default font instead of loading a font from text file
+        new.atlas = papyrusCtx.defaultFont.atlas; // use default font instead of loading a font from text file
         const defaultName = core.MakeName("default");
         try new.prepareFont(defaultName);
         try self.fonts.put(self.allocator, defaultName.handle(), new);
-        self.papyrusCtx.fallbackFont.atlas.rendererHash = defaultName.handle();
-        core.engine_logs("creating font atlas for default");
-        memory.MTPrintStatsDelta();
+        self.papyrusCtx.defaultFont.atlas.rendererHash = defaultName.handle();
 
         var newMono = try self.allocator.create(FontAtlasVk);
         newMono.* = try FontAtlasVk.init(self.allocator, self.g);
@@ -347,8 +343,18 @@ pub const TextRenderer = struct {
         try self.fonts.put(self.allocator, monoName.handle(), newMono);
         self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.handle();
 
-        core.engine_logs("creating font atlas for monospace");
-        memory.MTPrintStatsDelta();
+        {
+            var newbitmap = try self.allocator.create(FontAtlasVk);
+            newbitmap.* = try FontAtlasVk.init(self.allocator, self.g);
+            newbitmap.isDefault = true;
+            newbitmap.atlas = papyrusCtx.defaultBitmapFont.atlas;
+
+            const bitmapName = core.MakeName("bitmap");
+
+            try newbitmap.prepareFont(bitmapName);
+            try self.fonts.put(self.allocator, bitmapName.handle(), newbitmap);
+            self.papyrusCtx.defaultBitmapFont.setRendererHash(bitmapName.handle());
+        }
 
         var k: u32 = 0;
         // we can support up to 32 large text displays and 256 small displays
@@ -363,9 +369,6 @@ pub const TextRenderer = struct {
             try self.displays.append(self.allocator, newDisplay);
         }
 
-        core.engine_logs("large displays created");
-        memory.MTPrintStatsDelta();
-
         for (0..64) |i| {
             _ = i;
             var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
@@ -375,9 +378,6 @@ pub const TextRenderer = struct {
             k += 1;
             try self.smallDisplays.append(self.allocator, newDisplay);
         }
-
-        core.engine_logs("small displays created");
-        memory.MTPrintStatsDelta();
 
         return self;
     }

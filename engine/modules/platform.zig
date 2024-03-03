@@ -24,8 +24,9 @@ pub fn getInstance() *windowing.PlatformInstance {
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     gPlatformInstance.deinit();
-    allocator.destroy(gPlatformInstance);
+    // allocator.destroy(gPlatformInstance);
 }
 
 pub const vkLoadFunc = windowing.c.glfwGetInstanceProcAddress;
