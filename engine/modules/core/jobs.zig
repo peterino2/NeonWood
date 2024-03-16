@@ -179,7 +179,6 @@ pub const JobContext = struct {
         var ptr = try allocator.create(CaptureType);
         self.capture.len = @sizeOf(CaptureType);
         self.capture.ptr = @as([*]u8, @ptrCast(ptr));
-        self.captureAlign = @alignOf(CaptureType);
         ptr.* = capture;
         return self;
     }

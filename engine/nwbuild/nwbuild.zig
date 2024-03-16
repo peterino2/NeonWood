@@ -134,7 +134,7 @@ pub const NwBuildSystem = struct {
         opts: ProgramOptions,
     ) *std.build.LibExeObjStep {
         const exe = self.b.addExecutable(.{
-            .name = name,
+            .name = name ++ "-bin",
             .root_source_file = .{ .path = build_root ++ "/root.zig" },
             .target = self.target,
             .optimize = self.optimize,
@@ -150,7 +150,7 @@ pub const NwBuildSystem = struct {
         exe.addModule("main", mainModule);
 
         const install = self.b.addInstallArtifact(exe, .{});
-        self.b.step("build-" ++ name, description).dependOn(&install.step);
+        self.b.step(name, description).dependOn(&install.step);
         //self.b.getInstallStep().dependOn(&install.step);
         //self.b.installArtifact(exe);
         exe.linkLibC();
@@ -194,10 +194,10 @@ pub const NwBuildSystem = struct {
             exe.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
         }
 
-        const buildStep = self.b.step(name, description);
+        const buildStep = self.b.step(name ++ "-bin", "compile the binary for '" ++ name ++ "'");
         buildStep.dependOn(&exe.step);
 
-        const runStep = self.b.step(self.b.fmt("run-{s}", .{name}), description);
+        const runStep = self.b.step(self.b.fmt("run-{s}", .{name}), "build and run '" ++ name ++ "'");
         runStep.dependOn(&runCmd.step);
 
         if (opts.graphicsBackend == .Vulkan) {
