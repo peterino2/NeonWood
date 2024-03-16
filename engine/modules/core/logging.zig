@@ -190,17 +190,16 @@ pub const LoggerSys = struct {
     pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
         self.lock.lock();
         try self.writeOutBuffer.writer().print(fmt, args);
-        const flushBufferLen = self.flushBuffer.items.len;
         self.lock.unlock();
 
-        if (self.writeOutBuffer.items.len > 8192) {
-            if (flushBufferLen == 0) {
-                try self.flush();
-            } else {
-                std.debug.print("write overloaded!! Forcing flush\n", .{});
-                try self.flushWriteBuffer();
-            }
-        }
+        // if (self.writeOutBuffer.items.len > 8192) {
+        //     if (flushBufferLen == 0) {
+        //         try self.flush();
+        //     } else {
+        //         std.debug.print("write overloaded!! Forcing flush\n", .{});
+        //         try self.flushWriteBuffer();
+        //     }
+        // }
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
@@ -211,8 +210,8 @@ pub const LoggerSys = struct {
         var self = try allocator.create(@This());
         self.* = @This(){
             .allocator = allocator,
-            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,
-            .flushBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 2) catch unreachable,
+            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 4) catch unreachable,
+            .flushBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 4) catch unreachable,
             .logFilePath = ofile,
             .logFile = cwd.createFile(ofile, .{}) catch unreachable,
             .consoleFile = std.io.getStdOut(),
@@ -238,10 +237,7 @@ pub const LoggerSys = struct {
             return;
         }
 
-        const i = self.writeOutBuffer.items.len - 1;
-        if (self.writeOutBuffer.items[i] == '\n' or self.writeOutBuffer.items[i] == 0) {
-            self.flush() catch return error.UnknownStatePanic;
-        }
+        self.flush() catch return error.UnknownStatePanic;
     }
 };
 

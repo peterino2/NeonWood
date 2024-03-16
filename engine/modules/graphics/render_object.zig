@@ -134,6 +134,17 @@ fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
     return proj;
 }
 
+// Camera coordinate system:
+//
+// from you as a user, staring at the screen:
+//
+// This is a right handed coordinate system
+//
+// forward = +Z (index finger)
+// left = +X (middle finger)
+// up = +Y (thumb)
+//
+
 pub const Camera = struct {
     fov: f32 = 70.0,
     aspect: f32 = 16.0 / 9.0,
@@ -183,12 +194,12 @@ pub const Camera = struct {
         self.*.position = self.position.add(off);
     }
 
-    pub fn setPositionAndRotationEuler(self: *Camera, position: Vectorf, eulerAngles: Vectorf) void {
-        self.transform = mul(zm.translation(position.x, position.y, position.z), core.matFromEulerAngles(eulerAngles.x, eulerAngles.y, eulerAngles.z));
-    }
-
     pub fn getRotation(self: *Camera) Quat {
         return zm.quatFromMat(self.transform);
+    }
+
+    pub fn setRotationEuler(self: *@This(), x: f32, y: f32, z: f32) void {
+        self.rotation = core.zm.quatFromRollPitchYaw(x, y + core.radians(180.0), z);
     }
 
     pub fn updateCamera(self: *Camera) void {
@@ -197,7 +208,10 @@ pub const Camera = struct {
     }
 
     pub fn resolve(self: *Camera, base: Mat) void {
-        self.transform = mul(base, zm.matFromQuat(self.rotation));
+        self.transform = mul(
+            base,
+            zm.matFromQuat(self.rotation),
+        );
         self.transform = mul(zm.translationV(self.position.fmul(-1).toZm()), self.transform);
         self.final = mul(self.transform, self.projection);
     }

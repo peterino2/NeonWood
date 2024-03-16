@@ -52,6 +52,7 @@ pub const RawInputObjectRef = struct {
 pub const PlatformParams = struct {
     extent: core.Vector2c = .{ .x = 1600, .y = 900 },
     windowName: []const u8 = "sample window",
+    noinit: bool = false,
     icon: []const u8 = "content/textures/icon.png",
 };
 

@@ -28,7 +28,6 @@ const GameContext = struct {
 
     allocator: std.mem.Allocator,
     wakeCount: u32 = 100,
-    jobContext: JobContext,
     timeTilWake: f64 = 2.0,
     count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
     complete: [jobTestCount]bool = std.mem.zeroes([jobTestCount]bool),
@@ -36,58 +35,45 @@ const GameContext = struct {
     reinjectFired: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        var self = allocator.create(@This());
+        var self = try allocator.create(@This());
 
         self.* = Self{
             .allocator = allocator,
-            .jobContext = undefined,
         };
 
         return self;
     }
 
     pub fn prepare(self: *Self) !void {
-        const Wanker = struct {
+        const Payload = struct {
             value: u32 = 42069,
         };
 
-        var wanker = Wanker{};
-
         const Lambda = struct {
             capturedValue: u32 = 43,
-            wanker: Wanker,
+            payload: Payload,
             game: *GameContext,
 
             pub fn func(ctx: @This(), job: *JobContext) void {
-                std.debug.print("nice this is a job: {any}\n", .{ctx.wanker});
+                core.printInner("job started, payload: {any}\n", .{ctx.payload});
                 std.time.sleep(1000 * 1000 * 1000);
                 var v = ctx.game.count.fetchAdd(1, .SeqCst);
-                std.debug.print("job done!{d} {d}\n", .{ ctx.wanker.value, v });
-                ctx.game.complete[@intCast(ctx.wanker.value)] = true;
+                core.printInner("job done!{d} {d}\n", .{ ctx.payload.value, v });
+                ctx.game.complete[@intCast(ctx.payload.value)] = true;
                 _ = job;
             }
         };
 
-        self.jobContext = try JobContext.newJob(
-            std.heap.c_allocator,
-            Lambda{
-                .wanker = wanker,
-                .game = self,
-            },
-        );
-
         var x: u32 = 0;
         while (x < jobTestCount) : (x += 1) {
             core.engine_log("creating job: {d}", .{x});
-            try core.dispatchJob(Lambda{ .wanker = .{ .value = x }, .game = self });
+            try core.dispatchJob(Lambda{ .payload = .{ .value = x }, .game = self });
         }
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
         self.timeElapsed += deltaTime;
-        std.debug.print("ticking\n", .{});
-
-        core.traceFmtDefault("ticking!", .{}) catch unreachable;
+        core.printInner("ticking\n", .{});
 
         if (self.timeTilWake <= 0) {
             self.timeTilWake = 0.5;
@@ -97,12 +83,13 @@ const GameContext = struct {
 
             while (i < jobTestCount) : (i += 1) {
                 var d = @as(u1, @bitCast(self.complete[i]));
-                std.debug.print("{d}", .{d});
+                core.printInner("{d}", .{d});
             }
-            std.debug.print("\n", .{});
+            core.printInner("\n", .{});
             core.engine_logs("endTick");
         }
 
+        // reinjected jobs test.
         const L = struct {
             jobId: usize,
             game: *GameContext,
@@ -145,16 +132,15 @@ const GameContext = struct {
             var i: usize = 0;
             while (i < jobTestCount) : (i += 1) {
                 var d = @as(u1, @bitCast(self.complete[i]));
-                std.debug.print("{d}", .{d});
+                core.printInner("{d}", .{d});
             }
-            std.debug.print("shutting down due to count loaded full\n", .{});
+            core.printInner("shutting down due to count loaded full\n", .{});
 
-            core.gEngine.tracesContext.defaultTrace.printTraceStats(self.allocator);
             core.gEngine.exit();
         }
 
         if (self.wakeCount <= 0) {
-            std.debug.print("shutting down due to wake count zero\n", .{});
+            core.printInner("shutting down due to wake count zero\n", .{});
             core.gEngine.exit();
         }
     }
@@ -169,7 +155,7 @@ pub fn main() anyerror!void {
     defer {
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {
-            std.debug.print("gpa cleanup leaked memory\n", .{});
+            core.printInner("gpa cleanup leaked memory\n", .{});
         }
     }
     const allocator = gpa.allocator();

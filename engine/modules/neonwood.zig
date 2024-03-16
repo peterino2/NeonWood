@@ -49,24 +49,6 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     core.shutdown_module(allocator); // 1
 }
 
-pub fn run_with_context(comptime T: type, input_callback: anytype) !void {
-    var gameContext = try core.createObject(T, .{ .can_tick = true });
-    try gameContext.prepare_game();
-
-    // run the game
-    core.gEngine.run();
-    _ = platform.c.glfwSetKeyCallback(platform.getInstance().window, input_callback);
-
-    while (!core.gEngine.exitConfirmed) {
-        if (gTestFileDialogue) {
-            gTestFileDialogue = false;
-            var x: [*c]u8 = null;
-            _ = core.nfd.c.NFD_PickFolder(".", &x);
-        }
-        graphics.getContext().pollEventsFunc();
-    }
-}
-
 pub fn run_no_input_tickable(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{ .can_tick = true });
     try gameContext.prepare_game();
@@ -84,23 +66,5 @@ pub fn run_no_input_tickable(comptime T: type) !void {
         }
         platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 10);
-    }
-}
-
-pub fn run_no_input(comptime T: type) !void {
-    var gameContext = try core.createObject(T, .{});
-    try gameContext.prepare_game();
-
-    // run the game
-    try core.gEngine.run();
-
-    while (!core.gEngine.exitSignal) {
-        if (gTestFileDialogue) {
-            core.engine_logs("Opening file picker");
-            gTestFileDialogue = false;
-            var x: [*c]u8 = null;
-            _ = core.nfd.c.NFD_PickFolder(".", &x);
-        }
-        platform.getInstance().pollEvents();
     }
 }

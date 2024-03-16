@@ -565,7 +565,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        core.graphics_log("validation_layers: {any}", .{gGraphicsStartupSettings.validationLayers});
+        core.graphics_log("validation_layers: {any}", .{gGraphicsStartupSettings.vulkanValidation});
         core.graphics_log("release_build: {any}", .{build_opts.release_build});
         return create_object(allocator) catch unreachable;
     }
@@ -573,7 +573,7 @@ pub const NeonVkContext = struct {
     // this is the old version
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
-        self.vulkanValidation = gGraphicsStartupSettings.validationLayers;
+        self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
         try self.init_zig_data(allocator);
 
         self.graph = try core.FileLog.init(allocator);
@@ -2044,7 +2044,7 @@ pub const NeonVkContext = struct {
         const icis = vk.InstanceCreateInfo{
             .flags = @bitCast(flagbits),
             .p_application_info = &appInfo,
-            .enabled_layer_count = if (gGraphicsStartupSettings.validationLayers) 1 else 0,
+            .enabled_layer_count = if (gGraphicsStartupSettings.vulkanValidation) 1 else 0,
             .pp_enabled_layer_names = @as([*]const [*:0]const u8, @ptrCast(&ExtraLayers[0])),
             .enabled_extension_count = extensionsCount + 1,
             .pp_enabled_extension_names = @as(?[*]const [*:0]const u8, @ptrCast(&requestedExtensions)) orelse undefined,
@@ -2651,5 +2651,5 @@ pub var gContext: *NeonVkContext = undefined;
 pub var gGraphicsStartupSettings: struct {
     maxObjectCount: u32 = MAX_OBJECTS,
     consoleEnabled: bool = true,
-    validationLayers: bool = true,
+    vulkanValidation: bool = true,
 } = .{};

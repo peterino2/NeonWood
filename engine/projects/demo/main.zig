@@ -44,11 +44,11 @@ pub const GameContext = struct {
     gc: *graphics.NeonVkContext = undefined,
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
-    cameraHorizontalRotationMat: core.Mat,
-    cameraTime: f64 = 0.0,
-    movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0),
-    eulerX: f32 = 0,
-    eulerY: f32 = 0,
+
+    cameraHorizontalRotationMat: core.Mat, // fp camera controls
+    movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
+    eulerX: f32 = 0, // camera controls
+    eulerY: f32 = 0, // camera controls
 
     vulkanValidation: bool = true,
 
@@ -76,9 +76,10 @@ pub const GameContext = struct {
         return self;
     }
 
+    var texName = core.MakeName("t_empire");
+
     pub fn tick(self: *@This(), deltaTime: f64) void {
         if (!self.assetReady) {
-            const texName = core.MakeName("t_empire");
             if (self.gc.textures.contains(texName.handle())) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
@@ -92,15 +93,14 @@ pub const GameContext = struct {
 
         if (!platform.getInstance().cursorEnabled) {
             self.eulerX += dx / 1920;
-            self.eulerY += dy / 1080;
+            self.eulerY -= dy / 1080;
             self.eulerY = std.math.clamp(gGame.eulerY, core.radians(-90.0), core.radians(90.0));
         }
 
         lastXPos = position.x;
         lastYPos = position.y;
 
-        self.cameraTime += deltaTime;
-        self.camera.rotation = core.zm.quatFromRollPitchYaw(self.eulerY, 0, 0);
+        self.camera.setRotationEuler(self.eulerY, 0, 0);
         self.cameraHorizontalRotationMat = core.zm.matFromRollPitchYaw(0, self.eulerX, 0);
 
         var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
@@ -110,7 +110,7 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 1000) : (i += 1) {
+        while (i < 0) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
                 .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
@@ -127,6 +127,8 @@ pub const GameContext = struct {
     }
 
     pub fn tickPanel(self: *@This(), deltaTime: f64) !void {
+        self.movingAverage = (self.movingAverage + deltaTime / 60.0) - self.movingAverage / 60.0;
+
         self.time += deltaTime;
         self.frameCount -= 1;
         if (self.frameCount == 0) {
@@ -137,7 +139,7 @@ pub const GameContext = struct {
                 self.allocator.free(t);
             }
 
-            self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / deltaTime});
+            self.panelText = try std.fmt.allocPrint(self.allocator, "Testing Quality: Lorem Ipsum, fps: {d:.2}", .{1 / self.movingAverage});
             ctx.get(self.panel).text = ui.papyrus.LocText.fromUtf8(self.panelText.?);
         }
 
@@ -210,11 +212,11 @@ pub const GameContext = struct {
             const unk2Text = try ctx.addText(unk2, "click me! \nlmao");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).setSize(.{ .x = 150, .y = 150 });
-            ctx.setFont(unk2Text, "roboto");
+            ctx.setFont(unk2Text, "default");
             ctx.getText(unk2Text).textSize = 12;
         }
 
-        if (self.vulkanValidation) {
+        if (graphics.getStartupSettings().vulkanValidation) {
             const validation = try ctx.addText(.{}, "Vulkan validation: on");
             ctx.get(validation).pos = .{ .x = 20, .y = 20 };
             ctx.get(validation).setSize(.{ .x = 500, .y = 50 });
@@ -295,11 +297,11 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
 
     if (action == c.GLFW_PRESS) {
         if (key == c.GLFW_KEY_W) {
-            gGame.movementInput.z += -1;
+            gGame.movementInput.z += 1;
         }
 
         if (key == c.GLFW_KEY_S) {
-            gGame.movementInput.z += 1;
+            gGame.movementInput.z += -1;
         }
 
         if (key == c.GLFW_KEY_E) {
@@ -311,11 +313,11 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
         }
 
         if (key == c.GLFW_KEY_A) {
-            gGame.movementInput.x += -1;
+            gGame.movementInput.x += 1;
         }
 
         if (key == c.GLFW_KEY_D) {
-            gGame.movementInput.x += 1;
+            gGame.movementInput.x += -1;
         }
 
         if (action == c.GLFW_PRESS) {
@@ -330,11 +332,11 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
     }
     if (action == c.GLFW_RELEASE) {
         if (key == c.GLFW_KEY_W) {
-            gGame.movementInput.z -= -1;
+            gGame.movementInput.z -= 1;
         }
 
         if (key == c.GLFW_KEY_S) {
-            gGame.movementInput.z -= 1;
+            gGame.movementInput.z -= -1;
         }
 
         if (key == c.GLFW_KEY_E) {
@@ -346,11 +348,11 @@ pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, actio
         }
 
         if (key == c.GLFW_KEY_A) {
-            gGame.movementInput.x -= -1;
+            gGame.movementInput.x -= 1;
         }
 
         if (key == c.GLFW_KEY_D) {
-            gGame.movementInput.x -= 1;
+            gGame.movementInput.x -= -1;
         }
         if (key == c.GLFW_KEY_LEFT_ALT) {
             platform.getInstance().setCursorEnabled(true);
@@ -373,7 +375,13 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    var allocator = std.heap.c_allocator;
+    const memory = neonwood.memory;
+
+    memory.MTSetup(std.heap.c_allocator);
+    defer memory.MTShutdown();
+
+    var tracker = memory.MTGet().?;
+    var allocator = tracker.allocator();
 
     engine_log("Starting up", .{});
 
@@ -388,36 +396,13 @@ pub fn main() anyerror!void {
         core.engine_logs("Using vulkan validation");
     }
 
-    graphics.setStartupSettings("validationLayers", args.vulkanValidation);
+    graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    core.start_module(allocator);
-    defer core.shutdown_module(allocator);
-
-    try platform.start_module(allocator, .{ .windowName = "Neonwood: flyaround demo" });
-    defer platform.shutdown_module(allocator);
-
-    assets.start_module(allocator);
-    defer assets.shutdown_module(allocator);
-
-    graphics.start_module(allocator);
-    defer graphics.shutdown_module();
-
-    audio.start_module(allocator);
-    defer audio.shutdown_module();
-
-    try ui.start_module(allocator);
-    defer ui.shutdown_module();
-
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
-    gameContext.vulkanValidation = args.vulkanValidation;
-    try gameContext.prepare_game();
-
-    try core.gEngine.run();
+    try neonwood.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
+    defer neonwood.shutdown_everything(allocator);
 
     _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
-    while (!core.gEngine.exitConfirmed) {
-        neonwood.platform.getInstance().pollEvents();
-    }
+    try neonwood.run_no_input_tickable(GameContext);
 }

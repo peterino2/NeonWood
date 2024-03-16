@@ -89,6 +89,10 @@ pub fn setStartupSettings(comptime field: []const u8, value: anytype) void {
     @field(vk_renderer.gGraphicsStartupSettings, field) = value;
 }
 
+pub fn getStartupSettings() *const @TypeOf(vk_renderer.gGraphicsStartupSettings) {
+    return &vk_renderer.gGraphicsStartupSettings;
+}
+
 pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     core.engine_log("loading path {s}", .{path});
     const search_prefixes: []const []const u8 = &.{

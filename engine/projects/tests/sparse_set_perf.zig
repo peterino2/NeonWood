@@ -24,7 +24,7 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
     defer testMap.deinit();
     var i: usize = 0;
     while (i < TestSize) : (i += 1) {
-        try testMap.put(@intCast(u32, i), .{});
+        try testMap.put(@as(u32, @intCast(i)), .{});
     }
     // core.engine_logs("hashmap prep finished");
     i = 0;
@@ -35,12 +35,12 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
         const startTime = timer.read();
         // random access for 1M.
         while (i < AccessCount) : (i += 1) {
-            var id = @intCast(u32, i % TestSize);
+            var id = @as(u32, @intCast(i % TestSize));
             testMap.getEntry(id).?.value_ptr.*.touchCount += 1;
         }
         const endTime = timer.read();
-        core.engine_log("hashMap: {d} accesses executed in {d}s", .{ AccessCount, (@intToFloat(f64, endTime - startTime) / 1000000000) });
-        hashMapTime = @intToFloat(f64, endTime - startTime) / 1000000000;
+        core.engine_log("hashMap: {d} accesses executed in {d}s", .{ AccessCount, (@as(f64, @floatFromInt(endTime - startTime)) / 1000000000) });
+        hashMapTime = @as(f64, @floatFromInt(endTime - startTime)) / 1000000000;
 
         // sequential access
         // repetition access
@@ -68,8 +68,8 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
             testSet.get(handlesList.items[i % TestSize], .obj).?.*.touchCount += 1;
         }
         const endTime = timer.read();
-        core.engine_log("sparseSet: {d} accesses executed in {d}s", .{ AccessCount, (@intToFloat(f64, endTime - startTime) / 1000000000) });
-        sparseSetTime = @intToFloat(f64, endTime - startTime) / 1000000000;
+        core.engine_log("sparseSet: {d} accesses executed in {d}s", .{ AccessCount, (@as(f64, @floatFromInt(endTime - startTime)) / 1000000000) });
+        sparseSetTime = @as(f64, @floatFromInt(endTime - startTime)) / 1000000000;
     }
 
     core.engine_log("sparseSet is {d} times faster than hashmap", .{hashMapTime / sparseSetTime});

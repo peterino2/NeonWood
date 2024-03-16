@@ -268,7 +268,7 @@ pub fn main() anyerror!void {
         core.engine_logs("Using vulkan validation");
     }
 
-    nw.graphics.setStartupSettings("validationLayers", args.vulkanValidation);
+    nw.graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
     const memory = nw.memory;
     memory.MTSetup(gpa.allocator());
