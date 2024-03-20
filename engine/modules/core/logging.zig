@@ -192,14 +192,14 @@ pub const LoggerSys = struct {
         try self.writeOutBuffer.writer().print(fmt, args);
         self.lock.unlock();
 
-        // if (self.writeOutBuffer.items.len > 8192) {
-        //     if (flushBufferLen == 0) {
-        //         try self.flush();
-        //     } else {
-        //         std.debug.print("write overloaded!! Forcing flush\n", .{});
-        //         try self.flushWriteBuffer();
-        //     }
-        // }
+        if (self.writeOutBuffer.items.len > 8192) {
+            if (self.flushBuffer.items.len == 0) {
+                try self.flush();
+            } else {
+                std.debug.print("write overloaded!! Forcing flush\n", .{});
+                try self.flushWriteBuffer();
+            }
+        }
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {

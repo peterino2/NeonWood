@@ -36,7 +36,7 @@ pub const Engine = struct {
     eventors: ArrayListUnmanaged(NeonObjectRef),
     exitListeners: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
-    jobManager: JobManager,
+    jobManager: *JobManager,
 
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
@@ -55,7 +55,7 @@ pub const Engine = struct {
             .tickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
-            .jobManager = JobManager.init(allocator),
+            .jobManager = try JobManager.create(allocator),
             .eventors = .{},
             .frameNumber = 0,
             .exitListeners = .{},
@@ -66,7 +66,7 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.jobManager.deinit();
+        self.jobManager.destroy();
         for (self.rttiObjects.items) |item| {
             if (item.vtable.deinit_func) |deinitFn| {
                 deinitFn(item.ptr);

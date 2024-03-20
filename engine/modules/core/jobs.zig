@@ -14,8 +14,10 @@ pub const JobManager = struct {
     workers: []*JobWorker,
     numCpus: usize,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        var self = JobManager{
+    pub fn create(allocator: std.mem.Allocator) !*@This() {
+        var self = try allocator.create(@This());
+
+        self.* = JobManager{
             .allocator = allocator,
             .numCpus = std.Thread.getCpuCount() catch 4,
             .jobQueue = RingQueueU(JobContext).init(allocator, 4096) catch unreachable,
@@ -29,6 +31,7 @@ pub const JobManager = struct {
         while (i < self.workers.len) : (i += 1) {
             self.workers[i] = JobWorker.init(self.allocator, i) catch unreachable;
             self.workers[i].workerId = i;
+            self.workers[i].manager = self;
         }
 
         return self;
@@ -36,33 +39,44 @@ pub const JobManager = struct {
 
     pub fn newJob(self: *@This(), capture: anytype) !void {
         const Lambda = @TypeOf(capture);
-        // 1. create a job context;
-        // this context is destroyed by the worker thread after it completes.
-        // todo: Job contexts should be part of a fast bump allocation.
-        // or some custom allocator that
         var ctx = try JobContext.new(self.allocator, Lambda, capture);
-        // core.engine_logs("trying to create job");
-        // 2. find a worker and pass it the job context if available
-        for (self.workers) |worker| {
-            if (!worker.isBusy()) {
-                try worker.assignContext(ctx);
-                worker.manager = self;
-                return;
-            }
-        }
 
-        // 3. otherwise it goes on the RingQueue
         self.mutex.lock();
         try self.jobQueue.push(ctx);
         self.mutex.unlock();
+
+        for (self.workers) |worker| {
+            if (!worker.isBusy()) {
+                worker.wake();
+                break;
+            }
+        }
     }
 
-    pub fn deinit(self: *@This()) void {
+    pub fn destroy(self: *@This()) void {
         for (self.workers) |worker| {
             worker.deinit();
         }
         self.allocator.free(self.workers);
+
+        self.clearJobs();
+
         self.jobQueue.deinit(self.allocator);
+        self.allocator.destroy(self);
+    }
+
+    pub fn clearJobs(self: *@This()) void {
+        var jobCtx: ?JobContext = null;
+        self.mutex.lock();
+        jobCtx = self.jobQueue.pop();
+        self.mutex.unlock();
+
+        while (jobCtx) |*c| {
+            c.deinit();
+            self.mutex.lock();
+            jobCtx = self.jobQueue.pop();
+            self.mutex.unlock();
+        }
     }
 };
 
@@ -116,7 +130,7 @@ pub const JobWorker = struct {
             if (self.currentJobContext != null) {
                 self.busy.store(true, .SeqCst);
                 var ctx = self.currentJobContext.?;
-                ctx.func(ctx.capture.ptr, &ctx);
+                ctx.func(ctx.capture, &ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
                 self.busy.store(false, .SeqCst);
@@ -131,6 +145,10 @@ pub const JobWorker = struct {
                 }
                 self.manager.?.mutex.unlock();
             }
+        }
+
+        if (self.currentJobContext) |*ctx| {
+            ctx.deinit();
         }
     }
 
@@ -147,41 +165,10 @@ pub const JobContext = struct {
 
     allocator: std.mem.Allocator, //todo, backed arena allocator would be sick for this.
     func: *const fn (*anyopaque, *JobContext) void, // todo, add an error for job funcs
-    capture: []u8 = undefined,
+    capture: *anyopaque = undefined,
     destroyFunc: *const fn (*anyopaque, std.mem.Allocator) void,
 
     const align8_struct = struct { size: u64 };
-
-    pub fn newJob(allocator: std.mem.Allocator, capture: anytype) !JobContext {
-        const CaptureType = @TypeOf(capture);
-        if (!@hasDecl(CaptureType, "func")) {
-            return error.NoValidLambda;
-        }
-
-        const Wrap = struct {
-            pub fn wrappedFunc(pointer: *anyopaque, context: *JobContext) void {
-                var ptr = @as(*CaptureType, @ptrCast(@alignCast(pointer)));
-                ptr.func(context);
-            }
-
-            pub fn wrappedDestroy(ptr: *anyopaque, alloc: std.mem.Allocator) void {
-                var p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
-                alloc.destroy(p);
-            }
-        };
-
-        var self = Self{
-            .allocator = allocator,
-            .func = Wrap.wrappedFunc,
-            .destroyFunc = Wrap.wrappedDestroy,
-        };
-
-        var ptr = try allocator.create(CaptureType);
-        self.capture.len = @sizeOf(CaptureType);
-        self.capture.ptr = @as([*]u8, @ptrCast(ptr));
-        ptr.* = capture;
-        return self;
-    }
 
     pub fn new(allocator: std.mem.Allocator, comptime CaptureType: type, capture: CaptureType) !JobContext {
         if (!@hasDecl(CaptureType, "func")) {
@@ -204,19 +191,14 @@ pub const JobContext = struct {
             .allocator = allocator,
             .func = Wrap.wrappedFunc,
             .destroyFunc = Wrap.wrappedDestroy,
+            .capture = try allocator.create(CaptureType),
         };
-
-        var ptr = try allocator.create(CaptureType);
-        self.capture.len = @sizeOf(CaptureType);
-        self.capture.ptr = @as([*]u8, @ptrCast(ptr));
+        var ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
         ptr.* = capture;
         return self;
     }
 
     pub fn deinit(self: *Self) void {
-        // need to use the size to do an anonymous destroy
-        //self.allocator.destroy(self.capture.ptr);
-        // self.allocator.free(self.capture);
-        self.destroyFunc(self.capture.ptr, self.allocator);
+        self.destroyFunc(self.capture, self.allocator);
     }
 };
