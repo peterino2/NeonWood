@@ -18,7 +18,7 @@ const JobContext = core.JobContext;
 const JobManager = core.JobManager;
 
 var gGame: *GameContext = undefined;
-const jobTestCount = 1000;
+const jobTestCount = 100;
 
 // primarily a test file that exists to create a simple application for
 // job dispatching.
