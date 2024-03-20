@@ -195,14 +195,10 @@ pub const JobContext = struct {
         };
         var ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
         ptr.* = capture;
-
-        std.debug.print("allocating capture @0x{x}\n", .{@intFromPtr(self.capture)});
-
         return self;
     }
 
     pub fn deinit(self: *Self) void {
-        std.debug.print("destroying capture @0x{x}\n", .{@intFromPtr(self.capture)});
         self.destroyFunc(self.capture, self.allocator);
     }
 };
