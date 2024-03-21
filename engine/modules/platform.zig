@@ -15,7 +15,7 @@ pub fn start_module(allocator: std.mem.Allocator, params: windowing.PlatformPara
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
     try gPlatformInstance.setup();
-    core.engine_logs("platform start_module");
+    core.engine_log("platform start_module @ 0x{x}", .{@intFromPtr(gPlatformInstance)});
     memory.MTPrintStatsDelta();
 }
 
@@ -25,8 +25,15 @@ pub fn getInstance() *windowing.PlatformInstance {
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
+    core.engine_logs("destroying platform");
     gPlatformInstance.deinit();
-    // allocator.destroy(gPlatformInstance);
+    //allocator.destroy(gPlatformInstance);
+}
+
+pub fn shutdown_module2(allocator: std.mem.Allocator) void {
+    core.engine_logs("destroying platform");
+    gPlatformInstance.deinit();
+    allocator.destroy(gPlatformInstance);
 }
 
 pub const vkLoadFunc = windowing.c.glfwGetInstanceProcAddress;

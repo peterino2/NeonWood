@@ -255,7 +255,9 @@ const ipsum =
 ;
 
 pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
     defer {
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {
@@ -279,5 +281,5 @@ pub fn main() anyerror!void {
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
     defer nw.shutdown_everything(allocator);
-    try nw.run_no_input_tickable(GameContext);
+    try nw.run_everything(GameContext);
 }

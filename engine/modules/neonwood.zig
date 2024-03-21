@@ -21,17 +21,9 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
-var gTestFileDialogue: bool = false;
-
-pub fn testFileDialogue() void {
-    core.engine_logs("testing");
-    gTestFileDialogue = true;
-}
-
 pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams) !void {
     graphics.setWindowName(params.windowName);
     core.engine_log("Starting up", .{});
-
     core.start_module(allocator); // 1
     try platform.start_module(std.heap.c_allocator, params); // 2
     assets.start_module(allocator); // 3
@@ -49,21 +41,13 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     core.shutdown_module(allocator); // 1
 }
 
-pub fn run_no_input_tickable(comptime T: type) !void {
+pub fn run_everything(comptime T: type) !void {
     var gameContext = try core.createObject(T, .{ .can_tick = true });
     try gameContext.prepare_game();
 
-    // run the game
     try core.gEngine.run();
 
     while (!core.gEngine.exitConfirmed) {
-        if (gTestFileDialogue) {
-            core.engine_logs("Opening file picker");
-            gTestFileDialogue = false;
-            var x: [*c]u8 = null;
-            _ = core.nfd.c.NFD_PickFolder("C:\\", &x);
-            core.engine_log("selected folder: {s}", .{x});
-        }
         platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 10);
     }

@@ -18,7 +18,7 @@ const JobContext = core.JobContext;
 const JobManager = core.JobManager;
 
 var gGame: *GameContext = undefined;
-const jobTestCount = 100;
+const jobTestCount = 1000;
 
 // primarily a test file that exists to create a simple application for
 // job dispatching.
@@ -56,7 +56,7 @@ const GameContext = struct {
 
             pub fn func(ctx: @This(), job: *JobContext) void {
                 core.printInner("job started, payload: {any}\n", .{ctx.payload});
-                std.time.sleep(1000 * 1000 * 1000);
+                std.time.sleep(1000 * 1000 * 100);
                 var v = ctx.game.count.fetchAdd(1, .SeqCst);
                 core.printInner("job done!{d} {d}\n", .{ ctx.payload.value, v });
                 ctx.game.complete[@intCast(ctx.payload.value)] = true;
@@ -148,11 +148,18 @@ const GameContext = struct {
     pub fn shutdown(self: *Self) void {
         _ = self;
     }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.destroy(self);
+    }
 };
 
 pub fn main() anyerror!void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
     defer {
+        core.printInner("shutting down gpa", .{});
         const cleanupStatus = gpa.deinit();
         if (cleanupStatus == .leak) {
             core.printInner("gpa cleanup leaked memory\n", .{});
@@ -164,6 +171,7 @@ pub fn main() anyerror!void {
     defer core.shutdown_module(allocator);
 
     try neonwood.platform.start_module(allocator, .{ .windowName = "jobTest" });
+    defer neonwood.platform.shutdown_module2(allocator);
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });
