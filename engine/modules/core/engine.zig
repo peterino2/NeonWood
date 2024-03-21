@@ -66,17 +66,28 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
+
         for (self.rttiObjects.items) |item| {
             if (item.vtable.deinit_func) |deinitFn| {
                 deinitFn(item.ptr);
             }
         }
+
+        core.engine_logs("destroying engine objects");
         self.rttiObjects.deinit(self.allocator);
+
+        core.engine_logs("destroying eventors");
         self.eventors.deinit(self.allocator);
+
+        core.engine_logs("destroying tickables");
         self.tickables.deinit(self.allocator);
-        self.exitListeners.deinit(self.allocator);
         self.nfdRuntime.destroy();
+
+        core.engine_logs("calling onexit listeners");
+        self.exitListeners.deinit(self.allocator);
+        self.allocator.destroy(self);
     }
 
     // creates an engine object using the engine's allocator.

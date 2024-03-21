@@ -126,7 +126,6 @@ pub const LoggerSys = struct {
     logFile: std.fs.File,
     consoleFile: std.fs.File,
     lock: std.Thread.Mutex = .{},
-    flushLock: std.Thread.Mutex = .{},
     flushing: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false),
 
     pub fn flush(self: *@This()) !void {
@@ -134,7 +133,6 @@ pub const LoggerSys = struct {
         defer z.End();
 
         self.lock.lock();
-        self.flushLock.lock();
 
         if (!self.flushing.load(.Acquire)) {
             self.flushing.store(true, .SeqCst);
@@ -158,33 +156,30 @@ pub const LoggerSys = struct {
             //self.flushWriteBuffer();
         }
 
-        self.flushLock.unlock();
         self.lock.unlock();
     }
 
     pub fn shutdownFlush(self: *@This()) !void {
-        try self.flush();
+        while (self.flushing.load(.SeqCst)) {}
 
-        self.flushLock.lock();
-        try self.logFile.writer().writeAll(self.writeOutBuffer.items);
-        try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
-        self.flushLock.unlock();
+        // try self.logFile.writer().writeAll(self.writeOutBuffer.items);
+        // try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
     }
 
     pub fn flushWriteBuffer(self: *@This()) !void {
-        self.flushLock.lock();
+        self.lock.lock();
         try self.logFile.writer().writeAll(self.writeOutBuffer.items);
         try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
         self.writeOutBuffer.clearRetainingCapacity();
-        self.flushLock.unlock();
+        self.lock.unlock();
     }
 
     pub fn flushFromJob(self: *@This()) !void {
-        self.flushLock.lock();
+        self.lock.lock();
         try self.logFile.writer().writeAll(self.flushBuffer.items);
         try self.consoleFile.writer().writeAll(self.flushBuffer.items);
         self.flushBuffer.clearRetainingCapacity();
-        self.flushLock.unlock();
+        self.lock.unlock();
     }
 
     pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
@@ -196,7 +191,6 @@ pub const LoggerSys = struct {
             if (self.flushBuffer.items.len == 0) {
                 try self.flush();
             } else {
-                std.debug.print("write overloaded!! Forcing flush\n", .{});
                 try self.flushWriteBuffer();
             }
         }
@@ -242,11 +236,17 @@ pub const LoggerSys = struct {
 };
 
 pub fn forceFlush() void {
-    gLoggerSys.?.flushWriteBuffer() catch {};
+    if (gLoggerSys != null) {
+        gLoggerSys.?.flushWriteBuffer() catch {};
+    }
 }
 
 pub fn setupLogging(engine: *core.Engine) !void {
     gLoggerSys = try engine.createObject(LoggerSys, .{
         .responds_to_events = true,
     });
+}
+
+pub fn shutdownLogging() void {
+    gLoggerSys = null;
 }

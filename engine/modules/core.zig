@@ -62,11 +62,12 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    algorithm.destroyNameRegistry();
+    _ = allocator;
     logs("core module shutting down...");
-    logging.forceFlush();
+    logging.shutdownLogging();
+
+    algorithm.destroyNameRegistry();
     gEngine.deinit();
-    allocator.destroy(gEngine);
     return;
 }
 

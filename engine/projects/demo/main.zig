@@ -404,5 +404,5 @@ pub fn main() anyerror!void {
     _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
-    try neonwood.run_no_input_tickable(GameContext);
+    try neonwood.run_everything(GameContext);
 }

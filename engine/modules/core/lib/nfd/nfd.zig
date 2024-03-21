@@ -128,10 +128,3 @@ pub const NFDRuntime = struct {
         self.allocator.destroy(self);
     }
 };
-
-//
-//
-// results = core.getFileSelection();
-//
-//
-//

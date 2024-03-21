@@ -292,6 +292,15 @@ pub const NeonVkPhysicalDeviceInfo = struct {
     }
 };
 
+pub const DestructionLambda = struct {
+    func: *const fn (self: *NeonVkContext, ctx: ?*anyopaque) void,
+    ctx: ?*anyopaque,
+
+    pub fn exec(self: @This(), gc: *NeonVkContext) void {
+        self.func(gc, self.ctx);
+    }
+};
+
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
@@ -415,6 +424,8 @@ pub const NeonVkContext = struct {
 
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
+    destructionQueue: ArrayListUnmanaged(DestructionLambda),
+
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -505,6 +516,7 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
+        self.destructionQueue = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.requiredExtensions = .{};
@@ -570,11 +582,23 @@ pub const NeonVkContext = struct {
         return create_object(allocator) catch unreachable;
     }
 
+    pub fn pushDestruction(self: *@This(), comptime L: type, ctx: ?*anyopaque) !void {
+        try self.destructionQueue.append(self.allocator, .{ .func = L.func, .ctx = ctx });
+    }
+
     // this is the old version
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
         self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
         try self.init_zig_data(allocator);
+
+        try self.pushDestruction(struct {
+            pub fn func(s: *NeonVkContext, ctx: ?*anyopaque) void {
+                _ = ctx;
+                _ = s;
+                core.engine_logs("destruction finished");
+            }
+        }, null);
 
         self.graph = try core.FileLog.init(allocator);
         try self.graph.write("digraph G {{\n", .{});
@@ -2545,6 +2569,12 @@ pub const NeonVkContext = struct {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
         std.time.sleep(1000 * 1000 * 25);
+
+        var i: isize = @intCast(self.destructionQueue.items.len - 1);
+        while (i >= 0) : (i -= 1) {
+            var dlambda = self.destructionQueue.items[@intCast(i)];
+            dlambda.exec(self);
+        }
 
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
