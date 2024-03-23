@@ -110,9 +110,9 @@ If the data going into your engine is in the best format for describing your con
 
 This runs counter to various larger mainstream game engines' philosophies of providing ultra-flexible tooling for designers and artists. Flexibility magnifies code complexity by orders of magnitude because non technical staff are now responsible for technical decisions while being expected to remain flexible to changing business and design requirements.
 
-This works at AAA companies because of the manpower available and it keeps lots of people engaged which is great.
+This works at AAA companies because of the manpower available, and it allows people with incredible talent to specialize and bring out the best possible in every facet of their craft.
 
-But smaller shops must be as data driven as possible when it comes to describing content. To my knowledge there are very few game engines out there that make it easy during design time to specify data requirements and low level systems implementations.
+But smaller shops must be far more judicious. To my knowledge there are very few game engines out there that make it easy during design time to specify data requirements and low level systems implementations.
 
 These newer engines like bevy come close but still not quite to the degree that I'm thinking of.
 
@@ -122,6 +122,8 @@ Provide baseline common features such as rendering, physics, graphics, low level
 
 and allow the game programmers to implement systems for their specific game that crunch data for their specific game.
 
+That is, the engine should be just a framework for your core programmming team to specify their runtime and data requirements.
+
 
 ## Libraries and packages used
 
@@ -130,7 +132,6 @@ and allow the game programmers to implement systems for their specific game that
 * [zmath](https://github.com/michal-z/zig-gamedev/tree/main/libs/zmath)
 * [vulkan-zig bindings by snektron](https://github.com/Snektron/vulkan-zig)
 * [miniaudio](https://github.com/mackron/miniaudio)
-* [dear imgui / cimgui](https://github.com/cimgui/cimgui)
 
 ### Cognesia Game
 
