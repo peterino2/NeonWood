@@ -22,10 +22,10 @@ can get my hands on.
 
 ## Building
 
-A couple of sample programs ship with the integration branch. They include a
-multithreaded job dispatch test, an imgui test with support for docking.
+`Note: if you want to build, latest integration does not contain the game cognesia,
+cognesia is only available on the archive v0.0.0 branch.`
 
-And the gamejam game `cognesia`.
+A couple of sample programs ship with the integration branch.
 
 All executables are built under zig-out/bin
 
@@ -66,16 +66,6 @@ make real and playable games, and prefer to drive feature development by making 
 * Custom sprite animation system with support for footsteps and animation montage events
 * The most ghetto collision and boundary detection system you've ever seen.
 * All story content was created in a single afternoon.
-
-
-## Building
-
-`Note: if you want to build, latest integration does not contain the game cognesia,
-cognesia is only available on the archive v0.0.0 branch.`
-
-build flags for shipping with any moderately recent zig 0.11 version:
-
-`zig build -Drelease-safe -Dtarget=x86_64-windows`
 
 ## Dependencies
 
