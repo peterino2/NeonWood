@@ -76,7 +76,7 @@ for me right now. Its highly unlikely that my linux build works exceptionally we
 
 I would reccomend compiling and packaging on a linux system directly rather than attempting to cross compile from a windows machine or such.
 
-* Get latest from: [](https://packages.lunarg.com/)
+* Get latest sdk from: [Lunarg packages](https://packages.lunarg.com/)
 
 mesa-common-dev is also needed for creating cross platform packages on linux
 
