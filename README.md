@@ -108,7 +108,7 @@ To produce content in a timely manner you can either throw tons of people at the
 
 If the data going into your engine is in the best format for describing your content, then production will go smoothly.
 
-This runs counter to various larger mainstream game engines' philosophies of providing ultra-flexible tooling for designers and artists. Flexibility magnifies code complexity by orders of magnitude because non technical staff are now responsible for technical decisions.
+This runs counter to various larger mainstream game engines' philosophies of providing ultra-flexible tooling for designers and artists. Flexibility magnifies code complexity by orders of magnitude because non technical staff are now responsible for technical decisions while being expected to remain flexible to changing business and design requirements.
 
 This works at AAA companies because of the manpower available and it keeps lots of people engaged which is great.
 
