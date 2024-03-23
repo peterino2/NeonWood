@@ -37,8 +37,7 @@ to play cognesia from source, run:
 ```{bash}
 git clone https://github.com/peterino2/NeonWood.git --recursive && cd NeonWood
 cd engine
-zig build -fstage1 -Drelease-safe
-./zig-out/bin/cognesia.exe
+zig build install
 ```
 
 ## Engine Highlights
