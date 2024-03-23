@@ -29,11 +29,6 @@ A couple of sample programs ship with the integration branch.
 
 All executables are built under zig-out/bin
 
-If you're on windows build_and_package.bat will create a package bundle for
-cognesia under source
-
-to play cognesia from source, run:
-
 ```{bash}
 git clone https://github.com/peterino2/NeonWood.git --recursive && cd NeonWood
 cd engine
