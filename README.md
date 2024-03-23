@@ -70,6 +70,9 @@ make real and playable games, and prefer to drive feature development by making 
 
 ## Building
 
+`Note: if you want to build, latest integration does not contain the game cognesia,
+cognesia is only available on the archive v0.0.0 branch.`
+
 build flags for shipping with any moderately recent zig 0.11 version:
 
 `zig build -Drelease-safe -Dtarget=x86_64-windows`
