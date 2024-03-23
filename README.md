@@ -74,6 +74,8 @@ make real and playable games, and prefer to drive feature development by making 
 I will be perfectly honest I do not game on linux and the general ecosystem there seems quite difficult to understand.
 for me right now. Its highly unlikely that my linux build works exceptionally well for cross compiling.
 
+I would reccomend compiling and packaging on a linux system directly rather than attempting to cross compile from a windows machine or such.
+
 * Get latest from: [](https://packages.lunarg.com/)
 
 mesa-common-dev is also needed for creating cross platform packages on linux
