@@ -89,6 +89,12 @@ sudo apt update
 sudo apt install vulkan-sdk
 ```
 
+### Macos
+
+TODO: engine builds on macos, but need to add instructions here.
+
+Requires moltenvk, vulkan ICD and VULKAN_SDK to be set.
+
 ### Organization, Architecture
 
 The codebase will heavily leverage build.zig as it's master build system.
