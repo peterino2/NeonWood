@@ -227,7 +227,9 @@ pub const GameContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        _ = self;
+        if (self.panelText != null)
+            self.allocator.free(self.panelText.?);
+        self.allocator.destroy(self);
     }
 };
 
@@ -377,7 +379,8 @@ pub fn main() anyerror!void {
     }
     const memory = neonwood.memory;
 
-    memory.MTSetup(std.heap.c_allocator);
+    //memory.MTSetup(std.heap.c_allocator);
+    memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;

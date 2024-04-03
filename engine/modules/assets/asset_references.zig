@@ -84,6 +84,7 @@ pub const AssetLoaderInterface = struct {
     assetType: core.Name,
     loadAsset: *const fn (*anyopaque, AssetRef, ?AssetPropertiesBag) AssetLoaderError!void,
     destroy: *const fn (*anyopaque, std.mem.Allocator) void,
+    discardAll: *const fn (*anyopaque) void,
 
     pub fn from(comptime assetType: core.Name, comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -94,6 +95,11 @@ pub const AssetLoaderInterface = struct {
             ) AssetLoaderError!void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 try ptr.loadAsset(assetRef, properties);
+            }
+
+            pub fn discardAll(pointer: *anyopaque) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                ptr.discardAll();
             }
 
             pub fn destroy(
@@ -120,6 +126,7 @@ pub const AssetLoaderInterface = struct {
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .loadAsset = wrappedFuncs.loadAsset,
+            .discardAll = wrappedFuncs.discardAll,
             .destroy = wrappedFuncs.destroy,
             .assetType = assetType,
         };
@@ -137,6 +144,10 @@ pub const AssetLoaderRef = struct {
         try self.vtable.loadAsset(self.target, asset, propertiesBag);
     }
 
+    pub fn discardAll(self: @This()) void {
+        self.vtable.discardAll(self.target);
+    }
+
     pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
         self.vtable.destroy(self.target, allocator);
     }
@@ -145,11 +156,13 @@ pub const AssetLoaderRef = struct {
 pub const AssetReferenceSys = struct {
     loaders: std.AutoHashMapUnmanaged(u32, AssetLoaderRef),
     allocator: std.mem.Allocator,
+    outstandingAssetJobs: std.atomic.Atomic(i32),
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         return @This(){
             .loaders = .{},
             .allocator = allocator,
+            .outstandingAssetJobs = std.atomic.Atomic(i32).init(0),
         };
     }
 
@@ -162,7 +175,12 @@ pub const AssetReferenceSys = struct {
         });
     }
 
-    pub fn loadRef(self: @This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
+    pub fn loadRef(self: *@This(), asset: AssetRef, propertiesBag: ?AssetPropertiesBag) !void {
+        if (core.getEngine().isShuttingDown())
+            return;
+
+        _ = self.outstandingAssetJobs.fetchAdd(1, .Acquire);
+
         var z = tracy.ZoneN(@src(), "AssetReferenceSys LoadRef");
         if (propertiesBag) |props| {
             core.engine_log("loading asset {s} ({s}) [{s}]", .{ asset.name.utf8(), asset.assetType.utf8(), props.path });
@@ -178,5 +196,6 @@ pub const AssetReferenceSys = struct {
         while (iter.next()) |i| {
             i.destroy(self.allocator);
         }
+        self.loaders.deinit(self.allocator);
     }
 };

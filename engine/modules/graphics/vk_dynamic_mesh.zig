@@ -45,6 +45,7 @@ pub const DynamicMeshManager = struct {
     pub fn deinit(self: *@This()) void {
         self.uploader.deinit();
         self.dynMeshes.deinit(self.allocator);
+        self.allocator.destroy(self);
     }
 
     pub fn addDynamicMesh(self: *@This(), dynamicMesh: *DynamicMesh) !void {

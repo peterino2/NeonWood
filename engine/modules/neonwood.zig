@@ -47,7 +47,7 @@ pub fn run_everything(comptime T: type) !void {
 
     try core.gEngine.run();
 
-    while (!core.gEngine.exitConfirmed) {
+    while (!core.gEngine.exitFinished()) {
         platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 10);
     }

@@ -26,16 +26,20 @@ pub const TextureLoader = struct {
         stagingResults: vk_utils.LoadAndStageImage,
         assetRef: assets.AssetRef,
         properties: assets.AssetPropertiesBag,
+
+        pub fn deinit(self: *@This(), gc: *NeonVkContext) void {
+            self.stagingResults.deinit(gc.vkAllocator);
+        }
     };
 
     gc: *NeonVkContext,
     assetsReady: core.RingQueue(StagedTextureDescription),
+    discarding: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, props: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
-        // core.engine_log("async loading texture asset {s}", .{assetRef.path});
-
-        // _ = self.gc.create_standard_texture_from_file(assetRef.name, assetRef.path) catch return error.UnableToLoad;
-        // self.gc.make_mesh_image_from_texture(assetRef.name, .{ .useBlocky = assetRef.properties.textureUseBlockySampler }) catch return error.UnableToLoad;
+        if (self.discarding.load(.SeqCst)) {
+            return;
+        }
 
         var z = tracy.ZoneN(@src(), "TextureLoader loadAsset");
         const Lambda = struct {
@@ -44,8 +48,7 @@ pub const TextureLoader = struct {
             gc: *NeonVkContext,
             properties: assets.AssetPropertiesBag,
 
-            pub fn func(ctx: @This(), currentWorker: *core.JobContext) void {
-                _ = currentWorker;
+            pub fn func(ctx: @This(), _: *core.JobContext) void {
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
                 var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
@@ -63,9 +66,11 @@ pub const TextureLoader = struct {
 
                 z1.End();
                 ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
+                _ = ctx.gc.outstandingJobsCount.fetchSub(1, .SeqCst);
             }
         };
 
+        _ = self.gc.outstandingJobsCount.fetchAdd(1, .SeqCst);
         core.dispatchJob(Lambda{
             .loader = self,
             .gc = self.gc,
@@ -120,6 +125,19 @@ pub const TextureLoader = struct {
         }
     }
 
+    pub fn discardAll(self: *@This()) void {
+        self.discarding.store(true, .SeqCst);
+        core.graphics_log("discarding {d} outstanding jobs", .{self.assetsReady.count()});
+
+        self.assetsReady.lock();
+        defer self.assetsReady.unlock();
+
+        while (self.assetsReady.popFromUnlocked()) |assetReady| {
+            var copy = assetReady;
+            StagedTextureDescription.deinit(&copy, self.gc);
+        }
+    }
+
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         var self = try allocator.create(@This());
         self.* = .{
@@ -157,6 +175,11 @@ pub const MeshLoader = struct {
         _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
     }
 
+    pub fn discardAll(self: *@This()) void {
+        // totally synchronous, nothing to do for a discard
+        _ = self;
+    }
+
     pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
         allocator.destroy(self);
     }
@@ -175,4 +198,10 @@ pub fn init_loaders(allocator: std.mem.Allocator) !void {
 
     try assets.gAssetSys.registerLoader(gTextureLoader);
     try assets.gAssetSys.registerLoader(gMeshLoader);
+}
+
+// submit an abort message to TextureLoader and MeshLoader
+pub fn discardAll() void {
+    gTextureLoader.discardAll();
+    gMeshLoader.discardAll();
 }

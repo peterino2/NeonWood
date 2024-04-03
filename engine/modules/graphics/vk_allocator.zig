@@ -120,6 +120,7 @@ pub const NeonVkAllocator = struct {
     }
 
     pub fn destroyPipelineLayout(self: *@This(), dev: vk.Device, layout: vk.PipelineLayout) void {
+        self.allocator.free(self.livePipelines.get(@intFromEnum(layout)).?);
         _ = self.livePipelines.remove(@intFromEnum(layout));
         self.vkd.destroyPipelineLayout(dev, layout, null);
     }
@@ -343,5 +344,6 @@ pub const NeonVkAllocator = struct {
 
         self.livePipelines.deinit();
         self.vmaAllocator.destroy();
+        self.allocator.destroy(self);
     }
 };
