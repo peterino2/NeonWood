@@ -283,6 +283,7 @@ pub const DebugDrawSubsystem = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.pipeData.deinit(self.allocator, self.gc);
         self.allocator.destroy(self);
     }
 };

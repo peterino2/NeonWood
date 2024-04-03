@@ -37,6 +37,10 @@ pub const SoundLoader = struct {
         };
     }
 
+    pub fn discardAll(self: *@This()) void {
+        _ = self;
+    }
+
     pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
         allocator.destroy(self);
     }
@@ -139,6 +143,7 @@ pub const NeonSoundEngine = struct {
         self.sounds.deinit(self.allocator);
         // c.ma_engine_uninit(self.engine);
         self.allocator.destroy(self.engine);
+        self.allocator.destroy(self);
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) void {

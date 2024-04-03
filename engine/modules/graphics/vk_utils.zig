@@ -9,6 +9,9 @@ const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
 const Texture = @import("texture.zig").Texture;
 const memory = @import("../memory.zig");
+const vk_allocator = @import("vk_allocator.zig");
+
+const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 
 const image = @import("../image.zig");
 const PngContents = image.PngContents;
@@ -47,6 +50,11 @@ pub const LoadAndStageImage = struct {
     stagingBuffer: NeonVkBuffer,
     image: NeonVkImage,
     mipLevel: u32 = 0,
+
+    pub fn deinit(self: *@This(), vkAllocator: *NeonVkAllocator) void {
+        vkAllocator.destroyBuffer(&self.stagingBuffer);
+        vkAllocator.destroyImage(&self.image);
+    }
 };
 
 pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {

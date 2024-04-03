@@ -12,6 +12,7 @@ const core = @import("../core.zig");
 const assets = @import("../assets.zig");
 const tracy = core.tracy;
 const vk_constants = @import("vk_constants.zig");
+const vk_assetLoaders = @import("vk_assetLoaders.zig");
 const vk_pipeline = @import("vk_pipeline.zig");
 pub const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
 const mesh = @import("mesh.zig");
@@ -324,6 +325,8 @@ pub const NeonVkContext = struct {
     vki: vk_constants.InstanceDispatch,
     vkd: vk_constants.DeviceDispatch,
 
+    outstandingJobsCount: std.atomic.Atomic(u32),
+
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
     physicalDevice: vk.PhysicalDevice,
@@ -524,6 +527,8 @@ pub const NeonVkContext = struct {
         for (required_device_extensions) |required| {
             try self.requiredExtensions.append(self.allocator, required);
         }
+
+        self.outstandingJobsCount = std.atomic.Atomic(u32).init(0);
 
         self.platformInstance = platform.getInstance();
     }
@@ -2568,7 +2573,14 @@ pub const NeonVkContext = struct {
     pub fn shutdown(self: *Self) void {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
-        std.time.sleep(1000 * 1000 * 25);
+
+        while (self.outstandingJobsCount.load(.SeqCst) > 0) {
+            std.debug.print("count = {d}", .{self.outstandingJobsCount.load(.SeqCst)});
+            std.time.sleep(1000 * 1000 * 25);
+        }
+
+        // clean out any existing assets in the assets ready queue
+        vk_assetLoaders.discardAll();
 
         var i: isize = @intCast(self.destructionQueue.items.len - 1);
         while (i >= 0) : (i -= 1) {
@@ -2622,6 +2634,11 @@ pub const NeonVkContext = struct {
         self.enumeratedPhysicalDevices.deinit();
         self.graph.deinit();
         self.requiredExtensions.deinit(self.allocator);
+
+        self.renderObjectsByMaterial.deinit(self.allocator);
+        self.commandBuffers.deinit();
+        self.destructionQueue.deinit(self.allocator);
+        self.materials.deinit(self.allocator);
     }
 
     /// ---------- renderObject functions

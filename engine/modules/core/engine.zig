@@ -10,6 +10,7 @@ const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
 const nfd = @import("lib/nfd/nfd.zig");
 
+const Atomic = std.atomic.Atomic;
 const RttiDataEventError = rtti.RttiDataEventError;
 
 const Name = p2.Name;
@@ -26,8 +27,8 @@ const engine_log = logging.engine_log;
 pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
 
 pub const Engine = struct {
-    exitSignal: bool,
-    exitConfirmed: bool = false,
+    exitSignal: Atomic(bool) = Atomic(bool).init(false),
+    exitConfirmed: Atomic(bool) = Atomic(bool).init(false),
 
     allocator: std.mem.Allocator,
 
@@ -50,7 +51,6 @@ pub const Engine = struct {
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
             .allocator = allocator,
-            .exitSignal = false,
             .rttiObjects = .{},
             .tickables = .{},
             .deltaTime = 0.0,
@@ -161,14 +161,14 @@ pub const Engine = struct {
                 _ = job;
 
                 tracy.SetThreadName("Systems Thread");
-                while (!ctx.engine.exitSignal) {
+                while (!ctx.engine.exitSignal.load(.SeqCst)) {
                     ctx.engine.tick() catch unreachable;
                 }
                 for (ctx.engine.exitListeners.items) |ref| {
                     ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
                 }
 
-                ctx.engine.exitConfirmed = true;
+                ctx.engine.exitConfirmed.store(true, .SeqCst);
             }
         };
         try core.dispatchJob(L{ .engine = self });
@@ -177,7 +177,7 @@ pub const Engine = struct {
     }
 
     fn mainLoop(self: *@This()) !void {
-        while (!self.exitConfirmed) {
+        while (!self.exitConfirmed.load(.Acquire)) {
             if (self.platformPollFunc) |pollFunc| {
                 try pollFunc(self.platformPollCtx);
             }
@@ -189,7 +189,15 @@ pub const Engine = struct {
     }
 
     pub fn exit(self: *@This()) void {
-        self.exitSignal = true;
+        self.exitSignal.store(true, .Release);
+    }
+
+    pub fn isShuttingDown(self: *@This()) bool {
+        return self.exitSignal.load(.Monotonic);
+    }
+
+    pub fn exitFinished(self: *@This()) bool {
+        return self.exitConfirmed.load(.Monotonic);
     }
 };
 
