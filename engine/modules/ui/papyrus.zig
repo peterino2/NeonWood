@@ -416,6 +416,8 @@ pub const Context = struct {
     pub fn deinit(self: *@This()) void {
         self.mousePick.deinit();
 
+        self.textEntry.destroy();
+
         var iter = self.fonts.iterator();
         while (iter.next()) |i| {
             i.value_ptr.atlas.deinit();
@@ -429,6 +431,7 @@ pub const Context = struct {
         self._layout.deinit(self.allocator);
         self._layoutNodes.deinit(self.allocator);
         self._layoutPositions.deinit(self.allocator);
+        self._displayLayout.deinit(self.allocator);
 
         for (self.debugText.items) |text| {
             self.allocator.free(text);

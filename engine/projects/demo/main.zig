@@ -227,7 +227,8 @@ pub const GameContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.allocator.free(self.panelText);
+        if (self.panelText != null)
+            self.allocator.free(self.panelText.?);
         self.allocator.destroy(self);
     }
 };

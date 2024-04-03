@@ -278,12 +278,12 @@ pub const DebugDrawSubsystem = struct {
         for (self.mappedBuffers) |*mapped| {
             mapped.unmap(self.gc);
         }
+        self.gc.allocator.free(self.mappedBuffers);
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
     }
 
     pub fn deinit(self: *@This()) void {
-        self.pipeData.deinit(self.allocator, self.gc);
         self.allocator.destroy(self);
     }
 };

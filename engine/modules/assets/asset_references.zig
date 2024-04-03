@@ -196,5 +196,6 @@ pub const AssetReferenceSys = struct {
         while (iter.next()) |i| {
             i.destroy(self.allocator);
         }
+        self.loaders.deinit(self.allocator);
     }
 };

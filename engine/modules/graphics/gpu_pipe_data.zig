@@ -87,7 +87,6 @@ pub const GpuPipeDataBinding = struct {
             var gpuMappingData: GpuMappingData(MappingType) = .{
                 .objects = mapping,
                 .trueObjectSize = self.objectSize,
-                // .raw = .{ .data = @ptrCast[]u8, mapping), .allocation = self.buffers[frameIndex].allocation },
                 .raw = .{ .data = dataMapping, .allocation = self.buffers[frameIndex].allocation },
             };
 

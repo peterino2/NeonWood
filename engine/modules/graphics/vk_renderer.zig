@@ -2635,6 +2635,8 @@ pub const NeonVkContext = struct {
         self.graph.deinit();
         self.requiredExtensions.deinit(self.allocator);
 
+        self.rendererPlugins.deinit(self.allocator);
+
         self.renderObjectsByMaterial.deinit(self.allocator);
         self.commandBuffers.deinit();
         self.destructionQueue.deinit(self.allocator);

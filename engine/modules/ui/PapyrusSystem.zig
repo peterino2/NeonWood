@@ -581,8 +581,12 @@ pub fn shutdown(self: *@This()) void {
     for (self.textImageBuffers) |*mapped| {
         mapped.unmap(self.gc);
     }
+    self.drawCommands.deinit();
 
     self.quad.deinit(self.gc);
+    self.allocator.destroy(self.quad);
+    self.gc.allocator.free(self.mappedBuffers);
+    self.gc.allocator.free(self.textImageBuffers);
 
     self.textRenderer.deinit(self.allocator);
 
