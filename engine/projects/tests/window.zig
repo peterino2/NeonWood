@@ -7,7 +7,7 @@ pub fn main() !void {
     core.start_module(allocator);
     try nw.platform.start_module(allocator, .{ .windowName = "window test" });
 
-    while (!core.gEngine.exitConfirmed) {
+    while (!core.gEngine.exitConfirmed.load(.Monotonic)) {
         nw.platform.getInstance().pollEvents();
         std.time.sleep(1000 * 1000 * 25);
     }

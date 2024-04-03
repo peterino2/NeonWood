@@ -181,5 +181,5 @@ pub fn main() anyerror!void {
     // run the game
     try core.gEngine.run();
 
-    while (!core.gEngine.exitSignal) {}
+    while (!core.gEngine.exitSignal.load(.Monotonic)) {}
 }

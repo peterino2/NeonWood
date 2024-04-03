@@ -86,6 +86,10 @@ pub fn setupEnginePoll(ctx: *anyopaque, func: engine.PollFuncFn) void {
     gEngine.platformPollCtx = ctx;
 }
 
+pub fn signalShutdown() void {
+    gEngine.exit();
+}
+
 pub fn getEngine() *Engine {
     return gEngine;
 }
