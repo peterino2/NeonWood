@@ -42,6 +42,7 @@ pub const GameContext = struct {
             self.allocator.free(text);
         }
         self.pixelBuffer.deinit(self.allocator);
+        self.allocator.destroy(self);
     }
 
     pub fn tick(self: *@This(), dt: f64) void {

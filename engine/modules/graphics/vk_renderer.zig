@@ -2575,9 +2575,11 @@ pub const NeonVkContext = struct {
         core.forceFlush();
 
         while (self.outstandingJobsCount.load(.SeqCst) > 0) {
-            std.debug.print("count = {d}", .{self.outstandingJobsCount.load(.SeqCst)});
+            std.debug.print("outstanding jobs: count = {d}\r", .{self.outstandingJobsCount.load(.SeqCst)});
             std.time.sleep(1000 * 1000 * 25);
         }
+
+        std.debug.print("\n", .{});
 
         // clean out any existing assets in the assets ready queue
         vk_assetLoaders.discardAll();

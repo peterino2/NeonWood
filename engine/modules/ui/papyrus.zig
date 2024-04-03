@@ -414,6 +414,16 @@ pub const Context = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        for (0..self.nodes.count()) |i| {
+            var maybeNode = self.nodes.indexToHandle(i);
+            if (maybeNode) |node| {
+                var n = self.nodes.active.items[i];
+                if (n.?.nodeType == .TextEntry) {
+                    NodeProperty_TextEntry.tearDown(self, node);
+                }
+            }
+        }
+
         self.mousePick.deinit();
 
         self.textEntry.destroy();
