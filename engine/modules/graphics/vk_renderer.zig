@@ -27,6 +27,9 @@ const vk_allocator = @import("vk_allocator.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
 
+const vk_renderer_camera_gpu = @import("vk_renderer/vk_renderer_camera_gpu.zig");
+const NeonVkCameraDataGpu = vk_renderer_camera_gpu.NeonVkCameraDataGpu;
+
 const RendererInterface = vk_renderer_interface.RendererInterface;
 const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
@@ -79,13 +82,6 @@ const RenderObjectSet = core.SparseMultiSet(
 );
 
 const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
-
-pub const NeonVkCameraDataGpu = struct {
-    view: Mat,
-    proj: Mat,
-    viewproj: Mat,
-    position: Vectorf,
-};
 
 pub const NeonVkSceneDataGpu = struct {
     fogColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
@@ -1177,32 +1173,31 @@ pub const NeonVkContext = struct {
         z2.End();
 
         // resolve the current state of the camera
-        var projection_matrix: Mat = core.zm.identity();
-        var position: Vectorf = .{};
+        // var projection_matrix: Mat = core.zm.identity();
+        // var position: Vectorf = .{};
+
         if (self.cameraRef != null) {
-            projection_matrix = self.cameraRef.?.final;
-            position = self.cameraRef.?.position;
+            vk_renderer_camera_gpu.memcpyCameraDataToStagedBuffer(self.cameraRef.?, data);
+        } else {
+            vk_renderer_camera_gpu.uploadNullCameraToBuffer(data);
         }
 
-        var cameraData = NeonVkCameraDataGpu{
-            .proj = core.zm.identity(),
-            .view = core.zm.identity(),
-            .viewproj = projection_matrix,
-            .position = position,
-        };
+        // var cameraData = NeonVkCameraDataGpu{
+        //     .proj = core.zm.identity(),
+        //     .view = core.zm.identity(),
+        //     .viewproj = projection_matrix,
+        //     .position = position,
+        // };
 
-        var z3 = tracy.ZoneN(@src(), "Uploading");
+        // var dataSlice: []u8 = undefined;
+        // dataSlice.ptr = data;
+        // dataSlice.len = @sizeOf(NeonVkCameraDataGpu);
 
-        var dataSlice: []u8 = undefined;
-        dataSlice.ptr = data;
-        dataSlice.len = @sizeOf(NeonVkCameraDataGpu);
+        // var inputSlice: []const u8 = undefined;
+        // inputSlice.ptr = @as([*]const u8, @ptrCast(&cameraData));
+        // inputSlice.len = @sizeOf(NeonVkCameraDataGpu);
 
-        var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @as([*]const u8, @ptrCast(&cameraData));
-        inputSlice.len = @sizeOf(NeonVkCameraDataGpu);
-
-        @memcpy(dataSlice, inputSlice);
-        z3.End();
+        // @memcpy(dataSlice, inputSlice);
 
         var z4 = tracy.ZoneN(@src(), "unmapping");
         self.vkAllocator.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);

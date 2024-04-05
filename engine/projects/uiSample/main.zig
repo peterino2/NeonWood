@@ -57,7 +57,7 @@ pub const GameContext = struct {
                 core.signalShutdown();
             }
 
-            self.testTimeline.tick(dt);
+            // self.testTimeline.tick(dt);
         }
 
         if (self.time > 5.0) {
