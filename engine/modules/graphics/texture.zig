@@ -10,7 +10,15 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 const NeonVkImage = vk_renderer.NeonVkImage;
 
-pub const PixelPos = vk_renderer.PixelPos;
+pub const PixelPos = struct {
+    x: u32,
+    y: u32,
+
+    /// returns y/x of the pixel position
+    pub fn ratio(self: @This()) f32 {
+        return @as(f32, @floatFromInt(self.y)) / @as(f32, @floatFromInt(self.x));
+    }
+};
 
 // This is a simple display texture
 pub const Texture = struct {

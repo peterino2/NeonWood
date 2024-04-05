@@ -24,6 +24,11 @@ const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
 const platform = @import("../platform.zig");
 const vk_allocator = @import("vk_allocator.zig");
+const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
+pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
+
+const RendererInterface = vk_renderer_interface.RendererInterface;
+const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
@@ -37,80 +42,11 @@ const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 pub const NeonVkBuffer = vk_allocator.NeonVkBuffer;
 pub const NeonVkImage = vk_allocator.NeonVkImage;
 
-pub const PixelPos = struct {
-    x: u32,
-    y: u32,
-
-    /// returns y/x of the pixel position
-    pub fn ratio(self: @This()) f32 {
-        return @as(f32, @floatFromInt(self.y)) / @as(f32, @floatFromInt(self.x));
-    }
-};
-
 fn vkCast(comptime T: type, handle: anytype) T {
     return @as(T, @ptrCast(@as(?*anyopaque, @ptrFromInt(@as(usize, @intCast(@intFromEnum(handle)))))));
 }
 
 const ObjectHandle = core.ObjectHandle;
-const MakeTypeName = core.MakeTypeName;
-
-pub const RendererInterfaceRef = core.InterfaceRef(RendererInterface);
-
-// RendererInterfaceVTable
-pub const RendererInterface = struct {
-    typeName: Name,
-    typeSize: usize,
-    typeAlign: usize,
-
-    preDraw: *const fn (*anyopaque, frameId: usize) void,
-    onBindObject: *const fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
-    postDraw: ?*const fn (*anyopaque, vk.CommandBuffer, usize, f64) void,
-
-    pub fn from(comptime TargetType: type) @This() {
-        const wrappedFuncs = struct {
-            pub fn preDraw(pointer: *anyopaque, frameId: usize) void {
-                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.preDraw(frameId);
-            }
-
-            pub fn onBindObject(pointer: *anyopaque, objectHandle: ObjectHandle, objectIndex: usize, cmd: vk.CommandBuffer, frameIndex: usize) void {
-                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.onBindObject(objectHandle, objectIndex, cmd, frameIndex);
-            }
-
-            pub fn postDraw(pointer: *anyopaque, cmd: vk.CommandBuffer, frameIndex: usize, deltaTime: f64) void {
-                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                ptr.postDraw(cmd, frameIndex, deltaTime);
-            }
-        };
-
-        inline for (.{ "preDraw", "onBindObject" }) |declName| {
-            if (!@hasDecl(TargetType, declName)) {
-                @compileError(
-                    std.fmt.comptimePrint(
-                        "Tried to Generate {s} for type {s} but it's missing {s}",
-                        .{ @typeName(@This()), @typeName(TargetType), declName },
-                    ),
-                );
-            }
-        }
-
-        var self = @This(){
-            .typeName = MakeTypeName(TargetType),
-            .typeSize = @sizeOf(TargetType),
-            .typeAlign = @alignOf(TargetType),
-            .preDraw = wrappedFuncs.preDraw,
-            .onBindObject = wrappedFuncs.onBindObject,
-            .postDraw = null,
-        };
-
-        if (@hasDecl(TargetType, "postDraw")) {
-            self.postDraw = wrappedFuncs.postDraw;
-        }
-
-        return self;
-    }
-};
 
 // Aliases
 const Vector4f = core.Vector4f;
@@ -2553,13 +2489,7 @@ pub const NeonVkContext = struct {
             self.textures.deinit(self.allocator);
         }
 
-        {
-            // var iter = self.textureSets.iterator();
-            // while (iter.next()) |i| {
-            //     self.allocator.destroy(i.value_ptr.*);
-            // }
-            self.textureSets.deinit(self.allocator);
-        }
+        self.textureSets.deinit(self.allocator);
     }
 
     fn destroy_uploaders(self: *@This()) void {
