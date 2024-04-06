@@ -1172,38 +1172,28 @@ pub const NeonVkContext = struct {
         var data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
         z2.End();
 
-        // resolve the current state of the camera
-        // var projection_matrix: Mat = core.zm.identity();
-        // var position: Vectorf = .{};
-
+        // ==== upload camera data ====
         if (self.cameraRef != null) {
             vk_renderer_camera_gpu.memcpyCameraDataToStagedBuffer(self.cameraRef.?, data);
         } else {
             vk_renderer_camera_gpu.uploadNullCameraToBuffer(data);
         }
 
-        // var cameraData = NeonVkCameraDataGpu{
-        //     .proj = core.zm.identity(),
-        //     .view = core.zm.identity(),
-        //     .viewproj = projection_matrix,
-        //     .position = position,
-        // };
-
-        // var dataSlice: []u8 = undefined;
-        // dataSlice.ptr = data;
-        // dataSlice.len = @sizeOf(NeonVkCameraDataGpu);
-
-        // var inputSlice: []const u8 = undefined;
-        // inputSlice.ptr = @as([*]const u8, @ptrCast(&cameraData));
-        // inputSlice.len = @sizeOf(NeonVkCameraDataGpu);
-
-        // @memcpy(dataSlice, inputSlice);
-
         var z4 = tracy.ZoneN(@src(), "unmapping");
         self.vkAllocator.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);
         z4.End();
     }
 
+    // resume here ---
+    //
+    // go through draw() step by step and filter out everything
+    // needed in this thing to encode into vkrendererstate and vkrenderersystem
+    //
+    // also seperate a system such as papyrussystem and papyrus text renderer
+    // into what they are right now, and split out all the vulkan
+    // specific stuff into a seperate object type and double buffer vulkan
+    // commands.
+    //
     pub fn acquire_next_frame(self: *Self) !void {
         var z1 = tracy.Zone(@src());
         z1.Name("waiting for frame");

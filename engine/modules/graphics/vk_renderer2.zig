@@ -3,11 +3,12 @@ const core = @import("../core.zig");
 const graphics = @import("../graphics.zig");
 
 // 
-const VkRendererSystem {
+const VkRendererSystem = struct{
+    commandBufferFences: ArrayListU().size(2),
     
     // engine object
     
-    pub fn tick() 
+    pub fn tick()  void
     {
     }
 
@@ -21,5 +22,6 @@ const VkRendererSystem {
     
 };
 
-const VkRendererState {
+const VkRendererState = struct{
+    cameraGpu: NeonVkCameraDataGpu,
 };
