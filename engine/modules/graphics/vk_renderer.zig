@@ -5,6 +5,7 @@ const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
 pub const c = @import("c.zig");
+const VkRenderThread = @import("vk_renderer/VkRenderThread.zig");
 const memory = @import("../memory.zig");
 const graphics = @import("../graphics.zig");
 const vma = @import("vma");
@@ -361,6 +362,8 @@ pub const NeonVkContext = struct {
 
     destructionQueue: ArrayListUnmanaged(DestructionLambda),
 
+    renderThread: *VkRenderThread,
+
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -433,7 +436,6 @@ pub const NeonVkContext = struct {
         self.swapchain = .null_handle;
         self.nextFrameIndex = 0;
         self.rendererTime = 0;
-        self.exitSignal = false;
         self.shouldShowDebug = false;
         self.mode = 0;
         self.firstFrame = true;
@@ -592,7 +594,24 @@ pub const NeonVkContext = struct {
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut("renderer_graph.viz");
 
+        // destruction queue is availbe from this point
+        try self.createRenderThread();
+
         return self;
+    }
+
+    pub fn createRenderThread(self: *@This()) !void {
+        try self.vkd.deviceWaitIdle(self.dev);
+        self.renderThread = try VkRenderThread.create(self);
+        try self.renderThread.setup();
+
+        try self.pushDestruction(struct {
+            pub fn func(s: *NeonVkContext, ctx: ?*anyopaque) void {
+                _ = ctx;
+                s.renderThread.deinit();
+                core.graphics_log("tearing down render thread");
+            }
+        }, null);
     }
 
     pub fn postInit(self: *@This()) core.RttiDataEventError!void {
@@ -1110,13 +1129,6 @@ pub const NeonVkContext = struct {
         core.graphics_logs("Finishing up pipeline creation");
     }
 
-    pub fn shouldExit(self: Self) !bool {
-        if (self.exitSignal)
-            return true;
-
-        return false;
-    }
-
     pub fn getNextSwapImage(self: *Self) !u32 {
         var z1 = tracy.ZoneN(@src(), "Acquiring Next image");
         var image_index = (try self.vkd.acquireNextImageKHR(
@@ -1145,14 +1157,9 @@ pub const NeonVkContext = struct {
 
         core.gScene.updateTransforms();
         self.sceneManager.update(self) catch unreachable;
-        // self.dynamicMeshManager.tickUpdates() catch unreachable;
 
         self.draw(dt) catch unreachable;
-        // self.dynamicMeshManager.finishUpload() catch unreachable;
-
-        if (self.shouldExit() catch unreachable) {
-            core.gEngine.exit();
-        }
+        self.dynamicMeshManager.finishUpload() catch unreachable;
     }
 
     // convert game state into some intermediate graphics data.
@@ -1193,7 +1200,6 @@ pub const NeonVkContext = struct {
     // into what they are right now, and split out all the vulkan
     // specific stuff into a seperate object type and double buffer vulkan
     // commands.
-    //
     pub fn acquire_next_frame(self: *Self) !void {
         var z1 = tracy.Zone(@src());
         z1.Name("waiting for frame");
@@ -1261,7 +1267,8 @@ pub const NeonVkContext = struct {
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
         if (!self.isMinimized) {
-            try self.acquire_next_frame();
+            self.renderThread.requestDraw();
+            // try self.acquire_next_frame();
 
             try self.pre_frame_update();
             var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
@@ -1302,7 +1309,6 @@ pub const NeonVkContext = struct {
 
                 try self.init_or_recycle_swapchain();
                 try self.init_framebuffers();
-                // c.setFontScale(@intCast(c_int, self.actual_extent.width), @intCast(c_int, self.actual_extent.height));
             }
 
             if (w <= 0 or h <= 0) {
@@ -1313,7 +1319,7 @@ pub const NeonVkContext = struct {
 
             self.firstFrame = false;
 
-            std.time.sleep(1000 * 1000);
+            std.time.sleep(32 * 1000 * 1000);
         }
 
         self.firstFrame = false;
