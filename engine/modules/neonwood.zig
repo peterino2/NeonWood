@@ -13,6 +13,7 @@ const c = graphics.c;
 pub const NwArgs = struct {
     useGPA: bool = false,
     vulkanValidation: bool = true,
+    fastTest: bool = false,
 };
 
 pub fn getArgs() !NwArgs {

@@ -35,7 +35,7 @@ pub const DynamicMeshManager = struct {
         self.* = @This(){
             .gc = gc,
             .allocator = gc.allocator,
-            .uploader = try NeonVkUploader.init(gc),
+            .uploader = try NeonVkUploader.init(gc, "dynamic mesh manager uploader"),
         };
 
         core.graphics_log("creating the mesh manager", .{});

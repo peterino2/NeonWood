@@ -20,6 +20,7 @@ pub const GameContext = struct {
     fps: NodeHandle = .{},
     panel: NodeHandle = .{},
     time: f64 = 0,
+    testTime: f64 = 0,
 
     fpsText: ?[]u8 = null,
 
@@ -48,6 +49,17 @@ pub const GameContext = struct {
     pub fn tick(self: *@This(), dt: f64) void {
         self.time += dt;
 
+        if (self.testTime > 0) {
+            self.testTime -= dt;
+            std.debug.print("test running {d}\r", .{self.testTime});
+            if (self.testTime <= 0) {
+                core.engine_logs("shutting down everything");
+                core.signalShutdown();
+            }
+
+            // self.testTimeline.tick(dt);
+        }
+
         if (self.time > 5.0) {
             self.time = 0;
         }
@@ -64,6 +76,10 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *@This()) !void {
+        if (gAutomaticTest) {
+            self.testTime = 10.0;
+        }
+
         try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "content/textures/singleSpriteTest.png"));
 
         var ctx = ui.getContext();
@@ -255,6 +271,8 @@ const ipsum =
     \\ Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Integer tristique turpis et bibendum interdum. Sed ut viverra sem. Phasellus et sapien quis odio euismod hendrerit sit amet id purus. Ut convallis ac elit nec convallis. Nunc interdum sed elit id mollis. Nullam molestie pretium pretium. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Vestibulum congue orci ut metus lacinia, non gravida odio tristique. Aliquam.
 ;
 
+var gAutomaticTest: bool = false;
+
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 20,
@@ -266,6 +284,8 @@ pub fn main() anyerror!void {
         }
     }
     var args = try nw.getArgs();
+
+    gAutomaticTest = args.fastTest;
 
     if (args.vulkanValidation) {
         core.engine_logs("Using vulkan validation");

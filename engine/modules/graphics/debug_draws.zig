@@ -230,7 +230,7 @@ pub const DebugDrawSubsystem = struct {
         var bindOffset: usize = 0;
         const count: usize = self.debugDraws.count();
 
-        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.vk_renderer.NeonVkSceneDataGpu))));
+        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.NeonVkSceneDataGpu))));
         var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
 
         vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));

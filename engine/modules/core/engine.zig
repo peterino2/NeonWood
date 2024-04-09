@@ -48,6 +48,8 @@ pub const Engine = struct {
 
     nfdRuntime: *nfd.NFDRuntime,
 
+    first: bool = true,
+
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var rv = Engine{
             .allocator = allocator,
@@ -131,6 +133,12 @@ pub const Engine = struct {
         tracy.FrameMark();
         tracy.FrameMarkStart("frame");
         const newTime = time.getEngineTime();
+
+        if (self.first) {
+            self.first = false;
+            self.lastEngineTime = newTime;
+        }
+
         self.deltaTime = newTime - self.lastEngineTime;
         self.frameNumber += 1;
 
