@@ -85,6 +85,7 @@ pub fn selectTextForEdit(self: *@This(), node: NodeHandle) void {
     self.maybeResetSelection();
     self.ctx.getTextEntry(node).entryState = .Pressed;
     self.selected = self.ctx.getTextEntry(node);
+    self.insertIndex = if (self.insertIndex >= self.selected.?.editText.items.len) 0 else self.insertIndex;
     self.firstFrame = true;
     self.cursorBlink = true;
     self.cursorBlinkTime = self.cursorBlinkResetTime;

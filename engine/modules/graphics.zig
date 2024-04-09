@@ -46,9 +46,11 @@ pub fn getContext() *NeonVkContext {
     return vk_renderer.gContext;
 }
 
-pub const render_object = @import("graphics/render_object.zig");
-pub const Camera = render_object.Camera;
-pub const RenderObject = render_object.RenderObject;
+pub usingnamespace @import("graphics/vk_renderer/vk_renderer_types.zig");
+
+pub const render_objects = @import("graphics/render_objects.zig");
+pub const Camera = render_objects.Camera;
+pub const RenderObject = render_objects.RenderObject;
 
 pub fn registerRendererPlugin(value: anytype) !void {
     var ref = RendererInterfaceRef{

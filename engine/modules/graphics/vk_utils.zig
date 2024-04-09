@@ -361,7 +361,7 @@ pub const NeonVkUploader = struct {
     mutex: std.Thread.Mutex = .{},
     isActive: bool = false,
 
-    pub fn init(gc: *NeonVkContext) !@This() {
+    pub fn init(gc: *NeonVkContext, comptime tag: []const u8) !@This() {
         var arena = std.heap.ArenaAllocator.init(gc.allocator);
         var self = @This(){
             .arena = arena,
@@ -392,6 +392,8 @@ pub const NeonVkUploader = struct {
             &cbai,
             @as([*]vk.CommandBuffer, @ptrCast(&self.commandBuffer)),
         );
+
+        core.graphics_log("command buffer created from uploader {any} with tag {s}", .{ self.commandBuffer, tag });
 
         return self;
     }

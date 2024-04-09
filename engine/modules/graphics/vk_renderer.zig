@@ -5,7 +5,6 @@ const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
 pub const c = @import("c.zig");
-const VkRenderThread = @import("vk_renderer/VkRenderThread.zig");
 const memory = @import("../memory.zig");
 const graphics = @import("../graphics.zig");
 const vma = @import("vma");
@@ -17,7 +16,7 @@ const vk_assetLoaders = @import("vk_assetLoaders.zig");
 const vk_pipeline = @import("vk_pipeline.zig");
 pub const NeonVkPipelineBuilder = vk_pipeline.NeonVkPipelineBuilder;
 const mesh = @import("mesh.zig");
-const render_objects = @import("render_object.zig");
+const render_objects = @import("render_objects.zig");
 const vkinit = @import("vk_init.zig");
 const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
@@ -84,30 +83,6 @@ const RenderObjectSet = core.SparseMultiSet(
 
 const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
 
-pub const NeonVkSceneDataGpu = struct {
-    fogColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
-    fogDistances: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
-    ambientColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
-    sunlightDirection: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
-    sunlightColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
-};
-
-pub const NeonVkFrameData = struct {
-    // descriptors
-    globalDescriptorSet: vk.DescriptorSet,
-    objectDescriptorSet: vk.DescriptorSet,
-    spriteDescriptorSet: vk.DescriptorSet,
-
-    // buffers
-    spriteBuffer: NeonVkBuffer,
-    objectBuffer: NeonVkBuffer,
-    cameraBuffer: NeonVkBuffer,
-};
-
-pub const NeonVkObjectDataGpu = struct {
-    modelMatrix: Mat,
-};
-
 pub const CreateRenderObjectParams = struct {
     mesh_name: Name,
     material_name: Name,
@@ -121,27 +96,12 @@ const required_device_extensions = [_]CStr{
     vk.extension_info.khr_swapchain.name,
 };
 
-pub const NeonVkSwapImage = struct {
-    image: vk.Image,
-    view: vk.ImageView,
-    imageIndex: usize,
-
-    pub fn deinit(self: *NeonVkSwapImage, ctx: *NeonVkContext) void {
-        ctx.vkd.destroyImageView(ctx.dev, self.view, null);
-    }
-};
-
-pub const NeonVkQueue = struct {
-    handle: vk.Queue,
-    family: u32,
-
-    fn init(vkd: DeviceDispatch, dev: vk.Device, family: u32) @This() {
-        return .{
-            .handle = vkd.getDeviceQueue(dev, family, 0),
-            .family = family,
-        };
-    }
-};
+const vk_renderer_types = @import("vk_renderer/vk_renderer_types.zig");
+const NeonVkQueue = vk_renderer_types.NeonVkQueue;
+const NeonVkSwapImage = vk_renderer_types.NeonVkSwapImage;
+const NeonVkFrameData = vk_renderer_types.NeonVkFrameData;
+const NeonVkSceneDataGpu = vk_renderer_types.NeonVkSceneDataGpu;
+const NeonVkObjectDataGpu = vk_renderer_types.NeonVkObjectDataGpu;
 
 pub const NeonVkPhysicalDeviceInfo = struct {
     physicalDevice: vk.PhysicalDevice,
@@ -242,12 +202,7 @@ pub const NeonVkContext = struct {
 
     pub const maxMode = 3;
 
-    const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
-        .{ .type = .uniform_buffer, .descriptor_count = 1000 },
-        .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
-        .{ .type = .storage_buffer, .descriptor_count = 1000 },
-        .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
-    };
+    const descriptorPoolSizes = vk_renderer_types.descriptorPoolSizes;
 
     mode: u32,
 
@@ -361,8 +316,6 @@ pub const NeonVkContext = struct {
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
     destructionQueue: ArrayListUnmanaged(DestructionLambda),
-
-    renderThread: *VkRenderThread,
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         var meshRef = self.meshes.get(meshName.handle()).?;
@@ -595,23 +548,7 @@ pub const NeonVkContext = struct {
         try self.graph.writeOut("renderer_graph.viz");
 
         // destruction queue is availbe from this point
-        try self.createRenderThread();
-
         return self;
-    }
-
-    pub fn createRenderThread(self: *@This()) !void {
-        try self.vkd.deviceWaitIdle(self.dev);
-        self.renderThread = try VkRenderThread.create(self);
-        try self.renderThread.setup();
-
-        try self.pushDestruction(struct {
-            pub fn func(s: *NeonVkContext, ctx: ?*anyopaque) void {
-                _ = ctx;
-                s.renderThread.deinit();
-                core.graphics_log("tearing down render thread");
-            }
-        }, null);
     }
 
     pub fn postInit(self: *@This()) core.RttiDataEventError!void {
@@ -619,11 +556,30 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_uploader(self: *@This()) !void {
-        self.uploader = try vk_utils.NeonVkUploader.init(self);
+        self.uploader = try vk_utils.NeonVkUploader.init(self, "vk_renderer uploader");
     }
 
     pub fn init_dynamic_mesh(self: *@This()) !void {
         self.dynamicMeshManager = try mesh.DynamicMeshManager.init(self);
+    }
+
+    fn upload_object_data(self: *Self) !void {
+        const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
+        var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var ssbo: []NeonVkObjectDataGpu = undefined;
+        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
+        ssbo.len = self.maxObjectCount;
+
+        var i: usize = 0;
+        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
+            var object = self.renderObjectSet.dense.items(.renderObject)[i];
+            if (object.mesh != null) {
+                ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+            }
+        }
+
+        // unmapping every frame might actually be quite unessecary.
+        self.vkAllocator.vmaAllocator.unmapMemory(allocation);
     }
 
     pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
@@ -979,41 +935,6 @@ pub const NeonVkContext = struct {
         try self.uploader.finishUploadContext();
     }
 
-    pub fn upload_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !NeonVkBuffer {
-        const size = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
-        core.graphics_log("Uploading mesh size = {d} bytes {d} vertices", .{ size, uploadedMesh.vertices.items.len });
-        var bci = vk.BufferCreateInfo{
-            .flags = .{},
-            .size = size,
-            .usage = .{ .vertex_buffer_bit = true },
-            .sharing_mode = .exclusive,
-            .queue_family_index_count = 0,
-            .p_queue_family_indices = undefined,
-        };
-
-        var vmaCreateInfo = vma.AllocationCreateInfo{
-            .flags = .{},
-            .usage = .cpuToGpu,
-        };
-
-        var buffer = try self.vkAllocator.createBuffer(bci, vmaCreateInfo);
-
-        var data = try self.vkAllocator.vmaAllocator.mapMemory(buffer.allocation, u8);
-        defer self.vkAllocator.vmaAllocator.unmapMemory(buffer.allocation);
-
-        var dataSlice: []u8 = undefined;
-        dataSlice.ptr = data;
-        dataSlice.len = size;
-
-        var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @as([*]const u8, @ptrCast(uploadedMesh.vertices.items.ptr));
-        inputSlice.len = size;
-
-        @memcpy(data, inputSlice);
-
-        return buffer;
-    }
-
     pub fn init_vma(self: *Self) !void {
         self.vmaFunctions = vma.VulkanFunctions.init(self.instance, self.dev, self.vkb.dispatch.vkGetInstanceProcAddr);
 
@@ -1267,8 +1188,7 @@ pub const NeonVkContext = struct {
 
     pub fn draw(self: *Self, deltaTime: f64) !void {
         if (!self.isMinimized) {
-            self.renderThread.requestDraw();
-            // try self.acquire_next_frame();
+            try self.acquire_next_frame();
 
             try self.pre_frame_update();
             var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
@@ -1417,25 +1337,6 @@ pub const NeonVkContext = struct {
         @memcpy(dataSlice, inputSlice);
 
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
-    }
-
-    fn upload_object_data(self: *Self) !void {
-        const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
-        var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
-        var ssbo: []NeonVkObjectDataGpu = undefined;
-        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
-        ssbo.len = self.maxObjectCount;
-
-        var i: usize = 0;
-        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-            var object = self.renderObjectSet.dense.items(.renderObject)[i];
-            if (object.mesh != null) {
-                ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
-            }
-        }
-
-        // unmapping every frame might actually be quite unessecary.
-        self.vkAllocator.vmaAllocator.unmapMemory(allocation);
     }
 
     fn render_meshes(self: *Self, deltaTime: f64) !void {
@@ -1787,6 +1688,25 @@ pub const NeonVkContext = struct {
         };
     }
 
+    pub fn init_syncs(self: *Self) !void {
+        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
+        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
+
+        try self.acquireSemaphores.resize(NumFrames);
+        try self.renderCompleteSemaphores.resize(NumFrames);
+
+        var sci = vk.SemaphoreCreateInfo{
+            .flags = .{},
+        };
+
+        for (core.count(NumFrames), 0..) |_, i| {
+            self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
+            self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
+        }
+
+        self.extraSemaphore = try self.vkd.createSemaphore(self.dev, &sci, null);
+    }
+
     fn create_swapchain_images_and_views(self: *Self) !void {
         self.swapImages = ArrayList(NeonVkSwapImage).init(self.allocator);
 
@@ -1896,25 +1816,6 @@ pub const NeonVkContext = struct {
         };
 
         self.depthImageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
-    }
-
-    pub fn init_syncs(self: *Self) !void {
-        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
-        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
-
-        try self.acquireSemaphores.resize(NumFrames);
-        try self.renderCompleteSemaphores.resize(NumFrames);
-
-        var sci = vk.SemaphoreCreateInfo{
-            .flags = .{},
-        };
-
-        for (core.count(NumFrames), 0..) |_, i| {
-            self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
-            self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
-        }
-
-        self.extraSemaphore = try self.vkd.createSemaphore(self.dev, &sci, null);
     }
 
     pub fn init_command_buffers(self: *Self) !void {

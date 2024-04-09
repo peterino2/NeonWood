@@ -19,7 +19,7 @@ const vk_renderer = @import("../vk_renderer.zig");
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 pub fn create(gc: *NeonVkContext) !*@This() {
-    var self = gc.allocator.create(@This());
+    var self = try gc.allocator.create(@This());
 
     self.* = .{
         .allocator = gc.allocator,

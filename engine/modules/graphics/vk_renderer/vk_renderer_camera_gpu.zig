@@ -1,7 +1,7 @@
 const std = @import("std");
 const core = @import("../../core.zig");
 
-const render_objects = @import("../render_object.zig");
+const render_objects = @import("../render_objects.zig");
 
 const Mat = core.Mat;
 const Vectorf = core.Vectorf;
