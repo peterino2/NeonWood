@@ -14,6 +14,7 @@ pub const NwArgs = struct {
     useGPA: bool = false,
     vulkanValidation: bool = true,
     fastTest: bool = false,
+    renderThread: bool = false,
 };
 
 pub fn getArgs() !NwArgs {
@@ -22,8 +23,16 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
-pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams) !void {
+pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams, maybeArgs: ?NwArgs) !void {
+    if (maybeArgs) |args| {
+        if (args.renderThread)
+            graphics.setStartupSettings("useSeperateRenderThread", true);
+        if (args.vulkanValidation)
+            graphics.setStartupSettings("vulkanValidation", true);
+    }
+
     graphics.setWindowName(params.windowName);
+
     core.engine_log("Starting up", .{});
     core.start_module(allocator); // 1
     try platform.start_module(std.heap.c_allocator, params); // 2

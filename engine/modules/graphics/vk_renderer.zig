@@ -214,6 +214,7 @@ pub const NeonVkContext = struct {
     vkd: vk_constants.DeviceDispatch,
 
     outstandingJobsCount: std.atomic.Atomic(u32),
+    framesInFlight: std.atomic.Atomic(u32),
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -416,6 +417,7 @@ pub const NeonVkContext = struct {
         }
 
         self.outstandingJobsCount = std.atomic.Atomic(u32).init(0);
+        self.framesInFlight = std.atomic.Atomic(u32).init(0);
 
         self.platformInstance = platform.getInstance();
     }
@@ -1079,8 +1081,39 @@ pub const NeonVkContext = struct {
         core.gScene.updateTransforms();
         self.sceneManager.update(self) catch unreachable;
 
-        self.draw(dt) catch unreachable;
-        self.dynamicMeshManager.finishUpload() catch unreachable;
+        if (gGraphicsStartupSettings.useSeperateRenderThread) {
+            self.requestRenderJob(dt) catch unreachable;
+        } else {
+            self.draw(dt) catch unreachable;
+            self.dynamicMeshManager.finishUpload() catch unreachable;
+        }
+    }
+
+    pub fn requestRenderJob(self: *@This(), dt: f64) !void {
+        var z2 = tracy.ZoneN(@src(), "rendering job request");
+        defer z2.End();
+
+        // spin
+        while (self.framesInFlight.load(.SeqCst) > 0) {}
+
+        const Lambda = struct {
+            gc: *NeonVkContext,
+            dt: f64,
+            pub fn func(ctx: @This(), _: *core.JobContext) void {
+                var z1 = tracy.ZoneN(@src(), "rendering job");
+                defer z1.End();
+                ctx.gc.draw(ctx.dt) catch unreachable;
+                ctx.gc.dynamicMeshManager.finishUpload() catch unreachable;
+                _ = ctx.gc.framesInFlight.fetchSub(1, .SeqCst);
+            }
+        };
+
+        _ = self.framesInFlight.fetchAdd(1, .SeqCst);
+
+        try core.dispatchJob(Lambda{
+            .gc = self,
+            .dt = dt,
+        });
     }
 
     // convert game state into some intermediate graphics data.
@@ -2525,4 +2558,5 @@ pub var gGraphicsStartupSettings: struct {
     maxObjectCount: u32 = MAX_OBJECTS,
     consoleEnabled: bool = true,
     vulkanValidation: bool = true,
+    useSeperateRenderThread: bool = false,
 } = .{};
