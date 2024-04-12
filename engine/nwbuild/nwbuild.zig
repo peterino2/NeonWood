@@ -76,6 +76,12 @@ pub const NwBuildSystem = struct {
 
         const options = b.addOptions();
 
+        // =============== testing/experimental options ==================
+        options.addOption(bool, "mutex_job_queue", b.option(bool, "mutex_job_queue", "temporary test, reverts to old mutex based queue behaviour in jobs.zig:JobManager") orelse false);
+        // options.addOption(bool, "queue_per_job", b.option(bool, "queue_per_job", "temporary test, swaps jobs.zig to use queue-per-job dispatching.") orelse false);
+        // =============== testing/experimental options ==================
+
+        options.addOption(bool, "zero_logging", b.option(bool, "zero_logging", "disables all logging, only intended for use on job dispatch testing") orelse false);
         options.addOption(bool, "slow_logging", b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false);
         options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
         options.addOption(bool, "release_build", false); // set to true to override all other debug flags.

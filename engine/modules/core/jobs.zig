@@ -5,12 +5,15 @@ const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
+const build_opts = @import("game_build_opts");
+
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
 
     // need a mutex for the jobQueue... todo later
     jobQueue: RingQueueU(JobContext),
     mutex: std.Thread.Mutex = .{},
+    jobQueueConcurrent: core.ConcurrentQueueU(JobContext),
     workers: []*JobWorker,
     numCpus: usize,
 
@@ -21,6 +24,7 @@ pub const JobManager = struct {
             .allocator = allocator,
             .numCpus = std.Thread.getCpuCount() catch 4,
             .jobQueue = RingQueueU(JobContext).init(allocator, 4096) catch unreachable,
+            .jobQueueConcurrent = core.ConcurrentQueueU(JobContext).initCapacity(allocator, 4096) catch unreachable,
             .workers = undefined,
         };
 
@@ -41,9 +45,13 @@ pub const JobManager = struct {
         const Lambda = @TypeOf(capture);
         var ctx = try JobContext.new(self.allocator, Lambda, capture);
 
-        self.mutex.lock();
-        try self.jobQueue.push(ctx);
-        self.mutex.unlock();
+        if (build_opts.mutex_job_queue) {
+            self.mutex.lock();
+            try self.jobQueue.push(ctx);
+            self.mutex.unlock();
+        } else {
+            try self.jobQueueConcurrent.push(ctx);
+        }
 
         for (self.workers) |worker| {
             if (!worker.isBusy()) {
@@ -62,20 +70,31 @@ pub const JobManager = struct {
         self.clearJobs();
 
         self.jobQueue.deinit(self.allocator);
+        self.jobQueueConcurrent.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn clearJobs(self: *@This()) void {
         var jobCtx: ?JobContext = null;
-        self.mutex.lock();
-        jobCtx = self.jobQueue.pop();
-        self.mutex.unlock();
 
-        while (jobCtx) |*c| {
-            c.deinit();
+        if (build_opts.mutex_job_queue) {
             self.mutex.lock();
             jobCtx = self.jobQueue.pop();
             self.mutex.unlock();
+        } else {
+            jobCtx = self.jobQueueConcurrent.pop();
+        }
+
+        while (jobCtx) |*c| {
+            c.deinit();
+
+            if (build_opts.mutex_job_queue) {
+                self.mutex.lock();
+                jobCtx = self.jobQueue.pop();
+                self.mutex.unlock();
+            } else {
+                jobCtx = self.jobQueueConcurrent.pop();
+            }
         }
     }
 };
@@ -138,12 +157,16 @@ pub const JobWorker = struct {
                 std.Thread.Futex.wait(&self.futex, self.current);
             }
 
-            if (self.manager != null) {
-                self.manager.?.mutex.lock();
-                if (self.manager.?.jobQueue.count() > 0) {
-                    self.currentJobContext = self.manager.?.jobQueue.pop().?;
+            if (self.manager) |manager| {
+                if (build_opts.mutex_job_queue) {
+                    self.manager.?.mutex.lock();
+                    if (self.manager.?.jobQueue.count() > 0) {
+                        self.currentJobContext = self.manager.?.jobQueue.pop().?;
+                    }
+                    self.manager.?.mutex.unlock();
+                } else {
+                    self.currentJobContext = manager.jobQueueConcurrent.pop();
                 }
-                self.manager.?.mutex.unlock();
             }
         }
 

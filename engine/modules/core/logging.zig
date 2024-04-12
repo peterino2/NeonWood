@@ -6,6 +6,10 @@ const build_opts = @import("game_build_opts");
 var gLoggerSys: ?*LoggerSys = null;
 
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
+    if (build_opts.zero_logging) {
+        return;
+    }
+
     if (build_opts.slow_logging) {
         std.debug.print("> " ++ fmt, args);
     } else {
@@ -235,7 +239,13 @@ pub const LoggerSys = struct {
     }
 };
 
+var gFlushForcing: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false);
+
 pub fn forceFlush() void {
+    if (gFlushForcing.load(.SeqCst)) {
+        return;
+    }
+    gFlushForcing.store(true, .SeqCst);
     if (gLoggerSys != null) {
         gLoggerSys.?.flushWriteBuffer() catch {};
     }

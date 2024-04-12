@@ -3,6 +3,7 @@ const neonwood = @import("root").neonwood;
 const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
+const tracy = core.tracy;
 const engine_log = core.engine_log;
 const c = graphics.c;
 
@@ -45,6 +46,8 @@ const GameContext = struct {
     }
 
     pub fn prepare(self: *Self) !void {
+        var z1 = tracy.ZoneN(@src(), "test prepare");
+        defer z1.End();
         const Payload = struct {
             value: u32 = 42069,
         };
@@ -55,6 +58,8 @@ const GameContext = struct {
             game: *GameContext,
 
             pub fn func(ctx: @This(), job: *JobContext) void {
+                var z = tracy.ZoneN(@src(), "main payload");
+                defer z.End();
                 core.printInner("job started, payload: {any}\n", .{ctx.payload});
                 std.time.sleep(1000 * 1000 * 100);
                 var v = ctx.game.count.fetchAdd(1, .SeqCst);
@@ -66,6 +71,8 @@ const GameContext = struct {
 
         var x: u32 = 0;
         while (x < jobTestCount) : (x += 1) {
+            var z = tracy.ZoneN(@src(), "job dispatch");
+            defer z.End();
             core.engine_log("creating job: {d}", .{x});
             try core.dispatchJob(Lambda{ .payload = .{ .value = x }, .game = self });
         }
@@ -74,6 +81,8 @@ const GameContext = struct {
     pub fn tick(self: *Self, deltaTime: f64) void {
         self.timeElapsed += deltaTime;
         core.printInner("ticking\n", .{});
+        var z2 = tracy.ZoneN(@src(), "jobtest tick");
+        defer z2.End();
 
         if (self.timeTilWake <= 0) {
             self.timeTilWake = 0.5;
@@ -98,6 +107,8 @@ const GameContext = struct {
             pub fn func(ctx: @This(), job: *JobContext) void {
                 _ = job;
 
+                var z = tracy.ZoneN(@src(), "injected job");
+                defer z.End();
                 if (ctx.jobId % 2 == 0) {
                     core.dispatchJob(@This(){
                         .game = ctx.game,
