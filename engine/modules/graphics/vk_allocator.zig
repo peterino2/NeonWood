@@ -93,7 +93,7 @@ pub const NeonVkAllocator = struct {
         bufferSize: u32,
         comptime tag: []const u8,
     ) !NeonVkBuffer {
-        var bci = vk.BufferCreateInfo{
+        const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{ .transfer_src_bit = true },
@@ -102,7 +102,7 @@ pub const NeonVkAllocator = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var vmaCreateInfo = vma.AllocationCreateInfo{
+        const vmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .cpuOnly,
         };
@@ -111,7 +111,7 @@ pub const NeonVkAllocator = struct {
     }
 
     pub fn createPipelineLayout(self: *@This(), dev: vk.Device, plci: vk.PipelineLayoutCreateInfo, tag: []const u8) !vk.PipelineLayout {
-        var pipelineLayout = try self.vkd.createPipelineLayout(dev, &plci, null);
+        const pipelineLayout = try self.vkd.createPipelineLayout(dev, &plci, null);
 
         try self.livePipelines.put(@intFromEnum(pipelineLayout), try core.dupeString(self.allocator, tag));
         core.graphics_log("constructing pipeline at @0x{x} tag: {s}", .{ @intFromEnum(pipelineLayout), tag });
@@ -139,7 +139,7 @@ pub const NeonVkAllocator = struct {
         },
         comptime tag: []const u8,
     ) !NeonVkBuffer {
-        var bci = vk.BufferCreateInfo{
+        const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{
@@ -154,7 +154,7 @@ pub const NeonVkAllocator = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var vmaCreateInfo = vma.AllocationCreateInfo{
+        const vmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .gpuOnly,
         };
@@ -169,7 +169,7 @@ pub const NeonVkAllocator = struct {
         vki: vk_constants.InstanceDispatch,
         vkd: vk_constants.DeviceDispatch,
     ) !*@This() {
-        var newAllocator = try allocator.create(@This());
+        const newAllocator = try allocator.create(@This());
 
         newAllocator.* = @This(){
             .vmaAllocator = try vma.Allocator.create(vmaAllocatorCreateInfo),
@@ -242,7 +242,7 @@ pub const NeonVkAllocator = struct {
         defer self.mutex.unlock();
         const results = try self.vmaAllocator.createBuffer(bci, aci);
 
-        var object: AllocatedObject = .{
+        const object: AllocatedObject = .{
             .buffer = NeonVkBuffer{
                 .buffer = results.buffer,
                 .allocation = results.allocation,
@@ -281,9 +281,9 @@ pub const NeonVkAllocator = struct {
     ) !NeonVkImage {
         self.mutex.lock();
         defer self.mutex.unlock();
-        var result = try self.vmaAllocator.createImage(ici, aci);
+        const result = try self.vmaAllocator.createImage(ici, aci);
 
-        var object: AllocatedObject = .{ .image = .{
+        const object: AllocatedObject = .{ .image = .{
             .image = result.image,
             .allocation = result.allocation,
             .pixelWidth = ici.extent.width,

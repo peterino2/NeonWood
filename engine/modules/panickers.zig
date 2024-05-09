@@ -15,17 +15,17 @@ fn handleSegfaultWindows(info: *windows.EXCEPTION_POINTERS) callconv(windows.WIN
 }
 
 var panic_mutex = std.Thread.Mutex{};
-var panicking = std.atomic.Atomic(u8).init(0);
+var panicking = std.atomic.Value(u8).init(0);
 threadlocal var panic_stage: usize = 0;
 
 fn waitForOtherThreadToFinishPanicking() void {
-    if (panicking.fetchSub(1, .SeqCst) != 1) {
+    if (panicking.fetchSub(1, .seq_cst) != 1) {
         // Another thread is panicking, wait for the last one to finish
         // and call abort()
         if (builtin.single_threaded) unreachable;
 
         // Sleep forever without hammering the CPU
-        var futex = std.atomic.Atomic(u32).init(0);
+        var futex = std.atomic.Value(u32).init(0);
         while (true) std.Thread.Futex.wait(&futex, 0);
         unreachable;
     }
@@ -43,7 +43,7 @@ fn handleSegfaultWindowsExtra(
         switch (msg) {
             0 => {
                 dumpSegfaultInfoWindows(info, msg, label);
-                os.abort();
+                std.posix.abort();
             },
             1 => {
                 const format_item = "Segmentation fault at address 0x{x}";
@@ -56,7 +56,7 @@ fn handleSegfaultWindowsExtra(
         }
     } else {
         dumpSegfaultInfoWindows(info, msg, label);
-        os.abort();
+        std.posix.abort();
     }
 }
 
@@ -67,7 +67,7 @@ fn dumpSegfaultInfoWindows(info: *windows.EXCEPTION_POINTERS, msg: u8, label: ?[
         1 => stderr.print("Segmentation fault at address 0x{x}\n", .{info.ExceptionRecord.ExceptionInformation[1]}),
         2 => stderr.print("Illegal instruction at address 0x{x}\n", .{info.ContextRecord.getRegs().ip}),
         else => unreachable,
-    } catch os.abort();
+    } catch std.posix.abort();
 
     std.debug.dumpStackTraceFromBase(info.ContextRecord);
 }
@@ -87,7 +87,7 @@ fn dumpSegfaultInfoPosix(sig: i32, addr: usize, ctx_ptr: ?*const anyopaque) void
         os.SIG.BUS => stderr.print("Bus error at address 0x{x}\n", .{addr}),
         os.SIG.FPE => stderr.print("Arithmetic exception at address 0x{x}\n", .{addr}),
         else => unreachable,
-    } catch os.abort();
+    } catch std.posix.abort();
 
     switch (builtin.cpu.arch) {
         .x86,
@@ -119,7 +119,7 @@ fn handleSegfaultPosix(sig: i32, info: *const os.siginfo_t, ctx_ptr: ?*const any
     nosuspend switch (panic_stage) {
         0 => {
             panic_stage = 1;
-            _ = panicking.fetchAdd(1, .SeqCst);
+            _ = panicking.fetchAdd(1, .seq_cst);
 
             {
                 panic_mutex.lock();
@@ -139,7 +139,7 @@ fn handleSegfaultPosix(sig: i32, info: *const os.siginfo_t, ctx_ptr: ?*const any
     // We cannot allow the signal handler to return because when it runs the original instruction
     // again, the memory may be mapped and undefined behavior would occur rather than repeating
     // the segfault. So we simply abort here.
-    os.abort();
+    std.posix.abort();
 }
 //
 //

@@ -6,6 +6,10 @@ const build_opts = @import("game_build_opts");
 var gLoggerSys: ?*LoggerSys = null;
 
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
+    if (build_opts.zero_logging) {
+        return;
+    }
+
     if (build_opts.slow_logging) {
         std.debug.print("> " ++ fmt, args);
     } else {
@@ -70,7 +74,7 @@ pub const FileLog = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
-        var self = @This(){
+        const self = @This(){
             .buffer = std.ArrayList(u8).init(allocator),
             .allocator = allocator,
         };
@@ -88,7 +92,7 @@ pub const FileLog = struct {
     }
 
     pub fn writeOutGraphViz(self: *@This(), fileName: []const u8) !void {
-        var obuf = try std.fmt.allocPrint(
+        const obuf = try std.fmt.allocPrint(
             self.allocator,
             "{s}{s}",
             .{ self.buffer.items, "}}\n" },
@@ -96,7 +100,7 @@ pub const FileLog = struct {
         defer self.free(obuf);
 
         const cwd = std.fs.cwd();
-        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
         defer self.allocator.free(ofile);
 
         try cwd.makePath("Saved");
@@ -105,7 +109,7 @@ pub const FileLog = struct {
 
     pub fn writeOut(self: @This(), fileName: []const u8) !void {
         const cwd = std.fs.cwd();
-        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
         defer self.allocator.free(ofile);
         try cwd.makePath("Saved");
         try cwd.writeFile(ofile, self.buffer.items);
@@ -126,7 +130,7 @@ pub const LoggerSys = struct {
     logFile: std.fs.File,
     consoleFile: std.fs.File,
     lock: std.Thread.Mutex = .{},
-    flushing: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false),
+    flushing: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
     pub fn flush(self: *@This()) !void {
         var z = tracy.ZoneN(@src(), "Trying to flush");
@@ -134,9 +138,9 @@ pub const LoggerSys = struct {
 
         self.lock.lock();
 
-        if (!self.flushing.load(.Acquire)) {
-            self.flushing.store(true, .SeqCst);
-            var swap = self.writeOutBuffer;
+        if (!self.flushing.load(.acquire)) {
+            self.flushing.store(true, .seq_cst);
+            const swap = self.writeOutBuffer;
             self.writeOutBuffer = self.flushBuffer;
             self.flushBuffer = swap;
 
@@ -147,7 +151,7 @@ pub const LoggerSys = struct {
                     var z1 = tracy.ZoneN(@src(), "flushing output buffer");
                     defer z1.End();
                     ctx.loggerSys.flushFromJob() catch unreachable;
-                    ctx.loggerSys.flushing.store(false, .SeqCst);
+                    ctx.loggerSys.flushing.store(false, .seq_cst);
                 }
             };
 
@@ -160,7 +164,7 @@ pub const LoggerSys = struct {
     }
 
     pub fn shutdownFlush(self: *@This()) !void {
-        while (self.flushing.load(.SeqCst)) {}
+        while (self.flushing.load(.seq_cst)) {}
 
         // try self.logFile.writer().writeAll(self.writeOutBuffer.items);
         // try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
@@ -198,10 +202,10 @@ pub const LoggerSys = struct {
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         const cwd = std.fs.cwd();
-        var ofile = std.fmt.allocPrint(allocator, "Saved/{s}", .{"Session_Log.txt"}) catch unreachable;
+        const ofile = std.fmt.allocPrint(allocator, "Saved/{s}", .{"Session_Log.txt"}) catch unreachable;
         cwd.makePath("Saved") catch unreachable;
 
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = @This(){
             .allocator = allocator,
             .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 4) catch unreachable,
@@ -235,7 +239,13 @@ pub const LoggerSys = struct {
     }
 };
 
+var gFlushForcing: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
+
 pub fn forceFlush() void {
+    if (gFlushForcing.load(.seq_cst)) {
+        return;
+    }
+    gFlushForcing.store(true, .seq_cst);
     if (gLoggerSys != null) {
         gLoggerSys.?.flushWriteBuffer() catch {};
     }

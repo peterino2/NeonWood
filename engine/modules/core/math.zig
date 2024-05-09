@@ -115,7 +115,7 @@ pub fn Vector2Type(comptime T: type) type {
             if (fabs(self.x) <= 0.0001 and fabs(self.y) <= 0.0001) {
                 return .{ .x = 0, .y = 0 };
             }
-            var len = std.math.sqrt(self.x * self.x + self.y * self.y);
+            const len = std.math.sqrt(self.x * self.x + self.y * self.y);
 
             if (len < 0.00001)
                 return .{ .x = 0, .y = 0 };
@@ -278,7 +278,7 @@ pub fn Vector3Type(comptime T: type) type {
             if (fabs(self.x) <= 0.0001 and fabs(self.y) <= 0.0001 and fabs(self.z) <= 0.0001) {
                 return .{ .x = 0, .y = 0, .z = 0 };
             }
-            var len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+            const len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
 
             if (len < 0.00001)
                 return .{ .x = 0, .y = 0, .z = 0 };
@@ -391,7 +391,7 @@ pub fn Vector4Type(comptime T: type) type {
         }
 
         pub inline fn normalize(self: @This()) @This() {
-            var len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w);
+            const len = std.math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w);
 
             return .{
                 .x = self.x / len,

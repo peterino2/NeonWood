@@ -121,7 +121,7 @@ pub const AssetLoaderInterface = struct {
             unreachable;
         }
 
-        var self = @This(){
+        const self = @This(){
             .typeName = core.MakeTypeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
@@ -156,13 +156,13 @@ pub const AssetLoaderRef = struct {
 pub const AssetReferenceSys = struct {
     loaders: std.AutoHashMapUnmanaged(u32, AssetLoaderRef),
     allocator: std.mem.Allocator,
-    outstandingAssetJobs: std.atomic.Atomic(i32),
+    outstandingAssetJobs: std.atomic.Value(i32),
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         return @This(){
             .loaders = .{},
             .allocator = allocator,
-            .outstandingAssetJobs = std.atomic.Atomic(i32).init(0),
+            .outstandingAssetJobs = std.atomic.Value(i32).init(0),
         };
     }
 
@@ -179,7 +179,7 @@ pub const AssetReferenceSys = struct {
         if (core.getEngine().isShuttingDown())
             return;
 
-        _ = self.outstandingAssetJobs.fetchAdd(1, .Acquire);
+        _ = self.outstandingAssetJobs.fetchAdd(1, .acquire);
 
         var z = tracy.ZoneN(@src(), "AssetReferenceSys LoadRef");
         if (propertiesBag) |props| {

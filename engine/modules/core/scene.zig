@@ -80,7 +80,7 @@ pub const SceneObject = struct {
             .children = .{},
         };
 
-        var shouldUpdate: bool = false;
+        const shouldUpdate: bool = false; // should mutate
 
         switch (params) {
             .transform => {
@@ -132,7 +132,7 @@ pub const SceneSystem = struct {
 
     // scene objects are the primary object type
     pub fn createSceneObject(self: *@This(), params: SceneObjectInitParams) !core.ObjectHandle {
-        var newHandle = try self.objects.createObject(SceneObject.init(params));
+        const newHandle = try self.objects.createObject(SceneObject.init(params));
         return newHandle;
     }
 
@@ -141,7 +141,7 @@ pub const SceneSystem = struct {
         objectHandle: core.ObjectHandle,
         params: SceneObjectInitParams,
     ) !core.ObjectHandle {
-        var newHandle = try self.objects.createWithHandle(objectHandle, SceneObject.init(params));
+        const newHandle = try self.objects.createWithHandle(objectHandle, SceneObject.init(params));
         return newHandle;
     }
 
@@ -194,9 +194,9 @@ pub const SceneSystem = struct {
 
     pub fn updateTransforms(self: *@This()) void {
         for (self.objects.denseItems(._repr), 0..) |*repr, i| {
-            var settings = self.objects.readDense(i, .settings);
+            const settings = self.objects.readDense(i, .settings);
             if (settings.sceneMode == .moveable) {
-                var posRot = self.objects.readDense(i, .posRot);
+                const posRot = self.objects.readDense(i, .posRot);
                 self.updateTransform(repr, posRot.*);
             }
         }
@@ -204,7 +204,7 @@ pub const SceneSystem = struct {
 
     // ----- NeonObject interace ----
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
             .objects = SceneSet.init(allocator),
@@ -213,7 +213,7 @@ pub const SceneSystem = struct {
     }
 
     pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void {
-        var settings = self.objects.get(objectHandle, .settings).?;
+        const settings = self.objects.get(objectHandle, .settings).?;
         if (mobility == .moveable) {
             if (settings.sceneMode == .static) {
                 try self.dynamicObjects.append(self.allocator, objectHandle);

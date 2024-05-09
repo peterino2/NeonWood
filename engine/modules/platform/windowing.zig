@@ -125,7 +125,7 @@ pub const PlatformInstance = struct {
         allocator: std.mem.Allocator,
         params: PlatformParams,
     ) !@This() {
-        var self: @This() = .{
+        const self: @This() = .{
             .windowName = params.windowName,
             .allocator = allocator,
             .iconPath = params.icon,
@@ -204,7 +204,7 @@ pub const PlatformInstance = struct {
         var png = try image.PngContents.init(self.allocator, self.iconPath);
         defer png.deinit();
 
-        var pixels: ?*u8 = &png.pixels[0];
+        const pixels: ?*u8 = &png.pixels[0];
         var iconImage = c.GLFWimage{
             .width = @as(c_int, @intCast(png.size.x)),
             .height = @as(c_int, @intCast(png.size.y)),
@@ -225,7 +225,7 @@ pub const PlatformInstance = struct {
             if (extensionsCount > 0) {
                 var i: usize = 0;
                 while (i < extensionsCount) : (i += 1) {
-                    var x = @as([*]const core.CStr, @ptrCast(extensions));
+                    const x = @as([*]const core.CStr, @ptrCast(extensions));
                     core.engine_log("  glfw_extension: {s}", .{x[i]});
                 }
             }
@@ -396,7 +396,7 @@ pub fn getPlatformExtensions(allocator: std.mem.Allocator) !std.ArrayList([*:0]c
     const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extCount);
 
     for (0..extCount) |i| {
-        var x = @as([*]const [*:0]const u8, @ptrCast(extensions));
+        const x = @as([*]const [*:0]const u8, @ptrCast(extensions));
         try rv.append(x[i]);
     }
 

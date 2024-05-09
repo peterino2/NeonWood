@@ -10,7 +10,7 @@ const platform = @import("../platform.zig");
 const p2 = @import("lib/p2/algorithm.zig");
 const nfd = @import("lib/nfd/nfd.zig");
 
-const Atomic = std.atomic.Atomic;
+const Atomic = std.atomic.Value;
 const RttiDataEventError = rtti.RttiDataEventError;
 
 const Name = p2.Name;
@@ -51,7 +51,7 @@ pub const Engine = struct {
     first: bool = true,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
-        var rv = Engine{
+        const rv = Engine{
             .allocator = allocator,
             .rttiObjects = .{},
             .tickables = .{},
@@ -96,7 +96,7 @@ pub const Engine = struct {
     pub fn createObject(self: *@This(), comptime T: type, params: NeonObjectParams) !*T {
         const newIndex = self.rttiObjects.items.len;
         const vtable = &@field(T, "NeonObjectTable");
-        var newObjectPtr = try vtable.init_func(self.allocator);
+        const newObjectPtr = try vtable.init_func(self.allocator);
 
         const newObjectRef = NeonObjectRef{
             .ptr = @as(*anyopaque, @ptrCast(newObjectPtr)),
@@ -169,14 +169,14 @@ pub const Engine = struct {
                 _ = job;
 
                 tracy.SetThreadName("Systems Thread");
-                while (!ctx.engine.exitSignal.load(.SeqCst)) {
+                while (!ctx.engine.exitSignal.load(.seq_cst)) {
                     ctx.engine.tick() catch unreachable;
                 }
                 for (ctx.engine.exitListeners.items) |ref| {
                     ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
                 }
 
-                ctx.engine.exitConfirmed.store(true, .SeqCst);
+                ctx.engine.exitConfirmed.store(true, .seq_cst);
             }
         };
         try core.dispatchJob(L{ .engine = self });
@@ -185,7 +185,7 @@ pub const Engine = struct {
     }
 
     fn mainLoop(self: *@This()) !void {
-        while (!self.exitConfirmed.load(.Acquire)) {
+        while (!self.exitConfirmed.load(.acquire)) {
             if (self.platformPollFunc) |pollFunc| {
                 try pollFunc(self.platformPollCtx);
             }
@@ -197,15 +197,15 @@ pub const Engine = struct {
     }
 
     pub fn exit(self: *@This()) void {
-        self.exitSignal.store(true, .Release);
+        self.exitSignal.store(true, .release);
     }
 
     pub fn isShuttingDown(self: *@This()) bool {
-        return self.exitSignal.load(.Monotonic);
+        return self.exitSignal.load(.monotonic);
     }
 
     pub fn exitFinished(self: *@This()) bool {
-        return self.exitConfirmed.load(.Monotonic);
+        return self.exitConfirmed.load(.monotonic);
     }
 };
 

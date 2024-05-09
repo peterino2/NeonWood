@@ -53,7 +53,7 @@ pub const Camera = render_objects.Camera;
 pub const RenderObject = render_objects.RenderObject;
 
 pub fn registerRendererPlugin(value: anytype) !void {
-    var ref = RendererInterfaceRef{
+    const ref = RendererInterfaceRef{
         .ptr = value,
         .vtable = &@TypeOf(value.*).RendererInterfaceVTable,
     };
@@ -64,7 +64,7 @@ pub fn registerRendererPlugin(value: anytype) !void {
 pub fn start_module(allocator: std.mem.Allocator) void {
     engine_logs("graphics module starting up...");
 
-    var context: *NeonVkContext = core.gEngine.createObject(
+    const context: *NeonVkContext = core.gEngine.createObject(
         NeonVkContext,
         .{ .can_tick = true },
     ) catch unreachable;
@@ -105,10 +105,10 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     var s_path: [4096]u8 = undefined;
 
     for (search_prefixes) |prefix| {
-        var s = try std.fmt.bufPrint(&s_path, "{s}/{s}", .{ prefix, path });
+        const s = try std.fmt.bufPrint(&s_path, "{s}/{s}", .{ prefix, path });
         var file = std.fs.cwd().openFile(s, .{ .mode = .read_only }) catch continue;
         const filesize = (try file.stat()).size;
-        var buffer: []u8 = try allocator.alignedAlloc(u8, 4, filesize);
+        const buffer: []u8 = try allocator.alignedAlloc(u8, 4, filesize);
         try file.reader().readNoEof(buffer);
 
         var rv: []u32 = undefined;

@@ -14,7 +14,7 @@ pub const AsyncAssetJobContext = struct {
     allocator: std.mem.Allocator,
 
     pub fn loadAssets(assetList: []const AssetReference, allocator: std.mem.Allocator) !*@This() {
-        var this: *@This() = try allocator.create(@This());
+        const this: *@This() = try allocator.create(@This());
 
         this.* = .{
             .mutex = .{},

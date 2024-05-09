@@ -7,16 +7,16 @@ const MakeName = core.Name;
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{});
     const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
+    const buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
     try file.reader().readNoEof(buffer);
     return buffer;
 }
 
 pub fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFile: []const u8) !void {
-    var sourceFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{vizFile});
+    const sourceFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{vizFile});
     defer allocator.free(sourceFile);
 
-    var imageFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{pngFile});
+    const imageFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{pngFile});
     defer allocator.free(imageFile);
 
     var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
@@ -24,9 +24,9 @@ pub fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFil
 }
 
 pub fn dupeString(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
-    var dupe = try allocator.alloc(u8, string.len);
+    const dupe = try allocator.alloc(u8, string.len);
 
-    std.mem.copy(u8, dupe, string);
+    std.mem.copyForwards(u8, dupe, string);
 
     return dupe;
 }
@@ -51,7 +51,7 @@ pub const FileLog = struct {
 
     pub fn writeOut(self: @This()) !void {
         const cwd = std.fs.cwd();
-        var ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
         defer self.allocator.free(ofile);
         try cwd.makePath("Saved");
         try cwd.writeFile(ofile, self.buffer.items);

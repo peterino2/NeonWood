@@ -215,7 +215,7 @@ pub const GameContext = struct {
 fn changeImage(node: ui.NodeHandle, eventType: ui.PressedType, pixelBufferPtr: ?*anyopaque) ui.HandlerError!void {
     _ = node;
     if (eventType == .onPressed) {
-        var pixelBuffer = @as(*const graphics.PixelBufferRGBA8, @alignCast(@ptrCast(pixelBufferPtr)));
+        const pixelBuffer = @as(*const graphics.PixelBufferRGBA8, @alignCast(@ptrCast(pixelBufferPtr)));
         graphics.getContext().updateTextureFromPixelsSync(core.MakeName("t_sampleImage"), pixelBuffer.*, true) catch unreachable;
     }
 }
@@ -225,7 +225,7 @@ fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui
     _ = node;
     if (eventType == .onPressed) {
         //var selected_path = core.openFileDialog("", "") catch unreachable;
-        var selected_path = core.openFolderDialog("") catch unreachable;
+        const selected_path = core.openFolderDialog("") catch unreachable;
         if (selected_path != null) {
             core.ui_log("selected path: {s}", .{selected_path});
         }
@@ -283,7 +283,7 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    var args = try nw.getArgs();
+    const args = try nw.getArgs();
 
     gAutomaticTest = args.fastTest;
 
@@ -297,10 +297,10 @@ pub fn main() anyerror!void {
     memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
     var tracker = memory.MTGet().?;
-    var allocator = tracker.allocator();
+    const allocator = tracker.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
-    try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
+    try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
     defer nw.shutdown_everything(allocator);
     try nw.run_everything(GameContext);
 }

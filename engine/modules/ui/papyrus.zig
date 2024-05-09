@@ -367,7 +367,7 @@ pub const Context = struct {
         };
 
         for (0..debugTextMax) |_| {
-            var textBuffer = try allocator.alloc(u8, 512);
+            const textBuffer = try allocator.alloc(u8, 512);
             try self.debugText.append(textBuffer);
         }
 
@@ -415,9 +415,9 @@ pub const Context = struct {
 
     pub fn deinit(self: *@This()) void {
         for (0..self.nodes.count()) |i| {
-            var maybeNode = self.nodes.indexToHandle(i);
+            const maybeNode = self.nodes.indexToHandle(i);
             if (maybeNode) |node| {
-                var n = self.nodes.active.items[i];
+                const n = self.nodes.active.items[i];
                 if (n.?.nodeType == .TextEntry) {
                     NodeProperty_TextEntry.tearDown(self, node);
                 }
@@ -527,8 +527,8 @@ pub const Context = struct {
     }
 
     pub fn addSlot(self: *@This(), parent: NodeHandle) !NodeHandle {
-        var slotNode = Node{ .nodeType = .{ .Slot = .{} } };
-        var slot = try self.newNode(slotNode);
+        const slotNode = Node{ .nodeType = .{ .Slot = .{} } };
+        const slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
 
@@ -536,7 +536,7 @@ pub const Context = struct {
     }
 
     pub fn addText(self: *@This(), parent: NodeHandle, text: []const u8) !NodeHandle {
-        var slotNode = Node{
+        const slotNode = Node{
             .text = LocText.fromUtf8(text),
             .nodeType = .{ .DisplayText = .{
                 .textSize = 24,
@@ -544,7 +544,7 @@ pub const Context = struct {
                 .font = self.defaultFont,
             } },
         };
-        var slot = try self.newNode(slotNode);
+        const slot = try self.newNode(slotNode);
 
         try self.setParent(slot, parent);
 
@@ -560,7 +560,7 @@ pub const Context = struct {
         if (parent.index == 0) {
             slotNode.anchor = .Free;
         }
-        var slot = try self.nodes.new(slotNode);
+        const slot = try self.nodes.new(slotNode);
 
         try self.setParent(slot, parent);
 
@@ -580,13 +580,13 @@ pub const Context = struct {
             .{ node.index, node.generation, parent.index, parent.generation },
         );
 
-        var parentNode = self.nodes.get(parent).?;
-        var thisNode = self.nodes.get(node).?;
+        const parentNode = self.nodes.get(parent).?;
+        const thisNode = self.nodes.get(node).?;
 
         // if we have a previous parent, remove ourselves
         if (thisNode.*.parent.index != 0) {
             // remove myself from that parent.
-            var oldParentNode = self.nodes.get(thisNode.*.parent).?;
+            const oldParentNode = self.nodes.get(thisNode.*.parent).?;
 
             // special case for when we're the first child element
             if (oldParentNode.*.child.index == node.index) {
@@ -622,7 +622,7 @@ pub const Context = struct {
             try textProperty.editText.appendSlice("click to edit...");
         }
 
-        var n = try self.nodes.new(.{ .nodeType = .{ .TextEntry = textProperty } });
+        const n = try self.nodes.new(.{ .nodeType = .{ .TextEntry = textProperty } });
         try self.setParent(n, parent);
         self.get(n).size = .{ .x = 350, .y = 30 };
 
@@ -633,11 +633,11 @@ pub const Context = struct {
 
     // helper functions for a whole bunch of shit
     pub fn addButton(self: *@This(), parent: NodeHandle, text: ?[]const u8) !NodeHandle {
-        var buttonProperty = NodeProperty_Button{
+        const buttonProperty = NodeProperty_Button{
             .font = self.defaultFont,
         };
 
-        var button = try self.nodes.new(.{ .nodeType = .{ .Button = buttonProperty } });
+        const button = try self.nodes.new(.{ .nodeType = .{ .Button = buttonProperty } });
         try self.setParent(button, parent);
         self.get(button).size = .{ .x = 100, .y = 50 };
 
@@ -679,7 +679,7 @@ pub const Context = struct {
             return error.BadWalk;
         };
 
-        var thisNode = self.getRead(node);
+        const thisNode = self.getRead(node);
         self.get(thisNode.next).prev = thisNode.prev;
         self.get(thisNode.prev).next = thisNode.next;
 
@@ -851,7 +851,7 @@ pub const Context = struct {
                     },
                 }
 
-                var rv = ChildLayoutRulesStruct{
+                const rv = ChildLayoutRulesStruct{
                     .position = parentInfo.pos.add(.{
                         .x = offsetX,
                         .y = parentInfo.childLayoutOffsets.y,
@@ -898,13 +898,13 @@ pub const Context = struct {
         drawList.clearRetainingCapacity();
 
         for (self._drawOrder.items) |node| {
-            var n = self.getRead(node);
+            const n = self.getRead(node);
 
             if (n.state == .Hidden) {
                 continue;
             }
 
-            var parentInfo = self._displayLayout.items[n.parent.index];
+            const parentInfo = self._displayLayout.items[n.parent.index];
 
             var dlb = DrawListBuilder{
                 .ctx = self,
@@ -918,7 +918,7 @@ pub const Context = struct {
 
             // if our parent is a panel then apply layout rules to it.
             if (self.fetchPanel(n.parent)) |parentAsPanel| {
-                var results = self.applyLayoutRulesAsChild(parentAsPanel, n, dlb.resolvedSize, dlb.resolvedPos);
+                const results = self.applyLayoutRulesAsChild(parentAsPanel, n, dlb.resolvedSize, dlb.resolvedPos);
                 dlb.resolvedPos = results.position;
                 dlb.resolvedSize = results.size;
             }
@@ -1066,7 +1066,7 @@ pub const Context = struct {
         var yOffset: f32 = offsetPerLine;
         const width = defaultHeight / 2 * 120;
 
-        var fontHash = self.defaultMonoFont.atlas.rendererHash;
+        const fontHash = self.defaultMonoFont.atlas.rendererHash;
 
         try self.mousePick.addMousePickInfo(&self, drawList);
 

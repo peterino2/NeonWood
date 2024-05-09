@@ -1,9 +1,11 @@
 const std = @import("std");
-const Atomic = std.atomic.Atomic;
+const Atomic = std.atomic.Value;
 const core = @import("../core.zig");
 const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
+
+const build_opts = @import("game_build_opts");
 
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
@@ -11,6 +13,7 @@ pub const JobManager = struct {
     // need a mutex for the jobQueue... todo later
     jobQueue: RingQueueU(JobContext),
     mutex: std.Thread.Mutex = .{},
+    jobQueueConcurrent: core.ConcurrentQueueU(JobContext),
     workers: []*JobWorker,
     numCpus: usize,
 
@@ -21,6 +24,7 @@ pub const JobManager = struct {
             .allocator = allocator,
             .numCpus = std.Thread.getCpuCount() catch 4,
             .jobQueue = RingQueueU(JobContext).init(allocator, 4096) catch unreachable,
+            .jobQueueConcurrent = core.ConcurrentQueueU(JobContext).initCapacity(allocator, 4096) catch unreachable,
             .workers = undefined,
         };
 
@@ -39,11 +43,15 @@ pub const JobManager = struct {
 
     pub fn newJob(self: *@This(), capture: anytype) !void {
         const Lambda = @TypeOf(capture);
-        var ctx = try JobContext.new(self.allocator, Lambda, capture);
+        const ctx = try JobContext.new(self.allocator, Lambda, capture);
 
-        self.mutex.lock();
-        try self.jobQueue.push(ctx);
-        self.mutex.unlock();
+        if (build_opts.mutex_job_queue) {
+            self.mutex.lock();
+            try self.jobQueue.push(ctx);
+            self.mutex.unlock();
+        } else {
+            try self.jobQueueConcurrent.push(ctx);
+        }
 
         for (self.workers) |worker| {
             if (!worker.isBusy()) {
@@ -62,20 +70,31 @@ pub const JobManager = struct {
         self.clearJobs();
 
         self.jobQueue.deinit(self.allocator);
+        self.jobQueueConcurrent.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
     pub fn clearJobs(self: *@This()) void {
         var jobCtx: ?JobContext = null;
-        self.mutex.lock();
-        jobCtx = self.jobQueue.pop();
-        self.mutex.unlock();
 
-        while (jobCtx) |*c| {
-            c.deinit();
+        if (build_opts.mutex_job_queue) {
             self.mutex.lock();
             jobCtx = self.jobQueue.pop();
             self.mutex.unlock();
+        } else {
+            jobCtx = self.jobQueueConcurrent.pop();
+        }
+
+        while (jobCtx) |*c| {
+            c.deinit();
+
+            if (build_opts.mutex_job_queue) {
+                self.mutex.lock();
+                jobCtx = self.jobQueue.pop();
+                self.mutex.unlock();
+            } else {
+                jobCtx = self.jobQueueConcurrent.pop();
+            }
         }
     }
 };
@@ -99,7 +118,7 @@ pub const JobWorker = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, workerNumber: usize) !*@This() {
-        var self = try allocator.create(JobWorker);
+        const self = try allocator.create(JobWorker);
 
         self.* = .{
             .allocator = allocator,
@@ -111,39 +130,43 @@ pub const JobWorker = struct {
     }
 
     pub fn isBusy(self: *@This()) bool {
-        return self.busy.load(.Acquire);
+        return self.busy.load(.acquire);
     }
 
     pub fn assignContext(self: *@This(), context: JobContext) !void {
-        self.busy.store(true, .SeqCst);
+        self.busy.store(true, .seq_cst);
         self.currentJobContext = context;
         self.wake();
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
-        var printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
+        const printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
         tracy.SetThreadName(@as([*:0]u8, @ptrCast(printed.ptr)));
 
         self.allocator.free(printed);
 
-        while (!self.shouldDie.load(.Acquire)) {
+        while (!self.shouldDie.load(.acquire)) {
             if (self.currentJobContext != null) {
-                self.busy.store(true, .SeqCst);
+                self.busy.store(true, .seq_cst);
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture, &ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
-                self.busy.store(false, .SeqCst);
+                self.busy.store(false, .seq_cst);
             } else {
                 std.Thread.Futex.wait(&self.futex, self.current);
             }
 
-            if (self.manager != null) {
-                self.manager.?.mutex.lock();
-                if (self.manager.?.jobQueue.count() > 0) {
-                    self.currentJobContext = self.manager.?.jobQueue.pop().?;
+            if (self.manager) |manager| {
+                if (build_opts.mutex_job_queue) {
+                    self.manager.?.mutex.lock();
+                    if (self.manager.?.jobQueue.count() > 0) {
+                        self.currentJobContext = self.manager.?.jobQueue.pop().?;
+                    }
+                    self.manager.?.mutex.unlock();
+                } else {
+                    self.currentJobContext = manager.jobQueueConcurrent.pop();
                 }
-                self.manager.?.mutex.unlock();
             }
         }
 
@@ -153,7 +176,7 @@ pub const JobWorker = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.shouldDie.store(true, .SeqCst);
+        self.shouldDie.store(true, .seq_cst);
         self.wake();
         self.workerThread.join();
         self.allocator.destroy(self);
@@ -182,18 +205,18 @@ pub const JobContext = struct {
             }
 
             pub fn wrappedDestroy(ptr: *anyopaque, alloc: std.mem.Allocator) void {
-                var p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
+                const p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
                 alloc.destroy(p);
             }
         };
 
-        var self = Self{
+        const self = Self{
             .allocator = allocator,
             .func = Wrap.wrappedFunc,
             .destroyFunc = Wrap.wrappedDestroy,
             .capture = try allocator.create(CaptureType),
         };
-        var ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
+        const ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
         ptr.* = capture;
         return self;
     }

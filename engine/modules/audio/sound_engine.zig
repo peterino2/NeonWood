@@ -72,7 +72,7 @@ pub const NeonSoundEngine = struct {
     volume: f32 = 1.0,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = @This(){
             .engine = allocator.create(c.ma_engine) catch unreachable,
             .sounds = .{},
@@ -97,10 +97,10 @@ pub const NeonSoundEngine = struct {
             volume: f32 = 1.0,
         },
     ) !void {
-        var sound = try self.allocator.create(c.ma_sound);
+        const sound = try self.allocator.create(c.ma_sound);
         errdefer self.allocator.destroy(sound);
 
-        var res = c.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
+        const res = c.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
         if (res != c.MA_SUCCESS) {
             sound_err("tried loading sound: {s} failed", .{soundName.utf8()});
             return error.MiniAudioError;
@@ -111,12 +111,12 @@ pub const NeonSoundEngine = struct {
     }
 
     pub fn playSound(self: *@This(), soundName: core.Name) !void {
-        var maybeSound = self.sounds.get(soundName.handle());
+        const maybeSound = self.sounds.get(soundName.handle());
 
         if (maybeSound == null)
             return error.NoSoundError;
 
-        var sound = maybeSound.?;
+        const sound = maybeSound.?;
 
         if (c.ma_sound_start(sound) != c.MA_SUCCESS)
             sound_err("unable to start sound: {s}", .{soundName.utf8()});
@@ -128,7 +128,7 @@ pub const NeonSoundEngine = struct {
     }
 
     pub fn stopSound(self: *@This(), soundName: core.Name) void {
-        var sound = self.sounds.get(soundName.handle()).?;
+        const sound = self.sounds.get(soundName.handle()).?;
 
         if (c.ma_sound_stop(sound) != c.MA_SUCCESS) {
             //

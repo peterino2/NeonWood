@@ -22,7 +22,7 @@ const TextRenderGeometry = @import("textRender/textRenderGeometry.zig");
 
 // couple of things we'll need to do...
 pub fn create(ctx: *papyrus.Context, backingAllocator: std.mem.Allocator) !*@This() {
-    var self = try backingAllocator.create(@This());
+    const self = try backingAllocator.create(@This());
 
     self.* = .{
         .ctx = ctx,
@@ -63,7 +63,7 @@ pub fn tick(self: *@This(), deltaTime: f64) !void {
 
 pub fn testHits(self: *@This()) !void {
     if (self.trg) |trg| {
-        var cursorPos = platform.getInstance().cursorPos;
+        const cursorPos = platform.getInstance().cursorPos;
         self.cursorResults = trg.testHit(cursorPos);
         if (self.cursorResults) |hr| {
             try self.ctx.pushDebugText("text entry hittest found found: line={d} index={d}", .{ hr.line, hr.index });

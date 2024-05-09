@@ -17,7 +17,7 @@ pub const NeonVkSceneManager = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
-        var self = .{
+        const self = .{
             .allocator = allocator,
         };
 
@@ -27,8 +27,8 @@ pub const NeonVkSceneManager = struct {
     pub fn update(self: *@This(), gc: *NeonVkContext) !void {
         _ = self;
         for (core.gScene.objects.dense.items(._repr), 0..) |_repr, i| {
-            var handle = core.gScene.objects.denseIndices.items[i];
-            var renderObject = gc.renderObjectSet.get(handle, .renderObject).?;
+            const handle = core.gScene.objects.denseIndices.items[i];
+            const renderObject = gc.renderObjectSet.get(handle, .renderObject).?;
             renderObject.*.transform = _repr.transform;
         }
     }

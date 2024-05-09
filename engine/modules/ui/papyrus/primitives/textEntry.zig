@@ -135,7 +135,7 @@ pub fn onPressedEvent(
 ) papyrus.HandlerError!void {
     if (eventType == .onPressed) {
         var ctx = papyrus.getContext();
-        var te = ctx.getTextEntry(node);
+        const te = ctx.getTextEntry(node);
 
         if (te.entryState == .Normal) {
             ctx.textEntry.selectTextForEdit(node);

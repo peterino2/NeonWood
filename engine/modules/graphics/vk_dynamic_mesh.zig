@@ -31,7 +31,7 @@ pub const DynamicMeshManager = struct {
     first: bool = true,
 
     pub fn init(gc: *NeonVkContext) !*@This() {
-        var self = try gc.allocator.create(@This());
+        const self = try gc.allocator.create(@This());
         self.* = @This(){
             .gc = gc,
             .allocator = gc.allocator,
@@ -261,7 +261,7 @@ pub const DynamicMesh = struct {
     }
 
     pub fn stageDirtyVertices(self: *@This()) !void {
-        var newSwapId = (self.swapId + 1) % 2;
+        const newSwapId = (self.swapId + 1) % 2;
         // map buffers
 
         var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
@@ -306,7 +306,7 @@ pub const DynamicMesh = struct {
 
         self.dirty = false;
 
-        var newSwapId = (self.swapId + 1) % 2;
+        const newSwapId = (self.swapId + 1) % 2;
         // map buffers
 
         var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
@@ -427,7 +427,7 @@ pub const DynamicMesh = struct {
     pub fn deinit(self: *@This()) void {
         self.allocator.free(self.vertices);
 
-        var vkAllocator = self.gc.vkAllocator;
+        const vkAllocator = self.gc.vkAllocator;
 
         self.stagingVertexBuffer.deinit(vkAllocator);
         self.stagingIndexBuffer.deinit(vkAllocator);

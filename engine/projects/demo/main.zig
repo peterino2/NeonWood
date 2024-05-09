@@ -401,7 +401,7 @@ pub fn main() anyerror!void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try neonwood.start_everything(allocator, .{ .windowName = "NeonWood: ui" });
+    try neonwood.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
     defer neonwood.shutdown_everything(allocator);
 
     _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);

@@ -115,9 +115,9 @@ pub fn installMouseOverEventAdvanced(
     eventFn: SingleFn,
     innate: bool,
 ) !void {
-    var allocator = self.arena.allocator();
+    const allocator = self.arena.allocator();
 
-    var listener: Listener = .{
+    const listener: Listener = .{
         .node = node,
         .event = event,
         .context = context,
@@ -165,7 +165,7 @@ pub fn pushPressedEvent(self: *@This(), node: NodeHandle, event: PressedType, ke
 }
 
 pub fn installOnPressedEventAdvanced(self: *@This(), node: NodeHandle, event: PressedType, keycode: Key, context: ?*anyopaque, eventFn: PressedFn, innate: bool) !void {
-    var listener: PressedListener = .{
+    const listener: PressedListener = .{
         .node = node,
         .event = event,
         .keycode = keycode,
@@ -174,7 +174,7 @@ pub fn installOnPressedEventAdvanced(self: *@This(), node: NodeHandle, event: Pr
         .innate = innate,
     };
 
-    var allocator = self.arena.allocator();
+    const allocator = self.arena.allocator();
 
     if (self.pressEvents.getPtr(node)) |listenerList| {
         try listenerList.append(allocator, listener);
@@ -209,7 +209,7 @@ pub fn uninstallAllEvents(self: *@This(), node: NodeHandle) !void {
 
 pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) !void {
     if (self.pressEvents.contains(node)) {
-        var allocator = self.arena.allocator();
+        const allocator = self.arena.allocator();
         var newList = std.ArrayListUnmanaged(PressedListener){};
         var items = self.pressEvents.get(node).?;
         for (items.items) |i| {
@@ -224,7 +224,7 @@ pub fn uninstallPressEvents(self: *@This(), node: NodeHandle) !void {
 
 pub fn uninstallBasicEvents(self: *@This(), node: NodeHandle) !void {
     if (self.inputEvents.contains(node)) {
-        var allocator = self.arena.allocator();
+        const allocator = self.arena.allocator();
         var newList = std.ArrayListUnmanaged(Listener){};
         var items = self.inputEvents.get(node).?;
         for (items.items) |i| {

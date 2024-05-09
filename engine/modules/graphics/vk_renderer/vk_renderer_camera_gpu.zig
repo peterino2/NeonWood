@@ -17,8 +17,8 @@ pub const NeonVkCameraDataGpu = struct {
 
 // generates NeonVkCameraDataGpu and copies it into the buffer
 pub fn memcpyCameraDataToStagedBuffer(camera: *const Camera, data: [*]u8) void {
-    var projection_matrix: Mat = camera.final;
-    var position: Vectorf = camera.position;
+    const projection_matrix: Mat = camera.final;
+    const position: Vectorf = camera.position;
 
     var cameraData = NeonVkCameraDataGpu{
         .proj = core.zm.identity(),

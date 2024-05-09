@@ -4,7 +4,7 @@ const papyrusBuild = @import("../../modules/ui/papyrus/build.zig");
 const projectPath = "projects/utils";
 
 const SharedOpts = struct {
-    target: std.zig.CrossTarget,
+    target: std.Build.ResolvedTarget,
     optimize: std.builtin.Mode,
 };
 

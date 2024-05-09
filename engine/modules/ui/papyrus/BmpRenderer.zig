@@ -70,7 +70,7 @@ pub fn render(self: *@This()) !void {
                 self.r.drawRectangle(.Filled, tl.add(Vector2i{ .x = 1, .y = 1 }), size.add(.{ .x = -2, .y = -2 }), bg.r, bg.g, bg.b);
             },
             .Text => |t| {
-                var tl = Vector2i.fromVector2(t.tl);
+                const tl = Vector2i.fromVector2(t.tl);
                 self.r.drawText(self.ui.defaultFont.atlas, tl, t.text, t.color);
             },
         }
@@ -106,7 +106,7 @@ pub const BmpWriter = struct {
     pixelBuffer: []u8,
 
     pub fn init(allocator: std.mem.Allocator, resolution: Vector2i) !@This() {
-        var pixelBuffer = try allocator.alloc(u8, @as(usize, @intCast(resolution.x * resolution.y * 3)));
+        const pixelBuffer = try allocator.alloc(u8, @as(usize, @intCast(resolution.x * resolution.y * 3)));
         @memset(pixelBuffer, 0x8);
         return .{ .allocator = allocator, .pixelBuffer = pixelBuffer, .extent = resolution };
     }

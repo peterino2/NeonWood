@@ -34,10 +34,10 @@ pub const TextureLoader = struct {
 
     gc: *NeonVkContext,
     assetsReady: core.RingQueue(StagedTextureDescription),
-    discarding: std.atomic.Atomic(bool) = std.atomic.Atomic(bool).init(false),
+    discarding: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, props: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
-        if (self.discarding.load(.SeqCst)) {
+        if (self.discarding.load(.seq_cst)) {
             return;
         }
 
@@ -51,13 +51,13 @@ pub const TextureLoader = struct {
             pub fn func(ctx: @This(), _: *core.JobContext) void {
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
-                var stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
+                const stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
 
                 tracy.Message(ctx.assetRef.name.utf8());
                 tracy.Message(ctx.properties.path);
 
                 core.engine_log("loaded: {d} from: {d}", .{ ctx.assetRef.name.utf8(), ctx.properties.path });
-                var loadedDescription = StagedTextureDescription{
+                const loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
                     .stagingResults = stagingResults,
                     .assetRef = ctx.assetRef,
@@ -66,11 +66,11 @@ pub const TextureLoader = struct {
 
                 z1.End();
                 ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
-                _ = ctx.gc.outstandingJobsCount.fetchSub(1, .SeqCst);
+                _ = ctx.gc.outstandingJobsCount.fetchSub(1, .seq_cst);
             }
         };
 
-        _ = self.gc.outstandingJobsCount.fetchAdd(1, .SeqCst);
+        _ = self.gc.outstandingJobsCount.fetchAdd(1, .seq_cst);
         core.dispatchJob(Lambda{
             .loader = self,
             .gc = self.gc,
@@ -97,7 +97,7 @@ pub const TextureLoader = struct {
 
                 core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8()});
                 var stagingBuffer = assetReady.stagingResults.stagingBuffer;
-                var image = assetReady.stagingResults.image;
+                const image = assetReady.stagingResults.image;
 
                 vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, assetReady.stagingResults.mipLevel) catch return error.UnknownStatePanic;
                 stagingBuffer.deinit(gc.vkAllocator);
@@ -108,14 +108,14 @@ pub const TextureLoader = struct {
                     .{ .color_bit = true },
                     assetReady.stagingResults.mipLevel,
                 );
-                var imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
-                var newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+                const imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
+                const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
 
                 newTexture.* = Texture{
                     .image = image,
                     .imageView = imageView,
                 };
-                var textureSet = gc.create_mesh_image_for_texture(newTexture, .{
+                const textureSet = gc.create_mesh_image_for_texture(newTexture, .{
                     .useBlocky = assetReady.properties.textureUseBlockySampler,
                 }) catch unreachable;
 
@@ -126,7 +126,7 @@ pub const TextureLoader = struct {
     }
 
     pub fn discardAll(self: *@This()) void {
-        self.discarding.store(true, .SeqCst);
+        self.discarding.store(true, .seq_cst);
         core.graphics_log("discarding {d} outstanding jobs", .{self.assetsReady.count()});
 
         self.assetsReady.lock();
@@ -139,7 +139,7 @@ pub const TextureLoader = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = .{
             .gc = vk_renderer.gContext,
             //todo: the RttiData init function should have a handleable error
@@ -161,7 +161,7 @@ pub const MeshLoader = struct {
     gc: *NeonVkContext,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
 
         self.* = .{
             .gc = vk_renderer.gContext,

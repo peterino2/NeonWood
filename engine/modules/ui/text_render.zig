@@ -33,7 +33,7 @@ pub const FontAtlasVk = struct {
         allocator: std.mem.Allocator,
         g: *graphics.NeonVkContext,
     ) !@This() {
-        var self = @This(){
+        const self = @This(){
             .allocator = allocator,
             .atlas = undefined,
             .g = g,
@@ -48,9 +48,9 @@ pub const FontAtlasVk = struct {
     }
 
     pub fn prepareFont(self: *@This(), fontName: core.Name) !void {
-        var pixels = try self.atlas.makeBitmapRGBA(self.allocator);
+        const pixels = try self.atlas.makeBitmapRGBA(self.allocator);
         defer self.allocator.free(pixels);
-        var res = try graphics.createAndInstallTextureFromPixels(
+        const res = try graphics.createAndInstallTextureFromPixels(
             fontName,
             pixels,
             .{ .x = self.atlas.atlasSize.x, .y = self.atlas.atlasSize.y },
@@ -123,7 +123,7 @@ pub const DisplayText = struct {
             charLimit: u32 = 8192,
         },
     ) !@This() {
-        var self = @This(){
+        const self = @This(){
             .g = atlas.g,
             .allocator = allocator,
             .atlas = atlas,
@@ -254,16 +254,16 @@ pub const DisplayText = struct {
                 try self.renderedGeo.addGeoLine(yOffset + self.position.y, @intCast(i));
             }
 
-            var color = self.color;
+            const color = self.color;
 
-            var topLeft = .{
+            const topLeft = .{
                 // .x = self.position.x + xOffset + box.x,
                 // .y = yOffset + self.position.y + box.y + fontHeight,
                 .x = xOffset,
                 .y = yOffset + box.y + fontHeight,
             };
 
-            var metric_size = .{ .x = metrics.x, .y = metrics.y, .z = 0 };
+            const metric_size = .{ .x = metrics.x, .y = metrics.y, .z = 0 };
 
             self.mesh.addQuad2D(
                 topLeft,
@@ -361,7 +361,7 @@ pub const TextRenderer = struct {
         // displayText with default settings is for large renders. eg. pages. code editors, etc..
         for (0..4) |i| {
             _ = i;
-            var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
+            const newDisplay = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 8192,
             });
 
@@ -371,7 +371,7 @@ pub const TextRenderer = struct {
 
         for (0..64) |i| {
             _ = i;
-            var newDisplay = try self.addDisplayText(core.MakeName("default"), .{
+            const newDisplay = try self.addDisplayText(core.MakeName("default"), .{
                 .charLimit = 512,
             });
 
@@ -385,7 +385,7 @@ pub const TextRenderer = struct {
     pub fn addFont(self: *@This(), ttfPath: []const u8, name: core.Name) !*FontAtlasVk {
         var new = try self.allocator.create(FontAtlasVk);
 
-        var textureName = try std.fmt.allocPrint(self.allocator, "texture.font.{s}", .{name.utf8()});
+        const textureName = try std.fmt.allocPrint(self.allocator, "texture.font.{s}", .{name.utf8()});
         defer self.allocator.free(textureName);
 
         new.* = try FontAtlasVk.init(
@@ -403,7 +403,7 @@ pub const TextRenderer = struct {
     }
 
     pub fn addDisplayText(self: *@This(), fontName: core.Name, opts: anytype) !*DisplayText {
-        var new = try self.allocator.create(DisplayText);
+        const new = try self.allocator.create(DisplayText);
 
         new.* = try DisplayText.init(
             self.allocator,
@@ -428,12 +428,12 @@ pub const TextRenderer = struct {
 
     pub fn getNextSlot(self: *@This(), len: usize, frameContext: *TextFrameContext) TextFrameAlloc {
         if (len >= self.small_limit) {
-            var rv: TextFrameAlloc = .{ .small = false, .index = frameContext.allocated };
+            const rv: TextFrameAlloc = .{ .small = false, .index = frameContext.allocated };
             frameContext.allocated += 1;
             return rv;
         }
 
-        var rv: TextFrameAlloc = .{ .small = true, .index = frameContext.allocated_small };
+        const rv: TextFrameAlloc = .{ .small = true, .index = frameContext.allocated_small };
         frameContext.allocated_small += 1;
         return rv;
     }
