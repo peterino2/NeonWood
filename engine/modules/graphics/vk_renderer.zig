@@ -213,8 +213,8 @@ pub const NeonVkContext = struct {
     vki: vk_constants.InstanceDispatch,
     vkd: vk_constants.DeviceDispatch,
 
-    outstandingJobsCount: std.atomic.Atomic(u32),
-    framesInFlight: std.atomic.Atomic(u32),
+    outstandingJobsCount: std.atomic.Value(u32),
+    framesInFlight: std.atomic.Value(u32),
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -319,13 +319,13 @@ pub const NeonVkContext = struct {
     destructionQueue: ArrayListUnmanaged(DestructionLambda),
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
-        var meshRef = self.meshes.get(meshName.handle()).?;
+        const meshRef = self.meshes.get(meshName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.meshName = meshName;
     }
 
     pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void {
-        var textureSet = self.textureSets.get(textureName.handle()).?;
+        const textureSet = self.textureSets.get(textureName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.texture = textureSet;
     }
 
@@ -340,7 +340,7 @@ pub const NeonVkContext = struct {
             .dir = core.Vectorf.new(0, 0, 0),
         };
 
-        var s = core.Vector2f{
+        const s = core.Vector2f{
             .x = @as(f32, @floatCast(screenPos.x)),
             .y = @as(f32, @floatCast(screenPos.y)),
         };
@@ -416,8 +416,8 @@ pub const NeonVkContext = struct {
             try self.requiredExtensions.append(self.allocator, required);
         }
 
-        self.outstandingJobsCount = std.atomic.Atomic(u32).init(0);
-        self.framesInFlight = std.atomic.Atomic(u32).init(0);
+        self.outstandingJobsCount = std.atomic.Value(u32).init(0);
+        self.framesInFlight = std.atomic.Value(u32).init(0);
 
         self.platformInstance = platform.getInstance();
     }
@@ -428,7 +428,7 @@ pub const NeonVkContext = struct {
 
     pub fn start_upload_context(self: *Self, context: *NeonVkUploadContext) !void {
         context.mutex.lock();
-        var cmd = context.commandBuffer;
+        const cmd = context.commandBuffer;
         var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
         try self.vkd.beginCommandBuffer(cmd, &cbi);
 
@@ -460,7 +460,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn pad_uniform_buffer_size(self: Self, originalSize: usize) usize {
-        var alignment = @as(usize, @intCast(self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment));
+        const alignment = @as(usize, @intCast(self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment));
 
         var alignedSize: usize = originalSize;
         if (alignment > 0) {
@@ -567,14 +567,14 @@ pub const NeonVkContext = struct {
 
     fn upload_object_data(self: *Self) !void {
         const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
-        var data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
         var ssbo: []NeonVkObjectDataGpu = undefined;
         ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
         ssbo.len = self.maxObjectCount;
 
         var i: usize = 0;
         while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-            var object = self.renderObjectSet.dense.items(.renderObject)[i];
+            const object = self.renderObjectSet.dense.items(.renderObject)[i];
             if (object.mesh != null) {
                 ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
             }
@@ -588,7 +588,7 @@ pub const NeonVkContext = struct {
         var stagingResults = try vk_utils.load_and_stage_image_from_file(self, texturePath);
         defer stagingResults.stagingBuffer.deinit(self.vkAllocator);
         try vk_utils.submit_copy_from_staging(self, stagingResults.stagingBuffer, stagingResults.image, stagingResults.mipLevel);
-        var image = stagingResults.image;
+        const image = stagingResults.image;
 
         var imageViewCreate = vkinit.imageViewCreateInfo(
             .r8g8b8a8_srgb,
@@ -598,8 +598,8 @@ pub const NeonVkContext = struct {
         );
 
         imageViewCreate.subresource_range.level_count = stagingResults.mipLevel;
-        var imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
-        var newTexture = try self.allocator.create(Texture);
+        const imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
+        const newTexture = try self.allocator.create(Texture);
 
         newTexture.* = Texture{
             .image = image,
@@ -681,14 +681,14 @@ pub const NeonVkContext = struct {
         // todo, defer this texture's destruction by 2 frames.
         try self.deferredTextureDestroy.append(self.allocator, self.textures.get(textureToUpdate.handle()).?);
         try self.deferredDescriptorsDestroy.append(self.allocator, self.textureSets.get(textureToUpdate.handle()).?);
-        var results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
+        const results = try vk_utils.createTextureFromPixels(pixelBuffer.pixels, pixelBuffer.extent, self, useBlockySampler);
 
         try self.textures.put(self.allocator, textureToUpdate.handle(), results.texture);
         try self.textureSets.put(self.allocator, textureToUpdate.handle(), results.descriptor);
     }
 
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
-        var newTexture = try self.upload_texture_from_file(texturePath);
+        const newTexture = try self.upload_texture_from_file(texturePath);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);
         return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
     }
@@ -720,8 +720,8 @@ pub const NeonVkContext = struct {
 
         self.descriptorPool = try self.vkd.createDescriptorPool(self.dev, &poolInfo, null);
 
-        var cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true, .fragment_bit = true }, 0);
-        var sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
+        const cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true, .fragment_bit = true }, 0);
+        const sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
         var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
 
         var setInfo = vk.DescriptorSetLayoutCreateInfo{
@@ -730,7 +730,7 @@ pub const NeonVkContext = struct {
             .p_bindings = @as([*]const @TypeOf(sceneBinding), @ptrCast(&bindings)),
         };
 
-        var objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
+        const objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
         var objectBindings = [_]@TypeOf(objectBinding){objectBinding};
 
         var objectSetInfo = vk.DescriptorSetLayoutCreateInfo{
@@ -778,7 +778,7 @@ pub const NeonVkContext = struct {
                 .range = @sizeOf(NeonVkObjectDataGpu) * self.maxObjectCount,
             };
 
-            var objectWrite = vkinit.writeDescriptorSet(
+            const objectWrite = vkinit.writeDescriptorSet(
                 .storage_buffer,
                 self.frameData[i].objectDescriptorSet,
                 &objectInfo,
@@ -810,13 +810,13 @@ pub const NeonVkContext = struct {
                 .range = @sizeOf(NeonVkSceneDataGpu),
             };
 
-            var cameraWrite = vkinit.writeDescriptorSet(
+            const cameraWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer,
                 self.frameData[i].globalDescriptorSet,
                 &cameraInfo,
                 0,
             );
-            var sceneWrite = vkinit.writeDescriptorSet(
+            const sceneWrite = vkinit.writeDescriptorSet(
                 .uniform_buffer_dynamic,
                 self.frameData[i].globalDescriptorSet,
                 &sceneInfo,
@@ -866,7 +866,7 @@ pub const NeonVkContext = struct {
 
     pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
         const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
-        var bci = vk.BufferCreateInfo{
+        const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{ .transfer_src_bit = true },
@@ -875,7 +875,7 @@ pub const NeonVkContext = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var vmaCreateInfo = vma.AllocationCreateInfo{
+        const vmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .cpuOnly,
         };
@@ -884,7 +884,7 @@ pub const NeonVkContext = struct {
         defer stagingBuffer.deinit(self.vkAllocator);
 
         {
-            var data = try self.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
+            const data = try self.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
 
             var dataSlice: []u8 = undefined;
             dataSlice.ptr = data;
@@ -899,7 +899,7 @@ pub const NeonVkContext = struct {
         }
 
         // Gpu sided buffer
-        var gpuBci = vk.BufferCreateInfo{
+        const gpuBci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{ .transfer_dst_bit = true, .vertex_buffer_bit = true },
@@ -908,7 +908,7 @@ pub const NeonVkContext = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var gpuVmaCreateInfo = vma.AllocationCreateInfo{
+        const gpuVmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .gpuOnly,
         };
@@ -961,9 +961,9 @@ pub const NeonVkContext = struct {
 
         // Initialize the pipeline with the default triangle mesh shader
         // and the default lighting shader
-        var vert_spv = try graphics.loadSpv(self.allocator, "triangle_mesh_vert.spv");
+        const vert_spv = try graphics.loadSpv(self.allocator, "triangle_mesh_vert.spv");
         defer self.allocator.free(vert_spv);
-        var frag_spv = try graphics.loadSpv(self.allocator, "default_lit.spv");
+        const frag_spv = try graphics.loadSpv(self.allocator, "default_lit.spv");
         defer self.allocator.free(frag_spv);
 
         var pipeline_builder = try NeonVkPipelineBuilder.init(
@@ -1054,7 +1054,7 @@ pub const NeonVkContext = struct {
 
     pub fn getNextSwapImage(self: *Self) !u32 {
         var z1 = tracy.ZoneN(@src(), "Acquiring Next image");
-        var image_index = (try self.vkd.acquireNextImageKHR(
+        const image_index = (try self.vkd.acquireNextImageKHR(
             self.dev,
             self.swapchain,
             1000000000,
@@ -1094,7 +1094,7 @@ pub const NeonVkContext = struct {
         defer z2.End();
 
         // spin
-        while (self.framesInFlight.load(.SeqCst) > 0) {}
+        while (self.framesInFlight.load(.seq_cst) > 0) {}
 
         const Lambda = struct {
             gc: *NeonVkContext,
@@ -1104,11 +1104,11 @@ pub const NeonVkContext = struct {
                 defer z1.End();
                 ctx.gc.draw(ctx.dt) catch unreachable;
                 ctx.gc.dynamicMeshManager.finishUpload() catch unreachable;
-                _ = ctx.gc.framesInFlight.fetchSub(1, .SeqCst);
+                _ = ctx.gc.framesInFlight.fetchSub(1, .seq_cst);
             }
         };
 
-        _ = self.framesInFlight.fetchAdd(1, .SeqCst);
+        _ = self.framesInFlight.fetchAdd(1, .seq_cst);
 
         try core.dispatchJob(Lambda{
             .gc = self,
@@ -1130,7 +1130,7 @@ pub const NeonVkContext = struct {
 
         // ---- bind global descriptors ----
         var z2 = tracy.ZoneN(@src(), "mapping memory");
-        var data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
+        const data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
         z2.End();
 
         // ==== upload camera data ====
@@ -1171,7 +1171,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn start_frame_command_buffer(self: *Self) !vk.CommandBuffer {
-        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+        const cmd = self.commandBuffers.items[self.nextFrameIndex];
         try self.vkd.resetCommandBuffer(cmd, .{});
 
         var cbi = vk.CommandBufferBeginInfo{
@@ -1340,7 +1340,7 @@ pub const NeonVkContext = struct {
         //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
         // }
 
-        var final = render_object.transform;
+        const final = render_object.transform;
         var constants = NeonVkMeshPushConstant{
             .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
             .render_matrix = final,
@@ -1353,7 +1353,7 @@ pub const NeonVkContext = struct {
 
     fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
-        var data = try self.vkAllocator.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
+        const data = try self.vkAllocator.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
         const startOffset = paddedSceneSize * self.nextFrameIndex;
 
@@ -1388,7 +1388,7 @@ pub const NeonVkContext = struct {
         }
         defer z10.End();
 
-        var cmd = self.commandBuffers.items[self.nextFrameIndex];
+        const cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         self.lastMaterial = null;
         self.lastMesh = null;
@@ -1529,7 +1529,7 @@ pub const NeonVkContext = struct {
         defer attachments.deinit();
 
         // create color attachment
-        var colorAttachment = vk.AttachmentDescription{
+        const colorAttachment = vk.AttachmentDescription{
             .flags = .{},
             .format = self.surfaceFormat.format,
             .samples = .{ .@"1_bit" = true },
@@ -1548,7 +1548,7 @@ pub const NeonVkContext = struct {
 
         try attachments.append(colorAttachment);
 
-        var depthAttachment = vk.AttachmentDescription{
+        const depthAttachment = vk.AttachmentDescription{
             .flags = .{},
             .format = self.depthFormat,
             .samples = .{ .@"1_bit" = true },
@@ -1575,7 +1575,7 @@ pub const NeonVkContext = struct {
         subpass.p_depth_stencil_attachment = &depthAttachmentRef; // disable the depth attachment for now
         //subpass.p_depth_stencil_attachment = null;
 
-        var dependency = vk.SubpassDependency{
+        const dependency = vk.SubpassDependency{
             .dependency_flags = .{},
             .src_subpass = vk.SUBPASS_EXTERNAL,
             .dst_subpass = 0,
@@ -1585,7 +1585,7 @@ pub const NeonVkContext = struct {
             .dst_access_mask = .{ .color_attachment_write_bit = true },
         };
 
-        var depthDependency = vk.SubpassDependency{
+        const depthDependency = vk.SubpassDependency{
             .dependency_flags = .{},
             .src_subpass = vk.SUBPASS_EXTERNAL,
             .dst_subpass = 0,
@@ -1625,7 +1625,7 @@ pub const NeonVkContext = struct {
         features: vk.FormatFeatureFlags,
     ) !vk.Format {
         for (formats) |format| {
-            var props = self.vki.getPhysicalDeviceFormatProperties(self.physicalDevice, format);
+            const props = self.vki.getPhysicalDeviceFormatProperties(self.physicalDevice, format);
             if (imageTiling == .linear and (@as(u32, @bitCast(props.linear_tiling_features)) & @as(u32, @bitCast(features))) == @as(u32, @bitCast(features))) {
                 return format;
             } else if (imageTiling == .optimal and (@as(u32, @bitCast(props.optimal_tiling_features)) & @as(u32, @bitCast(features))) == @as(u32, @bitCast(features))) {
@@ -1696,7 +1696,7 @@ pub const NeonVkContext = struct {
             .old_swapchain = self.swapchain,
         };
 
-        var newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
+        const newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
         errdefer self.vkd.destroySwapchainKHR(self.dev, newSwapchain, null);
 
         if (self.swapchain != .null_handle) {
@@ -1777,9 +1777,9 @@ pub const NeonVkContext = struct {
                 },
             };
 
-            var imageView = try self.vkd.createImageView(self.dev, &ivci, null);
+            const imageView = try self.vkd.createImageView(self.dev, &ivci, null);
 
-            var swapImage = NeonVkSwapImage{
+            const swapImage = NeonVkSwapImage{
                 .image = image,
                 .view = imageView,
                 .imageIndex = i,
@@ -1788,7 +1788,7 @@ pub const NeonVkContext = struct {
             self.swapImages.items[i] = swapImage;
         }
 
-        var depthImageExtent = vk.Extent3D{
+        const depthImageExtent = vk.Extent3D{
             .width = self.actual_extent.width,
             .height = self.actual_extent.height,
             .depth = 1,
@@ -1796,7 +1796,7 @@ pub const NeonVkContext = struct {
 
         self.depthFormat = .d32_sfloat;
 
-        var dimg_ici = vk.ImageCreateInfo{
+        const dimg_ici = vk.ImageCreateInfo{
             .flags = .{},
             .sharing_mode = .exclusive,
             .queue_family_index_count = 0,
@@ -1814,7 +1814,7 @@ pub const NeonVkContext = struct {
             .usage = .{ .depth_stencil_attachment_bit = true },
         };
 
-        var dimg_aci = vma.AllocationCreateInfo{
+        const dimg_aci = vma.AllocationCreateInfo{
             .requiredFlags = .{
                 .device_local_bit = true,
             },
@@ -1906,7 +1906,7 @@ pub const NeonVkContext = struct {
             core.engine_logs("glfw has requested extensions:");
             var i: usize = 0;
             while (i < extensionsCount) : (i += 1) {
-                var x = @as([*]const CStr, @ptrCast(extensions));
+                const x = @as([*]const CStr, @ptrCast(extensions));
                 core.engine_log("  glfw_extension: {s}", .{x[i]});
                 requestedExtensions[i] = extensions[i];
             }
@@ -1929,7 +1929,7 @@ pub const NeonVkContext = struct {
             .api_version = vk.makeApiVersion(0, 1, 3, 0),
         };
 
-        var flagbits: u32 = 0x01;
+        const flagbits: u32 = 0x01;
         // instance create info struct
         const icis = vk.InstanceCreateInfo{
             .flags = @bitCast(flagbits),
@@ -2082,7 +2082,7 @@ pub const NeonVkContext = struct {
                 if (props.queue_count == 0)
                     continue;
 
-                var supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @as(u32, @intCast(i)), self.surface);
+                const supportsPresent = try self.vki.getPhysicalDeviceSurfaceSupportKHR(pDeviceInfo.physicalDevice, @as(u32, @intCast(i)), self.surface);
 
                 if (supportsPresent > 0) {
                     presentID = @as(isize, @intCast(i));
@@ -2111,7 +2111,7 @@ pub const NeonVkContext = struct {
                 }
 
                 {
-                    var sampleCounts: u32 = @bitCast(self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts);
+                    const sampleCounts: u32 = @bitCast(self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts);
                     core.graphics_log("Sample counts available on device: 0x{x} {any}", .{ sampleCounts, self.getMsaaSampleCountFlag() });
                 }
                 return;
@@ -2220,7 +2220,7 @@ pub const NeonVkContext = struct {
     }
 
     fn check_required_vulkan_layers(self: *Self, requiredNames: []const CStr) !void {
-        var layers = try self.get_layer_extensions();
+        const layers = try self.get_layer_extensions();
         defer self.allocator.free(layers);
         for (layers, 0..) |layer, i| {
             core.graphics_log("  {d}: Layer name: {?s} \"{?s}\"", .{
@@ -2233,7 +2233,7 @@ pub const NeonVkContext = struct {
         for (requiredNames) |requested| {
             var layerFound: bool = false;
             for (layers) |layer| {
-                var layerName = core.buf_to_cstr(layer.layer_name);
+                const layerName = core.buf_to_cstr(layer.layer_name);
                 if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
                     layerFound = true;
                 }
@@ -2301,7 +2301,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn registerRendererPlugin(self: *@This(), value: anytype) !void {
-        var ref = RendererInterfaceRef{
+        const ref = RendererInterfaceRef{
             .ptr = value,
             .vtable = &@TypeOf(value.*).RendererInterfaceVTable,
         };
@@ -2312,7 +2312,7 @@ pub const NeonVkContext = struct {
         var count: u32 = 0;
         _ = try self.vkb.enumerateInstanceLayerProperties(&count, null);
 
-        var data = try self.allocator.alloc(vk.LayerProperties, count);
+        const data = try self.allocator.alloc(vk.LayerProperties, count);
         core.graphics_log("layers found : {d}", .{count});
         _ = try self.vkb.enumerateInstanceLayerProperties(&count, data.ptr);
 
@@ -2363,7 +2363,7 @@ pub const NeonVkContext = struct {
         memoryUsageFlags: vma.MemoryUsage,
         comptime tag: []const u8,
     ) !NeonVkBuffer {
-        var cbi = vk.BufferCreateInfo{
+        const cbi = vk.BufferCreateInfo{
             .size = allocSize,
             .usage = usage,
             .flags = .{},
@@ -2372,7 +2372,7 @@ pub const NeonVkContext = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var vma_alloc_info = vma.AllocationCreateInfo{
+        const vma_alloc_info = vma.AllocationCreateInfo{
             .usage = memoryUsageFlags,
         };
 
@@ -2429,8 +2429,8 @@ pub const NeonVkContext = struct {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
 
-        while (self.outstandingJobsCount.load(.SeqCst) > 0) {
-            std.debug.print("outstanding jobs: count = {d}\r", .{self.outstandingJobsCount.load(.SeqCst)});
+        while (self.outstandingJobsCount.load(.seq_cst) > 0) {
+            std.debug.print("outstanding jobs: count = {d}\r", .{self.outstandingJobsCount.load(.seq_cst)});
             std.time.sleep(1000 * 1000 * 25);
         }
 
@@ -2507,8 +2507,8 @@ pub const NeonVkContext = struct {
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !RenderObject {
         var renderObject = RenderObject.fromTransform(params.init_transform);
 
-        var findMesh = self.meshes.getEntry(params.mesh_name.handle());
-        var findMat = self.materials.getEntry(params.material_name.handle());
+        const findMesh = self.meshes.getEntry(params.mesh_name.handle());
+        const findMat = self.materials.getEntry(params.material_name.handle());
 
         if (findMesh == null)
             return error.NoMeshFound;
@@ -2523,18 +2523,18 @@ pub const NeonVkContext = struct {
     }
 
     pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle {
-        var renderObject = try self.initRenderObject(params);
+        const renderObject = try self.initRenderObject(params);
 
-        var rv = try self.renderObjectSet.createWithHandle(objectHandle, .{ .renderObject = renderObject });
+        const rv = try self.renderObjectSet.createWithHandle(objectHandle, .{ .renderObject = renderObject });
         self.renderObjectsAreDirty = true;
 
         return rv;
     }
 
     pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
-        var renderObject = try self.initRenderObject(params);
+        const renderObject = try self.initRenderObject(params);
 
-        var rv = try self.renderObjectSet.createObject(.{ .renderObject = renderObject });
+        const rv = try self.renderObjectSet.createObject(.{ .renderObject = renderObject });
         self.renderObjectsAreDirty = true;
 
         return rv;

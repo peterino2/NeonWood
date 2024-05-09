@@ -1,7 +1,7 @@
 const std = @import("std");
 pub const spirvReflect = @import("lib/spirv-reflect-zig/build.zig");
 
-pub fn addLib(b: *std.Build, exe: *std.build.LibExeObjStep, comptime pathPrefix: []const u8, cflags: []const []const u8, graphicsBackend: anytype) void {
+pub fn addLib(b: *std.Build, exe: *std.Build.Step.Compile, comptime pathPrefix: []const u8, cflags: []const []const u8, graphicsBackend: anytype) void {
     _ = cflags;
     _ = b;
 

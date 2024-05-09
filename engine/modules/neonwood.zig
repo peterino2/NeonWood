@@ -18,7 +18,7 @@ pub const NwArgs = struct {
 };
 
 pub fn getArgs() !NwArgs {
-    var a = try core.ParseArgs(NwArgs);
+    const a = try core.ParseArgs(NwArgs);
 
     return a;
 }

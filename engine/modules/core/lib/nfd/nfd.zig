@@ -43,7 +43,7 @@ pub const NFDRuntime = struct {
     } = .{ .none = false },
 
     pub fn create(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
 
         self.* = .{ .allocator = allocator };
 
@@ -98,7 +98,7 @@ pub const NFDRuntime = struct {
         switch (self.runtimeState) {
             .none => {},
             .openDialog => |args| {
-                var res = c.NFD_OpenDialog(args.filterList.ptr, args.defaultPath.ptr, &self.outPath);
+                const res = c.NFD_OpenDialog(args.filterList.ptr, args.defaultPath.ptr, &self.outPath);
                 if (res == c.NFD_CANCEL) {
                     self.outPath = null;
                 } else if (res == c.NFD_ERROR) {
@@ -113,7 +113,7 @@ pub const NFDRuntime = struct {
                 return error.NotImplemented;
             },
             .openFolder => |args| {
-                var res = c.NFD_PickFolder(args.defaultPath.ptr, &self.outPath);
+                const res = c.NFD_PickFolder(args.defaultPath.ptr, &self.outPath);
                 if (res == c.NFD_CANCEL) {
                     self.outPath = null;
                 } else if (res == c.NFD_ERROR) {

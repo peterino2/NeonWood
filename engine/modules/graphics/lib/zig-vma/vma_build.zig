@@ -1,7 +1,7 @@
 const std = @import("std");
-const Builder = std.build.Builder;
-const LibExeObjStep = std.build.LibExeObjStep;
-const Module = std.build.Module;
+const Builder = std.Build;
+const LibExeObjStep = std.Build.Step;
+const Module = std.Build.Module;
 const vma_config = @import("vma_config.zig");
 const version: std.SemanticVersion = @import("builtin").zig_version;
 
@@ -30,12 +30,12 @@ pub fn pkg(b: *Builder, vk_root_file: []const u8) *Module {
     });
 }
 
-pub fn pkg2(b: *Builder, vk_package: anytype) *Module {
+pub fn pkg2(b: *std.Build, vk_package: anytype) *Module {
     const allocator = b.allocator;
     _ = allocator;
     return b.createModule(.{
-        .source_file = .{ .path = zig_vma_file },
-        .dependencies = &[_]std.Build.ModuleDependency{
+        .root_source_file = .{ .path = zig_vma_file },
+        .imports = &[_]std.Build.Module.Import{
             .{
                 .name = "vk",
                 .module = vk_package,
@@ -108,13 +108,13 @@ fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
     }
 }
 
-pub fn link(object: *LibExeObjStep, vk_package: anytype, mode: std.builtin.Mode, target: std.zig.CrossTarget, builder: *Builder) void {
-    var package = pkg2(builder, vk_package);
+pub fn link(object: *std.Build.Step.Compile, vk_package: anytype, mode: std.builtin.Mode, target: std.Build.ResolvedTarget, builder: *Builder) void {
+    const package = pkg2(builder, vk_package);
     linkWithoutModule(object, mode, target);
-    object.addModule("vma", package);
+    object.root_module.addImport("vma", package);
 }
 
-pub fn linkWithoutModule(object: *LibExeObjStep, mode: std.builtin.Mode, target: std.zig.CrossTarget) void {
+pub fn linkWithoutModule(object: *std.Build.Step.Compile, mode: std.builtin.Mode, target: std.Build.ResolvedTarget) void {
     const commonArgs = &[_][]const u8{ "-std=c++14", "-DVMA_IMPLEMENTATION" };
     const releaseArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.releaseConfig);
     const debugArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.debugConfig);
@@ -122,7 +122,7 @@ pub fn linkWithoutModule(object: *LibExeObjStep, mode: std.builtin.Mode, target:
 
     object.addCSourceFile(.{ .file = .{ .path = zig_vma_path ++ sep ++ "vk_mem_alloc.cpp" }, .flags = args });
     object.linkLibC();
-    if (target.getAbi() != .msvc) {
+    if (target.result.abi != .msvc) {
         // MSVC can't link libc++, it causes duplicate symbol errors.
         // But it's needed for other targets.
         object.linkLibCpp();

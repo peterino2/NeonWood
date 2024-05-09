@@ -65,8 +65,8 @@ pub const ImageGpu = papyrus_vk_vert.ImageRenderData;
 pub const FontInfo = FontSDF_vert.FontInfo;
 
 pub fn init(allocator: std.mem.Allocator) !*@This() {
-    var papyrusCtx = try papyrus.initialize(allocator);
-    var self = try allocator.create(@This());
+    const papyrusCtx = try papyrus.initialize(allocator);
+    const self = try allocator.create(@This());
     self.* = .{
         .allocator = allocator,
         .gc = graphics.getContext(),
@@ -217,7 +217,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, ImageGpu, 0);
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
     core.ui_log("Mapping buffers.", .{});
-    var extent = self.gc.actual_extent;
+    const extent = self.gc.actual_extent;
     const pi = platform.getInstance();
 
     self.papyrusCtx.get(.{}).setSize(.{
@@ -272,7 +272,7 @@ fn setupMeshes(self: *@This()) !void {
 
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
-    var cursor = platform.getInstance().inputState.mousePos;
+    const cursor = platform.getInstance().inputState.mousePos;
 
     // TODO, use OnIoEvent, but ehh this is fine.
     self.papyrusCtx.setCursorLocation(.{
@@ -307,9 +307,9 @@ pub fn buildTextPipeline(self: *@This()) !void {
     self.textPipeData = try gpdBuilder.build("Papyrus-Text");
     defer gpdBuilder.deinit();
 
-    var vert_spv = try graphics.loadSpv(self.allocator, "FontSDF_vert.spv");
+    const vert_spv = try graphics.loadSpv(self.allocator, "FontSDF_vert.spv");
     defer self.allocator.free(vert_spv);
-    var frag_spv = try graphics.loadSpv(self.allocator, "FontSDF_frag.spv");
+    const frag_spv = try graphics.loadSpv(self.allocator, "FontSDF_frag.spv");
     defer self.allocator.free(frag_spv);
 
     core.ui_logs("Building text pipeline builder");
@@ -354,10 +354,10 @@ pub fn buildImagePipeline(self: *@This()) !void {
     self.pipeData = try spriteDataBuilder.build("Papyrus");
     defer spriteDataBuilder.deinit();
 
-    var vert_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_vert.spv");
+    const vert_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_vert.spv");
     defer self.allocator.free(vert_spv);
 
-    var frag_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_frag.spv");
+    const frag_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_frag.spv");
     defer self.allocator.free(frag_spv);
 
     var builder = try graphics.NeonVkPipelineBuilder.init(
@@ -378,7 +378,7 @@ pub fn buildImagePipeline(self: *@This()) !void {
     try builder.add_push_constant_custom(PushConstant);
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
-    var material = try self.gc.allocator.create(graphics.Material);
+    const material = try self.gc.allocator.create(graphics.Material);
 
     material.* = graphics.Material{
         .materialName = self.materialName,
@@ -462,7 +462,7 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
                 self.ssboCount += 1;
             },
             .Text => |text| {
-                var nextDisplay = self.textRenderer.getNextSlot(text.text.utf8.len, &textFrameContext);
+                const nextDisplay = self.textRenderer.getNextSlot(text.text.utf8.len, &textFrameContext);
 
                 var textDisplay: *DisplayText = undefined;
                 if (nextDisplay.small) {
@@ -553,7 +553,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
             },
             .image => |img| {
                 self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
-                var index = img.index;
+                const index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
                 self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);

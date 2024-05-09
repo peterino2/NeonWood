@@ -70,7 +70,7 @@ pub fn addMousePickInfo(
     drawList: *papyrus.DrawList,
 ) !void {
     const selected_node = self.selected_node orelse return;
-    var layoutInfo = papyrusCtx._displayLayout.items[selected_node.index];
+    const layoutInfo = papyrusCtx._displayLayout.items[selected_node.index];
 
     try drawList.append(.{
         .node = .{},

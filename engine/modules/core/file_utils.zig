@@ -5,7 +5,7 @@ const logging = @import("logging.zig");
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const filesize = (try file.stat()).size;
-    var buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
+    const buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
     try file.reader().readNoEof(buffer);
     return buffer;
 }

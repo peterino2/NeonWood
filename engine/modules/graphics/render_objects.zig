@@ -71,7 +71,7 @@ pub const RenderObject = struct {
         imat[1][3] = -self.transform[1][3];
         imat[2][3] = -self.transform[2][3];
 
-        var rmat = core.zm.identity();
+        const rmat = core.zm.identity();
         imat[0][3] = self.transform[0][3];
         imat[1][3] = self.transform[1][3];
         imat[2][3] = self.transform[2][3];
@@ -88,7 +88,7 @@ pub const RenderObject = struct {
         imat[1][3] = -self.transform[1][3];
         imat[2][3] = -self.transform[2][3];
 
-        var rmat = core.zm.identity();
+        const rmat = core.zm.identity();
         imat[0][3] = self.transform[0][3];
         imat[1][3] = self.transform[1][3];
         imat[2][3] = self.transform[2][3];
@@ -105,7 +105,7 @@ pub const RenderObject = struct {
         imat[1][3] = -self.transform[1][3];
         imat[2][3] = -self.transform[2][3];
 
-        var rmat = core.zm.identity();
+        const rmat = core.zm.identity();
         imat[0][3] = self.transform[0][3];
         imat[1][3] = self.transform[1][3];
         imat[2][3] = self.transform[2][3];
@@ -124,7 +124,7 @@ pub const RenderObject = struct {
 };
 
 fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
-    var proj = core.zm.perspectiveFovRh(
+    const proj = core.zm.perspectiveFovRh(
         core.radians(fov),
         aspect,
         near,

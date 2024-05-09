@@ -30,7 +30,7 @@ const GameContext = struct {
     allocator: std.mem.Allocator,
     wakeCount: u32 = 100,
     timeTilWake: f64 = 2.0,
-    count: std.atomic.Atomic(u32) = std.atomic.Atomic(u32).init(0),
+    count: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
     complete: [jobTestCount]bool = std.mem.zeroes([jobTestCount]bool),
     timeElapsed: f64 = 0.0,
     reinjectFired: bool = false,
@@ -62,7 +62,7 @@ const GameContext = struct {
                 defer z.End();
                 core.printInner("job started, payload: {any}\n", .{ctx.payload});
                 std.time.sleep(1000 * 1000 * 100);
-                var v = ctx.game.count.fetchAdd(1, .SeqCst);
+                var v = ctx.game.count.fetchAdd(1, .seq_cst);
                 core.printInner("job done!{d} {d}\n", .{ ctx.payload.value, v });
                 ctx.game.complete[@intCast(ctx.payload.value)] = true;
                 _ = job;
@@ -87,7 +87,7 @@ const GameContext = struct {
         if (self.timeTilWake <= 0) {
             self.timeTilWake = 0.5;
             self.wakeCount -= 1;
-            core.engine_log("tick {d}", .{self.count.load(.SeqCst)});
+            core.engine_log("tick {d}", .{self.count.load(.seq_cst)});
             var i: usize = 0;
 
             while (i < jobTestCount) : (i += 1) {
@@ -139,7 +139,7 @@ const GameContext = struct {
         self.timeTilWake -= 0.1;
         std.time.sleep(1000 * 1000 * 100);
 
-        if (self.count.load(.SeqCst) >= jobTestCount) {
+        if (self.count.load(.seq_cst) >= jobTestCount) {
             var i: usize = 0;
             while (i < jobTestCount) : (i += 1) {
                 var d = @as(u1, @bitCast(self.complete[i]));

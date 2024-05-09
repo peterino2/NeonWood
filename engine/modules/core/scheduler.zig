@@ -1,5 +1,5 @@
 const std = @import("std");
-const Atomic = std.atomic.Atomic;
+const Atomic = std.atomic.Value;
 const core = @import("../core.zig");
 const tracy = core.tracy;
 const ConcurrentQueue = core.ConcurrentQueue;

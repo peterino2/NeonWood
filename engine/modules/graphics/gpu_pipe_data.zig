@@ -76,7 +76,7 @@ pub const GpuPipeDataBinding = struct {
         // maps buffers for these bindings, one for each frame
         var rv = try gc.allocator.alloc(GpuMappingData(MappingType), self.buffers.len);
         while (frameIndex < self.buffers.len) : (frameIndex += 1) {
-            var data = try gc.vkAllocator.vmaAllocator.mapMemory(self.buffers[frameIndex].allocation, MappingType);
+            const data = try gc.vkAllocator.vmaAllocator.mapMemory(self.buffers[frameIndex].allocation, MappingType);
             var mapping: []MappingType = undefined;
             mapping.ptr = @as([*]MappingType, @ptrCast(data));
             mapping.len = self.objectCount;
@@ -84,7 +84,7 @@ pub const GpuPipeDataBinding = struct {
             var dataMapping: []u8 = undefined;
             dataMapping.ptr = @as([*]u8, @ptrCast(data));
             dataMapping.len = self.objectCount;
-            var gpuMappingData: GpuMappingData(MappingType) = .{
+            const gpuMappingData: GpuMappingData(MappingType) = .{
                 .objects = mapping,
                 .trueObjectSize = self.objectSize,
                 .raw = .{ .data = dataMapping, .allocation = self.buffers[frameIndex].allocation },
@@ -116,7 +116,7 @@ pub const GpuPipeData = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, bindingCount: usize, frameCount: usize) !@This() {
-        var self = GpuPipeData{
+        const self = GpuPipeData{
             .descriptorSetLayout = undefined,
             .bindings = try allocator.alloc(GpuPipeDataBinding, bindingCount),
             .descriptorSets = try allocator.alloc(vk.DescriptorSet, frameCount),
@@ -172,7 +172,7 @@ pub const GpuPipeDataBuilder = struct {
     bindingObjectInfos: ArrayListUnmanaged(BindingObjectInfo) = .{},
 
     pub fn init(allocator: std.mem.Allocator, gc: *NeonVkContext) @This() {
-        var self = GpuPipeDataBuilder{
+        const self = GpuPipeDataBuilder{
             .allocator = allocator,
             .gc = gc,
         };
@@ -195,7 +195,7 @@ pub const GpuPipeDataBuilder = struct {
         bindingMode: BindingMode,
     ) !void {
         var gc = self.gc;
-        var binding = vkinit.descriptorSetLayoutBinding(descriptorType, stageFlags, self.currentBinding);
+        const binding = vkinit.descriptorSetLayoutBinding(descriptorType, stageFlags, self.currentBinding);
 
         // core.graphics_log("builder adding additional binding {any} {any} objectSize = {d}", .{ descriptorType, stageFlags, @sizeOf(BindingType) });
         try self.bindings.append(self.allocator, binding);
@@ -251,10 +251,8 @@ pub const GpuPipeDataBuilder = struct {
 
         var bindingId: usize = 0;
         while (bindingId < self.bindings.items.len) : (bindingId += 1) {
-            var binding = &rv.bindings[bindingId];
-            var bindingInfo: BindingObjectInfo = self.bindingObjectInfos.items[bindingId];
-            var bindingLayout = self.bindings.items[bindingId];
-            _ = bindingLayout;
+            const binding = &rv.bindings[bindingId];
+            const bindingInfo: BindingObjectInfo = self.bindingObjectInfos.items[bindingId];
 
             core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{ binding.buffers.len, bindingId, bindingInfo.finalObjectSize * bindingInfo.objectCount, bindingInfo.finalObjectSize });
 

@@ -21,7 +21,7 @@ pub fn writeDescriptorSet(
     bufferInfo: *vk.DescriptorBufferInfo,
     binding: u32,
 ) vk.WriteDescriptorSet {
-    var setWrite = vk.WriteDescriptorSet{
+    const setWrite = vk.WriteDescriptorSet{
         .dst_binding = binding,
         .dst_set = dst_set,
         .descriptor_count = 1,
@@ -39,7 +39,7 @@ pub fn commandPoolCreateInfo(
     queueFamilyIndex: u32,
     flags: vk.CommandPoolCreateFlags,
 ) vk.CommandPoolCreateInfo {
-    var self = vk.CommandPoolCreateInfo{
+    const self = vk.CommandPoolCreateInfo{
         .queue_family_index = queueFamilyIndex,
         .flags = flags,
     };
@@ -48,7 +48,7 @@ pub fn commandPoolCreateInfo(
 }
 
 pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
-    var info = vk.SubmitInfo{
+    const info = vk.SubmitInfo{
         .wait_semaphore_count = 0,
         .signal_semaphore_count = 0,
         .command_buffer_count = 1,
@@ -62,7 +62,7 @@ pub fn submitInfo(cmd: *vk.CommandBuffer) vk.SubmitInfo {
 }
 
 pub fn commandBufferBeginInfo(flags: vk.CommandBufferUsageFlags) vk.CommandBufferBeginInfo {
-    var cbi = vk.CommandBufferBeginInfo{
+    const cbi = vk.CommandBufferBeginInfo{
         .p_inheritance_info = null,
         .flags = flags,
     };
@@ -75,7 +75,7 @@ pub fn imageCreateInfo(
     extent: vk.Extent3D,
     mipLevel: u32, // should default to 1
 ) vk.ImageCreateInfo {
-    var img_create = vk.ImageCreateInfo{
+    const img_create = vk.ImageCreateInfo{
         .flags = .{},
         .sharing_mode = .exclusive,
         .queue_family_index_count = 0,
@@ -104,7 +104,7 @@ pub fn imageViewCreateInfo(
     if (mipLevel == 0) {
         core.engine_logs("create image view with mipLevel of 0");
     }
-    var ivci = vk.ImageViewCreateInfo{
+    const ivci = vk.ImageViewCreateInfo{
         .flags = .{},
         .image = image,
         .view_type = .@"2d",
@@ -126,7 +126,7 @@ pub fn samplerCreateInfo(
     filters: vk.Filter,
     samplerAddressMode: ?vk.SamplerAddressMode,
 ) vk.SamplerCreateInfo {
-    var addressMode = if (samplerAddressMode != null) samplerAddressMode.? else .repeat;
+    const addressMode = if (samplerAddressMode != null) samplerAddressMode.? else .repeat;
 
     var self = vk.SamplerCreateInfo{
         .flags = .{},
@@ -161,7 +161,7 @@ pub fn writeDescriptorImage(
     imageInfo: *vk.DescriptorImageInfo,
     binding: u32,
 ) vk.WriteDescriptorSet {
-    var setWrite = vk.WriteDescriptorSet{
+    const setWrite = vk.WriteDescriptorSet{
         .dst_binding = binding,
         .dst_set = dstSet,
         .descriptor_count = 1,

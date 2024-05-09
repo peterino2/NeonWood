@@ -5,8 +5,8 @@ const core = @import("modules/core.zig");
 
 const realMain = @import("main");
 
-pub const std_options = struct {
-    pub const enable_segfault_handler: bool = false;
+pub const std_options = std.Options{
+    .enable_segfault_handler = false,
 };
 
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, x: ?usize) noreturn {

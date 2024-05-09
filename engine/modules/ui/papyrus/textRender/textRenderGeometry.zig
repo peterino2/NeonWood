@@ -63,7 +63,7 @@ pub const GeometryEntry = struct {
 //      xSize, ySize, of character
 
 pub fn addCharGeo(self: *@This(), xOffset: f32, width: f32, charIndex: u32) !void {
-    var newCharGeo: GeometryEntry = .{
+    const newCharGeo: GeometryEntry = .{
         .x = xOffset,
         .index = charIndex,
         .width = width,
@@ -108,7 +108,7 @@ pub const HitResults = struct {
 };
 
 pub fn testHit(self: @This(), mouseHit: core.Vector2f) ?HitResults {
-    var converted = mouseHit; //mouseHit.sub(self.position);
+    const converted = mouseHit; //mouseHit.sub(self.position);
     if (self.geo.items.len < 1) {
         // core.engine_logs("didnt hit due no geometry");
         return null;
@@ -140,7 +140,7 @@ pub fn testHit(self: @This(), mouseHit: core.Vector2f) ?HitResults {
     // search along the y indexer
     var line: i32 = @as(i32, @intCast(self.geo.items.len)) - 1;
     while (line >= 0) : (line -= 1) {
-        var lineEntry = self.geo.items[@intCast(line)];
+        const lineEntry = self.geo.items[@intCast(line)];
 
         // todo this could be binary search
         // we have found our line, search through the line and find the character
@@ -184,7 +184,7 @@ pub fn setPosition(self: *@This(), position: core.Vector2f) void {
 }
 
 pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
-    var self = try backingAllocator.create(@This());
+    const self = try backingAllocator.create(@This());
     self.* = .{
         .backingAllocator = backingAllocator,
         .arena = std.heap.ArenaAllocator.init(backingAllocator),
@@ -207,7 +207,7 @@ pub fn resetAllLines(self: *@This()) !void {
 // get yourself a new GeometryLineEntry
 pub fn recycleOrNewGeoLine(self: *@This()) GeometryLineEntry {
     if (self.geoPool.items.len > 0) {
-        var newLine = self.geoPool.pop();
+        const newLine = self.geoPool.pop();
         return .{
             .yOffset = 0,
             .lineGeo = newLine,

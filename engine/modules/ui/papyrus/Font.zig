@@ -275,7 +275,7 @@ pub const FontAtlas = struct {
         if (self.isMonospace) {
             var i: usize = 0;
 
-            var fixedSize = self.glyphBox1['a'].x + self.glyphMetrics['a'].x;
+            const fixedSize = self.glyphBox1['a'].x + self.glyphMetrics['a'].x;
 
             while (i < self.glyphMetrics.len) : (i += 1) {
                 self.glyphMetrics[i].x = fixedSize - self.glyphBox1[i].x;

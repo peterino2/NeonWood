@@ -1,5 +1,5 @@
 const std = @import("std");
-const Atomic = std.atomic.Atomic;
+const Atomic = std.atomic.Value;
 const core = @import("../core.zig");
 const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
@@ -43,7 +43,7 @@ pub const JobManager = struct {
 
     pub fn newJob(self: *@This(), capture: anytype) !void {
         const Lambda = @TypeOf(capture);
-        var ctx = try JobContext.new(self.allocator, Lambda, capture);
+        const ctx = try JobContext.new(self.allocator, Lambda, capture);
 
         if (build_opts.mutex_job_queue) {
             self.mutex.lock();
@@ -118,7 +118,7 @@ pub const JobWorker = struct {
     }
 
     pub fn init(allocator: std.mem.Allocator, workerNumber: usize) !*@This() {
-        var self = try allocator.create(JobWorker);
+        const self = try allocator.create(JobWorker);
 
         self.* = .{
             .allocator = allocator,
@@ -130,29 +130,29 @@ pub const JobWorker = struct {
     }
 
     pub fn isBusy(self: *@This()) bool {
-        return self.busy.load(.Acquire);
+        return self.busy.load(.acquire);
     }
 
     pub fn assignContext(self: *@This(), context: JobContext) !void {
-        self.busy.store(true, .SeqCst);
+        self.busy.store(true, .seq_cst);
         self.currentJobContext = context;
         self.wake();
     }
 
     pub fn workerThreadFunc(self: *@This()) void {
-        var printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
+        const printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
         tracy.SetThreadName(@as([*:0]u8, @ptrCast(printed.ptr)));
 
         self.allocator.free(printed);
 
-        while (!self.shouldDie.load(.Acquire)) {
+        while (!self.shouldDie.load(.acquire)) {
             if (self.currentJobContext != null) {
-                self.busy.store(true, .SeqCst);
+                self.busy.store(true, .seq_cst);
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture, &ctx);
                 ctx.deinit();
                 self.currentJobContext = null;
-                self.busy.store(false, .SeqCst);
+                self.busy.store(false, .seq_cst);
             } else {
                 std.Thread.Futex.wait(&self.futex, self.current);
             }
@@ -176,7 +176,7 @@ pub const JobWorker = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.shouldDie.store(true, .SeqCst);
+        self.shouldDie.store(true, .seq_cst);
         self.wake();
         self.workerThread.join();
         self.allocator.destroy(self);
@@ -205,18 +205,18 @@ pub const JobContext = struct {
             }
 
             pub fn wrappedDestroy(ptr: *anyopaque, alloc: std.mem.Allocator) void {
-                var p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
+                const p = @as(*CaptureType, @ptrCast(@alignCast(ptr)));
                 alloc.destroy(p);
             }
         };
 
-        var self = Self{
+        const self = Self{
             .allocator = allocator,
             .func = Wrap.wrappedFunc,
             .destroyFunc = Wrap.wrappedDestroy,
             .capture = try allocator.create(CaptureType),
         };
-        var ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
+        const ptr = @as(*CaptureType, @ptrCast(@alignCast(self.capture)));
         ptr.* = capture;
         return self;
     }

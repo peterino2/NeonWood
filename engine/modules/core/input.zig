@@ -11,7 +11,7 @@ pub const InputSubsystem = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{
+        const self = Self{
             .allocator = allocator,
         };
 

@@ -39,7 +39,7 @@ fn make_depth_stencil_create_info(
     depth_write: bool,
     compareOp: vk.CompareOp,
 ) vk.PipelineDepthStencilStateCreateInfo {
-    var pdsci = vk.PipelineDepthStencilStateCreateInfo{
+    const pdsci = vk.PipelineDepthStencilStateCreateInfo{
         .flags = .{},
         .depth_test_enable = if (depth_test) vk.TRUE else vk.FALSE,
         .depth_write_enable = if (depth_write) vk.TRUE else vk.FALSE,
@@ -366,7 +366,7 @@ pub const NeonVkPipelineBuilder = struct {
         stageFlags: vk.ShaderStageFlags,
         shaderModule: vk.ShaderModule,
     ) !void {
-        var info = vk.PipelineShaderStageCreateInfo{
+        const info = vk.PipelineShaderStageCreateInfo{
             .flags = .{},
             .stage = stageFlags,
             .module = shaderModule,

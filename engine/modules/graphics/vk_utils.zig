@@ -36,7 +36,7 @@ const NeonVkSpriteDataGpu = struct {
 
 // Takes the contents of a png file and transfers the pixel contents to a staged buffer
 pub fn stagePixels(self: PngContents, ctx: *NeonVkContext) !NeonVkBuffer {
-    var stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
+    const stagingBuffer = try ctx.create_buffer(self.pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
     const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
     var dataSlice: []u8 = undefined;
     dataSlice.ptr = data;
@@ -58,7 +58,7 @@ pub const LoadAndStageImage = struct {
 };
 
 pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {
-    var stagingBuffer = try ctx.create_buffer(pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
+    const stagingBuffer = try ctx.create_buffer(pixels.len, .{ .transfer_src_bit = true }, .cpuOnly, "Stage pixels staging buffer");
     const data = try ctx.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
     var dataSlice: []u8 = undefined;
     dataSlice.ptr = data;
@@ -69,7 +69,7 @@ pub fn stagePixelsRaw(pixels: []const u8, ctx: *NeonVkContext) !NeonVkBuffer {
 }
 
 pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !NeonVkImage {
-    var imageExtent = vk.Extent3D{
+    const imageExtent = vk.Extent3D{
         .width = @as(u32, @intCast(size.x)),
         .height = @as(u32, @intCast(size.y)),
         .depth = 1,
@@ -89,7 +89,7 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
         };
     }
 
-    var imgAllocInfo = vma.AllocationCreateInfo{
+    const imgAllocInfo = vma.AllocationCreateInfo{
         .requiredFlags = .{},
         .usage = .gpuOnly,
     };
@@ -116,10 +116,10 @@ pub fn createTextureFromPixels(
     useBlocky: bool,
 ) !CreateTextureResults {
     // copy pixels into staging buffer
-    var miplevel = getMiplevelFromSize(size);
+    const miplevel = getMiplevelFromSize(size);
     var stagingBuffer = try stagePixelsRaw(pixels, ctx);
     // create image memory resources
-    var createdImage = try newVkImage(size, ctx, miplevel);
+    const createdImage = try newVkImage(size, ctx, miplevel);
 
     // upload staging buffer
     try submit_copy_from_staging(ctx, stagingBuffer, createdImage, miplevel);
@@ -133,9 +133,9 @@ pub fn createTextureFromPixels(
         miplevel,
     );
 
-    var imageView = try ctx.vkd.createImageView(ctx.dev, &imageViewCreate, null);
+    const imageView = try ctx.vkd.createImageView(ctx.dev, &imageViewCreate, null);
 
-    var newTexture = try ctx.allocator.create(Texture);
+    const newTexture = try ctx.allocator.create(Texture);
 
     newTexture.* = Texture{
         .image = createdImage,
@@ -143,7 +143,7 @@ pub fn createTextureFromPixels(
     };
 
     // create descriptors for
-    var textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
+    const textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
         .useBlocky = useBlocky,
     }) catch unreachable;
 
@@ -159,7 +159,7 @@ pub fn createAndInstallTextureFromPixels(
     ctx: *NeonVkContext,
     useBlocky: bool,
 ) !CreateTextureResults {
-    var res = try createTextureFromPixels(pixels, size, ctx, useBlocky);
+    const res = try createTextureFromPixels(pixels, size, ctx, useBlocky);
 
     ctx.install_texture_into_registry(textureName, res.texture, res.descriptor) catch return error.UnknownStatePanic;
 
@@ -181,12 +181,12 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     var pngContents = try PngContents.init(ctx.allocator, filePath);
 
-    var imageExtent = vk.Extent3D{
+    const imageExtent = vk.Extent3D{
         .width = @as(u32, @intCast(pngContents.size.x)),
         .height = @as(u32, @intCast(pngContents.size.y)),
         .depth = 1,
     };
-    var mipLevel = std.math.log2(@max(imageExtent.width, imageExtent.height)) + 1;
+    const mipLevel = std.math.log2(@max(imageExtent.width, imageExtent.height)) + 1;
 
     var imgCreateInfo = vkinit.imageCreateInfo(.r8g8b8a8_srgb, .{
         .sampled_bit = true,
@@ -197,13 +197,13 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
         imgCreateInfo.usage.transfer_src_bit = true;
     }
 
-    var imgAllocInfo = vma.AllocationCreateInfo{
+    const imgAllocInfo = vma.AllocationCreateInfo{
         .requiredFlags = .{},
         .usage = .gpuOnly,
     };
 
-    var newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
-    var stagingBuffer = try stagePixels(pngContents, ctx);
+    const newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
+    const stagingBuffer = try stagePixels(pngContents, ctx);
 
     pngContents.deinit();
 
@@ -221,7 +221,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
     try ctx.uploader.startUploadContext();
     {
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
-        var cmd = ctx.uploader.commandBuffer;
+        const cmd = ctx.uploader.commandBuffer;
 
         transitions.into_transferDst(ctx.vkd, cmd, newImage.image, mipLevel);
 
@@ -264,10 +264,10 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
 
 fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !void {
     core.assert(mipLevels > 0);
-    var cmd = ctx.uploader.commandBuffer;
-    var img = vkImage.image;
+    const cmd = ctx.uploader.commandBuffer;
+    const img = vkImage.image;
 
-    var range: vk.ImageSubresourceRange = .{
+    const range: vk.ImageSubresourceRange = .{
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,
         .level_count = 1,

@@ -15,12 +15,12 @@ pub const DebugLine = struct {
 
     pub fn resolve(self: @This(), _: anytype) core.Transform {
         var delta = self.start.sub(self.end);
-        var d = delta.normalize();
-        var axz = std.math.atan2(f32, -d.z, d.x) + core.radians(180.0);
-        var ay = -std.math.asin(d.y);
-        var mat1 = core.zm.matFromRollPitchYaw(0, 0, ay);
-        var mat2 = core.zm.rotationY(axz);
-        var len = delta.length();
+        const d = delta.normalize();
+        const axz = std.math.atan2(-d.z, d.x) + core.radians(180.0);
+        const ay = -std.math.asin(d.y);
+        const mat1 = core.zm.matFromRollPitchYaw(0, 0, ay);
+        const mat2 = core.zm.rotationY(axz);
+        const len = delta.length();
         return core.zm.mul(core.zm.mul(
             core.zm.mul(mat1, mat2),
             core.zm.scaling(len, len, len),
@@ -148,10 +148,10 @@ pub const DebugDrawSubsystem = struct {
     pub fn createMaterial(self: *@This()) !void {
         var gc: *graphics.NeonVkContext = self.gc;
 
-        var vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
+        const vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
         defer gc.allocator.free(vert_spv);
 
-        var frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
+        const frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
         defer gc.allocator.free(frag_spv);
 
         var pipelineBuilder = try graphics.NeonVkPipelineBuilder.init(
@@ -172,8 +172,8 @@ pub const DebugDrawSubsystem = struct {
         pipelineBuilder.set_topology(.line_list);
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 
-        var materialName = self.materialName;
-        var material = try gc.allocator.create(graphics.Material);
+        const materialName = self.materialName;
+        const material = try gc.allocator.create(graphics.Material);
         material.* = graphics.Material{
             .materialName = materialName,
             .pipeline = (try pipelineBuilder.build(gc.renderPass)).?,
@@ -197,7 +197,7 @@ pub const DebugDrawSubsystem = struct {
             const transform = primitive.resolve();
             const color = primitive.color;
 
-            var object = &self.mappedBuffers[frameId].objects[offset];
+            const object = &self.mappedBuffers[frameId].objects[offset];
             object.*.color = color;
             object.*.model = transform;
         }
@@ -265,7 +265,7 @@ pub const DebugDrawSubsystem = struct {
 
     // NeonObject Interface Implementation
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
             .debugDraws = core.RingQueueU(DebugPrimitive).init(allocator, objectCount) catch unreachable,

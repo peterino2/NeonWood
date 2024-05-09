@@ -46,7 +46,7 @@ pub const IndexBuffer = struct {
 
         const bufferSize = indices.len * @sizeOf(u32);
 
-        var bci = vk.BufferCreateInfo{
+        const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{ .transfer_src_bit = true },
@@ -55,7 +55,7 @@ pub const IndexBuffer = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var vmaCreateInfo = vma.AllocationCreateInfo{
+        const vmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .cpuOnly,
         };
@@ -64,7 +64,7 @@ pub const IndexBuffer = struct {
         defer stagingBuffer.deinit(gc.vkAllocator);
 
         {
-            var data = try gc.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
+            const data = try gc.vkAllocator.vmaAllocator.mapMemory(stagingBuffer.allocation, u8);
             var dataSlice: []u8 = undefined;
             dataSlice.ptr = data;
             dataSlice.len = bufferSize;
@@ -79,7 +79,7 @@ pub const IndexBuffer = struct {
 
         // GPU sided buffer
 
-        var gpuBci = vk.BufferCreateInfo{
+        const gpuBci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
             .usage = .{ .transfer_dst_bit = true, .index_buffer_bit = true },
@@ -88,7 +88,7 @@ pub const IndexBuffer = struct {
             .p_queue_family_indices = undefined,
         };
 
-        var gpuVmaCreateInfo = vma.AllocationCreateInfo{
+        const gpuVmaCreateInfo = vma.AllocationCreateInfo{
             .flags = .{},
             .usage = .gpuOnly,
         };
@@ -133,7 +133,7 @@ pub const Mesh = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(context: *NeonVkContext, allocator: std.mem.Allocator) Mesh {
-        var self = Mesh{
+        const self = Mesh{
             .vertices = ArrayList(Vertex).init(allocator),
             .buffer = undefined,
             .allocator = allocator,

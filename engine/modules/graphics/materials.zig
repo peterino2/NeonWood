@@ -35,7 +35,7 @@ pub const MaterialBuilder = struct {
     pipelineBuilder: NeonVkPipelineBuilder,
 
     pub fn init(ctx: *NeonVkContext) MaterialBuilder {
-        var self = MaterialBuilder{
+        const self = MaterialBuilder{
             .allocator = ctx.allocator,
             .ctx = ctx,
         };
