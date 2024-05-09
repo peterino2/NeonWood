@@ -88,8 +88,8 @@ pub const GameContext = struct {
         }
 
         const position = platform.getInstance().getCursorPosition();
-        var dx = @as(f32, @floatCast(position.x - (@as(f32, @floatCast(lastXPos)))));
-        var dy = @as(f32, @floatCast(position.y - (@as(f32, @floatCast(lastYPos)))));
+        const dx = @as(f32, @floatCast(position.x - (@as(f32, @floatCast(lastXPos)))));
+        const dy = @as(f32, @floatCast(position.y - (@as(f32, @floatCast(lastYPos)))));
 
         if (!platform.getInstance().cursorEnabled) {
             self.eulerX += dx / 1920;
@@ -145,7 +145,7 @@ pub const GameContext = struct {
 
         if (gIpsumDown) {
             var ctx = ui.getContext();
-            var mousePos = platform.getInstance().getCursorPosition();
+            const mousePos = platform.getInstance().getCursorPosition();
             ctx.get(unk).pos = .{ .x = mousePos.x + gSavedMouseOffset.x, .y = mousePos.y + gSavedMouseOffset.y };
             gIpsumPos = .{ .x = ctx.getRead(unk).pos.x, .y = ctx.getRead(unk).pos.y };
         }
@@ -172,7 +172,7 @@ pub const GameContext = struct {
 
         {
             const ModernStyle = ui.papyrus.ModernStyle;
-            var panel = try ctx.addPanel(.{});
+            const panel = try ctx.addPanel(.{});
             self.panel = panel;
             ctx.getPanel(panel).hasTitle = true;
             ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
@@ -243,7 +243,7 @@ fn onPressed(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaqu
     _ = node;
     if (eventType == .onPressed) {
         gIpsumDown = true;
-        var mousePos = platform.getInstance().getCursorPosition();
+        const mousePos = platform.getInstance().getCursorPosition();
         gSavedMouseOffset = gIpsumPos.sub(core.Vector2f{ .x = mousePos.x, .y = mousePos.y });
     }
     if (eventType == .onReleased) {
@@ -388,7 +388,7 @@ pub fn main() anyerror!void {
 
     engine_log("Starting up", .{});
 
-    var args = try neonwood.getArgs();
+    const args = try neonwood.getArgs();
 
     if (args.useGPA) {
         core.engine_logs("Using GPA allocator");

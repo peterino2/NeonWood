@@ -36,7 +36,7 @@ const GameContext = struct {
     reinjectFired: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
 
         self.* = Self{
             .allocator = allocator,
@@ -62,7 +62,7 @@ const GameContext = struct {
                 defer z.End();
                 core.printInner("job started, payload: {any}\n", .{ctx.payload});
                 std.time.sleep(1000 * 1000 * 100);
-                var v = ctx.game.count.fetchAdd(1, .seq_cst);
+                const v = ctx.game.count.fetchAdd(1, .seq_cst);
                 core.printInner("job done!{d} {d}\n", .{ ctx.payload.value, v });
                 ctx.game.complete[@intCast(ctx.payload.value)] = true;
                 _ = job;
@@ -91,7 +91,7 @@ const GameContext = struct {
             var i: usize = 0;
 
             while (i < jobTestCount) : (i += 1) {
-                var d = @as(u1, @bitCast(self.complete[i]));
+                const d = @as(u1, @bitCast(self.complete[i]));
                 core.printInner("{d}", .{d});
             }
             core.printInner("\n", .{});
@@ -142,7 +142,7 @@ const GameContext = struct {
         if (self.count.load(.seq_cst) >= jobTestCount) {
             var i: usize = 0;
             while (i < jobTestCount) : (i += 1) {
-                var d = @as(u1, @bitCast(self.complete[i]));
+                const d = @as(u1, @bitCast(self.complete[i]));
                 core.printInner("{d}", .{d});
             }
             core.printInner("shutting down due to count loaded full\n", .{});
@@ -192,5 +192,5 @@ pub fn main() anyerror!void {
     // run the game
     try core.gEngine.run();
 
-    while (!core.gEngine.exitSignal.load(.Monotonic)) {}
+    while (!core.gEngine.exitSignal.load(.monotonic)) {}
 }

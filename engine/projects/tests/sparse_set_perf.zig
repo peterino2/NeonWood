@@ -3,9 +3,9 @@ const neonwood = @import("root").neonwood;
 const core = neonwood.core;
 
 pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: comptime_int) !void {
-    var allocator = std.heap.c_allocator;
+    const allocator = std.heap.c_allocator;
     var prng = std.rand.DefaultPrng.init(12348);
-    var rand = prng.random();
+    const rand = prng.random();
 
     const TestPayload = struct {
         touchCount: u32 = 0,
@@ -35,7 +35,7 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
         const startTime = timer.read();
         // random access for 1M.
         while (i < AccessCount) : (i += 1) {
-            var id = @as(u32, @intCast(i % TestSize));
+            const id = @as(u32, @intCast(i % TestSize));
             testMap.getEntry(id).?.value_ptr.*.touchCount += 1;
         }
         const endTime = timer.read();
@@ -56,7 +56,7 @@ pub fn LookupPerfTest(comptime TestSize: comptime_int, comptime AccessCount: com
 
     i = 0;
     while (i < TestSize) : (i += 1) {
-        var newHandle = try testSet.createObject(.{});
+        const newHandle = try testSet.createObject(.{});
         try handlesList.append(newHandle);
     }
 
