@@ -13,8 +13,12 @@ const NFDCallbackFn = *const fn (
     *anyopaque,
 ) NFDCallbackError!void;
 
+pub const NFDRuntimeOptions = struct {
+    singleThreaded: bool = false,
+};
+
 // There are a couple of incredibly annoying things about NFD.
-//
+// this is only for running things in multiple threads.
 pub const NFDRuntime = struct {
     allocator: std.mem.Allocator,
 
@@ -22,6 +26,7 @@ pub const NFDRuntime = struct {
 
     outPath: [*c]u8 = null,
     nfdPathSet: c.nfdpathset_t = undefined,
+    opts: NFDRuntimeOptions = .{},
 
     runtimeState: union(enum(u8)) {
         none: bool,
@@ -42,10 +47,10 @@ pub const NFDRuntime = struct {
         },
     } = .{ .none = false },
 
-    pub fn create(allocator: std.mem.Allocator) !*@This() {
+    pub fn create(allocator: std.mem.Allocator, options: NFDRuntimeOptions) !*@This() {
         const self = try allocator.create(@This());
 
-        self.* = .{ .allocator = allocator };
+        self.* = .{ .allocator = allocator, .opts = options };
 
         return self;
     }
@@ -128,3 +133,8 @@ pub const NFDRuntime = struct {
         self.allocator.destroy(self);
     }
 };
+
+test "nfd simple test" {
+    var runtime = try NFDRuntime.create(std.testing.allocator, .{ .singleThreaded = true });
+    defer runtime.destroy();
+}

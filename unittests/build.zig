@@ -4,6 +4,9 @@ const std = @import("std");
 const dependencyList = [_][]const u8{
     "spng",
     "cgltf",
+    "miniaudio",
+    "glfw3",
+    "nfd",
 };
 
 pub fn build(b: *std.Build) void {

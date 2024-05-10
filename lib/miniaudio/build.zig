@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
     mod.linkLibrary(miniaudio_c);
     mod.addIncludePath(.{ .path = "./include" });
 
+    // ======== tests ============
     const test_step = b.step("test-miniaudio", "");
     const tests = b.addTest(.{
         .target = target,

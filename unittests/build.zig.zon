@@ -4,6 +4,9 @@
     .dependencies = .{
         .spng = .{ .path = "../lib/zig-spng" },
         .cgltf = .{ .path = "../lib/cgltf" },
+        .glfw3 = .{ .path = "../lib/glfw3" },
+        .miniaudio = .{ .path = "../lib/miniaudio" },
+        .nfd = .{ .path = "../lib/nfd" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },
     .paths = .{

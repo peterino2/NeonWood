@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("pthread", .{});
     }
 
+    // ======== tests ============
     const test_step = b.step("test-glfw3", "");
     const tests = b.addTest(.{
         .target = target,
