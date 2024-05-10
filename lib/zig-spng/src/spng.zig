@@ -152,8 +152,6 @@ test "spngtest" {
 
     const header = try decoder2.getHeader();
 
-    std.debug.print("this is an error", .{});
-
     try std.testing.expect(header.width == 383);
     try std.testing.expect(header.height == 345);
 

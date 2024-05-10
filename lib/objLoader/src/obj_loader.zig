@@ -417,7 +417,7 @@ const ObjContents = struct {
 };
 
 test "load_monkey_full" {
-    const monkey_obj_path = "./test/monkey.obj";
+    const monkey_obj_path = "./content/monkey.obj";
     var obj_contents = try ObjContents.load(monkey_obj_path, std.testing.allocator);
     defer obj_contents.deinit();
     try std.testing.expect(obj_contents.meshes.items.len == 1);
@@ -425,9 +425,7 @@ test "load_monkey_full" {
 }
 
 test "parse_monkey" {
-    const monkey_obj_path = "./test/monkey.obj";
-    const monkey_mtl_path = "./test/monkey.mtl";
-    _ = monkey_mtl_path;
+    const monkey_obj_path = "./content/monkey.obj";
 
     const file_contents = try loadFileAlloc(monkey_obj_path, 1, std.testing.allocator);
     defer std.testing.allocator.free(file_contents);

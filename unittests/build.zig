@@ -7,6 +7,7 @@ const dependencyList = [_][]const u8{
     "miniaudio",
     "glfw3",
     "nfd",
+    "objLoader",
 };
 
 pub fn build(b: *std.Build) void {
