@@ -1,0 +1,4 @@
+zig-cache/
+zig-out
+.vscode/
+__pycache__

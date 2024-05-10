@@ -1,0 +1,10 @@
+.{
+    .name = "core",
+    .version = "0.0.0",
+    .dependencies = .{
+        .spng = .{ .path = "../../lib/zig-spng" },
+    },
+    .paths = .{
+        "",
+    },
+}

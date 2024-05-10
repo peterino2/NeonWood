@@ -1,0 +1,8 @@
+.{
+    .name = "cgltf",
+    .version = "0.0.0",
+    .dependencies = .{},
+    .paths = .{
+        "",
+    },
+}

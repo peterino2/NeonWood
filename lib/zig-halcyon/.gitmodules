@@ -1,0 +1,3 @@
+[submodule "docs/halcyon/site"]
+	path = docs/halcyon/site
+	url = git@github.com:peterino2/halcyon-quest-docs.git

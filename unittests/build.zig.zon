@@ -1,0 +1,12 @@
+.{
+    .name = "UnitTests",
+    .version = "0.0.0",
+    .dependencies = .{
+        .spng = .{ .path = "../lib/zig-spng" },
+        .cgltf = .{ .path = "../lib/cgltf" },
+        .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
+    },
+    .paths = .{
+        "",
+    },
+}

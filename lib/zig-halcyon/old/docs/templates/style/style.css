@@ -1,0 +1,221 @@
+/*
+This is straight up ripped off of somewhere on the internet then hacked til it
+looked good to me
+*/
+
+/* reset styles */
+body { line-height: 1; }
+blockquote, q { quotes: none; }
+blockquote:before, blockquote:after, q:before, q:after { content: ''; }
+:focus { outline: 0; }
+ins { text-decoration: none; }
+del { text-decoration: line-through; }
+table { border-collapse: collapse; border-spacing: 0; }
+h1{
+	font-size: 200%;
+	margin-bottom: 0px;
+}
+p{
+
+
+}
+
+h3{
+	margin:0;
+	padding:0;
+}
+body {
+	font-size: 100%;
+	font-family: Arial;
+	text-align: left;
+	line-height: 1.5;
+	color: #eeeeff;
+	background-color: #121212;
+}
+
+a.visited {
+    color: #f300ff
+}
+
+
+#post_body{
+	margin-left: 3%;
+	float:left;
+	line-height: 1.5;
+}
+
+
+
+
+@media all and (min-width: 1200px){
+	.main_div .document_div #post_body{width:842px}
+}
+
+
+@media all and (max-width: 1199px){
+	.main_div .document_div #post_body{width:95%}
+	.main_div .post_margin_left{display:none;}
+}
+
+.document_div{
+	display: flex;
+}
+
+p.metablock{
+	font-size: 70%;
+	font-style: italic;
+	color: rgb(164 157 140);
+	line-height : 1.1;
+	margin: 0;
+	padding: 0;
+
+}
+
+h2.logoText{
+    padding-top: 0px;
+    margin-top: 0px;
+    width: 100%;
+    color: #fff;
+    height: 60px;
+    font-size: 36px;
+    margin-bottom: 0px;
+    background-color: #121212;
+}
+
+/* unvisited link */
+a {
+    text-decoration: none;
+}
+a.logoLink:link {
+    color: #ffa500;
+    text-decoration: none;
+}
+
+
+/* visited link */
+a.logoLink:visited {
+    color: #ffa500;
+    text-decoration: none;
+}
+
+/* mouse over link */
+a.logoLink:hover {
+    color: white;
+    text-decoration: none;
+}
+
+/* selected link */
+a.logoLink:active {
+    color: white;
+    text-decoration: none;
+}
+a.logoLink{
+font-size:24px;
+}
+img.centerImage{
+	align-self: center;
+	text-decoration: none;
+}
+#Logo{
+	padding-left: 20px;
+	padding-top: 15px;
+	margin-top: 0px;
+	overflow:auto;
+}
+
+
+
+.nav_right{
+
+	border-left: solid #222;
+	border-right: solid #222;
+	border-top: solid #222;
+	border-bottom: solid #222;
+	border-width: thin;
+	background:rgb(0,0,0);
+	width : 230px;
+	padding: 10px;
+	margin-left: 15px;
+	margin-right: 10px;
+	margin-top: 10px;
+	flex-basis: auto;
+	align-items: flex-start;
+	float: right;
+	height: fit-content;
+	display: block;
+}
+
+
+
+@media all and (max-width: 1000px){
+	.main_div .document_div .nav_right{display:none;}
+}
+
+#right_nav_h{
+    margin-left: 15px;
+}
+
+.recent_posts_list{
+   padding-right : 0px;
+   list-style:none;
+   padding-left: 10px;
+}
+.recent_post_li{
+   margin-top: 10px;
+   margin-bottom:10px;
+   font-size: 80%;
+   color: rgb(101, 156, 158);
+}
+
+
+.recent_post_li:hover{
+	background: rgb(50, 50, 50)
+}
+
+.recent_post_li:visited{
+	color: rgb(50, 106, 108);
+}
+
+#banner{
+    background-color: #121212;
+	width: 100%;
+	color: #555;
+	align-self: center;
+	height: auto;
+	display:block;
+}
+
+.nav_right_vdivider {
+	border-left: 1px solid #000;
+    border-right: 0;
+    height: auto;
+    right: 249px;
+	top: 10px;
+	margin-left:12px;
+	visibility: hidden;
+}
+
+.main_divider{
+	
+	width: 100%;
+}
+
+.post_divider{
+	width: 100%;
+    background-color: #222;
+    height: 1px;
+    border: none;
+}
+.logoImage{
+	height:42px;
+	width:42px;
+	}
+.post_margin_left{
+	float:left;
+	margin-left:20%
+}
+.demoVid{
+	margin:auto;
+	margin-top:12px;
+	display:block;
+}

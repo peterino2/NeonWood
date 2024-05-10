@@ -1,0 +1,11 @@
+.{
+    .name = "NeonWood",
+    .version = "0.0.0",
+    .dependencies = .{
+        .core = .{ .path = "engine/core" },
+        .SpirvReflect = .{ .path = "lib/spirv-reflect-zig" },
+    },
+    .paths = .{
+        "",
+    },
+}
