@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
 
     mod.linkLibrary(spng_c);
 
-    const test_step = b.step("test", "run unit tests for spng");
+    const test_step = b.step("test-spng", "run unit tests for spng");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

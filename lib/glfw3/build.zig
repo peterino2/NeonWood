@@ -1,0 +1,32 @@
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const mod = b.addModule("glfw3", .{ .target = target, .optimize = optimize, .root_source_file = .{ .path = "src/glfw3.zig" } });
+
+    mod.addIncludePath(.{ .path = "./include" });
+
+    if (target.result.os.tag == .windows) {
+        mod.addLibraryPath(.{ .path = "." });
+        mod.linkSystemLibrary("glfw3dll", .{});
+    } else {
+        mod.linkSystemLibrary("glfw", .{});
+        mod.linkSystemLibrary("dl", .{});
+        mod.linkSystemLibrary("pthread", .{});
+    }
+
+    const test_step = b.step("test-glfw3", "");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = .{ .path = "src/glfw3.zig" },
+        .link_libc = true,
+    });
+    tests.addIncludePath(.{ .path = "./include" });
+
+    tests.root_module.addImport("glfw3", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
+}

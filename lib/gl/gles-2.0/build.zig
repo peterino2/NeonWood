@@ -1,9 +1,17 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    _ = b;
-    // const target = b.standardTargetOptions(.{});
-    // const optimize = b.standardOptimizeOption(.{});
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    b.addStaticLibrary(.{
+        .target = target,
+        .optimize = optimize,
+        .name = "glad",
+    });
+
+    b.addCSourceFile(.{ .file = .{ .path = "src/glad.c" } });
+    b.addIncludePath(.{ .path = "include" });
 
     // const spng_c = b.addStaticLibrary(
     //     .{

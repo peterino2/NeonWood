@@ -4,3 +4,5 @@ const c = @cImport({
     @cDefine("CGLTF_IMPLEMENTATION", .{});
     @cInclude("cgltf.h");
 });
+
+test "test cgltf" {}

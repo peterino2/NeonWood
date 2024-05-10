@@ -26,8 +26,11 @@ pub fn build(b: *std.Build) void {
 
         allTests.root_module.addImport(dependencyName, dep.module(dependencyName));
 
-        if (dep.builder.top_level_steps.get("test")) |t| {
-            test_step.dependOn(&t.step);
+        var iter = dep.builder.top_level_steps.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.startsWith(u8, entry.key_ptr.*, "test")) {
+                test_step.dependOn(&entry.value_ptr.*.step);
+            }
         }
     }
 
