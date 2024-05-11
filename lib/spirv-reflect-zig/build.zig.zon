@@ -1,5 +1,5 @@
 .{
-    .name = "p2",
+    .name = "SpirvReflect",
     .version = "0.0.0",
     .dependencies = .{},
     .paths = .{

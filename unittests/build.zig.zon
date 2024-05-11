@@ -8,6 +8,8 @@
         .miniaudio = .{ .path = "../lib/miniaudio" },
         .nfd = .{ .path = "../lib/nfd" },
         .objLoader = .{ .path = "../lib/objLoader" },
+        .p2 = .{ .path = "../lib/p2" },
+        .vulkan = .{ .path = "../lib/vulkan-zig" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },
     .paths = .{

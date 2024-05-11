@@ -17,7 +17,6 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/obj_loader.zig" },
         .link_libc = true,
     });
-    tests.addIncludePath(.{ .path = "./include" });
 
     tests.root_module.addImport("objLoader", mod);
     const runArtifact = b.addRunArtifact(tests);

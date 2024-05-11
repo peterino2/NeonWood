@@ -33,7 +33,7 @@ pub const GenerateStep = struct {
             },
         };
 
-        self.*.package = builder.createModule(.{
+        self.package = builder.addModule("vulkan", .{
             .root_source_file = .{ .generated = &self.output_file },
         });
 
