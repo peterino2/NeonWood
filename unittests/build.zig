@@ -13,6 +13,7 @@ const dependencyList = [_][]const u8{
     "vulkan",
     "tracy",
     "vma",
+    "gl",
 
     // engine libraries
     // "core",

@@ -4,6 +4,7 @@
     .dependencies = .{
         .spng = .{ .path = "../lib/spng" },
         .cgltf = .{ .path = "../lib/cgltf" },
+        .gl = .{ .path = "../lib/gl" },
         .glfw3 = .{ .path = "../lib/glfw3" },
         .miniaudio = .{ .path = "../lib/miniaudio" },
         .nfd = .{ .path = "../lib/nfd" },
