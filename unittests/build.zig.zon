@@ -2,7 +2,7 @@
     .name = "UnitTests",
     .version = "0.0.0",
     .dependencies = .{
-        .spng = .{ .path = "../lib/zig-spng" },
+        .spng = .{ .path = "../lib/spng" },
         .cgltf = .{ .path = "../lib/cgltf" },
         .glfw3 = .{ .path = "../lib/glfw3" },
         .miniaudio = .{ .path = "../lib/miniaudio" },
@@ -10,6 +10,7 @@
         .objLoader = .{ .path = "../lib/objLoader" },
         .p2 = .{ .path = "../lib/p2" },
         .vulkan = .{ .path = "../lib/vulkan" },
+        .tracy = .{ .path = "../lib/tracy" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },
     .paths = .{

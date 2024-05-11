@@ -37,8 +37,8 @@ pub fn build(b: *std.Build) void {
     }
 
     const opts = b.addOptions();
-    mod.addOptions("build_options", opts);
     opts.addOption(bool, "tracy_enabled", tracy_enabled);
+    mod.addOptions("build_options", opts);
 
     const test_step = b.step("test-tracy", "run unit tests for tracy");
     const tests = b.addTest(.{

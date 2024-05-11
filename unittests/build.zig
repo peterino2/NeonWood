@@ -2,6 +2,7 @@ const std = @import("std");
 
 // I think I will do a convention of one dependency per module
 const dependencyList = [_][]const u8{
+    // external libraries
     "spng",
     "cgltf",
     "miniaudio",
@@ -10,6 +11,10 @@ const dependencyList = [_][]const u8{
     "objLoader",
     "p2",
     "vulkan",
+    "tracy",
+
+    // engine libraries
+    // "core",
 };
 
 pub fn build(b: *std.Build) void {
