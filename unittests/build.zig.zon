@@ -2,6 +2,8 @@
     .name = "UnitTests",
     .version = "0.0.0",
     .dependencies = .{
+        // third party libraries
+
         .spng = .{ .path = "../lib/spng" },
         .cgltf = .{ .path = "../lib/cgltf" },
         .gl = .{ .path = "../lib/gl" },
@@ -14,6 +16,9 @@
         .vma = .{ .path = "../lib/vma" },
         .tracy = .{ .path = "../lib/tracy" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
+
+        // engine libraries
+        .core = .{ .path = "../engine/core" },
     },
     .paths = .{
         "",

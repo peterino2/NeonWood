@@ -16,7 +16,9 @@ const dependencyList = [_][]const u8{
     "gl",
 
     // engine libraries
-    // "core",
+    "core",
+    // "platform",
+    // "graphics",
 };
 
 pub fn build(b: *std.Build) void {
