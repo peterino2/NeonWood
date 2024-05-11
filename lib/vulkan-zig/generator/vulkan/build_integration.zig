@@ -62,7 +62,7 @@ pub const GenerateStep = struct {
         const self: *GenerateStep = @fieldParentPtr("step", step);
         const cwd = std.fs.cwd();
 
-        const spec = try cwd.readFileAlloc(self.builder.allocator, self.spec_path, std.math.maxInt(usize));
+        const spec = try cwd.readFileAlloc(self.builder.allocator, self.builder.path(self.spec_path).getPath(self.builder), std.math.maxInt(usize));
 
         var out_buffer = std.ArrayList(u8).init(self.builder.allocator);
         try generate(self.builder.allocator, spec, out_buffer.writer());

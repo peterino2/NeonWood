@@ -9,6 +9,7 @@ const dependencyList = [_][]const u8{
     "nfd",
     "objLoader",
     "p2",
+    "vulkan",
 };
 
 pub fn build(b: *std.Build) void {

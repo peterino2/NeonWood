@@ -1,10 +1,6 @@
 const std = @import("std");
 const vkgen = @import("generator/index.zig");
 
-pub fn generateVulkan(b: *std.Build) void {
-    _ = b;
-}
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
