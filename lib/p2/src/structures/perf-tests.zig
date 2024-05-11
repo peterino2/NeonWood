@@ -34,7 +34,7 @@ const LookupPerfContext = struct {
         var i: usize = 0;
         while (i < self.testSizes.items.len) : (i += 1) {
             std.debug.print("{d},", .{self.testSizes.items[i]});
-            var times = self.testTimes.items[i];
+            const times = self.testTimes.items[i];
 
             for (times.items) |entry| {
                 std.debug.print("{d},", .{entry});
@@ -46,10 +46,6 @@ const LookupPerfContext = struct {
 };
 
 pub fn LookupPerfTest(allocator: std.mem.Allocator, perfContext: *LookupPerfContext, comptime TestSize: comptime_int, comptime AccessCount: comptime_int) !void {
-    var prng = std.rand.DefaultPrng.init(12348);
-    var rand = prng.random();
-    _ = rand;
-
     var testTimes = std.ArrayList(f64).init(allocator);
     try testTimes.appendSlice(&.{
         0.0,
@@ -85,7 +81,7 @@ pub fn LookupPerfTest(allocator: std.mem.Allocator, perfContext: *LookupPerfCont
         const startTime = timer.read();
         // random access for 1M.
         while (i < AccessCount) : (i += 1) {
-            var id = @as(u32, @intCast(i % TestSize));
+            const id = @as(u32, @intCast(i % TestSize));
             testMap.getEntry(id).?.value_ptr.*.touchCount += 1;
         }
         const endTime = timer.read();
@@ -119,7 +115,7 @@ pub fn LookupPerfTest(allocator: std.mem.Allocator, perfContext: *LookupPerfCont
 
     i = 0;
     while (i < TestSize) : (i += 1) {
-        var newHandle = try testSet.createObject(.{});
+        const newHandle = try testSet.createObject(.{});
         try handlesList.append(newHandle);
     }
 
@@ -170,7 +166,7 @@ test "Perf test sparse vs hashmap" {
     // this test does NOT care about freeing memory, just gonna let the arena hit it.
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
-    var arenaAlloc = arena.allocator();
+    const arenaAlloc = arena.allocator();
 
     var context = LookupPerfContext.init(arenaAlloc);
     try context.dsName.append("hashmap random");

@@ -1,9 +1,8 @@
 const std = @import("std");
-const core = @import("../core.zig");
-const image = @import("../image.zig");
-const platform = @import("../platform.zig");
+const core = @import("core");
+const platform = @import("platform.zig");
 const gameInput = @import("gameInput.zig");
-pub const c = @import("c.zig");
+pub const glfw3 = @import("c.zig").glfw3;
 const graphicsBackend = @import("graphicsBackend");
 
 const RingQueue = core.RingQueue;
@@ -64,10 +63,10 @@ pub var gPlatformSettings: struct {
 
 pub const InstalledEvents = struct {
     allocator: std.mem.Allocator,
-    onWindowFocused: std.ArrayListUnmanaged(c.GLFWwindowfocusfun) = .{},
-    onMouseButton: std.ArrayListUnmanaged(c.GLFWmousebuttonfun) = .{},
-    onCursorPos: std.ArrayListUnmanaged(c.GLFWcursorposfun) = .{},
-    onTextEntry: std.ArrayListUnmanaged(c.GLFWcharfun) = .{},
+    onWindowFocused: std.ArrayListUnmanaged(glfw3.GLFWwindowfocusfun) = .{},
+    onMouseButton: std.ArrayListUnmanaged(glfw3.GLFWmousebuttonfun) = .{},
+    onCursorPos: std.ArrayListUnmanaged(glfw3.GLFWcursorposfun) = .{},
+    onTextEntry: std.ArrayListUnmanaged(glfw3.GLFWcharfun) = .{},
 
     pub fn init(allocator: std.mem.Allocator) @This() {
         return .{
@@ -89,7 +88,7 @@ pub const PlatformInstance = struct {
     windowName: []const u8,
     iconPath: []const u8,
 
-    window: ?*c.GLFWwindow = null,
+    window: ?*glfw3.GLFWwindow = null,
     extent: core.Vector2c,
     exitSignal: bool = false,
     eventQueue: RingQueue(IOEvent),
@@ -138,12 +137,12 @@ pub const PlatformInstance = struct {
 
         core.engine_log("Creating IO Buffer with {x} size", .{@sizeOf(IOEvent) * 8096});
 
-        if (graphicsBackend.UseVulkan) {
-            core.engine_logs("Initializing with Vulkan 1.3");
-        }
-        if (graphicsBackend.UseGLES2) {
-            core.engine_logs("Initializing with OpenGLES");
-        }
+        //if (graphicsBackend.UseVulkan) {
+        core.engine_logs("Initializing with Vulkan 1.3");
+        // }
+        // if (graphicsBackend.UseGLES2) {
+        //     core.engine_logs("Initializing with OpenGLES");
+        // }
 
         return self;
     }
@@ -152,7 +151,7 @@ pub const PlatformInstance = struct {
         try self.initGlfw();
         try self.initInput();
 
-        core.setupEnginePoll(self, enginePoll);
+        core.setupEnginePlatform(self, enginePoll, processEvents);
     }
 
     pub fn enginePoll(opaqueSelf: *anyopaque) core.RttiDataEventError!void {
@@ -172,28 +171,28 @@ pub const PlatformInstance = struct {
     }
 
     pub fn initGlfw(self: *@This()) !void {
-        if (c.glfwInit() != c.GLFW_TRUE) {
+        if (glfw3.glfwInit() != glfw3.GLFW_TRUE) {
             core.engine_errs("Glfw Init Failed");
             return error.GlfwInitFailed;
         }
 
         core.engine_log("platform starting: GLFW", .{});
 
-        if (graphicsBackend.UseVulkan) {
-            c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-        } else if (graphicsBackend.UseGLES2) {
-            c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_OPENGL_ES_API);
-            c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 2);
-            c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 0);
-            c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_ANY_PROFILE);
-        } else {
-            @panic("Unknown graphics api configs");
-        }
+        //if (graphicsBackend.UseVulkan) {
+        glfw3.glfwWindowHint(glfw3.GLFW_CLIENT_API, glfw3.GLFW_NO_API);
+        //} else if (graphicsBackend.UseGLES2) {
+        //    glfw3.glfwWindowHint(glfw3.GLFW_CLIENT_API, glfw3.GLFW_OPENGL_ES_API);
+        //    glfw3.glfwWindowHint(glfw3.GLFW_CONTEXT_VERSION_MAJOR, 2);
+        //    glfw3.glfwWindowHint(glfw3.GLFW_CONTEXT_VERSION_MINOR, 0);
+        //    glfw3.glfwWindowHint(glfw3.GLFW_OPENGL_PROFILE, glfw3.GLFW_OPENGL_ANY_PROFILE);
+        //} else {
+        //    @panic("Unknown graphics api configs");
+        //}
 
-        c.glfwWindowHint(c.GLFW_DECORATED, if (gPlatformSettings.decoratedWindow) c.GLFW_TRUE else c.GLFW_FALSE);
-        c.glfwWindowHint(c.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) c.GLFW_TRUE else c.GLFW_FALSE);
+        glfw3.glfwWindowHint(glfw3.GLFW_DECORATED, if (gPlatformSettings.decoratedWindow) glfw3.GLFW_TRUE else glfw3.GLFW_FALSE);
+        glfw3.glfwWindowHint(glfw3.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) glfw3.GLFW_TRUE else glfw3.GLFW_FALSE);
 
-        self.window = c.glfwCreateWindow(
+        self.window = glfw3.glfwCreateWindow(
             @as(c_int, @intCast(self.extent.x)),
             @as(c_int, @intCast(self.extent.y)),
             self.windowName.ptr,
@@ -201,53 +200,58 @@ pub const PlatformInstance = struct {
             null,
         ) orelse return error.WindowInitFailed;
 
-        var png = try image.PngContents.init(self.allocator, self.iconPath);
-        defer png.deinit();
+        self.maybeSetPngIcon();
 
-        const pixels: ?*u8 = &png.pixels[0];
-        var iconImage = c.GLFWimage{
-            .width = @as(c_int, @intCast(png.size.x)),
-            .height = @as(c_int, @intCast(png.size.y)),
-            .pixels = pixels,
-        };
+        if (glfw3.glfwRawMouseMotionSupported() != 0)
+            glfw3.glfwSetInputMode(self.window, glfw3.GLFW_RAW_MOUSE_MOTION, glfw3.GLFW_TRUE);
 
-        if (c.glfwRawMouseMotionSupported() != 0)
-            c.glfwSetInputMode(self.window, c.GLFW_RAW_MOUSE_MOTION, c.GLFW_TRUE);
+        glfw3.glfwSetWindowAspectRatio(self.window, 16, 9);
 
-        c.glfwSetWindowIcon(self.window, 1, &iconImage);
-        c.glfwSetWindowAspectRatio(self.window, 16, 9);
+        //if (graphicsBackend.UseVulkan) {
+        var extensionsCount: u32 = 0;
+        const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extensionsCount);
 
-        if (graphicsBackend.UseVulkan) {
-            var extensionsCount: u32 = 0;
-            const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
-
-            core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
-            if (extensionsCount > 0) {
-                var i: usize = 0;
-                while (i < extensionsCount) : (i += 1) {
-                    const x = @as([*]const core.CStr, @ptrCast(extensions));
-                    core.engine_log("  glfw_extension: {s}", .{x[i]});
-                }
+        core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
+        if (extensionsCount > 0) {
+            var i: usize = 0;
+            while (i < extensionsCount) : (i += 1) {
+                const x = @as([*]const core.CStr, @ptrCast(extensions));
+                core.engine_log("  glfw_extension: {s}", .{x[i]});
             }
         }
+        //}
 
         self.installHandlers();
     }
 
+    pub fn maybeSetPngIcon(self: *@This()) void {
+        var pngContents = core.png.PngContents.init(self.allocator, self.iconPath) catch return;
+        defer pngContents.deinit();
+
+        const pixels: ?*u8 = &pngContents.pixels[0];
+        var iconImage = glfw3.GLFWimage{
+            .width = @as(c_int, @intCast(pngContents.size.x)),
+            .height = @as(c_int, @intCast(pngContents.size.y)),
+            .pixels = pixels,
+        };
+        glfw3.glfwSetWindowIcon(self.window, 1, &iconImage);
+    }
+
     pub fn pollEvents(self: *@This()) void {
-        c.glfwPollEvents();
+        glfw3.glfwPollEvents();
 
         if (self.shouldExit()) {
             core.gEngine.exit();
         }
     }
 
-    pub fn processEvents(self: *@This(), frameNumber: u64) !void {
+    pub fn processEvents(ptr: *anyopaque, frameNumber: u64) core.RttiDataEventError!void {
+        const self: *@This() = @alignCast(@ptrCast(ptr));
         _ = frameNumber;
         var t1 = tracy.ZoneN(@src(), "Pumping Events");
         defer t1.End();
 
-        try self.pumpEvents();
+        self.pumpEvents() catch return error.UnknownStatePanic;
     }
 
     pub fn getCursorPosition(self: *@This()) core.Vector2f {
@@ -256,13 +260,13 @@ pub const PlatformInstance = struct {
 
     pub fn installHandlers(self: *@This()) void {
         core.engine_logs("platform.windowing:: installing handlers");
-        _ = c.glfwSetCursorPosCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
-        _ = c.glfwSetMouseButtonCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
-        _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), keyCallback);
-        _ = c.glfwSetFramebufferSizeCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), windowResizeCallback);
-        _ = c.glfwSetCharCallback(@as(?*c.GLFWwindow, @ptrCast(self.window)), charCallback);
+        _ = glfw3.glfwSetCursorPosCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
+        _ = glfw3.glfwSetMouseButtonCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
+        _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), keyCallback);
+        _ = glfw3.glfwSetFramebufferSizeCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), windowResizeCallback);
+        _ = glfw3.glfwSetCharCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), charCallback);
 
-        c.glfwGetWindowContentScale(@as(?*c.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
+        glfw3.glfwGetWindowContentScale(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
 
         core.engine_log("contentScale: {any}", .{self.contentScale});
     }
@@ -312,7 +316,7 @@ pub const PlatformInstance = struct {
     }
 
     pub fn shouldExit(self: @This()) bool {
-        if (c.glfwWindowShouldClose(self.window) == c.GLFW_TRUE)
+        if (glfw3.glfwWindowShouldClose(self.window) == glfw3.GLFW_TRUE)
             return true;
 
         if (self.exitSignal)
@@ -323,7 +327,7 @@ pub const PlatformInstance = struct {
 
     pub fn setCursorEnabled(self: *@This(), cursorEnabled: bool) void {
         self.cursorEnabled = cursorEnabled;
-        c.glfwSetInputMode(self.window, c.GLFW_CURSOR, if (cursorEnabled) c.GLFW_CURSOR_NORMAL else c.GLFW_CURSOR_DISABLED);
+        glfw3.glfwSetInputMode(self.window, glfw3.GLFW_CURSOR, if (cursorEnabled) glfw3.GLFW_CURSOR_NORMAL else glfw3.GLFW_CURSOR_DISABLED);
     }
 
     pub fn isCursorEnabled(self: @This()) bool {
@@ -331,11 +335,11 @@ pub const PlatformInstance = struct {
     }
 
     // Low level API
-    pub fn installCursorPosCallback(self: *@This(), pfn: c.GLFWcursorposfun) !void {
+    pub fn installCursorPosCallback(self: *@This(), pfn: glfw3.GLFWcursorposfun) !void {
         try self.handlers.onCursorPos.append(self.handlers.allocator, pfn);
     }
 
-    pub fn installCodepointCallback(self: *@This(), pfn: c.GLFWcharfun) !void {
+    pub fn installCodepointCallback(self: *@This(), pfn: glfw3.GLFWcharfun) !void {
         try self.handlers.onCursorPos.append(self.handlers.allocator, pfn);
     }
 };
@@ -350,7 +354,7 @@ pub const IOEvent = union(enum(u8)) {
     codepoint: c_uint,
 };
 
-fn windowResizeCallback(_: ?*c.GLFWwindow, newWidth: c_int, newHeight: c_int) callconv(.C) void {
+fn windowResizeCallback(_: ?*glfw3.GLFWwindow, newWidth: c_int, newHeight: c_int) callconv(.C) void {
     pushEventSafe(.{ .windowResize = .{
         .newSize = .{ .x = @floatFromInt(newWidth), .y = @floatFromInt(newHeight) },
     } });
@@ -365,27 +369,27 @@ pub fn pushEventSafe(event: IOEvent) void {
     };
 }
 
-pub fn mousePositionCallback(_: ?*c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+pub fn mousePositionCallback(_: ?*glfw3.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     pushEventSafe(.{ .mousePosition = .{ .x = xpos, .y = ypos } });
 }
 
-pub fn mouseButtonCallback(_: ?*c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
+pub fn mouseButtonCallback(_: ?*glfw3.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
     pushEventSafe(.{ .mouseButton = .{ .button = button, .action = action, .mods = mods } });
 }
 
-pub fn windowFocusedCallback(_: ?*c.GLFWwindow, focused: c_int) callconv(.C) void {
+pub fn windowFocusedCallback(_: ?*glfw3.GLFWwindow, focused: c_int) callconv(.C) void {
     pushEventSafe(.{ .windowFocused = .{ .focused = focused } });
 }
 
-pub fn scrollCallback(_: ?*c.GLFWwindow, xoffset: c_int, yoffset: c_int) callconv(.C) void {
+pub fn scrollCallback(_: ?*glfw3.GLFWwindow, xoffset: c_int, yoffset: c_int) callconv(.C) void {
     pushEventSafe(.{ .scroll = .{ .xoffset = xoffset, .yoffset = yoffset } });
 }
 
-pub fn keyCallback(_: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
+pub fn keyCallback(_: ?*glfw3.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     pushEventSafe(.{ .key = .{ .key = key, .scancode = scancode, .action = action, .mods = mods } });
 }
 
-pub fn charCallback(_: ?*c.GLFWwindow, codepoint: c_uint) callconv(.C) void {
+pub fn charCallback(_: ?*glfw3.GLFWwindow, codepoint: c_uint) callconv(.C) void {
     pushEventSafe(.{ .codepoint = codepoint });
 }
 
@@ -393,7 +397,7 @@ pub fn getPlatformExtensions(allocator: std.mem.Allocator) !std.ArrayList([*:0]c
     var rv = std.ArrayList([*:0]const u8).init(allocator);
 
     var extCount: u32 = 0;
-    const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extCount);
+    const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extCount);
 
     for (0..extCount) |i| {
         const x = @as([*]const [*:0]const u8, @ptrCast(extensions));

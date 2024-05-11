@@ -4,9 +4,9 @@ const core = @import("core");
 // controls glfw and general windowing
 // graphics depends on this one
 
-pub usingnamespace @import("platform/windowing.zig");
-pub const windowing = @import("platform/windowing.zig");
-pub const glfw = @import("platform/glfw_defs.zig");
+pub usingnamespace @import("windowing.zig");
+pub const windowing = @import("windowing.zig");
+pub const glfw = @import("glfw_defs.zig");
 
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 
@@ -22,10 +22,9 @@ pub fn getInstance() *windowing.PlatformInstance {
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    _ = allocator;
     core.engine_logs("destroying platform");
     gPlatformInstance.deinit();
-    //allocator.destroy(gPlatformInstance);
+    allocator.destroy(gPlatformInstance);
 }
 
 pub fn shutdown_module2(allocator: std.mem.Allocator) void {

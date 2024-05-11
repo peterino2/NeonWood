@@ -1,6 +1,5 @@
 const std = @import("std");
 
-// I think I will do a convention of one dependency per module
 const dependencyList = [_][]const u8{
     // external libraries
     "spng",
@@ -18,7 +17,7 @@ const dependencyList = [_][]const u8{
 
     // engine libraries
     "core",
-    // "platform",
+    "platform",
     // "graphics",
 };
 
@@ -26,7 +25,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const test_step = b.step("testAll", "run unit tests");
+    const test_step = b.step("test-all", "run unit tests");
 
     const allTests = b.addTest(.{
         .target = target,
@@ -52,4 +51,12 @@ pub fn build(b: *std.Build) void {
 
     const runArtifact = b.addRunArtifact(allTests);
     test_step.dependOn(&runArtifact.step);
+
+    // autodoc
+
+    b.installDirectory(.{
+        .source_dir = allTests.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
 }

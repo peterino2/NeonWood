@@ -1,5 +1,5 @@
-const glfw3 = @import("glfw3");
-const vk = @import("vulkan");
+pub const glfw3 = @import("glfw3");
+pub const vk = @import("vulkan");
 
 pub extern fn glfwGetInstanceProcAddress(
     instance: vk.Instance,

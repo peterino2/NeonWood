@@ -1,6 +1,8 @@
+// TODO --- this should become it's own engine library?
 const std = @import("std");
+const spng = @import("spng");
+
 const core = @import("core.zig");
-const spng = @import("core/lib/zig-spng/spng.zig");
 
 pub const PngContents = struct {
     path: []const u8,

@@ -7,7 +7,6 @@ const BuildSystem = @This();
 const std = @import("std");
 
 const SpirvReflect = @import("SpirvReflect");
-
 pub const AddProgramOptions = struct {};
 
 pub fn init(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) BuildSystem {
@@ -32,6 +31,8 @@ pub fn addProgram(self: *BuildSystem, comptime name: []const u8, comptime desc: 
     _ = exe;
     _ = opts;
 }
+
+// ========= standalone build instance =======
 
 pub fn build(b: std.Build) void {
     const target = b.standardTargetOptions(.{});

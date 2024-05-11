@@ -3,7 +3,7 @@
     .version = "0.0.0",
     .dependencies = .{
         .core = .{ .path = "../core" },
-        .glfw = .{ .path = "../../lib/glfw3" },
+        .glfw3 = .{ .path = "../../lib/glfw3" },
         .vulkan = .{ .path = "../../lib/vulkan" },
     },
     .paths = .{

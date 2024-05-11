@@ -1,4 +1,4 @@
-pub const c = @cImport({
+const c = @cImport({
     @cInclude("miniaudio.h");
 });
 

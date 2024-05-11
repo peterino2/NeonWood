@@ -12,6 +12,7 @@ pub usingnamespace @import("string_utils.zig");
 pub usingnamespace @import("type_utils.zig");
 pub const engine = @import("engine.zig");
 pub const tracy = @import("tracy");
+pub const png = @import("png.zig");
 
 pub const zm = @import("zmath");
 pub usingnamespace @import("p2");
@@ -75,9 +76,10 @@ pub fn createObject(comptime T: type, params: engine.NeonObjectParams) !*T {
     return gEngine.createObject(T, params);
 }
 
-pub fn setupEnginePoll(ctx: *anyopaque, func: engine.PollFuncFn) void {
-    gEngine.platformPollFunc = func;
-    gEngine.platformPollCtx = ctx;
+pub fn setupEnginePlatform(ctx: *anyopaque, poll: engine.PollFuncFn, proc: engine.ProcEventsFn) void {
+    gEngine.platformPollFunc = poll;
+    gEngine.platformCtx = ctx;
+    gEngine.platformProcEventsFunc = proc;
 }
 
 pub fn signalShutdown() void {

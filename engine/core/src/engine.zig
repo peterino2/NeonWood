@@ -25,7 +25,7 @@ const JobManager = jobs.JobManager;
 const engine_log = logging.engine_log;
 
 pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
-pub const ProcEventsFn = *const fn (*anyopaque, f64) RttiDataEventError!void;
+pub const ProcEventsFn = *const fn (*anyopaque, u64) RttiDataEventError!void;
 
 pub const Engine = struct {
     exitSignal: Atomic(bool) = Atomic(bool).init(false),
@@ -145,10 +145,8 @@ pub const Engine = struct {
         self.frameNumber += 1;
 
         if (self.platformProcEventsFunc) |procEventsFn| {
-            try procEventsFn(self.platformCtx);
+            try procEventsFn(self.platformCtx, self.frameNumber);
         }
-
-        // try platform.getInstance().processEvents(self.frameNumber);
 
         for (self.eventors.items) |*objectRef| {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;

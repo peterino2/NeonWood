@@ -97,7 +97,7 @@ const foreign_types = std.ComptimeStringMap([]const u8, .{
     .{ "HWND", "std.os.windows.HWND" },
     .{ "HMONITOR", "*opaque {}" },
     .{ "HANDLE", "std.os.windows.HANDLE" },
-    .{ "SECURITY_ATTRIBUTES", "std.os.SECURITY_ATTRIBUTES" },
+    .{ "SECURITY_ATTRIBUTES", "std.os.windows.SECURITY_ATTRIBUTES" },
     .{ "DWORD", "std.os.windows.DWORD" },
     .{ "LPCWSTR", "std.os.windows.LPCWSTR" },
     .{ "xcb_connection_t", "opaque {}" },
@@ -874,7 +874,8 @@ fn Renderer(comptime WriterType: type) type {
                 try self.writer.writeAll(default);
                 try self.writer.writeAll(";\n");
             } else {
-                try self.writer.print("@compileError(\"Missing type definition of '{s}'\");\n", .{name});
+                //try self.writer.print("@compileError(\"Missing type definition of '{s}'\");\n", .{name});
+                try self.writer.print("struct{{invalid_type:bool = false}};\n", .{});
             }
         }
 

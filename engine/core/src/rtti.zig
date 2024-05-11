@@ -32,6 +32,8 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
 pub const RttiDataEventError = error{
     UnknownStatePanic,
     BadInit,
+    UnknownError,
+    OutOfMemory,
 };
 
 pub const RttiData = struct {

@@ -22,11 +22,11 @@ pub fn StaticVector(comptime T: type, comptime size: usize) type {
         items: []T = makeEmptySlice(),
 
         pub fn append(self: *@This(), value: T) !void {
-            if (self.len >= size)
+            if (self.items.len >= size)
                 return error.OutOfCapacity;
 
-            self._data[self.len] = value;
-            self.items.ptr = &self._data[0];
+            self._data[self.items.len] = value;
+            self.items.ptr = @ptrCast(&self._data[0]);
             self.items.len += 1;
         }
 
@@ -42,10 +42,10 @@ pub fn StaticVector(comptime T: type, comptime size: usize) type {
 }
 
 test "static vector" {
-    var al = StaticVector(struct { x: u32 = 0 }, 42).init();
+    var al = StaticVector(struct { x: u32 = 0 }, 42){};
 
     for (0..42) |i| {
-        try al.append(.{ .x = i });
+        try al.append(.{ .x = @intCast(i) });
     }
 
     std.debug.assert(al.items[0].x == 0);
