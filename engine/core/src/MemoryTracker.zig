@@ -1,6 +1,7 @@
 // memory tracker
 
 const std = @import("std");
+const core = @import("core.zig");
 
 backingAllocator: std.mem.Allocator,
 
@@ -69,3 +70,41 @@ pub fn setupMemTracker(backingAllocator: std.mem.Allocator) void {
 }
 
 pub fn getMemTracker() *@This() {}
+
+pub fn MTSetup(backingAllocator: std.mem.Allocator) void {
+    gMemTracker = backingAllocator.create(@This()) catch unreachable;
+    gMemTracker.?.* = .{ .backingAllocator = backingAllocator };
+}
+
+pub fn MTShutdown() void {
+    var backingAllocator = gMemTracker.?.backingAllocator;
+    gMemTracker.?.deinit();
+    backingAllocator.destroy(gMemTracker.?);
+    gMemTracker = null;
+}
+
+pub fn MTGet() ?*@This() {
+    return gMemTracker;
+}
+
+// todo replace all these functions with a virtual table
+pub fn MTAddUntrackedAllocation(allocatedSize: usize) void {
+    if (gMemTracker) |mt|
+        mt.addUntrackedAllocation(allocatedSize);
+}
+
+pub fn MTRemoveAllocation(allocatedSize: usize) void {
+    if (gMemTracker) |mt|
+        mt.removeUntrackedAllocation(allocatedSize);
+}
+
+pub fn MTPrintStatsDelta() void {
+    if (gMemTracker) |mt| {
+        core.engine_log("allocated size: {d}", .{mt.totalAllocSize});
+    }
+}
+
+pub fn PrintStatsWithTag(comptime tag: []const u8) void {
+    core.engine_logs(tag);
+    MTPrintStatsDelta();
+}

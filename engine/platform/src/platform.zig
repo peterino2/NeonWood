@@ -1,6 +1,5 @@
 const std = @import("std");
-const memory = @import("memory.zig");
-const core = @import("core.zig");
+const core = @import("core");
 
 // controls glfw and general windowing
 // graphics depends on this one
@@ -16,7 +15,6 @@ pub fn start_module(allocator: std.mem.Allocator, params: windowing.PlatformPara
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
     try gPlatformInstance.setup();
     core.engine_log("platform start_module @ 0x{x}", .{@intFromPtr(gPlatformInstance)});
-    memory.MTPrintStatsDelta();
 }
 
 pub fn getInstance() *windowing.PlatformInstance {

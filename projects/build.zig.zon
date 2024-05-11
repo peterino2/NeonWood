@@ -1,0 +1,20 @@
+.{
+    .name = "MyProjects",
+    .version = "0.0.0",
+    .dependencies = .{
+        // Neonwood's /lib folder contains
+        // third party libraries.
+        //
+        // They can be directly accessed
+        //
+        // as well as any of the engine/ libraries
+        //
+        // in the general case though,
+
+        // engine libraries
+        .nw = .{ .path = "../" },
+    },
+    .paths = .{
+        "",
+    },
+}

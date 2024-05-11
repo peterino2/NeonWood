@@ -1,9 +1,11 @@
 // mostly empty bindings, just here to make sure things get linked
 
-pub const c = @cImport({
+pub usingnamespace @cImport({
+    @cDefine("GLFW_INCLUDE_NONE", {});
     @cInclude("GLFW/glfw3.h");
 });
 
+const c = @This();
 const std = @import("std");
 
 test "glfw3-test" {

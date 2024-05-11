@@ -1,10 +1,5 @@
-pub usingnamespace @cImport({
-    @cDefine("GLFW_INCLUDE_NONE", {});
-    @cInclude("GLFW/glfw3.h");
-});
-
+const glfw3 = @import("glfw3");
 const vk = @import("vulkan");
-const c = @This();
 
 pub extern fn glfwGetInstanceProcAddress(
     instance: vk.Instance,
@@ -19,7 +14,7 @@ pub extern fn glfwGetPhysicalDevicePresentationSupport(
 
 pub extern fn glfwCreateWindowSurface(
     instance: vk.Instance,
-    window: *c.GLFWwindow,
+    window: *glfw3.GLFWwindow,
     allocation_callbacks: ?*const vk.AllocationCallbacks,
     surface: *vk.SurfaceKHR,
 ) vk.Result;
