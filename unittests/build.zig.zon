@@ -9,7 +9,7 @@
         .nfd = .{ .path = "../lib/nfd" },
         .objLoader = .{ .path = "../lib/objLoader" },
         .p2 = .{ .path = "../lib/p2" },
-        .vulkan = .{ .path = "../lib/vulkan-zig" },
+        .vulkan = .{ .path = "../lib/vulkan" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },
     .paths = .{
