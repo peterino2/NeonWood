@@ -181,8 +181,8 @@ pub fn main() anyerror!void {
     core.start_module(allocator);
     defer core.shutdown_module(allocator);
 
-    try neonwood.platform.start_module(allocator, .{ .windowName = "jobTest" });
-    defer neonwood.platform.shutdown_module2(allocator);
+    // try neonwood.platform.start_module(allocator, .{ .windowName = "jobTest" });
+    // defer neonwood.platform.shutdown_module2(allocator);
 
     // Setup the game
     var game = try core.createObject(GameContext, .{ .can_tick = true });

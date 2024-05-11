@@ -15,6 +15,7 @@
         .vulkan = .{ .path = "../lib/vulkan" },
         .vma = .{ .path = "../lib/vma" },
         .tracy = .{ .path = "../lib/tracy" },
+        .zmath = .{ .path = "../lib/zmath" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
 
         // engine libraries

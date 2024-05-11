@@ -14,6 +14,7 @@ const dependencyList = [_][]const u8{
     "tracy",
     "vma",
     "gl",
+    "zmath",
 
     // engine libraries
     "core",
