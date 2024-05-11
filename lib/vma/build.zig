@@ -75,6 +75,8 @@ pub fn build(b: *std.Build) void {
     const debugArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.debugConfig);
     const args = if (optimize == .Debug) debugArgs else releaseArgs;
 
+    const macos_vulkan_sdk = b.graph.env_map.hash_map.get("VULKAN_SDK");
+
     const vulkan_dep = b.dependency("vulkan", .{
         .target = target,
         .optimize = optimize,
@@ -89,6 +91,14 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
         .link_libcpp = target.result.abi != .msvc,
     });
+
+    if (target.result.os.tag == .macos) {
+        mod.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
+        mod.addLibraryPath(.{
+            .path = b.fmt("{s}/1.3.250.1/macOS/lib/", .{macos_vulkan_sdk.?}),
+        });
+        mod.linkSystemLibrary("vulkan", .{});
+    }
 
     mod.addIncludePath(.{ .path = "vulkan" });
     mod.addCSourceFile(.{ .file = .{ .path = "vk_mem_alloc.cpp" }, .flags = args });

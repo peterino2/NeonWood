@@ -12,7 +12,7 @@ pub fn printInner(comptime fmt: []const u8, args: anytype) void {
         return;
     }
 
-    if (build_opts.slow_logging or builtin.is_test) {
+    if (build_opts.slow_logging) {
         std.debug.print("> " ++ fmt, args);
     } else {
         if (gLoggerSys) |loggerSys| {
@@ -177,7 +177,11 @@ pub const LoggerSys = struct {
     pub fn flushWriteBuffer(self: *@This()) !void {
         self.lock.lock();
         try self.logFile.writer().writeAll(self.writeOutBuffer.items);
-        try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
+        if (builtin.is_test) {
+            std.debug.print("{s}", .{self.flushBuffer.items});
+        } else {
+            try self.consoleFile.writer().writeAll(self.writeOutBuffer.items);
+        }
         self.writeOutBuffer.clearRetainingCapacity();
         self.lock.unlock();
     }
@@ -185,7 +189,11 @@ pub const LoggerSys = struct {
     pub fn flushFromJob(self: *@This()) !void {
         self.lock.lock();
         try self.logFile.writer().writeAll(self.flushBuffer.items);
-        try self.consoleFile.writer().writeAll(self.flushBuffer.items);
+        if (builtin.is_test) {
+            std.debug.print("{s}", .{self.flushBuffer.items});
+        } else {
+            try self.consoleFile.writer().writeAll(self.flushBuffer.items);
+        }
         self.flushBuffer.clearRetainingCapacity();
         self.lock.unlock();
     }

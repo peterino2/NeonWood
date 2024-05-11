@@ -17,6 +17,10 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("pthread", .{});
     }
 
+    if (target.result.os.tag == .macos) {
+        mod.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
+    }
+
     // ======== tests ============
     const test_step = b.step("test-glfw3", "");
     const tests = b.addTest(.{
