@@ -7,6 +7,8 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("nfd", .{
         .target = target,
         .optimize = optimize,
+        .root_source_file = .{ .path = "src/nfd.zig" },
+        .link_libc = true,
     });
 
     mod.addCSourceFile(.{

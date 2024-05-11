@@ -12,8 +12,6 @@ pub const enabled = blk: {
         root_enable = @as(bool, root.tracy_enabled);
     }
 
-    // Don't try to include build_options in tests.
-    // Otherwise `zig test` doesn't work.
     const options = @import("build_options");
     if (@hasDecl(options, "tracy_enabled")) {
         build_enable = @as(bool, options.tracy_enabled);

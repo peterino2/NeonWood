@@ -1,44 +1,40 @@
+// main public facing root file for core
+
 const std = @import("std");
-const memory = @import("memory.zig");
 
-pub usingnamespace @import("core/misc.zig");
-pub usingnamespace @import("core/logging.zig");
-pub usingnamespace @import("core/engineTime.zig");
-pub usingnamespace @import("core/rtti.zig");
-pub usingnamespace @import("core/jobs.zig");
-pub usingnamespace @import("core/file_utils.zig");
-pub usingnamespace @import("core/string_utils.zig");
-pub usingnamespace @import("core/type_utils.zig");
-pub const engine = @import("core/engine.zig");
-pub const tracy = @import("core/lib/zig_tracy/tracy.zig");
+pub usingnamespace @import("misc.zig");
+pub usingnamespace @import("logging.zig");
+pub usingnamespace @import("engineTime.zig");
+pub usingnamespace @import("rtti.zig");
+pub usingnamespace @import("jobs.zig");
+pub usingnamespace @import("file_utils.zig");
+pub usingnamespace @import("string_utils.zig");
+pub usingnamespace @import("type_utils.zig");
+pub const engine = @import("engine.zig");
+pub const tracy = @import("tracy");
 
-pub const nfd = @import("core/lib/nfd/nfd.zig");
-pub const zm = @import("core/lib/zmath/zmath.zig");
-pub usingnamespace @import("core/lib/p2/algorithm.zig");
-const algorithm = @import("core/lib/p2/algorithm.zig");
-pub usingnamespace @import("core/math.zig");
-pub usingnamespace @import("core/string.zig");
-pub usingnamespace @import("core/args.zig");
-pub usingnamespace @import("core/file_dialogue.zig");
+pub const zm = @import("zmath");
+pub usingnamespace @import("p2");
+const algorithm = @import("p2");
+pub const nfd = @import("nfd");
+pub usingnamespace @import("math.zig");
+pub usingnamespace @import("string.zig");
+pub usingnamespace @import("args.zig");
+pub usingnamespace @import("file_dialogue.zig");
 
-// pub usingnamespace @import("core/mem_trackek.zig");
-// pub const memory_tracker = @import("core/mem_tracker.zig");
-
-pub const scene = @import("core/scene.zig");
+pub const scene = @import("scene.zig");
 pub const SceneSystem = scene.SceneSystem;
 
 pub const Engine = engine.Engine;
 
 const Name = algorithm.Name;
-pub const spng = @import("core/lib/zig-spng/spng.zig");
+pub const spng = @import("spng");
 
 pub const assert = std.debug.assert;
 
-pub const MemoryTracker = @import("core/MemoryTracker.zig");
+pub const MemoryTracker = @import("MemoryTracker.zig");
 
-const tests = @import("core/tests.zig");
-const logging = @import("core/logging.zig");
-const vk = @import("vulkan");
+const logging = @import("logging.zig");
 const c = @This();
 
 const logs = logging.engine_logs;
@@ -56,7 +52,6 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     logging.setupLogging(gEngine) catch unreachable;
 
     logs("core module starting up... ");
-    memory.MTPrintStatsDelta();
     return;
 }
 

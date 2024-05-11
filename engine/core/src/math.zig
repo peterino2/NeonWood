@@ -1,6 +1,6 @@
 const std = @import("std");
 const misc = @import("misc.zig");
-const zm = @import("lib/zmath/zmath.zig");
+const zm = @import("zmath");
 const math = std.math;
 
 pub const Rayf = RayType(f32);

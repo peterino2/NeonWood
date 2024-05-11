@@ -1,7 +1,9 @@
 const std = @import("std");
-const core = @import("../core.zig");
-const tracy = core.tracy;
+const core = @import("core.zig");
+const tracy = @import("tracy");
 const build_opts = @import("game_build_opts");
+
+const builtin = @import("builtin");
 
 var gLoggerSys: ?*LoggerSys = null;
 
@@ -10,7 +12,7 @@ pub fn printInner(comptime fmt: []const u8, args: anytype) void {
         return;
     }
 
-    if (build_opts.slow_logging) {
+    if (build_opts.slow_logging or builtin.is_test) {
         std.debug.print("> " ++ fmt, args);
     } else {
         if (gLoggerSys) |loggerSys| {
@@ -144,6 +146,7 @@ pub const LoggerSys = struct {
             self.writeOutBuffer = self.flushBuffer;
             self.flushBuffer = swap;
 
+            std.debug.print("flushing\n", .{});
             const L = struct {
                 loggerSys: *LoggerSys,
 
@@ -152,6 +155,7 @@ pub const LoggerSys = struct {
                     defer z1.End();
                     ctx.loggerSys.flushFromJob() catch unreachable;
                     ctx.loggerSys.flushing.store(false, .seq_cst);
+                    std.debug.print("flushing complete\n", .{});
                 }
             };
 

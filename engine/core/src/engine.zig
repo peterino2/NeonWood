@@ -3,12 +3,12 @@ const logging = @import("logging.zig");
 const input = @import("input.zig");
 const rtti = @import("rtti.zig");
 const time = @import("engineTime.zig");
-const core = @import("../core.zig");
+const core = @import("core.zig");
 const jobs = @import("jobs.zig");
-const tracy = core.tracy;
-const platform = @import("../platform.zig");
-const p2 = @import("lib/p2/algorithm.zig");
-const nfd = @import("lib/nfd/nfd.zig");
+
+const tracy = @import("tracy");
+const p2 = @import("p2");
+const nfd = @import("nfd");
 
 const Atomic = std.atomic.Value;
 const RttiDataEventError = rtti.RttiDataEventError;
@@ -25,6 +25,7 @@ const JobManager = jobs.JobManager;
 const engine_log = logging.engine_log;
 
 pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
+pub const ProcEventsFn = *const fn (*anyopaque, f64) RttiDataEventError!void;
 
 pub const Engine = struct {
     exitSignal: Atomic(bool) = Atomic(bool).init(false),
@@ -43,8 +44,9 @@ pub const Engine = struct {
     deltaTime: f64, // delta time for this frame from the previous frame
     frameNumber: u64,
 
-    platformPollCtx: *anyopaque = undefined,
+    platformCtx: *anyopaque = undefined,
     platformPollFunc: ?PollFuncFn = null,
+    platformProcEventsFunc: ?ProcEventsFn = null,
 
     nfdRuntime: *nfd.NFDRuntime,
 
@@ -61,7 +63,7 @@ pub const Engine = struct {
             .eventors = .{},
             .frameNumber = 0,
             .exitListeners = .{},
-            .nfdRuntime = try nfd.NFDRuntime.create(allocator),
+            .nfdRuntime = try nfd.NFDRuntime.create(allocator, .{}),
         };
 
         return rv;
@@ -142,7 +144,11 @@ pub const Engine = struct {
         self.deltaTime = newTime - self.lastEngineTime;
         self.frameNumber += 1;
 
-        try platform.getInstance().processEvents(self.frameNumber);
+        if (self.platformProcEventsFunc) |procEventsFn| {
+            try procEventsFn(self.platformCtx);
+        }
+
+        // try platform.getInstance().processEvents(self.frameNumber);
 
         for (self.eventors.items) |*objectRef| {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;
@@ -187,7 +193,7 @@ pub const Engine = struct {
     fn mainLoop(self: *@This()) !void {
         while (!self.exitConfirmed.load(.acquire)) {
             if (self.platformPollFunc) |pollFunc| {
-                try pollFunc(self.platformPollCtx);
+                try pollFunc(self.platformCtx);
             }
 
             try self.nfdRuntime.processMessages();

@@ -1,7 +1,7 @@
 const std = @import("std");
 const logging = @import("logging.zig");
 const input = @import("input.zig");
-const p2 = @import("lib/p2/algorithm.zig");
+const p2 = @import("p2");
 const engine_logs = logging.engine_logs;
 
 const ObjectHandle = p2.ObjectHandle;

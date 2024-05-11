@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const os = std.os;
 const windows = std.os.windows;
-const core = @import("core.zig");
+const core = @import("core");
 
 fn handleSegfaultWindows(info: *windows.EXCEPTION_POINTERS) callconv(windows.WINAPI) c_long {
     switch (info.ExceptionRecord.ExceptionCode) {
