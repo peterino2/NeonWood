@@ -25,7 +25,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const assert = std.debug.assert;
-const vk = @import("vk");
+const vk = @import("vulkan");
 const vma_config = @import("vma_config.zig");
 pub const config = if (builtin.mode == .Debug) vma_config.debugConfig else vma_config.releaseConfig;
 

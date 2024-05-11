@@ -10,6 +10,7 @@
         .objLoader = .{ .path = "../lib/objLoader" },
         .p2 = .{ .path = "../lib/p2" },
         .vulkan = .{ .path = "../lib/vulkan" },
+        .vma = .{ .path = "../lib/vma" },
         .tracy = .{ .path = "../lib/tracy" },
         .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },

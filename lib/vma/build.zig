@@ -1,33 +1,108 @@
 const std = @import("std");
 const vma_build = @import("vma_build.zig");
+const vma_config = @import("vma_config.zig");
+
+fn getConfigArgs(comptime config: vma_config.Config) []const []const u8 {
+    comptime {
+        @setEvalBranchQuota(100000);
+        var args: []const []const u8 = &[_][]const u8{
+            std.fmt.comptimePrint("-DVMA_VULKAN_VERSION={}", .{config.vulkanVersion}),
+            std.fmt.comptimePrint("-DVMA_DEDICATED_ALLOCATION={}", .{@intFromBool(config.dedicatedAllocation)}),
+            std.fmt.comptimePrint("-DVMA_BIND_MEMORY2={}", .{@intFromBool(config.bindMemory2)}),
+            std.fmt.comptimePrint("-DVMA_MEMORY_BUDGET={}", .{@intFromBool(config.memoryBudget)}),
+            std.fmt.comptimePrint("-DVMA_STATIC_VULKAN_FUNCTIONS={}", .{@intFromBool(config.staticVulkanFunctions)}),
+            std.fmt.comptimePrint("-DVMA_STATS_STRING_ENABLED={}", .{@intFromBool(config.statsStringEnabled)}),
+        };
+        if (config.debugInitializeAllocations) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_DEBUG_INITIALIZE_ALLOCATIONS={}",
+                .{@intFromBool(value)},
+            )};
+        }
+        if (config.debugMargin) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_DEBUG_MARGIN={}",
+                .{value},
+            )};
+        }
+        if (config.debugDetectCorruption) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_DEBUG_DETECT_CORRUPTION={}",
+                .{@intFromBool(value)},
+            )};
+        }
+        if (config.recordingEnabled) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_RECORDING_ENABLED={}",
+                .{@intFromBool(value)},
+            )};
+        }
+        if (config.debugMinBufferImageGranularity) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_DEBUG_MIN_BUFFER_IMAGE_GRANULARITY={}",
+                .{value},
+            )};
+        }
+        if (config.debugGlobalMutex) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_DEBUG_GLOBAL_MUTEX={}",
+                .{@intFromBool(value)},
+            )};
+        }
+        if (config.useStlContainers) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_USE_STL_CONTAINERS={}",
+                .{@intFromBool(value)},
+            )};
+        }
+        if (config.useStlSharedMutex) |value| {
+            args = args ++ &[_][]const u8{std.fmt.comptimePrint(
+                "-DVMA_USE_STL_SHARED_MUTEX={}",
+                .{@intFromBool(value)},
+            )};
+        }
+
+        return args;
+    }
+}
 
 pub fn build(b: *std.Build) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    const commonArgs = &[_][]const u8{ "-std=c++14", "-DVMA_IMPLEMENTATION" };
+    const releaseArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.releaseConfig);
+    const debugArgs = &[_][]const u8{} ++ commonArgs ++ comptime getConfigArgs(vma_config.debugConfig);
+    const args = if (optimize == .Debug) debugArgs else releaseArgs;
 
-    // make step for tests
-    const tests = b.addTest("test/test.zig");
-    tests.setBuildMode(mode);
-    tests.setTarget(target);
+    const vulkan_dep = b.dependency("vulkan", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // link vk
-    tests.addModulePath("vk", "test/vulkan_core.zig");
-    if (target.getOs().tag == .windows) {
-        tests.addObjectFile("test/vulkan-1.lib");
-    } else {
-        tests.linkSystemLibrary("vulkan");
-    }
+    const vulkan = vulkan_dep.module("vulkan");
 
-    // link vma
-    vma_build.link(tests, "test/vulkan_core.zig", mode, target);
+    const mod = b.addModule("vma", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = .{ .path = "vma.zig" },
+        .link_libc = true,
+        .link_libcpp = target.result.abi != .msvc,
+    });
 
-    const test_step = b.step("test", "run tests");
-    test_step.dependOn(&tests.step);
+    mod.addIncludePath(.{ .path = "vulkan" });
+    mod.addCSourceFile(.{ .file = .{ .path = "vk_mem_alloc.cpp" }, .flags = args });
+
+    mod.addImport("vulkan", vulkan);
+
+    // ========== tests =============
+    const test_step = b.step("test-vma", "run unit tests for vma");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = .{ .path = "vma_test.zig" },
+    });
+    tests.root_module.addImport("vma", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
 }
