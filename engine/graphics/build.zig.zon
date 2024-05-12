@@ -1,0 +1,17 @@
+.{
+    .name = "graphics",
+    .version = "0.0.0",
+    .dependencies = .{
+        //
+        .vulkan = .{ .path = "../../lib/vulkan" },
+        .vma = .{ .path = "../../lib/vma" },
+        .glfw3 = .{ .path = "../../lib/glfw3" },
+        // core
+        .core = .{ .path = "../core" },
+        .assets = .{ .path = "../assets" },
+        .platform = .{ .path = "../platform" },
+    },
+    .paths = .{
+        "",
+    },
+}

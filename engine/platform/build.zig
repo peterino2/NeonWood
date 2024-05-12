@@ -18,11 +18,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // oh that is interesting. what I can do is have two
+    // different modules specified here.
+    //
+    // one module for each graphics backend
+    //
+    // todo,
     const mod = b.addModule("platform", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = .{ .path = "src/platform.zig" },
     });
+
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

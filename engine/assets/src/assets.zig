@@ -1,6 +1,6 @@
 const std = @import("std");
-const core = @import("core.zig");
-const memory = @import("memory.zig");
+const core = @import("core");
+const memory = core.MemoryTracker;
 
 pub const asset_references = @import("assets/asset_references.zig");
 pub const asset_jobs = @import("assets/asset_jobs.zig");

@@ -1,9 +1,9 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const core = @import("../core.zig");
-const graphics = @import("../graphics.zig");
-const assets = @import("../assets.zig");
+const core = @import("core.zig");
+const graphics = @import("graphics.zig");
+const assets = @import("assets");
 const debug_vert = @import("debug_vert");
 const debug_frag = @import("debug_frag");
 const tracy = core.tracy;

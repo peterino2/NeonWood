@@ -1,6 +1,6 @@
 const std = @import("std");
-const core = @import("../core.zig");
-const assets = @import("../assets.zig");
+const core = @import("core");
+const assets = @import("assets.zig");
 
 const JobContext = core.JobContext;
 const JobWorker = core.JobWorker;
