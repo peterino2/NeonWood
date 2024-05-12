@@ -22,7 +22,7 @@ geoCount: u32 = 0,
 geoPool: std.ArrayListUnmanaged(GeometryLine) = .{},
 
 const std = @import("std");
-const core = @import("../../../core.zig");
+const core = @import("core");
 const GeometryLine = std.ArrayListUnmanaged(GeometryEntry);
 const GeometryCache = std.ArrayListUnmanaged(GeometryLineEntry);
 

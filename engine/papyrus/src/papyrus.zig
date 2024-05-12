@@ -3,46 +3,48 @@ const c = @cImport({
     @cInclude("stb_ttf.h");
 });
 
-pub const Layout = @import("papyrus/MousePick.zig");
-pub const Event = @import("papyrus/Event.zig");
+pub const Layout = @import("MousePick.zig");
+pub const Event = @import("Event.zig");
 
-pub const Font = @import("papyrus/Font.zig");
+pub const Font = @import("Font.zig");
 pub const FontAtlas = Font.FontAtlas;
-pub const BmpRenderer = @import("papyrus/BmpRenderer.zig");
+pub const BmpRenderer = @import("BmpRenderer.zig");
 pub const BmpWriter = BmpRenderer.BmpWriter;
 
-pub const colors = @import("papyrus/colors.zig");
-pub const Color = colors.Color;
-pub const ColorRGBA8 = colors.RGBA8;
-pub const ModernStyle = colors.ModernStyle;
-pub const BurnStyle = colors.BurnStyle;
+pub const style = @import("style.zig");
+pub const ModernStyle = style.ModernStyle;
+pub const BurnStyle = style.BurnStyle;
 
-pub const utils = @import("papyrus/utils.zig");
+pub const utils = @import("utils.zig");
 pub const FileLog = utils.FileLog;
 pub const grapvizDotToPng = utils.grapvizDotToPng;
 pub const loadFileAlloc = utils.loadFileAlloc;
 pub const assertf = utils.assertf;
 
-pub const localization = @import("papyrus/localization.zig");
+pub const localization = @import("localization.zig");
 pub const LocText = localization.LocText;
 pub const MakeText = localization.MakeText;
 pub const HandlerError = Event.HandlerError;
 pub const PressedType = Event.PressedType;
 
-pub const TextRenderGeometry = @import("papyrus/textRender/textRenderGeometry.zig");
+pub const TextRenderGeometry = @import("textRender/textRenderGeometry.zig");
 
-pub const DrawListBuilder = @import("papyrus/DrawListBuilder.zig");
+pub const DrawListBuilder = @import("DrawListBuilder.zig");
 
-pub const NodeProperty_Button = @import("papyrus/primitives/button.zig");
-pub const NodeProperty_TextEntry = @import("papyrus/primitives/textEntry.zig");
+pub const NodeProperty_Button = @import("primitives/button.zig");
+pub const NodeProperty_TextEntry = @import("primitives/textEntry.zig");
 
-pub const TextEntrySystem = @import("papyrus/TextEntrySystem.zig");
+pub const TextEntrySystem = @import("TextEntrySystem.zig");
 
-pub const DrawCommand = @import("papyrus/DrawCommand.zig");
+pub const DrawCommand = @import("DrawCommand.zig");
 pub const DrawList = std.ArrayList(DrawCommand);
 
-const core = @import("root").neonwood.core;
-const memory = @import("root").neonwood.memory;
+const core = @import("core");
+const colors = core.colors;
+pub const Color = colors.Color;
+pub const ColorRGBA8 = colors.RGBA8;
+
+const MemoryTracker = core.MemoryTracker;
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
 const IndexPool = core.IndexPool;

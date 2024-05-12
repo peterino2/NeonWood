@@ -1,5 +1,6 @@
 const std = @import("std");
 const paged_vector = @import("paged-vector.zig");
+const builtin = @import("builtin");
 
 const PagedVectorAdvanced = paged_vector.PagedVectorAdvanced;
 
@@ -96,14 +97,24 @@ pub const NameRegistry = struct {
 };
 
 pub var gRegistry: *NameRegistry = undefined;
+var registryCreated: bool = false;
 
 pub fn createNameRegistry(allocator: std.mem.Allocator) !*NameRegistry {
     gRegistry = try allocator.create(NameRegistry);
     gRegistry.* = try NameRegistry.init(allocator);
+    registryCreated = true;
     return gRegistry;
 }
 
 pub fn getRegistry() *NameRegistry {
+    // specifically in the case of unittests we can silently just initialize a temporary registry
+    if (builtin.is_test) {
+        if (!registryCreated) {
+            // leaking here is fine? might piss off valgrind
+            _ = createNameRegistry(std.heap.c_allocator) catch unreachable;
+        }
+    }
+
     return gRegistry;
 }
 

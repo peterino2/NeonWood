@@ -6,8 +6,8 @@ primitive: union(enum(u8)) {
     Text: PrimitiveText,
 },
 
-pub const papyrus = @import("../papyrus.zig");
-pub const core = @import("../../core.zig");
+pub const papyrus = @import("papyrus.zig");
+pub const core = @import("core");
 
 pub const PrimitiveRect = struct {
     tl: core.Vector2f,

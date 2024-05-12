@@ -17,15 +17,15 @@ pub const TextEntryStyle = struct {
 };
 
 const std = @import("std");
-const papyrus = @import("../../papyrus.zig");
+const papyrus = @import("../papyrus.zig");
 const LocText = papyrus.LocText;
 const MakeText = papyrus.MakeText;
 
 const Node = papyrus.Node;
 const DrawListBuilder = @import("../DrawListBuilder.zig");
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Vector2f = core.Vector2f;
-const colors = @import("../colors.zig");
+const colors = core.colors;
 const BurnStyle = colors.BurnStyle;
 
 pub const TextEntryState = enum {

@@ -1,11 +1,12 @@
 const std = @import("std");
-const Context = @import("../papyrus.zig").Context;
+const papyrus = @import("papyrus.zig");
+const Context = papyrus.Context;
 
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Vector2i = core.Vector2i;
 const Vector2 = core.Vector2;
 
-const colors = @import("colors.zig");
+const colors = core.colors;
 const ColorRGBA8 = colors.ColorRGBA8;
 const Color = colors.Color;
 
@@ -48,7 +49,7 @@ pub fn render(self: *@This()) !void {
     var timer = try std.time.Timer.start();
     const tstart = timer.read();
 
-    var drawList = Context.DrawList.init(self.ui.allocator);
+    var drawList = papyrus.DrawList.init(self.ui.allocator);
     try self.ui.makeDrawList(&drawList);
     defer drawList.deinit();
 
@@ -61,8 +62,8 @@ pub fn render(self: *@This()) !void {
         const cmd = drawList.items[i];
         switch (cmd.primitive) {
             .Rect => |rect| {
-                var tl = Vector2i.fromVector2(rect.tl);
-                var size = Vector2i.fromVector2(rect.size);
+                var tl = Vector2i.from(rect.tl);
+                var size = Vector2i.from(rect.size);
                 const border = ColorRGBA8.fromColor(rect.borderColor);
                 const bg = ColorRGBA8.fromColor(rect.backgroundColor);
 
@@ -70,7 +71,7 @@ pub fn render(self: *@This()) !void {
                 self.r.drawRectangle(.Filled, tl.add(Vector2i{ .x = 1, .y = 1 }), size.add(.{ .x = -2, .y = -2 }), bg.r, bg.g, bg.b);
             },
             .Text => |t| {
-                const tl = Vector2i.fromVector2(t.tl);
+                const tl = Vector2i.from(t.tl);
                 self.r.drawText(self.ui.defaultFont.atlas, tl, t.text, t.color);
             },
         }

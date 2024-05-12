@@ -1,12 +1,12 @@
 const std = @import("std");
 const c = @import("c.zig");
 
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
 const Name = core.Name;
 
-const colors = @import("colors.zig");
+const colors = core.colors;
 const ColorRGBA8 = colors.ColorRGBA8;
 const Color = colors.Color;
 

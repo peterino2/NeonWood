@@ -13,11 +13,10 @@ cursorBlinkResetTime: f64 = 0.4,
 insertIndex: u32 = 0,
 
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("papyrus.zig");
 const NodeHandle = papyrus.NodeHandle;
 const Context = papyrus.Context;
-const core = @import("../../core.zig");
-const platform = @import("../../platform.zig");
+const core = @import("core");
 const TextRenderGeometry = @import("textRender/textRenderGeometry.zig");
 
 // couple of things we'll need to do...
@@ -63,7 +62,8 @@ pub fn tick(self: *@This(), deltaTime: f64) !void {
 
 pub fn testHits(self: *@This()) !void {
     if (self.trg) |trg| {
-        const cursorPos = platform.getInstance().cursorPos;
+        const ctx = papyrus.getContext();
+        const cursorPos = ctx.currentCursorPosition;
         self.cursorResults = trg.testHit(cursorPos);
         if (self.cursorResults) |hr| {
             try self.ctx.pushDebugText("text entry hittest found found: line={d} index={d}", .{ hr.line, hr.index });

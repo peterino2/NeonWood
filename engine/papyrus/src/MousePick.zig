@@ -1,14 +1,14 @@
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("papyrus.zig");
 
 const Context = papyrus.Context;
 const EventType = Context.EventType;
 
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Vector2i = core.Vector2i;
 const Vector2f = core.Vector2f;
 
-const colors = @import("colors.zig");
+const colors = core.colors;
 const Color = colors.Color;
 
 allocator: std.mem.Allocator,

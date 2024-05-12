@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Name = core.Name;
 
 pub var gLocDbRef: ?*anyopaque = null;

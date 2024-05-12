@@ -442,25 +442,3 @@ pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
         .w = vec[3],
     };
 }
-
-pub const LinearColor = extern struct {
-    r: f32 = 1.0,
-    g: f32 = 1.0,
-    b: f32 = 1.0,
-    a: f32 = 1.0,
-};
-pub const Color = extern struct {
-    r: u8 = 255,
-    g: u8 = 255,
-    b: u8 = 255,
-    a: u8 = 255,
-
-    pub fn fromHex(hex: u32) @This() {
-        return .{
-            .r = @as(u8, @intCast((hex >> 24) & 0xFF)),
-            .g = @as(u8, @intCast((hex >> 16) & 0xFF)),
-            .b = @as(u8, @intCast((hex >> 8) & 0xFF)),
-            .a = @as(u8, @intCast((hex) & 0xFF)),
-        };
-    }
-};

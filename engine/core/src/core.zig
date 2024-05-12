@@ -14,6 +14,8 @@ pub const engine = @import("engine.zig");
 pub const tracy = @import("tracy");
 pub const png = @import("png.zig");
 
+pub const colors = @import("colors.zig");
+
 pub const zm = @import("zmath");
 pub usingnamespace @import("p2");
 const algorithm = @import("p2");

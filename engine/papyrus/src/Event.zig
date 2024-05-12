@@ -4,14 +4,14 @@ inputEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(Listene
 pressEvents: std.AutoHashMapUnmanaged(NodeHandle, std.ArrayListUnmanaged(PressedListener)),
 
 const std = @import("std");
-const papyrus = @import("../papyrus.zig");
+const papyrus = @import("papyrus.zig");
 
 const NodeHandle = papyrus.NodeHandle;
 const Context = papyrus.Context;
 
-const RingQueueU = @import("../../core.zig").RingQueueU;
+const RingQueueU = core.RingQueueU;
 
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const assertf = core.assertf;
 
 pub const Key = enum(i32) {

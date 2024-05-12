@@ -6,8 +6,8 @@ parentInfo: LayoutInfo,
 resolvedSize: Vector2f = .{},
 resolvedPos: Vector2f = .{},
 
-const papyrus = @import("../papyrus.zig");
-const core = @import("root").neonwood.core;
+const papyrus = @import("papyrus.zig");
+const core = @import("core");
 
 const Context = papyrus.Context;
 const LayoutInfo = papyrus.LayoutInfo;

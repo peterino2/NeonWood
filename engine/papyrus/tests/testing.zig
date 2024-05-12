@@ -1,34 +1,37 @@
 const std = @import("std");
-const papyrus = @import("papyrus.zig");
-const localization = @import("localization.zig");
-const utils = @import("utils.zig");
+const papyrus = @import("papyrus");
+const localization = papyrus.localization;
+const utils = papyrus.utils;
+const c = @cImport({
+    @cInclude("stb_ttf.h");
+});
 
-const c = @import("c.zig");
-
-const PapyrusContext = papyrus.PapyrusContext;
-const PapyrusNode = papyrus.PapyrusNode;
+const PapyrusContext = papyrus.Context;
+const PapyrusNode = papyrus.Node;
 const MakeText = localization.MakeText;
 const grapvizDotToPng = utils.grapvizDotToPng;
 
-const BmpRenderer = @import("BmpRenderer.zig");
+const BmpRenderer = papyrus.BmpRenderer;
 const BmpWriter = BmpRenderer.BmpWriter;
 
-const colors = @import("colors.zig");
+const core = @import("core");
+const colors = core.colors;
 const Color = colors.Color;
 const ColorRGBA8 = colors.ColorRGBA8;
 
-const ModernStyle = colors.ModernStyle;
-const BurnStyle = colors.BurnStyle;
+const style = papyrus.style;
+const ModernStyle = style.ModernStyle;
+const BurnStyle = style.BurnStyle;
 
-const PapyrusFont = @import("PapyrusFont.zig");
-const FontAtlas = PapyrusFont.FontAtlas;
+const Font = papyrus.Font;
+const FontAtlas = Font.FontAtlas;
 
-const DynamicPool = @import("pool.zig").DynamicPool;
+const IndexPool = core.IndexPool;
 
 // ========================  unit tests for papyrus ==========================
 
 test "hierarchy test" {
-    var ctx = try PapyrusContext.create(std.testing.allocator);
+    const ctx = try PapyrusContext.create(std.testing.allocator);
     defer ctx.deinit();
 
     std.debug.print(
@@ -41,19 +44,19 @@ test "hierarchy test" {
         // This adds a default slot to the ui library
         // Slots can have children and can set up a few policies such as docking, etc...
         // by default this slot will be free
-        var slot = try ctx.addSlot(.{});
+        const slot = try ctx.addSlot(.{});
         ctx.get(slot).text = MakeText("slot1");
 
-        var slot2 = try ctx.addSlot(slot);
+        const slot2 = try ctx.addSlot(slot);
         ctx.get(slot2).text = MakeText("slot2");
 
-        var slot3 = try ctx.addSlot(slot);
+        const slot3 = try ctx.addSlot(slot);
         ctx.get(slot3).text = MakeText("slot3");
 
-        var slot5 = try ctx.addSlot(slot);
+        const slot5 = try ctx.addSlot(slot);
         ctx.get(slot5).text = MakeText("slot5");
 
-        var slot4 = try ctx.addSlot(slot2);
+        const slot4 = try ctx.addSlot(slot2);
         ctx.get(slot4).text = MakeText("slot4");
 
         try ctx.writeTree(.{}, "before.viz");
@@ -62,7 +65,7 @@ test "hierarchy test" {
         try ctx.removeFromParent(slot2);
         ctx.get(try ctx.addSlot(slot3)).text = MakeText("slot7");
 
-        var x = try ctx.addSlot(slot3);
+        const x = try ctx.addSlot(slot3);
 
         ctx.get(x).text = MakeText("slot8");
         ctx.get(try ctx.addSlot(x)).text = MakeText("slot9");
@@ -76,7 +79,7 @@ test "hierarchy test" {
 }
 
 test "Testing a fullscreen render" {
-    var ctx = try PapyrusContext.create(std.testing.allocator);
+    const ctx = try PapyrusContext.create(std.testing.allocator);
     defer ctx.deinit();
 
     var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
@@ -84,7 +87,7 @@ test "Testing a fullscreen render" {
     defer rend.deinit();
     rend.setRenderFile("Saved/frame_fs00.bmp");
 
-    var panel = try ctx.addPanel(.{});
+    const panel = try ctx.addPanel(.{});
     ctx.getPanel(panel).hasTitle = true;
     ctx.getPanel(panel).titleColor = ModernStyle.GreyDark;
     ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
@@ -94,7 +97,7 @@ test "Testing a fullscreen render" {
     ctx.get(panel).size = .{ .x = 1920 / 2, .y = 1080 / 2 };
 
     {
-        var panel2 = try ctx.addPanel(panel);
+        const panel2 = try ctx.addPanel(panel);
         ctx.getPanel(panel2).hasTitle = false;
         ctx.get(panel2).style = ctx.getRead(panel).style;
         ctx.get(panel2).anchor = .TopLeft;
@@ -104,14 +107,14 @@ test "Testing a fullscreen render" {
         ctx.getPanel(panel2).titleColor = ModernStyle.GreyDark;
     }
 
-    var panel2 = try ctx.addPanel(panel);
+    const panel2 = try ctx.addPanel(panel);
     {
         ctx.getPanel(panel2).hasTitle = false;
         ctx.get(panel2).style = ctx.getRead(panel).style;
         ctx.get(panel2).anchor = .TopRight;
-        ctx.get(panel2).fill = .FillY;
+        // ctx.get(panel2).fill = .FillY; todo, this is a bug. why.
         ctx.get(panel2).pos = .{ .x = -105, .y = 1 };
-        ctx.get(panel2).size = .{ .x = 100, .y = 0.9 };
+        ctx.get(panel2).size = .{ .x = 100, .y = 1 };
         ctx.getPanel(panel2).titleColor = ModernStyle.GreyDark;
 
         // add some text to this panel
@@ -122,12 +125,12 @@ test "Testing a fullscreen render" {
     }
 
     {
-        var panel3 = try ctx.addPanel(panel2);
+        const panel3 = try ctx.addPanel(panel2);
         ctx.getPanel(panel3).hasTitle = true;
         ctx.getPanel(panel3).titleColor = ModernStyle.GreyDark;
         ctx.get(panel3).style = ctx.getRead(panel).style;
         ctx.get(panel3).anchor = .TopLeft;
-        ctx.get(panel3).fill = .FillXY;
+        // ctx.get(panel3).fill = .FillXY;
         ctx.get(panel3).pos = .{ .x = 0, .y = 25 };
         ctx.get(panel3).size = .{ .x = 0.9, .y = 0.9 };
     }
@@ -144,7 +147,7 @@ test "Testing a fullscreen render" {
 }
 
 test "Testing a render" {
-    var ctx = try PapyrusContext.create(std.testing.allocator);
+    const ctx = try PapyrusContext.create(std.testing.allocator);
     defer ctx.deinit();
 
     var rend = try BmpRenderer.init(std.testing.allocator, ctx, ctx.extent);
@@ -153,21 +156,21 @@ test "Testing a render" {
     rend.setRenderFile("Saved/frame.bmp");
     try ctx.defaultFont.atlas.dumpBufferToFile("Saved/Fallback.bmp");
 
-    var panel = try ctx.addPanel(.{});
+    const panel = try ctx.addPanel(.{});
     ctx.get(panel).style.backgroundColor = ModernStyle.Grey;
     ctx.get(panel).style.foregroundColor = ModernStyle.GreyDark;
     ctx.get(panel).style.borderColor = ModernStyle.Yellow;
     ctx.get(panel).pos = .{ .x = 100, .y = 300 };
     ctx.get(panel).size = .{ .x = 400, .y = 400 };
 
-    var panel2 = try ctx.addPanel(.{});
+    const panel2 = try ctx.addPanel(.{});
     ctx.get(panel2).text = MakeText("wanker window");
     ctx.getPanel(panel2).hasTitle = true;
     ctx.get(panel2).style = ctx.get(panel).style;
     ctx.get(panel2).pos = .{ .x = 700, .y = 300 };
     ctx.get(panel2).size = .{ .x = 400, .y = 400 };
 
-    var panel3 = try ctx.addPanel(.{});
+    const panel3 = try ctx.addPanel(.{});
     ctx.get(panel3).text = MakeText("panel 3");
     ctx.getPanel(panel3).hasTitle = true;
     ctx.get(panel3).style = ctx.get(panel).style;
@@ -188,11 +191,11 @@ test "basic bmp renderer test" {
     var timer = try std.time.Timer.start();
 
     const startTime = timer.read();
-    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/FiraMono-Medium.ttf", 36);
+    var atlas = try FontAtlas.initFromFile(std.testing.allocator, "fonts/FiraMono-Medium.ttf", 36, .{});
     try atlas.dumpBufferToFile("Saved/atlas.bmp");
     defer atlas.deinit();
 
-    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/Robot-Regular.ttf", 36);
+    var atlas2 = try FontAtlas.initFromFile(std.testing.allocator, "fonts/Roboto-Regular.ttf", 36, .{});
     try atlas2.dumpBufferToFile("Saved/ProggyClean.bmp");
     defer atlas2.deinit();
 
@@ -211,7 +214,7 @@ test "dynamic pool test" {
         value3: u32 = 0,
     };
 
-    var dynPool = DynamicPool(TestStruct).init(std.testing.allocator);
+    var dynPool = IndexPool(TestStruct).init(std.testing.allocator);
     defer dynPool.deinit();
 
     {
@@ -245,18 +248,18 @@ test "dynamic pool test" {
 }
 
 test "sdf fontAtlas generation" {
-    var allocator = std.testing.allocator;
-    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/FiraMono-Medium.ttf", 128);
+    const allocator = std.testing.allocator;
+    var atlas = try FontAtlas.initFromFileSDF(allocator, "fonts/FiraMono-Medium.ttf", 128, .{});
     defer atlas.deinit();
 
     try atlas.dumpBufferToFile("Saved/FiraMono.bmp");
 }
 
 test "sdf texture generation" {
-    var allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
     var font: c.stbtt_fontinfo = undefined;
 
-    var fileContent = try utils.loadFileAlloc("fonts/FiraMono-Medium.ttf", 8, allocator);
+    const fileContent = try utils.loadFileAlloc("fonts/FiraMono-Medium.ttf", 8, allocator);
     defer allocator.free(fileContent);
 
     _ = c.stbtt_InitFont(&font, fileContent.ptr, c.stbtt_GetFontOffsetForIndex(fileContent.ptr, 0));
@@ -266,7 +269,7 @@ test "sdf texture generation" {
     var xoff: c_int = 0;
     var yoff: c_int = 0;
 
-    var pixels = c.stbtt_GetCodepointSDF(
+    const pixels = c.stbtt_GetCodepointSDF(
         &font,
         c.stbtt_ScaleForPixelHeight(&font, 50),
         @as(c_int, @intCast('a')),

@@ -9,15 +9,15 @@ buttonState: ButtonState = .Normal,
 //
 
 const std = @import("std");
-const papyrus = @import("../../papyrus.zig");
+const papyrus = @import("../papyrus.zig");
 const LocText = papyrus.LocText;
 const MakeText = papyrus.MakeText;
 
 const DrawListBuilder = @import("../DrawListBuilder.zig");
-const core = @import("root").neonwood.core;
+const core = @import("core");
 const Vector2f = core.Vector2f;
-const colors = @import("../colors.zig");
-const BurnStyle = colors.BurnStyle;
+const style = @import("../style.zig");
+const BurnStyle = style.BurnStyle;
 
 pub const ButtonStyle = struct {
     normal: papyrus.NodeStyle = .{
