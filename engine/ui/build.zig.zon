@@ -1,0 +1,14 @@
+.{
+    .name = "ui",
+    .version = "0.0.0",
+    .dependencies = .{
+        .papyrus = .{ .path = "../papyrus" },
+        .core = .{ .path = "../core" },
+        .graphics = .{ .path = "../graphics" },
+        .vulkan = .{ .path = "../vulkan" },
+        .SpirvReflect = .{ .path = "../../lib/spirv-reflect-zig" },
+    },
+    .paths = .{
+        "",
+    },
+}

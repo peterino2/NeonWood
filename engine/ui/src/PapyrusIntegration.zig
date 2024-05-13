@@ -29,13 +29,15 @@ drawCommands: std.ArrayList(VkCommand),
 textRenderer: *TextRenderer,
 
 const std = @import("std");
-const core = @import("../core.zig");
-const assets = @import("../assets.zig");
-const graphics = @import("../graphics.zig");
-const memory = @import("../memory.zig");
+const core = @import("core");
+const memory = core.memory;
+
+const assets = @import("assets");
+const graphics = @import("graphics");
 const gpd = graphics.gpu_pipe_data;
-const platform = @import("../platform.zig");
-const papyrus = @import("papyrus.zig");
+
+const platform = @import("platform");
+const papyrus = @import("papyrus");
 
 const papyrus_vk_vert = @import("papyrus_vk_vert");
 const papyrus_vk_frag = @import("papyrus_vk_frag");

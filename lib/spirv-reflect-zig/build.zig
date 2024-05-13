@@ -49,7 +49,8 @@ pub const SpirvGenerator2 = struct {
 
     pub fn createShader(self: SpirvGenerator2, shaderPath: std.Build.LazyPath, shaderName: []const u8) *std.Build.Module {
         const finalSpv = self.b.fmt("shaders/{s}.spv", .{shaderName});
-        const finalJson = self.b.fmt("shaders/{s}.spv", .{shaderName});
+        const finalJson = self.b.fmt("shaders/{s}.json", .{shaderName});
+        const finalZig = self.b.fmt("reflectedTypes/{s}.zig", .{shaderName});
 
         const shaderCompile = self.b.addSystemCommand(&[_][]const u8{"glslc"});
         shaderCompile.addArg("--target-env=vulkan1.2");
@@ -57,19 +58,28 @@ pub const SpirvGenerator2 = struct {
         shaderCompile.addArg("-o");
         const spvOutputFile = shaderCompile.addOutputFileArg(finalSpv);
 
+        const spvOutputArtifact = self.b.addInstallFile(spvOutputFile, finalSpv);
+        spvOutputArtifact.step.dependOn(&shaderCompile.step);
+
         const jsonReflectStep = self.spirv_build.addSystemCommand(&[_][]const u8{"spirv-cross"});
         jsonReflectStep.addFileArg(spvOutputFile);
         jsonReflectStep.addArg("--reflect");
         jsonReflectStep.addArg("--output");
         const outputJson = jsonReflectStep.addOutputFileArg(finalJson);
 
-        const outputFile = self.b.fmt("reflectedTypes/{s}.zig", .{shaderName});
+        jsonReflectStep.step.dependOn(&spvOutputArtifact.step);
+
+        const jsonReflectOutput = self.b.addInstallFile(outputJson, finalJson);
+        jsonReflectOutput.step.dependOn(&jsonReflectStep.step);
 
         const run_cmd = self.b.addRunArtifact(self.reflect);
-
         run_cmd.addFileArg(outputJson);
         run_cmd.addArg("-o");
-        const outputZigFile = run_cmd.addOutputFileArg(outputFile);
+        const outputZigFile = run_cmd.addOutputFileArg(finalZig);
+
+        const outputZigFileArtifact = self.b.addInstallFile(outputZigFile, finalZig);
+        outputZigFileArtifact.step.dependOn(&run_cmd.step);
+        self.b.getInstallStep().dependOn(&outputZigFileArtifact.step);
 
         const module = self.spirv_build.createModule(.{
             .root_source_file = outputZigFile,

@@ -1,9 +1,9 @@
-const core = @import("core.zig");
-const assets = @import("assets.zig");
+const core = @import("core");
+const assets = @import("assets");
 const std = @import("std");
-const memory = @import("memory.zig");
+const memory = core.MemoryTracker;
 
-const soundEngine = @import("audio/sound_engine.zig");
+const soundEngine = @import("sound_engine.zig");
 pub const NeonSoundEngine = soundEngine.NeonSoundEngine;
 pub const sound_err = soundEngine.sound_err;
 pub const sound_errs = soundEngine.sound_errs;

@@ -1,14 +1,14 @@
 // Implemented via miniaudio
 
 const std = @import("std");
-const core = @import("../core.zig");
-const assets = @import("../assets.zig");
+const core = @import("core");
+const assets = @import("assets");
 
 const Name = core.Name;
 const AutoHashMapUnmanaged = std.AutoHashMapUnmanaged;
 const tracy = core.tracy;
 
-const c = @import("c.zig");
+const ma = @import("miniaudio");
 
 pub fn sound_log(comptime fmt: []const u8, args: anytype) void {
     core.printInner("[SOUND     ]: " ++ fmt ++ "\n", args);
@@ -57,7 +57,7 @@ pub const SoundLoader = struct {
 };
 
 fn ma_res(value: anytype) !void {
-    if (value != c.MA_SUCCESS) {
+    if (value != ma.MA_SUCCESS) {
         core.engine_err("miniaudio error value: {d}", .{value});
         return error.MA_ERROR;
     }
@@ -66,26 +66,26 @@ fn ma_res(value: anytype) !void {
 pub const NeonSoundEngine = struct {
     pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
 
-    engine: *c.ma_engine,
-    sounds: AutoHashMapUnmanaged(u32, *c.ma_sound),
+    engine: *ma.ma_engine,
+    sounds: AutoHashMapUnmanaged(u32, *ma.ma_sound),
     allocator: std.mem.Allocator,
     volume: f32 = 1.0,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         const self = try allocator.create(@This());
         self.* = @This(){
-            .engine = allocator.create(c.ma_engine) catch unreachable,
+            .engine = allocator.create(ma.ma_engine) catch unreachable,
             .sounds = .{},
             .allocator = allocator,
         };
 
-        _ = c.ma_engine_init(null, self.engine);
+        _ = ma.ma_engine_init(null, self.engine);
 
         return self;
     }
 
     pub fn shutdown(self: *@This()) void {
-        c.ma_engine_uninit(self.engine);
+        ma.ma_engine_uninit(self.engine);
     }
 
     pub fn loadSound(
@@ -97,17 +97,17 @@ pub const NeonSoundEngine = struct {
             volume: f32 = 1.0,
         },
     ) !void {
-        const sound = try self.allocator.create(c.ma_sound);
+        const sound = try self.allocator.create(ma.ma_sound);
         errdefer self.allocator.destroy(sound);
 
-        const res = c.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
-        if (res != c.MA_SUCCESS) {
+        const res = ma.ma_sound_init_from_file(self.engine, fileName.ptr, 0, null, null, sound);
+        if (res != ma.MA_SUCCESS) {
             sound_err("tried loading sound: {s} failed", .{soundName.utf8()});
             return error.MiniAudioError;
         }
 
         try self.sounds.put(self.allocator, soundName.handle(), sound);
-        c.ma_sound_set_volume(sound, soundParams.volume);
+        ma.ma_sound_set_volume(sound, soundParams.volume);
     }
 
     pub fn playSound(self: *@This(), soundName: core.Name) !void {
@@ -118,19 +118,19 @@ pub const NeonSoundEngine = struct {
 
         const sound = maybeSound.?;
 
-        if (c.ma_sound_start(sound) != c.MA_SUCCESS)
+        if (ma.ma_sound_start(sound) != ma.MA_SUCCESS)
             sound_err("unable to start sound: {s}", .{soundName.utf8()});
     }
 
     pub fn setVolume(self: *@This(), volume: f32) void {
         self.volume = volume;
-        _ = c.ma_engine_set_volume(self.engine, volume);
+        _ = ma.ma_engine_set_volume(self.engine, volume);
     }
 
     pub fn stopSound(self: *@This(), soundName: core.Name) void {
         const sound = self.sounds.get(soundName.handle()).?;
 
-        if (c.ma_sound_stop(sound) != c.MA_SUCCESS) {
+        if (ma.ma_sound_stop(sound) != ma.MA_SUCCESS) {
             //
         }
     }
@@ -141,7 +141,7 @@ pub const NeonSoundEngine = struct {
             self.allocator.destroy(sound.value_ptr.*);
         }
         self.sounds.deinit(self.allocator);
-        // c.ma_engine_uninit(self.engine);
+        // ma.ma_engine_uninit(self.engine);
         self.allocator.destroy(self.engine);
         self.allocator.destroy(self);
     }
