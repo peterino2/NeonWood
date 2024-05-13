@@ -13,7 +13,7 @@ const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
 const Vector2f = core.Vector2f;
-const LinearColor = core.LinearColor;
+const LinearColor = core.colors.Color;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 const mesh = @import("mesh.zig");

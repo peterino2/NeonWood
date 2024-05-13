@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const neonwood = @import("root").neonwood;
+pub const neonwood = @import("NeonWood");
 
 const core = neonwood.core;
 const platform = neonwood.platform;
@@ -10,7 +10,7 @@ const assets = neonwood.assets;
 const engine_log = core.engine_log;
 
 const audio = neonwood.audio;
-const c = graphics.c;
+const glfw3 = neonwood.platform.glfw3;
 var gGame: *GameContext = undefined;
 
 const testimage1 = "content/textures/lost_empire-RGBA.png";
@@ -277,7 +277,7 @@ fn onUnk2MouseOff(node: ui.NodeHandle, context: ?*anyopaque) ui.HandlerError!voi
 var lastXPos: f64 = 0;
 var lastYPos: f64 = 0;
 
-pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
+pub fn mousePositionCallback(window: ?*platform.glfw3.GLFWwindow, xpos: f64, ypos: f64) callconv(.C) void {
     _ = window;
     _ = xpos;
     _ = ypos;
@@ -285,83 +285,83 @@ pub fn mousePositionCallback(window: ?*platform.c.GLFWwindow, xpos: f64, ypos: f
     defer t1.End();
 }
 
-pub fn input_callback(window: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
+pub fn input_callback(window: ?*glfw3.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
     _ = mods;
     _ = scancode;
     _ = window;
 
     // Todo turn these into an events pump
 
-    if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
+    if (key == glfw3.GLFW_KEY_ESCAPE and action == glfw3.GLFW_PRESS) {
         core.engine_logs("Escape key pressed, game ends now");
         core.gEngine.exit();
     }
 
-    if (action == c.GLFW_PRESS) {
-        if (key == c.GLFW_KEY_W) {
+    if (action == glfw3.GLFW_PRESS) {
+        if (key == glfw3.GLFW_KEY_W) {
             gGame.movementInput.z += 1;
         }
 
-        if (key == c.GLFW_KEY_S) {
+        if (key == glfw3.GLFW_KEY_S) {
             gGame.movementInput.z += -1;
         }
 
-        if (key == c.GLFW_KEY_E) {
+        if (key == glfw3.GLFW_KEY_E) {
             gGame.movementInput.y += 1;
         }
 
-        if (key == c.GLFW_KEY_Q) {
+        if (key == glfw3.GLFW_KEY_Q) {
             gGame.movementInput.y -= 1;
         }
 
-        if (key == c.GLFW_KEY_A) {
+        if (key == glfw3.GLFW_KEY_A) {
             gGame.movementInput.x += 1;
         }
 
-        if (key == c.GLFW_KEY_D) {
+        if (key == glfw3.GLFW_KEY_D) {
             gGame.movementInput.x += -1;
         }
 
-        if (action == c.GLFW_PRESS) {
-            if (key == c.GLFW_KEY_P) {
+        if (action == glfw3.GLFW_PRESS) {
+            if (key == glfw3.GLFW_KEY_P) {
                 neonwood.ui.getSystem().displayDemo = !neonwood.ui.getSystem().displayDemo;
             }
         }
 
-        if (key == c.GLFW_KEY_LEFT_ALT) {
+        if (key == glfw3.GLFW_KEY_LEFT_ALT) {
             platform.getInstance().setCursorEnabled(false);
         }
     }
-    if (action == c.GLFW_RELEASE) {
-        if (key == c.GLFW_KEY_W) {
+    if (action == glfw3.GLFW_RELEASE) {
+        if (key == glfw3.GLFW_KEY_W) {
             gGame.movementInput.z -= 1;
         }
 
-        if (key == c.GLFW_KEY_S) {
+        if (key == glfw3.GLFW_KEY_S) {
             gGame.movementInput.z -= -1;
         }
 
-        if (key == c.GLFW_KEY_E) {
+        if (key == glfw3.GLFW_KEY_E) {
             gGame.movementInput.y -= 1;
         }
 
-        if (key == c.GLFW_KEY_Q) {
+        if (key == glfw3.GLFW_KEY_Q) {
             gGame.movementInput.y += 1;
         }
 
-        if (key == c.GLFW_KEY_A) {
+        if (key == glfw3.GLFW_KEY_A) {
             gGame.movementInput.x -= 1;
         }
 
-        if (key == c.GLFW_KEY_D) {
+        if (key == glfw3.GLFW_KEY_D) {
             gGame.movementInput.x -= -1;
         }
-        if (key == c.GLFW_KEY_LEFT_ALT) {
+        if (key == glfw3.GLFW_KEY_LEFT_ALT) {
             platform.getInstance().setCursorEnabled(true);
         }
     }
 
-    if (key == c.GLFW_KEY_SPACE and action == c.GLFW_PRESS) {
+    if (key == glfw3.GLFW_KEY_SPACE and action == glfw3.GLFW_PRESS) {
         gGame.showDemo = true;
     }
 }
@@ -377,7 +377,7 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const memory = neonwood.memory;
+    const memory = core.MemoryTracker;
 
     //memory.MTSetup(std.heap.c_allocator);
     memory.MTSetup(gpa.allocator());
@@ -404,7 +404,7 @@ pub fn main() anyerror!void {
     try neonwood.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
     defer neonwood.shutdown_everything(allocator);
 
-    _ = c.glfwSetKeyCallback(@as(?*c.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
+    _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
     try neonwood.run_everything(GameContext);

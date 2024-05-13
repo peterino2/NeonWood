@@ -2,7 +2,14 @@
     .name = "NeonWood",
     .version = "0.0.0",
     .dependencies = .{
+        .assets = .{ .path = "engine/assets" },
+        .audio = .{ .path = "engine/audio" },
         .core = .{ .path = "engine/core" },
+        .graphics = .{ .path = "engine/graphics" },
+        .papyrus = .{ .path = "engine/papyrus" },
+        .platform = .{ .path = "engine/platform" },
+        .ui = .{ .path = "engine/ui" },
+
         .SpirvReflect = .{ .path = "lib/spirv-reflect-zig" },
     },
     .paths = .{

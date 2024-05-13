@@ -1,6 +1,7 @@
 const std = @import("std");
-const core = @import("core");
-const panickers = @import("panickers.zig");
+const NeonWood = @import("NeonWood");
+const core = NeonWood.core;
+const panickers = core.panickers;
 
 const realMain = @import("main");
 

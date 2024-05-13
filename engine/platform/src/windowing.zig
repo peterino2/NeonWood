@@ -2,7 +2,8 @@ const std = @import("std");
 const core = @import("core");
 const platform = @import("platform.zig");
 const gameInput = @import("gameInput.zig");
-pub const glfw3 = @import("c.zig").glfw3;
+pub const c = @import("c.zig");
+pub const glfw3 = c.glfw3;
 const graphicsBackend = @import("graphicsBackend");
 
 const RingQueue = core.RingQueue;

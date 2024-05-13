@@ -1,6 +1,8 @@
 zig-cache/
 zig-out/
 
+*Saved/*
+
 *zig-cache*
 *zig-out*
 .vscode/

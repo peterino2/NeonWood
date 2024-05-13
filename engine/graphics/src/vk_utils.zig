@@ -13,8 +13,8 @@ const vk_allocator = @import("vk_allocator.zig");
 
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 
-const image = core.image;
-const PngContents = image.PngContents;
+const png = core.png;
+const PngContents = png.PngContents;
 
 const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;

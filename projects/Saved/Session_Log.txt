@@ -1,0 +1,184 @@
+[ENGINE   ]: core module starting up... 
+[ENGINE   ]: Creating IO Buffer with 2f700 size
+[ENGINE   ]: Initializing with Vulkan 1.3
+[ENGINE   ]: platform starting: GLFW
+[GRAPHICS ]: loaded png content/textures/icon.png, dimensions=102x130
+[ENGINE   ]: glfw has requested the following vulkan extensions: 2
+[ENGINE   ]:   glfw_extension: VK_KHR_surface
+[ENGINE   ]:   glfw_extension: VK_KHR_win32_surface
+[ENGINE   ]: platform.windowing:: installing handlers
+[ENGINE   ]: contentScale: math.Vector2Type(f32){ .x = 1e0, .y = 1e0 }
+[ENGINE   ]: platform start_module @ 0x169aabd1e18
+[ENGINE   ]: sound start_module
+[ENGINE   ]: allocated size: 0
+[ENGINE   ]: sound start_module
+[ENGINE   ]: allocated size: 0
+[ENGINE   ]: graphics module starting up...
+[GRAPHICS ]: validation_layers: true
+[GRAPHICS ]: NeonVkContext StaticSize = 3744 bytes
+[ENGINE   ]: glfw has requested extensions:
+[ENGINE   ]:   glfw_extension: VK_KHR_surface
+[ENGINE   ]:   glfw_extension: VK_KHR_win32_surface
+[GRAPHICS ]: creating Instance
+[GRAPHICS ]: instance created
+[GRAPHICS ]: Suraface creation completed!
+[GRAPHICS ]:  init device
+[GRAPHICS ]: Enumerating 1 devices...
+[GRAPHICS ]: === Enumerating Device ===
+[GRAPHICS ]:  device Name: NVIDIA GeForce RTX 3080
+[GRAPHICS ]:   Found 5 family properties
+[GRAPHICS ]:   Found 202 extension properties
+[GRAPHICS ]:   Found 7 surface formats
+[GRAPHICS ]:   Found 4 present modes
+[GRAPHICS ]: Found suitable graphics device with queue id: 0
+[GRAPHICS ]: Found graphics queue family with id 0 [ 5 available ]
+[GRAPHICS ]: Found present queue family with id 0 [ 5 available ]
+[GRAPHICS ]: selected physical device::
+[GRAPHICS ]:   vk.PhysicalDevice(1553393225008)
+[GRAPHICS ]: GPU minimum buffer alignment 64
+[GRAPHICS ]: Sample counts available on device: 0xf vk.SampleCountFlags{ .1_bit = false, .2_bit = false, .4_bit = false, .8_bit = true, .16_bit = false, .32_bit = false, .64_bit = false, ._reserved_bit_7 = false, ._reserved_bit_8 = false, ._reserved_bit_9 = false, ._reserved_bit_10 = false, ._reserved_bit_11 = false, ._reserved_bit_12 = false, ._reserved_bit_13 = false, ._reserved_bit_14 = false, ._reserved_bit_15 = false, ._reserved_bit_16 = false, ._reserved_bit_17 = false, ._reserved_bit_18 = false, ._reserved_bit_19 = false, ._reserved_bit_20 = false, ._reserved_bit_21 = false, ._reserved_bit_22 = false, ._reserved_bit_23 = false, ._reserved_bit_24 = false, ._reserved_bit_25 = false, ._reserved_bit_26 = false, ._reserved_bit_27 = false, ._reserved_bit_28 = false, ._reserved_bit_29 = false, ._reserved_bit_30 = false, ._reserved_bit_31 = false }
+[GRAPHICS ]: required extension: VK_KHR_swapchain
+[GRAPHICS ]: Successfully created device
+[GRAPHICS ]: selected surface format:
+[GRAPHICS ]:   vk.SurfaceFormatKHR{ .format = vk.Format.b8g8r8a8_srgb, .color_space = vk.ColorSpaceKHR.srgb_nonlinear_khr }
+[GRAPHICS ]: selected present mode:
+[GRAPHICS ]:   vk.PresentModeKHR.fifo_khr
+[GRAPHICS ]: actual extent:
+[GRAPHICS ]:   vk.Extent2D{ .width = 1600, .height = 900 }
+[GRAPHICS ]: Creating 2 swap images
+[GRAPHICS ]: created depth format: vk.Format.d32_sfloat
+[GRAPHICS ]: initializing renderpass
+[GRAPHICS ]: swapImages count = 2
+[GRAPHICS ]: Created a framebuffer!
+[GRAPHICS ]: Created a framebuffer!
+[GRAPHICS ]: command buffer created from uploader vk.CommandBuffer(1553486242640) with tag vk_renderer uploader
+[GRAPHICS ]: padded scene size = 128
+[GRAPHICS ]: NumFrames = 2
+[GRAPHICS ]: loaded png content/textures/texture_sample.png, dimensions=256x256
+[GRAPHICS ]: miplevel count: 9
+[GRAPHICS ]: Creating mesh pipeline
+[ENGINE   ]: loading path triangle_mesh_vert.spv
+[ENGINE   ]: loading path default_lit.spv
+[GRAPHICS ]: adding vertex mesh description
+[GRAPHICS ]: setting up vertex description
+[GRAPHICS ]: constructing pipeline at @0x980b0000000002e tag: triangle pipeline
+[GRAPHICS ]: configuring with a valid set of stencil information
+[GRAPHICS ]: building with pvisci: :
+[GRAPHICS ]:   vk.PipelineVertexInputStateCreateInfo{ .s_type = vk.StructureType.pipeline_vertex_input_state_create_info, .p_next = null, .flags = vk.PipelineVertexInputStateCreateFlags{ ._reserved_bits = 0 }, .vertex_binding_description_count = 1, .p_vertex_binding_descriptions = vk.VertexInputBindingDescription@169ac850500, .vertex_attribute_description_count = 4, .p_vertex_attribute_descriptions = vk.VertexInputAttributeDescription@169ac850580 }
+[GRAPHICS ]: Finishing up pipeline creation
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[GRAPHICS ]: creating image with mip level: 8 128x128
+[GRAPHICS ]: miplevel count: 8
+[GRAPHICS ]: command buffer created from uploader vk.CommandBuffer(1553486875952) with tag dynamic mesh manager uploader
+[GRAPHICS ]: creating the mesh manager
+[ENGINE   ]: loading asset m_primitive_sphere (Mesh) [content/meshes/primitive_sphere.obj]
+[ENGINE   ]: loading mesh asset content/meshes/primitive_sphere.obj
+[GRAPHICS ]: loading mesh: content/meshes/primitive_sphere.obj
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[ENGINE   ]: loading asset m_primitive_box (Mesh) [content/meshes/primitive_box.obj]
+[ENGINE   ]: loading mesh asset content/meshes/primitive_box.obj
+[GRAPHICS ]: loading mesh: content/meshes/primitive_box.obj
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[ENGINE   ]: loading asset m_primitive_line (Mesh) [content/meshes/primitive_line.obj]
+[ENGINE   ]: loading mesh asset content/meshes/primitive_line.obj
+[GRAPHICS ]: loading mesh: content/meshes/primitive_line.obj
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[ENGINE   ]: final object size has been padded as storage: 128
+[GRAPHICS ]: finalizing build creating descriptor set layout at 0x808562000000003f buildName: debug draws
+[GRAPHICS ]: allocating 2 frame buffers for binding 0 buffer size = 524288 object size = 128
+[GRAPHICS ]: creating debug_vert
+[ENGINE   ]: loading path debug_vert.spv
+[GRAPHICS ]: creating debug_frag
+[ENGINE   ]: loading path debug_frag.spv
+[GRAPHICS ]: adding vertex mesh description
+[GRAPHICS ]: setting up vertex description
+[GRAPHICS ]: constructing pipeline at @0x4f8a8b0000000046 tag: triangle pipeline
+[GRAPHICS ]: configuring with a valid set of stencil information
+[GRAPHICS ]: building with pvisci: :
+[GRAPHICS ]:   vk.PipelineVertexInputStateCreateInfo{ .s_type = vk.StructureType.pipeline_vertex_input_state_create_info, .p_next = null, .flags = vk.PipelineVertexInputStateCreateFlags{ ._reserved_bits = 0 }, .vertex_binding_description_count = 1, .p_vertex_binding_descriptions = vk.VertexInputBindingDescription@169ac850e80, .vertex_attribute_description_count = 4, .p_vertex_attribute_descriptions = vk.VertexInputAttributeDescription@169ac850f00 }
+[ENGINE   ]: graphics start_module
+[ENGINE   ]: allocated size: 0
+[UI       ]: Papyrus initialized here's some stats:
+[UI       ]:   - DrawListCommand size: 40
+[UI       ]:   - Node size: 472
+[GRAPHICS ]: miplevel count: 1
+[GRAPHICS ]: miplevel count: 1
+[GRAPHICS ]: miplevel count: 1
+[ENGINE   ]: PapyrusSystem init
+[ENGINE   ]: allocated size: 0
+[ENGINE   ]: installed listener:
+[UI       ]: Papyrus Subsystem setup 169bbc80c00
+[UI       ]: >> PapyrusSystem.zig: buildTextPipeline
+[ENGINE   ]: final object size has been padded as storage: 32
+[UI       ]: text pipe data: Papyrus-Text
+[GRAPHICS ]: finalizing build creating descriptor set layout at 0xe7f7a300000001ed buildName: Papyrus-Text
+[GRAPHICS ]: allocating 2 frame buffers for binding 0 buffer size = 2048 object size = 32
+[ENGINE   ]: loading path FontSDF_vert.spv
+[ENGINE   ]: loading path FontSDF_frag.spv
+[UI       ]: Building text pipeline builder
+[GRAPHICS ]: adding vertex mesh description
+[UI       ]: creating triangle pipeline
+[GRAPHICS ]: setting up vertex description
+[GRAPHICS ]: constructing pipeline at @0xd2b8b900000001f4 tag: triangle pipeline
+[GRAPHICS ]: configuring with a valid set of stencil information
+[GRAPHICS ]: building with pvisci: :
+[GRAPHICS ]:   vk.PipelineVertexInputStateCreateInfo{ .s_type = vk.StructureType.pipeline_vertex_input_state_create_info, .p_next = null, .flags = vk.PipelineVertexInputStateCreateFlags{ ._reserved_bits = 0 }, .vertex_binding_description_count = 1, .p_vertex_binding_descriptions = vk.VertexInputBindingDescription@169bbbe0180, .vertex_attribute_description_count = 4, .p_vertex_attribute_descriptions = vk.VertexInputAttributeDescription@169bbbe0200 }
+[UI       ]: buildingImagePipeline
+[ENGINE   ]: final object size has been padded as storage: 128
+[GRAPHICS ]: finalizing build creating descriptor set layout at 0xd5714b00000001f6 buildName: Papyrus
+[GRAPHICS ]: allocating 2 frame buffers for binding 0 buffer size = 12800000 object size = 128
+[ENGINE   ]: loading path papyrus_vk_vert.spv
+[ENGINE   ]: loading path papyrus_vk_frag.spv
+[GRAPHICS ]: adding vertex mesh description
+[GRAPHICS ]: setting up vertex description
+[GRAPHICS ]: constructing pipeline at @0x30a87300000001fe tag: triangle pipeline
+[GRAPHICS ]: configuring with a valid set of stencil information
+[GRAPHICS ]: building with pvisci: :
+[GRAPHICS ]:   vk.PipelineVertexInputStateCreateInfo{ .s_type = vk.StructureType.pipeline_vertex_input_state_create_info, .p_next = null, .flags = vk.PipelineVertexInputStateCreateFlags{ ._reserved_bits = 0 }, .vertex_binding_description_count = 1, .p_vertex_binding_descriptions = vk.VertexInputBindingDescription@169bbbe0280, .vertex_attribute_description_count = 4, .p_vertex_attribute_descriptions = vk.VertexInputAttributeDescription@169bbbe0300 }
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[UI       ]: Mapping buffers.
+[ENGINE   ]: ui start_module
+[ENGINE   ]: allocated size: 0
+[ENGINE   ]: loading asset m_empire (Mesh) [content/meshes/lost_empire.obj]
+[ENGINE   ]: loading mesh asset content/meshes/lost_empire.obj
+[GRAPHICS ]: loading mesh: content/meshes/lost_empire.obj
+[GRAPHICS ]: Staring upload context
+[GRAPHICS ]: Starting command copy buffer
+[GRAPHICS ]: Finishing upload context
+[ENGINE   ]: loading asset t_empire (Texture) [content/textures/lost_empire-RGBA.png]
+[ENGINE   ]: engine loop started
+[GRAPHICS ]: loaded png content/textures/lost_empire-RGBA.png, dimensions=8192x8192
+[GRAPHICS ]: selected surface format:
+[GRAPHICS ]:   vk.SurfaceFormatKHR{ .format = vk.Format.b8g8r8a8_srgb, .color_space = vk.ColorSpaceKHR.srgb_nonlinear_khr }
+[GRAPHICS ]: selected present mode:
+[GRAPHICS ]:   vk.PresentModeKHR.fifo_khr
+[GRAPHICS ]: actual extent:
+[GRAPHICS ]:   vk.Extent2D{ .width = 1600, .height = 900 }
+[GRAPHICS ]: Creating 2 swap images
+[GRAPHICS ]: swapImages count = 2
+[GRAPHICS ]: Created a framebuffer!
+[GRAPHICS ]: Created a framebuffer!
+[ENGINE   ]: loaded: { 116, 95, 101, 109, 112, 105, 114, 101 } from: { 99, 111, 110, 116, 101, 110, 116, 47, 116, 101, 120, 116, 117, 114, 101, 115, 47, 108, 111, 115, 116, 95, 101, 109, 112, 105, 114, 101, 45, 82, 71, 66, 65, 46, 112, 110, 103 }
+[ENGINE   ]: async texture load complete registry: t_empire
+[GRAPHICS ]: miplevel count: 14
+[ENGINE   ]: Escape key pressed, game ends now
+[ENGINE   ]: Renderer exit signaled
+[UI       ]: Shutting down UI
+[UI       ]: finished shutting down ui
+[ENGINE   ]: graphics module shutting down...
+[ENGINE   ]: Tearing down renderer
+[GRAPHICS ]: discarding 0 outstanding jobs
+[ENGINE   ]: destruction finished
+[ENGINE   ]: destroying platform
+[ENGINE   ]: core module shutting down...

@@ -12,7 +12,8 @@
         // in the general case though,
 
         // engine libraries
-        .nw = .{ .path = "../" },
+        .NeonWood = .{ .path = "../" },
+        .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
     },
     .paths = .{
         "",

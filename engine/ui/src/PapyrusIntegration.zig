@@ -30,7 +30,7 @@ textRenderer: *TextRenderer,
 
 const std = @import("std");
 const core = @import("core");
-const memory = core.memory;
+const memory = core.MemoryTracker;
 
 const assets = @import("assets");
 const graphics = @import("graphics");
@@ -150,8 +150,8 @@ pub fn OnIoEvent_GLFW(self: *@This(), event: platform.IOEvent) platform.InputLis
         .key => |keyEvent| {
             var te = self.papyrusCtx.textEntry;
 
-            const actions = platform.glfw.actions;
-            const keys = platform.glfw.keys;
+            const actions = platform.glfw_defs.actions;
+            const keys = platform.glfw_defs.keys;
 
             if (@as(actions, @enumFromInt(keyEvent.action)) == actions.Press or
                 @as(actions, @enumFromInt(keyEvent.action)) == actions.Repeat)

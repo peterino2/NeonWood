@@ -1,7 +1,8 @@
-const c = @cImport({
+pub usingnamespace @cImport({
     @cInclude("miniaudio.h");
 });
 
+const c = @This();
 const std = @import("std");
 
 test "miniaudio-compile-check" {

@@ -155,7 +155,6 @@ pub const LoggerSys = struct {
                     defer z1.End();
                     ctx.loggerSys.flushFromJob() catch unreachable;
                     ctx.loggerSys.flushing.store(false, .seq_cst);
-                    std.debug.print("flushing complete\n", .{});
                 }
             };
 

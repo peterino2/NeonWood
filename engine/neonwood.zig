@@ -1,13 +1,12 @@
-pub const core = @import("core.zig");
-pub const graphics = @import("graphics.zig");
-pub const assets = @import("assets.zig");
-pub const audio = @import("audio.zig");
-pub const platform = @import("platform.zig");
-pub const ui = @import("ui.zig");
+pub const assets = @import("assets");
+pub const audio = @import("audio");
+pub const core = @import("core");
+pub const graphics = @import("graphics");
+pub const platform = @import("platform");
+pub const papyrus = @import("papyrus");
+pub const ui = @import("ui");
 
 const std = @import("std");
-
-const c = graphics.c;
 
 pub const NwArgs = struct {
     useGPA: bool = false,

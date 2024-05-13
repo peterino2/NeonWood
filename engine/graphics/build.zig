@@ -8,6 +8,7 @@ const dependencyList = [_][]const u8{
     "core",
     "assets",
     "platform",
+    "objLoader",
 };
 
 pub fn build(b: *std.Build) void {
@@ -21,22 +22,22 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/graphics.zig" },
     });
 
+    const options = b.addOptions();
+    options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
+
+    mod.addOptions("game_build_opts", options);
+
     for (dependencyList) |depName| {
         const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
         mod.addImport(depName, dep.module(depName));
     }
-    // self.addShader(exe, "triangle_mesh_vert", build_root ++ "/modules/graphics/shaders/triangle_mesh.vert");
-    // self.addShader(exe, "default_lit", build_root ++ "/modules/graphics/shaders/default_lit.frag");
-
-    // self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
-    // self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
 
     const spirvGen = SpirvReflect.SpirvGenerator2.init(b, .{ .optimize = optimize });
     spirvGen.addShader(mod, "shaders/triangle_mesh.vert", "triangle_mesh_vert");
     spirvGen.addShader(mod, "shaders/default_lit.frag", "default_lit");
 
     spirvGen.addShader(mod, "shaders/debug.vert", "debug_vert");
-    spirvGen.addShader(mod, "shaders/debug.frag", "debug_vert");
+    spirvGen.addShader(mod, "shaders/debug.frag", "debug_frag");
 
     // === simple little integration test ===
     //

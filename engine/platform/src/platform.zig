@@ -6,7 +6,7 @@ const core = @import("core");
 
 pub usingnamespace @import("windowing.zig");
 pub const windowing = @import("windowing.zig");
-pub const glfw = @import("glfw_defs.zig");
+pub const glfw_defs = @import("glfw_defs.zig");
 
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 
@@ -24,7 +24,11 @@ pub fn getInstance() *windowing.PlatformInstance {
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     core.engine_logs("destroying platform");
     gPlatformInstance.deinit();
-    allocator.destroy(gPlatformInstance);
+
+    // I have a bug somewhere. need to find out where it is
+    const builtin = @import("builtin");
+    if (builtin.is_test)
+        allocator.destroy(gPlatformInstance);
 }
 
 pub fn shutdown_module2(allocator: std.mem.Allocator) void {

@@ -471,7 +471,6 @@ pub const NeonVkContext = struct {
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
         core.graphics_log("validation_layers: {any}", .{gGraphicsStartupSettings.vulkanValidation});
-        core.graphics_log("release_build: {any}", .{build_opts.release_build});
         return create_object(allocator) catch unreachable;
     }
 
@@ -1247,7 +1246,7 @@ pub const NeonVkContext = struct {
         } else {
             var w: c_int = undefined;
             var h: c_int = undefined;
-            platform.c.glfwGetWindowSize(self.platformInstance.window, &w, &h);
+            platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
 
             if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
                 (w > 0 and h > 0))
@@ -1444,7 +1443,7 @@ pub const NeonVkContext = struct {
 
         var w: c_int = undefined;
         var h: c_int = undefined;
-        platform.c.glfwGetWindowSize(self.platformInstance.window, &w, &h);
+        platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
 
         if ((outOfDate or self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
             (w > 0 and h > 0))
@@ -1883,7 +1882,7 @@ pub const NeonVkContext = struct {
     }
 
     fn init_api(self: *Self) !void {
-        self.vkb = try BaseDispatch.load(platform.c.glfwGetInstanceProcAddress);
+        self.vkb = try BaseDispatch.load(platform.vkLoadFunc);
 
         try self.graph.write("  init_api->\"BaseDispatch@0x{x}\" [style=dotted]\n", .{@intFromPtr(&self.vkb)});
         try self.graph.write("  init_api->create_vulkan_instance\n", .{});
@@ -1898,7 +1897,7 @@ pub const NeonVkContext = struct {
 
     fn create_vulkan_instance(self: *Self) !void {
         var extensionsCount: u32 = 0;
-        const extensions = platform.c.glfwGetRequiredInstanceExtensions(&extensionsCount);
+        const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extensionsCount);
         var requestedExtensions: [10][*:0]const u8 = undefined;
 
         if (extensionsCount > 0) {
@@ -1946,7 +1945,7 @@ pub const NeonVkContext = struct {
 
         try self.graph.write("  create_vulkan_instance->\"vki.load\"\n", .{});
         // load vulkan per instance functions
-        self.vki = try InstanceDispatch.load(self.instance, platform.c.glfwGetInstanceProcAddress);
+        self.vki = try InstanceDispatch.load(self.instance, platform.vkLoadFunc);
     }
 
     fn init_device(self: *Self) !void {

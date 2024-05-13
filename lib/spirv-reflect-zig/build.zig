@@ -17,6 +17,7 @@ pub const SpirvGenerator2 = struct {
     b: *std.Build,
     spirv_build: *std.Build,
     glslTypes: *std.Build.Module,
+
     reflect: *std.Build.Step.Compile,
 
     const BuildOptions = struct {
@@ -53,14 +54,18 @@ pub const SpirvGenerator2 = struct {
         return initFromBuilder(b, dep.builder, opts);
     }
 
-    pub fn createShader(self: SpirvGenerator2, shaderPath: std.Build.LazyPath, shaderName: []const u8) *std.Build.Module {
+    pub fn createShader(
+        self: SpirvGenerator2,
+        shaderPath: std.Build.LazyPath,
+        shaderName: []const u8,
+    ) struct { mod: *std.Build.Module, spvArtifactInstall: *std.Build.Step } {
         const finalSpv = self.b.fmt("shaders/{s}.spv", .{shaderName});
         const finalJson = self.b.fmt("shaders/{s}.json", .{shaderName});
         const finalZig = self.b.fmt("reflectedTypes/{s}.zig", .{shaderName});
 
         const shaderCompile = self.b.addSystemCommand(&[_][]const u8{"glslc"});
-        shaderCompile.addArg("--target-env=vulkan1.2");
         shaderCompile.addFileArg(shaderPath);
+        shaderCompile.addArg("--target-env=vulkan1.2");
         shaderCompile.addArg("-o");
         const spvOutputFile = shaderCompile.addOutputFileArg(finalSpv);
 
@@ -84,17 +89,13 @@ pub const SpirvGenerator2 = struct {
         run_cmd.addArg("-o");
         const outputZigFile = run_cmd.addOutputFileArg(finalZig);
 
-        const outputZigFileArtifact = self.b.addInstallFile(outputZigFile, finalZig);
-        outputZigFileArtifact.step.dependOn(&run_cmd.step);
-        self.b.getInstallStep().dependOn(&outputZigFileArtifact.step);
-
         const module = self.spirv_build.createModule(.{
             .root_source_file = outputZigFile,
         });
 
         module.addImport("glslTypes", self.glslTypes);
 
-        return module;
+        return .{ .mod = module, .spvArtifactInstall = &spvOutputArtifact.step };
     }
 
     // creates a shader and immediately adds it to the executable
@@ -104,7 +105,13 @@ pub const SpirvGenerator2 = struct {
         shaderPath: []const u8,
         shaderName: []const u8,
     ) void {
-        module.addImport(shaderName, self.createShader(.{ .path = shaderPath }, shaderName));
+        const results = self.createShader(.{ .path = shaderPath }, shaderName);
+        module.addImport(shaderName, results.mod);
+    }
+
+    pub fn addShaderInstallRef(self: *SpirvGenerator2, exe: *std.Build.Step.Compile, shaderPath: []const u8, shaderName: []const u8) void {
+        const results = self.createShader(.{ .path = shaderPath }, shaderName);
+        exe.step.dependOn(results.spvArtifactInstall);
     }
 };
 

@@ -25,6 +25,7 @@ pub usingnamespace @import("string.zig");
 pub usingnamespace @import("args.zig");
 pub usingnamespace @import("file_dialogue.zig");
 
+pub const panickers = @import("panickers.zig");
 pub const scene = @import("scene.zig");
 pub const SceneSystem = scene.SceneSystem;
 

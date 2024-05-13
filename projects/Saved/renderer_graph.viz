@@ -1,0 +1,26 @@
+digraph G {
+  root->init_api
+  init_api->"BaseDispatch@0x169afbb0be0" [style=dotted]
+  init_api->create_vulkan_instance
+  create_vulkan_instance->"vkb.createInstance"
+  create_vulkan_instance->"vki.load"
+  init_api->create_surface
+  root->init_device
+  init_device->create_physical_devices
+  create_physical_devices->enumerate_physical_devices
+  enumerate_physical_devices->"device:NVIDIA GeForce RTX 3080:vk.PhysicalDevice@169afb50008"
+  create_physical_devices->find_physical_devices
+  root->init_vma
+  root->init_command_pools
+  root->init_command_buffers
+  root->init_syncs
+  root->init_or_recycle_swapchain
+  root->init_rendertarget
+  root->init_renderpasses
+  root->init_framebuffers
+  root->init_descriptors
+  root->init_texture_descriptor
+  root->load_core_textures
+  root->init_pipelines
+  root->init_primitive_meshes
+}

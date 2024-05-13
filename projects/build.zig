@@ -1,10 +1,10 @@
 const std = @import("std");
-const nw = @import("nw");
+const NeonWood = @import("NeonWood");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    var nwbuild = nw.init(b, target, optimize);
-    nwbuild.addProgram("demo", "simple 3d world flythrough demo");
+    var nwbuild = NeonWood.init(b, target, optimize, "../");
+    _ = nwbuild.addProgram("demo", "simple 3d world flythrough demo", .{});
 }
