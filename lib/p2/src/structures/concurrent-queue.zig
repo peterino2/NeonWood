@@ -54,7 +54,7 @@ pub fn ConcurrentQueueUnmanagedAdvanced(comptime T: type, comptime opts: struct 
             // seek the next unread bit and reserve it
             const start: usize = self.tail.load(.acquire);
             var writeIndex: usize = start;
-            while (self.status[writeIndex].cmpxchgWeak(false, true, .seq_cst, .acquire) != null) {
+            while (self.status[writeIndex].cmpxchgStrong(false, true, .seq_cst, .acquire) != null) {
                 writeIndex = (writeIndex + 1) % self.data.len;
                 if (writeIndex == self.head.load(.seq_cst)) {
                     return ConcurrentQueueError.QueueIsFull;
@@ -71,7 +71,7 @@ pub fn ConcurrentQueueUnmanagedAdvanced(comptime T: type, comptime opts: struct 
             var expected: usize = start;
 
             // spin and resolve contention
-            while (self.tail.cmpxchgWeak(expected, writeIndex, .seq_cst, .acquire)) |tail| {
+            while (self.tail.cmpxchgStrong(expected, writeIndex, .seq_cst, .acquire)) |tail| {
                 // this is ok, update our expected value an try to CAS again
                 if ((expected > tail) or ((expected < tail) and expected < self.head.load(.acquire))) {
                     expected = tail;
@@ -93,7 +93,7 @@ pub fn ConcurrentQueueUnmanagedAdvanced(comptime T: type, comptime opts: struct 
                 return null;
             }
 
-            while (self.status[popIndex].cmpxchgWeak(true, false, .seq_cst, .acquire) != null) {
+            while (self.status[popIndex].cmpxchgStrong(true, false, .seq_cst, .acquire) != null) {
                 newHead = (popIndex + 1) % self.data.len;
                 popIndex = newHead;
 
@@ -103,7 +103,7 @@ pub fn ConcurrentQueueUnmanagedAdvanced(comptime T: type, comptime opts: struct 
             }
 
             // spin and resolve
-            while (self.head.cmpxchgWeak(expected, newHead, .seq_cst, .acquire)) |head| {
+            while (self.head.cmpxchgStrong(expected, newHead, .seq_cst, .acquire)) |head| {
                 // we failed to increment the head
                 const tail = self.tail.load(.acquire);
 

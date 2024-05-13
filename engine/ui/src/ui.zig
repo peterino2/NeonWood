@@ -1,14 +1,14 @@
 const std = @import("std");
-const core = @import("core.zig");
-const graphics = @import("graphics.zig");
-const memory = @import("memory.zig");
+const core = @import("core");
+const graphics = @import("graphics");
+const memory = core.MemoryTracker;
 
-pub const papyrus = @import("ui/papyrus.zig");
+pub const papyrus = @import("papyrus");
 pub const HandlerError = papyrus.HandlerError;
 pub const NodeHandle = papyrus.NodeHandle;
 pub const LocText = papyrus.LocText;
 pub const PressedType = papyrus.PressedType;
-pub const PapyrusSystem = @import("ui/PapyrusSystem.zig");
+pub const PapyrusSystem = @import("PapyrusIntegration.zig");
 
 var gPapyrus: *PapyrusSystem = undefined;
 

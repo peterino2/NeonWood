@@ -21,6 +21,11 @@
         // engine libraries
         .core = .{ .path = "../engine/core" },
         .platform = .{ .path = "../engine/platform" },
+        .graphics = .{ .path = "../engine/graphics" },
+        .audio = .{ .path = "../engine/audio" },
+        .assets = .{ .path = "../engine/assets" },
+        .papyrus = .{ .path = "../engine/papyrus" },
+        .ui = .{ .path = "../engine/ui" },
     },
     .paths = .{
         "",

@@ -1,7 +1,6 @@
-pub const neonwood = @import("modules/neonwood.zig");
 const std = @import("std");
-const panickers = @import("modules/panickers.zig");
-const core = @import("modules/core.zig");
+const core = @import("core");
+const panickers = @import("panickers.zig");
 
 const realMain = @import("main");
 

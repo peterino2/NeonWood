@@ -13,6 +13,12 @@ pub const gl = @import("gl");
 pub const zmath = @import("zmath");
 
 pub const core = @import("core");
+pub const platform = @import("platform");
+pub const graphics = @import("graphics");
+pub const audio = @import("audio");
+pub const assets = @import("assets");
+pub const papyrus = @import("papyrus");
+pub const ui = @import("ui");
 
 test "000-helloWorld" {
     @setEvalBranchQuota(1000000);

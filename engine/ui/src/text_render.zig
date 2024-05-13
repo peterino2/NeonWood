@@ -1,10 +1,10 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const core = @import("../core.zig");
-const graphics = @import("../graphics.zig");
-const memory = @import("../memory.zig");
-const papyrus = @import("papyrus.zig");
+const core = @import("core");
+const graphics = @import("graphics");
+const memory = core.MemoryTracker;
+const papyrus = @import("papyrus");
 const gpd = graphics.gpu_pipe_data;
 
 const FontAtlas = papyrus.FontAtlas;

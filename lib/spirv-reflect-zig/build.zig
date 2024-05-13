@@ -32,13 +32,19 @@ pub const SpirvGenerator2 = struct {
             .optimize = opts.optimize,
         });
 
+        const dep = spirv_build.dependency("glslTypes", .{
+            .target = spirv_build.host,
+            .optimize = opts.optimize,
+        });
+
         return .{
             .b = b,
             .spirv_build = spirv_build,
             .reflect = reflect,
-            .glslTypes = spirv_build.createModule(.{
-                .root_source_file = .{ .path = "src/glslTypes.zig" },
-            }),
+            .glslTypes = dep.module("glslTypes"),
+            //spirv_build.addModule("glslTypes", .{
+            //.root_source_file = .{ .path = "src/glslTypes.zig" },
+            //}),
         };
     }
 

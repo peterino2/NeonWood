@@ -18,7 +18,11 @@ const dependencyList = [_][]const u8{
     // engine libraries
     "core",
     "platform",
-    // "graphics",
+    "graphics",
+    "audio",
+    "assets",
+    "papyrus",
+    "ui",
 };
 
 pub fn build(b: *std.Build) void {
