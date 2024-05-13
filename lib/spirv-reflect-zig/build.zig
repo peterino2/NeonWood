@@ -73,6 +73,7 @@ pub const SpirvGenerator2 = struct {
         jsonReflectOutput.step.dependOn(&jsonReflectStep.step);
 
         const run_cmd = self.b.addRunArtifact(self.reflect);
+        run_cmd.step.dependOn(&jsonReflectOutput.step);
         run_cmd.addFileArg(outputJson);
         run_cmd.addArg("-o");
         const outputZigFile = run_cmd.addOutputFileArg(finalZig);
