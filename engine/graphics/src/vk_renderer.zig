@@ -1,15 +1,14 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const triangle_mesh_vert = @import("triangle_mesh_vert");
+pub const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
-pub const c = @import("c.zig");
-const memory = @import("../memory.zig");
-const graphics = @import("../graphics.zig");
+const graphics = @import("graphics.zig");
 const vma = @import("vma");
-const core = @import("../core.zig");
-const assets = @import("../assets.zig");
+const core = @import("core");
+const memory = core.MemoryTracker;
+const assets = @import("assets");
 const tracy = core.tracy;
 const vk_constants = @import("vk_constants.zig");
 const vk_assetLoaders = @import("vk_assetLoaders.zig");
@@ -22,7 +21,7 @@ const vk_utils = @import("vk_utils.zig");
 const texture = @import("texture.zig");
 const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
-const platform = @import("../platform.zig");
+const platform = @import("platform");
 const vk_allocator = @import("vk_allocator.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
@@ -2233,8 +2232,7 @@ pub const NeonVkContext = struct {
         for (requiredNames) |requested| {
             var layerFound: bool = false;
             for (layers) |layer| {
-                const layerName = core.buf_to_cstr(layer.layer_name);
-                if (c.strcmp(layerName, core.buf_to_cstr(vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) == 0) {
+                if (std.mem.eql(u8, layer.layer_name, vk_constants.VK_KHRONOS_VALIDATION_LAYER_STRING)) {
                     layerFound = true;
                 }
             }

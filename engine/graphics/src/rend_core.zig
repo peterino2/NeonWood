@@ -69,8 +69,8 @@
 //  renderer subsystems: in vulkan the order that command buffers appear determin the submission order.
 
 const std = @import("std");
-const core = @import("../core.zig");
-const platform = @import("../platform.zig");
+const core = @import("core");
+const platform = @import("platform");
 
 const vkc = @import("vk_constants.zig");
 

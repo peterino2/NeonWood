@@ -1,7 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const core = @import("../../core.zig");
+const core = @import("core");
 
 const vk_renderer = @import("../vk_renderer.zig");
 const NeonVkContext = vk_renderer.NeonVkContext;

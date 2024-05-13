@@ -1,7 +1,6 @@
 const std = @import("std");
 const vk = @import("vulkan");
-const c = @import("c.zig");
-const core = @import("../core.zig");
+const core = @import("core");
 
 pub const MAX_OBJECTS = 100000;
 pub const NUM_FRAMES: usize = 2;

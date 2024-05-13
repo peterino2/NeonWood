@@ -1,6 +1,6 @@
 const std = @import("std");
-const core = @import("../core.zig");
-const graphics = @import("../graphics.zig");
+const core = @import("core");
+const graphics = @import("graphics.zig");
 const vk_renderer = @import("vk_renderer.zig");
 
 const NeonVkContext = vk_renderer.NeonVkContext;

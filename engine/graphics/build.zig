@@ -1,24 +1,6 @@
 const std = @import("std");
 const SpirvReflect = @import("SpirvReflect");
 
-// pub fn addLib(b: *std.Build, exe: *std.Build.Step.Compile, comptime pathPrefix: []const u8, cflags: []const []const u8, graphicsBackend: anytype) void {
-//     _ = cflags;
-//     _ = b;
-//
-//     if (graphicsBackend == .Vulkan) {
-//         exe.addIncludePath(.{ .path = pathPrefix ++ "/lib/vulkan_inc" });
-//     }
-//
-//     if (graphicsBackend == .OpenGlES_UIOnly) {
-//         exe.addIncludePath(.{ .path = pathPrefix ++ "/lib/gl/gles-2.0/include" });
-//     }
-//
-//     exe.addIncludePath(.{ .path = pathPrefix ++ "/lib" });
-//     exe.addIncludePath(.{ .path = pathPrefix });
-//
-//     exe.addLibraryPath(.{ .path = pathPrefix ++ "/lib" });
-// }
-
 const dependencyList = [_][]const u8{
     "vulkan",
     "vma",
@@ -28,7 +10,7 @@ const dependencyList = [_][]const u8{
     "platform",
 };
 
-pub fn build(b: std.Build) void {
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -49,10 +31,26 @@ pub fn build(b: std.Build) void {
     // self.addShader(exe, "debug_vert", build_root ++ "/modules/graphics/shaders/debug.vert");
     // self.addShader(exe, "debug_frag", build_root ++ "/modules/graphics/shaders/debug.frag");
 
-    const spirvGen = SpirvReflect.SpirvGenerator.init(b, .{});
+    const spirvGen = SpirvReflect.SpirvGenerator2.init(b, .{ .optimize = optimize });
     spirvGen.addShader(mod, "shaders/triangle_mesh.vert", "triangle_mesh_vert");
     spirvGen.addShader(mod, "shaders/default_lit.frag", "default_lit");
 
     spirvGen.addShader(mod, "shaders/debug.vert", "debug_vert");
     spirvGen.addShader(mod, "shaders/debug.frag", "debug_vert");
+
+    // === simple little integration test ===
+    //
+    // this doesn't really do anything other than call a few functions
+    // to make sure that we properly linked everything
+    const test_step = b.step("test-graphics", "");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = .{ .path = "tests/tests.zig" },
+        .link_libc = true,
+    });
+
+    tests.root_module.addImport("graphics", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
 }

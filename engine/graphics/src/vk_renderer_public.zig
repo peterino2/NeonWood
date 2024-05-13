@@ -1,7 +1,7 @@
 const std = @import("std");
-const core = @import("../core.zig");
-const graphics = @import("../graphics.zig");
-const PixelBufferRGA8 = @import("graphics/PixelBufferRGBA8.zig");
+const core = @import("core");
+const graphics = @import("graphics.zig");
+const PixelBufferRGA8 = @import("PixelBufferRGBA8.zig");
 
 pub fn updateTextureFromPixelsSync(
     textureName: core.Name,

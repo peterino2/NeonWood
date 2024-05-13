@@ -1,5 +1,5 @@
 const std = @import("std");
-const core = @import("../../core.zig");
+const core = @import("core");
 
 const render_objects = @import("../render_objects.zig");
 

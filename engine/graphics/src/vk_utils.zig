@@ -1,19 +1,19 @@
 const std = @import("std");
-const core = @import("../core.zig");
+const core = @import("core");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
-const obj_loader = @import("lib/objLoader/obj_loader.zig");
+const obj_loader = @import("objLoader");
 const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
 const Texture = @import("texture.zig").Texture;
-const memory = @import("../memory.zig");
+const memory = core.MemoryTracker;
 const vk_allocator = @import("vk_allocator.zig");
 
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 
-const image = @import("../image.zig");
+const image = core.image;
 const PngContents = image.PngContents;
 
 const ObjMesh = obj_loader.ObjMesh;

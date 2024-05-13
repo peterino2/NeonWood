@@ -1,36 +1,36 @@
-const core = @import("core.zig");
+const core = @import("core");
 const std = @import("std");
-const memory = @import("memory.zig");
-pub const vk_renderer = @import("graphics/vk_renderer.zig");
-const materials = @import("graphics/materials.zig");
+const memory = core.MemoryTracker;
+pub const vk_renderer = @import("vk_renderer.zig");
+const materials = @import("materials.zig");
 
-pub usingnamespace @import("graphics/debug_draws.zig");
-pub const gpu_pipe_data = @import("graphics/gpu_pipe_data.zig");
-pub const vkinit = @import("graphics/vk_init.zig");
+pub usingnamespace @import("debug_draws.zig");
+pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
+pub const vkinit = @import("vk_init.zig");
 pub const c = vk_renderer.c;
-pub const vk_allocator = @import("graphics/vk_allocator.zig");
+pub const vk_allocator = @import("vk_allocator.zig");
 pub const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 pub const NeonVkPipelineBuilder = vk_renderer.NeonVkPipelineBuilder;
 pub const NeonVkContext = vk_renderer.NeonVkContext;
-pub const constants = @import("graphics/vk_constants.zig");
+pub const constants = @import("vk_constants.zig");
 pub const NeonVkImage = vk_renderer.NeonVkImage;
 pub const Material = materials.Material;
 pub const RendererInterfaceRef = vk_renderer.RendererInterfaceRef;
 pub const RendererInterface = vk_renderer.RendererInterface;
-pub const texture = @import("graphics/texture.zig");
-pub const debug_draw = @import("graphics/debug_draws.zig");
-pub const mesh = @import("graphics/mesh.zig");
+pub const texture = @import("texture.zig");
+pub const debug_draw = @import("debug_draws.zig");
+pub const mesh = @import("mesh.zig");
 pub const Mesh = mesh.Mesh;
 pub const DynamicMesh = mesh.DynamicMesh;
 pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
-pub const vk_util = @import("graphics/vk_utils.zig");
+pub const vk_util = @import("vk_utils.zig");
 pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
 
-pub const PixelBufferRGBA8 = @import("graphics/PixelBufferRGBA8.zig");
+pub const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");
 
-pub const vk_assetLoaders = @import("graphics/vk_assetLoaders.zig");
+pub const vk_assetLoaders = @import("vk_assetLoaders.zig");
 
 pub const PixelPos = vk_renderer.PixelPos;
 
@@ -46,9 +46,9 @@ pub fn getContext() *NeonVkContext {
     return vk_renderer.gContext;
 }
 
-pub usingnamespace @import("graphics/vk_renderer/vk_renderer_types.zig");
+pub usingnamespace @import("vk_renderer/vk_renderer_types.zig");
 
-pub const render_objects = @import("graphics/render_objects.zig");
+pub const render_objects = @import("render_objects.zig");
 pub const Camera = render_objects.Camera;
 pub const RenderObject = render_objects.RenderObject;
 
@@ -120,10 +120,10 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     return error.FileNotFound;
 }
 
-pub const rend = @import("graphics/rend_core.zig");
-pub usingnamespace @import("graphics/rend_core.zig");
+pub const rend = @import("rend_core.zig");
+pub usingnamespace @import("rend_core.zig");
 
-pub const gles_renderer = @import("graphics/gles_renderer.zig");
+pub const gles_renderer = @import("gles_renderer.zig");
 
 pub fn start_gles(allocator: std.mem.Allocator) void {
     gles_renderer.start(allocator);

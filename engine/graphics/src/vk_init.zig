@@ -1,5 +1,5 @@
 const vk = @import("vulkan");
-const core = @import("../core.zig");
+const core = @import("core");
 
 pub fn descriptorSetLayoutBinding(
     descriptorType: vk.DescriptorType,

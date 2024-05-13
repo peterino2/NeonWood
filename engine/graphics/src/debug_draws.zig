@@ -1,7 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const core = @import("core.zig");
+const core = @import("core");
 const graphics = @import("graphics.zig");
 const assets = @import("assets");
 const debug_vert = @import("debug_vert");

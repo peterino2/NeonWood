@@ -1,11 +1,11 @@
 // higher level descriptor and SSBO wrangling libraries.
 
 const std = @import("std");
-const core = @import("../core.zig");
+const core = @import("core");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
-const obj_loader = @import("lib/objLoader/obj_loader.zig");
+const obj_loader = @import("objLoader");
 const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;

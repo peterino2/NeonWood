@@ -1,8 +1,8 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
-const core = @import("../core.zig");
-const assets = @import("../assets.zig");
+const core = @import("core");
+const assets = @import("assets");
 const vk_utils = @import("vk_utils.zig");
 const vkinit = @import("vk_init.zig");
 

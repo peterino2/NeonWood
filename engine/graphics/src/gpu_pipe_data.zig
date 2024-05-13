@@ -4,8 +4,8 @@ const root = @import("root");
 const nw = root.neonwood;
 const vk = @import("vulkan");
 
-const core = @import("../core.zig");
-const graphics = @import("../graphics.zig");
+const core = @import("core");
+const graphics = @import("graphics.zig");
 const vkinit = graphics.vkinit;
 const vma = @import("vma");
 

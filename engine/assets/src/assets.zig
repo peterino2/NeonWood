@@ -2,8 +2,8 @@ const std = @import("std");
 const core = @import("core");
 const memory = core.MemoryTracker;
 
-pub const asset_references = @import("assets/asset_references.zig");
-pub const asset_jobs = @import("assets/asset_jobs.zig");
+pub const asset_references = @import("asset_references.zig");
+pub const asset_jobs = @import("asset_jobs.zig");
 
 pub const AssetRef = asset_references.AssetRef;
 pub const AssetReference = asset_references.AssetReference;

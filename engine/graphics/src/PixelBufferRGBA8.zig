@@ -2,7 +2,7 @@ pixels: []u8,
 extent: core.Vector2i,
 
 const std = @import("std");
-const core = @import("../core.zig");
+const core = @import("core");
 
 pub fn init(allocator: std.mem.Allocator, extent: core.Vector2i) !@This() {
     return .{

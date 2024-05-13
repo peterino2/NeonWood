@@ -1,9 +1,9 @@
 const std = @import("std");
-const core = @import("../core.zig");
+const core = @import("core");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
-const obj_loader = @import("lib/objLoader/obj_loader.zig");
+const obj_loader = @import("objLoader");
 const constants = @import("vk_constants.zig");
 const vk_utils = @import("vk_utils.zig");
 
@@ -15,7 +15,7 @@ const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
 const Vector2f = core.Vector2f;
-const LinearColor = core.LinearColor;
+const Color = core.colors.Color;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 const debug_struct = core.debug_struct;
@@ -26,7 +26,7 @@ pub const DynamicMeshManager = vk_dynamic_mesh.DynamicMeshManager;
 pub const Vertex = struct {
     position: Vectorf = .{},
     normal: Vectorf = .{},
-    color: LinearColor = .{},
+    color: Color = .{},
     uv: Vector2f = .{},
 };
 
