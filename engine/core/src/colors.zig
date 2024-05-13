@@ -3,7 +3,7 @@ const std = @import("std");
 // RGBA format for color
 pub const Color32 = u32;
 
-pub const ColorRGBA8 = struct {
+pub const ColorRGBA8 = extern struct {
     r: u8 = 0x0,
     g: u8 = 0x0,
     b: u8 = 0x0,
@@ -28,7 +28,7 @@ pub const ColorRGBA8 = struct {
     }
 };
 
-pub const Color = struct {
+pub const Color = extern struct {
     r: f32 = 0,
     g: f32 = 0,
     b: f32 = 0,

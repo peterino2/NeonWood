@@ -1,9 +1,10 @@
 const std = @import("std");
-const nw = @import("root").neonwood;
+const nw = @import("NeonWood");
 
 const ui = nw.ui;
 const platform = nw.platform;
 const core = nw.core;
+const colors = core.colors;
 const graphics = nw.graphics;
 
 const assets = nw.assets;
@@ -32,9 +33,9 @@ pub const GameContext = struct {
             .allocator = allocator,
             .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 100, .y = 100 }),
         };
-        self.pixelBuffer.clear(core.Color.fromHex(0x101010ff));
-        self.pixelBuffer.getPixel(.{ .x = 42, .y = 42 }).* = core.Color.fromHex(0xFF0000FF);
-        self.pixelBuffer.getPixel(.{ .x = 43, .y = 43 }).* = core.Color.fromHex(0xFF0000FF);
+        self.pixelBuffer.clear(colors.ColorRGBA8.fromHex(0x101010ff));
+        self.pixelBuffer.getPixel(.{ .x = 42, .y = 42 }).* = colors.ColorRGBA8.fromHex(0xFF0000FF);
+        self.pixelBuffer.getPixel(.{ .x = 43, .y = 43 }).* = colors.ColorRGBA8.fromHex(0xFF0000FF);
         return self;
     }
 
@@ -293,7 +294,7 @@ pub fn main() anyerror!void {
 
     nw.graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    const memory = nw.memory;
+    const memory = nw.core.MemoryTracker;
     memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
     var tracker = memory.MTGet().?;

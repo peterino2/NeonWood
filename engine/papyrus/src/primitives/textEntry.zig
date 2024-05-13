@@ -26,7 +26,8 @@ const DrawListBuilder = @import("../DrawListBuilder.zig");
 const core = @import("core");
 const Vector2f = core.Vector2f;
 const colors = core.colors;
-const BurnStyle = colors.BurnStyle;
+const style = @import("../style.zig");
+const BurnStyle = style.BurnStyle;
 
 pub const TextEntryState = enum {
     Normal,

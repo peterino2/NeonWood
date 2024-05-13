@@ -1,6 +1,6 @@
 digraph G {
   root->init_api
-  init_api->"BaseDispatch@0x169afbb0be0" [style=dotted]
+  init_api->"BaseDispatch@0x225cf1e0be0" [style=dotted]
   init_api->create_vulkan_instance
   create_vulkan_instance->"vkb.createInstance"
   create_vulkan_instance->"vki.load"
@@ -8,7 +8,7 @@ digraph G {
   root->init_device
   init_device->create_physical_devices
   create_physical_devices->enumerate_physical_devices
-  enumerate_physical_devices->"device:NVIDIA GeForce RTX 3080:vk.PhysicalDevice@169afb50008"
+  enumerate_physical_devices->"device:NVIDIA GeForce RTX 3080:vk.PhysicalDevice@225cf180008"
   create_physical_devices->find_physical_devices
   root->init_vma
   root->init_command_pools

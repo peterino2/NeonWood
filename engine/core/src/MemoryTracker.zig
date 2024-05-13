@@ -29,14 +29,14 @@ pub fn allocator(self: *@This()) std.mem.Allocator {
 
 pub fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
     var self: *@This() = @alignCast(@ptrCast(ctx));
-    // self.allocationsCount += 1;
-    // self.totalAllocSize += len;
+    self.allocationsCount += 1;
+    self.totalAllocSize += len;
     return self.backingAllocator.vtable.alloc(self.backingAllocator.ptr, len, ptr_align, ret_addr);
 }
 
 pub fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
     var self: *@This() = @alignCast(@ptrCast(ctx));
-    // self.totalAllocSize -= buf.len + new_len;
+    self.totalAllocSize = self.totalAllocSize - buf.len + new_len;
     return self.backingAllocator.vtable.resize(
         self.backingAllocator.ptr,
         buf,
@@ -48,8 +48,8 @@ pub fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_add
 
 pub fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
     var self: *@This() = @alignCast(@ptrCast(ctx));
-    // self.allocationsCount -= 1;
-    // self.totalAllocSize -= buf.len;
+    self.allocationsCount -= 1;
+    self.totalAllocSize -= buf.len;
     self.backingAllocator.vtable.free(self.backingAllocator.ptr, buf, buf_align, ret_addr);
 }
 
