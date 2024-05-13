@@ -1,0 +1,38 @@
+const std = @import("std");
+
+// very tiny, not intended to build anything just to run tests linked with libc
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const mod = b.addModule("papyrus", .{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .root_source_file = .{ .path = "src/papyrus.zig" },
+    });
+    mod.addIncludePath(.{ .path = "src/" });
+    mod.addCSourceFile(.{ .file = .{ .path = "src/compat.cpp" } });
+
+    const core_dep = b.dependency("core", .{ .target = target, .optimize = optimize });
+
+    mod.addImport("core", core_dep.module("core"));
+
+    // Creates a step for unit testing.
+    const main_tests = b.addTest(.{
+        .root_source_file = .{ .path = "tests/testing.zig" },
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    main_tests.root_module.addImport("core", core_dep.module("core"));
+    main_tests.root_module.addImport("papyrus", mod);
+    main_tests.root_module.addIncludePath(.{ .path = "src/" });
+
+    main_tests.linkLibC();
+    main_tests.linkLibCpp();
+    const run_tests = b.addRunArtifact(main_tests);
+    const test_step = b.step("test-papyrus", "Run library tests");
+    test_step.dependOn(&run_tests.step);
+}

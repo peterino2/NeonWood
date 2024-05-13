@@ -1,0 +1,19 @@
+.{
+    .name = "graphics",
+    .version = "0.0.0",
+    .dependencies = .{
+        //
+        .vulkan = .{ .path = "../../lib/vulkan" },
+        .vma = .{ .path = "../../lib/vma" },
+        .glfw3 = .{ .path = "../../lib/glfw3" },
+        .objLoader = .{ .path = "../../lib/objLoader" },
+        .SpirvReflect = .{ .path = "../../lib/spirv-reflect-zig" },
+        // core
+        .core = .{ .path = "../core" },
+        .assets = .{ .path = "../assets" },
+        .platform = .{ .path = "../platform" },
+    },
+    .paths = .{
+        "",
+    },
+}

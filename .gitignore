@@ -1,5 +1,10 @@
 zig-cache/
-zig-out
+zig-out/
+
+*Saved/*
+
+*zig-cache*
+*zig-out*
 .vscode/
 *.rdbg
 __pycache__

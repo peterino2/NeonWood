@@ -1,0 +1,14 @@
+.{
+    .name = "core",
+    .version = "0.0.0",
+    .dependencies = .{
+        .spng = .{ .path = "../../lib/spng" },
+        .nfd = .{ .path = "../../lib/nfd" },
+        .p2 = .{ .path = "../../lib/p2" },
+        .tracy = .{ .path = "../../lib/tracy" },
+        .zmath = .{ .path = "../../lib/zmath" },
+    },
+    .paths = .{
+        "",
+    },
+}

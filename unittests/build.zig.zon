@@ -1,0 +1,33 @@
+.{
+    .name = "UnitTests",
+    .version = "0.0.0",
+    .dependencies = .{
+        // third party libraries
+
+        .spng = .{ .path = "../lib/spng" },
+        .cgltf = .{ .path = "../lib/cgltf" },
+        .gl = .{ .path = "../lib/gl" },
+        .glfw3 = .{ .path = "../lib/glfw3" },
+        .miniaudio = .{ .path = "../lib/miniaudio" },
+        .nfd = .{ .path = "../lib/nfd" },
+        .objLoader = .{ .path = "../lib/objLoader" },
+        .p2 = .{ .path = "../lib/p2" },
+        .vulkan = .{ .path = "../lib/vulkan" },
+        .vma = .{ .path = "../lib/vma" },
+        .tracy = .{ .path = "../lib/tracy" },
+        .zmath = .{ .path = "../lib/zmath" },
+        .SpirvReflect = .{ .path = "../lib/spirv-reflect-zig" },
+
+        // engine libraries
+        .core = .{ .path = "../engine/core" },
+        .platform = .{ .path = "../engine/platform" },
+        .graphics = .{ .path = "../engine/graphics" },
+        .audio = .{ .path = "../engine/audio" },
+        .assets = .{ .path = "../engine/assets" },
+        .papyrus = .{ .path = "../engine/papyrus" },
+        .ui = .{ .path = "../engine/ui" },
+    },
+    .paths = .{
+        "",
+    },
+}
