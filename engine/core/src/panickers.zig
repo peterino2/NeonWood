@@ -82,10 +82,10 @@ pub fn dumpStackPointerAddr(prefix: []const u8) void {
 fn dumpSegfaultInfoPosix(sig: i32, addr: usize, ctx_ptr: ?*const anyopaque) void {
     const stderr = std.io.getStdErr().writer();
     _ = switch (sig) {
-        os.SIG.SEGV => stderr.print("Segmentation fault at address 0x{x}\n", .{addr}),
-        os.SIG.ILL => stderr.print("Illegal instruction at address 0x{x}\n", .{addr}),
-        os.SIG.BUS => stderr.print("Bus error at address 0x{x}\n", .{addr}),
-        os.SIG.FPE => stderr.print("Arithmetic exception at address 0x{x}\n", .{addr}),
+        std.posix.SIG.SEGV => stderr.print("Segmentation fault at address 0x{x}\n", .{addr}),
+        std.posix.SIG.ILL => stderr.print("Illegal instruction at address 0x{x}\n", .{addr}),
+        std.posix.SIG.BUS => stderr.print("Bus error at address 0x{x}\n", .{addr}),
+        std.posix.SIG.FPE => stderr.print("Arithmetic exception at address 0x{x}\n", .{addr}),
         else => unreachable,
     } catch std.posix.abort();
 
@@ -95,14 +95,14 @@ fn dumpSegfaultInfoPosix(sig: i32, addr: usize, ctx_ptr: ?*const anyopaque) void
         .arm,
         .aarch64,
         => {
-            const ctx: *const os.ucontext_t = @ptrCast(@alignCast(ctx_ptr));
+            const ctx: *const std.c.ucontext_t = @ptrCast(@alignCast(ctx_ptr));
             std.debug.dumpStackTraceFromBase(ctx);
         },
         else => {},
     }
 }
 
-fn handleSegfaultPosix(sig: i32, info: *const os.siginfo_t, ctx_ptr: ?*const anyopaque) callconv(.C) noreturn {
+fn handleSegfaultPosix(sig: i32, info: *const std.posix.siginfo_t, ctx_ptr: ?*const anyopaque) callconv(.C) noreturn {
     core.engine_logs("PANIC!!");
     core.forceFlush();
     resetSegfaultHandler();
@@ -152,9 +152,9 @@ fn resetSegfaultHandler() void {
         return;
     }
 
-    var act = os.Sigaction{
-        .handler = .{ .handler = os.SIG.DFL },
-        .mask = os.empty_sigset,
+    var act = std.c.Sigaction{
+        .handler = .{ .handler = std.posix.SIG.DFL },
+        .mask = std.posix.empty_sigset,
         .flags = 0,
     };
     // To avoid a double-panic, do nothing if an error happens here.
@@ -169,10 +169,10 @@ pub fn attachSegfaultHandler() void {
         windows_segfault_handle = windows.kernel32.AddVectoredExceptionHandler(0, handleSegfaultWindows);
         return;
     }
-    var act = os.Sigaction{
+    var act = std.c.Sigaction{
         .handler = .{ .sigaction = handleSegfaultPosix },
-        .mask = os.empty_sigset,
-        .flags = (os.SA.SIGINFO | os.SA.RESTART | os.SA.RESETHAND),
+        .mask = std.posix.empty_sigset,
+        .flags = (std.posix.SA.SIGINFO | std.posix.SA.RESTART | std.posix.SA.RESETHAND),
     };
 
     std.debug.updateSegfaultHandler(&act) catch {
