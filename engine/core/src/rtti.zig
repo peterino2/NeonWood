@@ -43,6 +43,7 @@ pub const RttiData = struct {
 
     init_func: *const fn (std.mem.Allocator) RttiDataEventError!*anyopaque,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
+    preTick_func: ?*const fn (*anyopaque, f64) RttiDataEventError!void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
     postInit_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
     processEvents: ?*const fn (*anyopaque, u64) RttiDataEventError!void = null,
@@ -74,6 +75,17 @@ pub const RttiData = struct {
             };
 
             self.postInit_func = wrappedPostInit.func;
+        }
+
+        if (@hasDecl(TargetType, "preTick")) {
+            const wrappedTick = struct {
+                pub fn func(pointer: *anyopaque, deltaTime: f64) RttiDataEventError!void {
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                    try ptr.preTick(deltaTime);
+                }
+            };
+
+            self.preTick_func = wrappedTick.func;
         }
 
         if (@hasDecl(TargetType, "tick")) {

@@ -27,6 +27,8 @@ const engine_log = logging.engine_log;
 pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
 pub const ProcEventsFn = *const fn (*anyopaque, u64) RttiDataEventError!void;
 
+// perhaps a better name for this guy isn't actually engine, rather 'orchestrator' is more apt.
+// but that's so avant-garde
 pub const Engine = struct {
     exitSignal: Atomic(bool) = Atomic(bool).init(false),
     exitConfirmed: Atomic(bool) = Atomic(bool).init(false),
@@ -37,6 +39,7 @@ pub const Engine = struct {
     rttiObjects: ArrayListUnmanaged(NeonObjectRef),
     eventors: ArrayListUnmanaged(NeonObjectRef),
     exitListeners: ArrayListUnmanaged(NeonObjectRef),
+    preTickables: ArrayListUnmanaged(NeonObjectRef),
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     jobManager: *JobManager,
 
@@ -57,6 +60,7 @@ pub const Engine = struct {
             .allocator = allocator,
             .rttiObjects = .{},
             .tickables = .{},
+            .preTickables = .{},
             .deltaTime = 0.0,
             .lastEngineTime = 0.0,
             .jobManager = try JobManager.create(allocator),
@@ -87,6 +91,7 @@ pub const Engine = struct {
 
         core.engine_logs("destroying tickables");
         self.tickables.deinit(self.allocator);
+        self.preTickables.deinit(self.allocator);
         self.nfdRuntime.destroy();
 
         core.engine_logs("calling onexit listeners");
@@ -114,6 +119,10 @@ pub const Engine = struct {
 
             // register to tick table
             try self.tickables.append(self.allocator, newIndex);
+        }
+
+        if (@hasDecl(T, "preTick")) {
+            try self.preTickables.append(self.allocator, newObjectRef);
         }
 
         if (@hasDecl(T, "processEvents")) {
@@ -149,7 +158,11 @@ pub const Engine = struct {
         }
 
         for (self.eventors.items) |*objectRef| {
-            objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch unreachable;
+            objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch @panic("process event error");
+        }
+
+        for (self.preTickables.items) |*objectRef| {
+            objectRef.vtable.preTick_func.?(objectRef.ptr, self.deltaTime) catch @panic("pretick event error");
         }
 
         var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;

@@ -22,3 +22,5 @@ packages/
 *.blend1
 
 *.DS_Store
+
+*imgui.ini
