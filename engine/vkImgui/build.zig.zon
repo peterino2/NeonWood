@@ -1,0 +1,13 @@
+.{
+    .name = "imgui",
+    .version = "0.0.0",
+    .dependencies = .{
+        .core = .{ .path = "../core" },
+        .graphics = .{ .path = "../graphics" },
+        .platform = .{ .path = "../platform" },
+        .vulkan = .{ .path = "../../lib/vulkan" },
+    },
+    .paths = .{
+        "",
+    },
+}

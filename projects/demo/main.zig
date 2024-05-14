@@ -7,6 +7,7 @@ const ui = neonwood.ui;
 const NodeHandle = ui.NodeHandle;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
+const ig = neonwood.vkImgui.c;
 const engine_log = core.engine_log;
 
 const audio = neonwood.audio;
@@ -79,6 +80,7 @@ pub const GameContext = struct {
     var texName = core.MakeName("t_empire");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
+        ig.igShowDemoWindow(&self.showDemo);
         if (!self.assetReady) {
             if (self.gc.textures.contains(texName.handle())) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
@@ -401,8 +403,8 @@ pub fn main() anyerror!void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try neonwood.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
-    defer neonwood.shutdown_everything(allocator);
+    try neonwood.start_everything_imgui(allocator, .{ .windowName = "NeonWood: ui" }, args);
+    defer neonwood.shutdown_everything_imgui(allocator);
 
     _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);
