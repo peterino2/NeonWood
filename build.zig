@@ -24,7 +24,11 @@ const SpirvReflect = @import("SpirvReflect");
 pub const AddProgramOptions = struct {};
 
 pub fn init(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, relativeRoot: []const u8) BuildSystem {
-    const nwdep = b.dependency("NeonWood", .{ .target = target, .optimize = optimize });
+    const nwdep = b.dependency("NeonWood", .{
+        .target = target,
+        .optimize = optimize,
+        .slow_logging = b.option(bool, "slow_logging", "Disables buffered logging, takes a performance hit but timing information across threads is preserved") orelse false,
+    });
 
     return .{
         .b = b,
@@ -79,13 +83,44 @@ pub fn addProgram(self: *BuildSystem, comptime name: []const u8, comptime desc: 
     return exe;
 }
 
+// pub fn createGameOptions(b: *std.Build) *std.Build.Step.Options {
+//     const opts = b.addOptions();
+//
+//     // build options for core.zig
+//     opts.addOption(
+//         bool,
+//         "mutex_job_queue",
+//         b.option(bool, "mutex_job_queue", "temporary test, reverts to old mutex based queue behaviour in jobs.zig:JobManager") orelse false,
+//     );
+//     opts.addOption(
+//         bool,
+//         "zero_logging",
+//         b.option(bool, "zero_logging", "disables all logging, only intended for use on job dispatch testing") orelse false,
+//     );
+//     opts.addOption(
+//         bool,
+//         "slow_logging",
+//         b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false,
+//     );
+//     opts.addOption(
+//         bool,
+//         "force_mailbox",
+//         b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false,
+//     );
+//
+//     return opts;
+// }
+
 // ========= standalone build instance =======
 // maybe it should be an engine launcher or something..
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const spirvDep = b.dependency("SpirvReflect", .{ .target = target, .optimize = optimize });
+    const spirvDep = b.dependency("SpirvReflect", .{
+        .target = target,
+        .optimize = optimize,
+    });
     _ = spirvDep;
 
     const mod = b.addModule("NeonWood", .{
@@ -93,9 +128,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .root_source_file = .{ .path = "engine/neonwood.zig" },
     });
+    const slow_logging = b.option(bool, "slow_logging", "Disables buffered logging, takes a performance hit but timing information across threads is preserved") orelse false;
+    _ = slow_logging;
 
     for (engineDepList) |depName| {
-        const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
+        const dep = b.dependency(
+            depName,
+            .{
+                .target = target,
+                .optimize = optimize,
+                // .slow_logging = slow_logging,
+            },
+        );
         mod.addImport(depName, dep.module(depName));
         b.getInstallStep().dependOn(dep.builder.getInstallStep());
     }
