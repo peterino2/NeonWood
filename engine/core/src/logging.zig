@@ -12,7 +12,7 @@ pub fn printInner(comptime fmt: []const u8, args: anytype) void {
         return;
     }
 
-    if (build_opts.slow_logging or true) {
+    if (build_opts.slow_logging) {
         std.debug.print("> " ++ fmt, args);
     } else {
         if (gLoggerSys) |loggerSys| {
