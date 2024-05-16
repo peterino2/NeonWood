@@ -1,6 +1,8 @@
 // Copyright (c) peterino2@github.com
 
 const std = @import("std");
+const Build = std.Build;
+const LazyPath = Build.LazyPath;
 
 // 1. for each vertex/fragment shader file invoke
 //  glslc --target-env=vulkan1.2 <input file> -o <input file>.spv
@@ -14,18 +16,18 @@ const std = @import("std");
 //  <input file>.zig
 
 pub const SpirvGenerator2 = struct {
-    b: *std.Build,
-    spirv_build: *std.Build,
-    glslTypes: *std.Build.Module,
+    b: *Build,
+    spirv_build: *Build,
+    glslTypes: *Build.Module,
 
-    reflect: *std.Build.Step.Compile,
+    reflect: *Build.Step.Compile,
 
     const BuildOptions = struct {
         importName: []const u8 = "SpirvReflect",
         optimize: std.builtin.OptimizeMode = .Debug,
     };
 
-    fn initFromBuilder(b: *std.Build, spirv_build: *std.Build, opts: BuildOptions) SpirvGenerator2 {
+    fn initFromBuilder(b: *Build, spirv_build: *Build, opts: BuildOptions) SpirvGenerator2 {
         const reflect = spirv_build.addExecutable(.{
             .name = "spirv-reflect-zig",
             .root_source_file = .{ .path = "src/main.zig" },
@@ -49,16 +51,16 @@ pub const SpirvGenerator2 = struct {
         };
     }
 
-    pub fn init(b: *std.Build, opts: BuildOptions) SpirvGenerator2 {
+    pub fn init(b: *Build, opts: BuildOptions) SpirvGenerator2 {
         const dep = b.dependency(opts.importName, .{});
         return initFromBuilder(b, dep.builder, opts);
     }
 
     pub fn createShader(
         self: SpirvGenerator2,
-        shaderPath: std.Build.LazyPath,
+        shaderPath: Build.LazyPath,
         shaderName: []const u8,
-    ) struct { mod: *std.Build.Module, spvArtifactInstall: *std.Build.Step } {
+    ) struct { mod: *Build.Module, spvArtifactInstall: *Build.Step } {
         const finalSpv = self.b.fmt("shaders/{s}.spv", .{shaderName});
         const finalJson = self.b.fmt("shaders/{s}.json", .{shaderName});
         const finalZig = self.b.fmt("reflectedTypes/{s}.zig", .{shaderName});
@@ -101,7 +103,7 @@ pub const SpirvGenerator2 = struct {
     // creates a shader and immediately adds it to the executable
     pub fn addShader(
         self: SpirvGenerator2,
-        module: *std.Build.Module,
+        module: *Build.Module,
         shaderPath: []const u8,
         shaderName: []const u8,
     ) void {
@@ -109,25 +111,25 @@ pub const SpirvGenerator2 = struct {
         module.addImport(shaderName, results.mod);
     }
 
-    pub fn addShaderInstallRef(self: *SpirvGenerator2, exe: *std.Build.Step.Compile, shaderPath: []const u8, shaderName: []const u8) void {
-        const results = self.createShader(.{ .path = shaderPath }, shaderName);
+    pub fn addShaderInstallRef(self: *SpirvGenerator2, exe: *Build.Step.Compile, shader_path: LazyPath, shader_name: []const u8) void {
+        const results = self.createShader(shader_path, shader_name);
         exe.step.dependOn(results.spvArtifactInstall);
     }
 };
 
 pub const SpirvGenerator = struct {
-    steps: std.ArrayList(*std.Build.Step),
-    exe: *std.Build.Step.Compile,
-    b: *std.Build,
-    step: *std.Build.Step,
+    steps: std.ArrayList(*Build.Step),
+    exe: *Build.Step.Compile,
+    b: *Build,
+    step: *Build.Step,
     repoPath: []const u8,
     installed: std.StringHashMap(bool),
-    glslTypes: *std.Build.Module,
+    glslTypes: *Build.Module,
 
     pub fn init(
-        b: *std.Build,
+        b: *Build,
         opts: struct {
-            target: std.Build.ResolvedTarget,
+            target: Build.ResolvedTarget,
             optimize: std.builtin.Mode,
             repoPath: []const u8 = ".",
             addInstallStep: bool = true,
@@ -145,7 +147,7 @@ pub const SpirvGenerator = struct {
 
         var self = @This(){
             .b = b,
-            .steps = std.ArrayList(*std.Build.Step).init(b.allocator),
+            .steps = std.ArrayList(*Build.Step).init(b.allocator),
             .exe = exe,
             .step = b.step("spirv", "compiles all glsl files into spirv binaries and generates .zig types"),
             .repoPath = opts.repoPath,
@@ -166,19 +168,19 @@ pub const SpirvGenerator = struct {
 
     fn compileAndReflectGlsl(
         self: *@This(),
-        b: *std.Build,
+        b: *Build,
         options: struct {
-            source_file: std.Build.LazyPath,
+            source_file: Build.LazyPath,
             output_name: []const u8,
             shaderCompilerCommand: []const []const u8, // default this is glslc --target-env=vulkan1.2
             shaderCompilerOutputFlag: []const u8, // in default, this is -o
         },
     ) struct {
-        spv_out: std.Build.LazyPath,
-        json_out: std.Build.LazyPath,
-        step: *std.Build.Step,
-        glslcCompileStep: *std.Build.Step,
-        installGlslc: *std.Build.Step,
+        spv_out: Build.LazyPath,
+        json_out: Build.LazyPath,
+        step: *Build.Step,
+        glslcCompileStep: *Build.Step,
+        installGlslc: *Build.Step,
     } {
         const finalSpv = b.fmt("shaders/{s}.spv", .{options.output_name});
         const finalJson = b.fmt("shaders/{s}.json", .{options.output_name});
@@ -196,9 +198,9 @@ pub const SpirvGenerator = struct {
         jsonReflectStep.addArg("--output");
         const outputJson = jsonReflectStep.addOutputFileArg(finalJson);
 
-        var reflect = b.allocator.create(std.Build.Step) catch unreachable;
+        var reflect = b.allocator.create(Build.Step) catch unreachable;
 
-        // reflect.* = std.Build.Step.init(.{ .id = .custom, .name = options.output_name, .owner = b, .makeFn = make });
+        // reflect.* = Build.Step.init(.{ .id = .custom, .name = options.output_name, .owner = b, .makeFn = make });
         // reflect.dependOn(&b.addInstallFile(spvOutputFile, finalSpv).step);
         // reflect.dependOn(&b.addInstallFile(outputJson, finalJson).step);
 
@@ -223,8 +225,8 @@ pub const SpirvGenerator = struct {
     pub fn addShader(
         self: *@This(),
         options: struct {
-            exe: *std.Build.Step.Compile,
-            sourceFile: std.Build.LazyPath,
+            exe: *Build.Step.Compile,
+            sourceFile: Build.LazyPath,
             shaderName: []const u8,
             shaderCompilerCommand: []const []const u8,
             shaderCompilerOutputFlag: []const u8,
@@ -257,13 +259,13 @@ pub const SpirvGenerator = struct {
         self.step.dependOn(results.step);
         self.step.dependOn(&b.addInstallFile(outputZigFile, outputFile).step);
 
-        const generatedFileRef = b.allocator.create(std.Build.GeneratedFile) catch unreachable;
+        const generatedFileRef = b.allocator.create(Build.GeneratedFile) catch unreachable;
         generatedFileRef.* = .{
             .step = self.step,
             .path = b.fmt("zig-out/{s}", .{outputFile}),
         };
 
-        var imports = self.b.allocator.alloc(std.Build.Module.Import, 1) catch unreachable;
+        var imports = self.b.allocator.alloc(Build.Module.Import, 1) catch unreachable;
         imports[0] = .{ .name = "glslTypes", .module = self.glslTypes };
 
         const module = b.addModule(options.shaderName, .{
@@ -279,7 +281,7 @@ pub const SpirvGenerator = struct {
 
     pub fn shader(
         self: *@This(),
-        exe: *std.Build.Step.Compile,
+        exe: *Build.Step.Compile,
         source: []const u8,
         shaderName: []const u8,
         opts: struct {
@@ -305,7 +307,7 @@ pub const SpirvGenerator = struct {
 //
 // zig build install to generate the CLI tool.
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 

@@ -5,70 +5,80 @@ target: std.Build.ResolvedTarget,
 optimize: std.builtin.Mode,
 nw_mod: *std.Build.Module,
 spirvReflect: SpirvReflect.SpirvGenerator2,
-relativeRoot: []const u8,
 
 const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "ui", "vkImgui" };
 
 const BuildSystem = @This();
 const std = @import("std");
+const Build = std.Build;
+const LazyPath = Build.LazyPath;
 
 const SpirvReflect = @import("SpirvReflect");
-pub const AddProgramOptions = struct {};
 
-pub fn init(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, relativeRoot: []const u8) BuildSystem {
-    const nwdep = b.dependency("NeonWood", .{
-        .target = target,
-        .optimize = optimize,
+pub const InitOptions = struct {
+    import_name: []const u8 = "NeonWood",
+    target: Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+};
+
+pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
+    const nwdep = b.dependency(opts.import_name, .{
+        .target = opts.target,
+        .optimize = opts.optimize,
         .slow_logging = b.option(bool, "slow_logging", "Disables buffered logging, takes a performance hit but timing information across threads is preserved") orelse false,
     });
 
     return .{
         .b = b,
         .nw_builder = nwdep.builder,
-        .target = target,
-        .optimize = optimize,
+        .target = opts.target,
+        .optimize = opts.optimize,
         .nw_mod = nwdep.module("NeonWood"),
-        .relativeRoot = relativeRoot,
-        .spirvReflect = SpirvReflect.SpirvGenerator2.init(b, .{}),
+        .spirvReflect = SpirvReflect.SpirvGenerator2.init(nwdep.builder, .{}),
     };
 }
 
-pub fn addProgram(self: *BuildSystem, comptime name: []const u8, comptime desc: []const u8, opts: AddProgramOptions) *std.Build.Step.Compile {
+pub const AddProgramOptions = struct {
+    name: []const u8,
+    desc: []const u8,
+    root_source_file: LazyPath,
+};
+
+pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.Compile {
     const b = self.b;
 
     const exe = self.nw_builder.addExecutable(.{
-        .name = name,
+        .name = opts.name,
         .target = self.target,
         .optimize = self.optimize,
-        .root_source_file = .{ .path = "engine/main.zig" },
+        .root_source_file = self.nw_builder.path("engine/main.zig"),
     });
 
     b.installArtifact(exe);
     const runArtifact = b.addRunArtifact(exe);
-    const run_exe = b.step("run-" ++ name, desc);
+    const run_exe = b.step(self.b.fmt("run-{s}", .{opts.name}), opts.desc);
     run_exe.dependOn(&runArtifact.step);
 
     // main path = name/main.zig
-    const mod = b.addModule(name, .{
+    const mod = b.addModule(opts.name, .{
         .target = self.target,
         .optimize = self.optimize,
-        .root_source_file = .{ .path = name ++ "/main.zig" },
+        .root_source_file = opts.root_source_file,
     });
-    _ = opts;
 
     exe.root_module.addImport("main", mod);
     exe.root_module.addImport("NeonWood", self.nw_mod);
     mod.addImport("NeonWood", self.nw_mod);
 
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/graphics/shaders/triangle_mesh.vert", .{self.relativeRoot}), "triangle_mesh_vert");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/graphics/shaders/default_lit.frag", .{self.relativeRoot}), "default_lit");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/graphics/shaders/debug.vert", .{self.relativeRoot}), "debug_vert");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/graphics/shaders/debug.frag", .{self.relativeRoot}), "debug_frag");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/triangle_mesh.vert"), "triangle_mesh_vert");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/default_lit.frag"), "default_lit");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/debug.vert"), "debug_vert");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/debug.frag"), "debug_frag");
 
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/ui/shaders/PapyrusRect.vert", .{self.relativeRoot}), "papyrus_vk_vert");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/ui/shaders/PapyrusRect.frag", .{self.relativeRoot}), "papyrus_vk_frag");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/ui/shaders/FontSDF.vert", .{self.relativeRoot}), "FontSDF_vert");
-    self.spirvReflect.addShaderInstallRef(exe, b.fmt("{s}/engine/ui/shaders/FontSDF.frag", .{self.relativeRoot}), "FontSDF_frag");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/PapyrusRect.vert"), "papyrus_vk_vert");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/PapyrusRect.frag"), "papyrus_vk_frag");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/FontSDF.vert"), "FontSDF_vert");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/FontSDF.frag"), "FontSDF_frag");
 
     b.getInstallStep().dependOn(self.nw_builder.getInstallStep());
 
