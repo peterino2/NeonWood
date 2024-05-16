@@ -82,7 +82,7 @@ pub const TextureLoader = struct {
     }
 
     // processing events, some should really be processing events rather than
-    pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {
+    pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
         _ = frameNumber;
         const gc = self.gc;
 

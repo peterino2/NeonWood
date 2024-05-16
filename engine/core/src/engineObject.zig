@@ -27,9 +27,9 @@ pub fn MakeTypeName(comptime TargetType: type) Name {
     return MakeName(hashedName);
 }
 
-// todo.. rtti is not the right word for this
+// todo.. engineObject is not the right word for this
 
-pub const RttiDataEventError = error{
+pub const EngineDataEventError = error{
     UnknownStatePanic,
     BadInit,
     UnknownError,
@@ -41,19 +41,19 @@ pub const RttiData = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    init_func: *const fn (std.mem.Allocator) RttiDataEventError!*anyopaque,
+    init_func: *const fn (std.mem.Allocator) EngineDataEventError!*anyopaque,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
-    preTick_func: ?*const fn (*anyopaque, f64) RttiDataEventError!void = null,
+    preTick_func: ?*const fn (*anyopaque, f64) EngineDataEventError!void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
-    postInit_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
-    processEvents: ?*const fn (*anyopaque, u64) RttiDataEventError!void = null,
-    exitSignal_func: ?*const fn (*anyopaque) RttiDataEventError!void = null,
+    postInit_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
+    processEvents: ?*const fn (*anyopaque, u64) EngineDataEventError!void = null,
+    exitSignal_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
             const funcFind: @TypeOf(@field(TargetType, "init")) = @field(TargetType, "init");
 
-            pub fn func(allocator: std.mem.Allocator) RttiDataEventError!*anyopaque {
+            pub fn func(allocator: std.mem.Allocator) EngineDataEventError!*anyopaque {
                 const newObject = funcFind(allocator) catch return error.BadInit;
                 return @as(*anyopaque, @ptrCast(newObject));
             }
@@ -68,7 +68,7 @@ pub const RttiData = struct {
 
         if (@hasDecl(TargetType, "postInit")) {
             const wrappedPostInit = struct {
-                pub fn func(pointer: *anyopaque) RttiDataEventError!void {
+                pub fn func(pointer: *anyopaque) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.postInit();
                 }
@@ -79,7 +79,7 @@ pub const RttiData = struct {
 
         if (@hasDecl(TargetType, "preTick")) {
             const wrappedTick = struct {
-                pub fn func(pointer: *anyopaque, deltaTime: f64) RttiDataEventError!void {
+                pub fn func(pointer: *anyopaque, deltaTime: f64) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.preTick(deltaTime);
                 }
@@ -101,7 +101,7 @@ pub const RttiData = struct {
 
         if (@hasDecl(TargetType, "processEvents")) {
             const wrappedProcessEvents = struct {
-                pub fn func(pointer: *anyopaque, frameNumber: u64) RttiDataEventError!void {
+                pub fn func(pointer: *anyopaque, frameNumber: u64) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.processEvents(frameNumber);
                 }
@@ -112,7 +112,7 @@ pub const RttiData = struct {
 
         if (@hasDecl(TargetType, "onExitSignal")) {
             const wrappedProcessEvents = struct {
-                pub fn func(pointer: *anyopaque) RttiDataEventError!void {
+                pub fn func(pointer: *anyopaque) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.onExitSignal();
                 }
@@ -136,59 +136,4 @@ pub const RttiData = struct {
     }
 };
 
-pub const NeonObjectRef = InterfaceRef(RttiData);
-
-const TestStruct = struct {
-
-    // Static interface to being a rttiObject
-    pub var NeonObjectTable: RttiData = RttiData.from(TestStruct);
-
-    wanker: u32,
-    timeAccumulation: f64 = 0.0,
-
-    pub fn init(allocator: std.mem.Allocator) !@This() {
-        _ = allocator;
-        std.debug.print("this is some real dynamic dispatch\n", .{});
-        return .{ .wanker = 42069 };
-    }
-
-    pub fn tick(self: *@This(), deltaTime: f64) void {
-        self.timeAccumulation += deltaTime;
-        std.debug.print("ticking!: time = {d}\n", .{self.timeAccumulation});
-    }
-};
-
-const TestStruct2 = struct {
-    wanker: u32,
-
-    pub fn init(allocator: std.mem.Allocator) !@This() {
-        _ = allocator;
-        std.debug.print("test construction2\n", .{});
-        return .{ .wanker = 69420 };
-    }
-};
-
-test "test rtti data" {
-    const types = [_]RttiData{
-        RttiData.from(TestStruct),
-        RttiData.from(TestStruct2),
-    };
-
-    var x: TestStruct = undefined;
-    var y: TestStruct2 = undefined;
-
-    types[0].init_func(std.testing.allocator, @as(*anyopaque, @ptrCast(&x)));
-    types[1].init_func(std.testing.allocator, @as(*anyopaque, @ptrCast(&y)));
-
-    for (types, 0..) |t, i| {
-        std.debug.print("{d}: {s} (0x{x})\n", .{ i, t.typeName.utf8, t.typeName.hash });
-    }
-
-    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
-    RttiData.from(@TypeOf(x)).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
-    (&TestStruct.NeonObjectTable).tick_func.?(@as(*anyopaque, @ptrCast(&x)), 0.013);
-    try std.testing.expect(x.wanker == 42069);
-    try std.testing.expect(y.wanker == 69420);
-}
+pub const EngineObjectRef = InterfaceRef(RttiData);

@@ -50,7 +50,7 @@ pub const NeonVkImGui = struct {
     pub fn tick(_: *Self, _: f64) void {}
 
     // NeonObject interface
-    pub fn preTick(_: *Self, _: f64) core.RttiDataEventError!void {
+    pub fn preTick(_: *Self, _: f64) core.EngineDataEventError!void {
         c.ImGui_ImplGlfw_NewFrame();
         c.cImGui_vk_NewFrame();
         c.igNewFrame();
@@ -147,21 +147,16 @@ pub const NeonVkImGui = struct {
         try self.ctx.registerRendererPlugin(self);
     }
 
-    // todo, rendererInterface should not have this as mandatory
-    pub fn onBindObject(_: *@This(), _: core.ObjectHandle, _: usize, _: vk.CommandBuffer, _: usize) void {}
-
-    pub fn setupVulkanWindow(self: *Self) void {
-        const ctx = self.ctx;
-        _ = ctx;
-    }
-
-    pub fn deinit(self: *Self) void {
+    pub fn onRendererTeardown(self: *Self) void {
         // c.ImGui_ImplGlfw_Shutdown();
         const ctx = self.ctx;
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
-
         c.cImGui_vk_Shutdown();
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.allocator.destroy(self);
     }
 };
 
