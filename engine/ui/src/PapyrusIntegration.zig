@@ -605,7 +605,7 @@ pub fn deinit(self: *@This()) void {
     self.allocator.destroy(self);
 }
 
-pub fn processEvents(self: *@This(), frameNumber: u64) core.RttiDataEventError!void {
+pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
     _ = frameNumber;
     _ = self;
 }

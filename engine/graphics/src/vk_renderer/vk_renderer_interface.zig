@@ -15,9 +15,10 @@ pub const RendererInterface = struct {
     typeSize: usize,
     typeAlign: usize,
 
-    preDraw: *const fn (*anyopaque, frameId: usize) void,
-    onBindObject: *const fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
+    preDraw: ?*const fn (*anyopaque, frameId: usize) void,
+    onBindObject: ?*const fn (*anyopaque, ObjectHandle, usize, vk.CommandBuffer, usize) void,
     postDraw: ?*const fn (*anyopaque, vk.CommandBuffer, usize, f64) void,
+    onRendererTeardown: ?*const fn (*anyopaque) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -35,31 +36,34 @@ pub const RendererInterface = struct {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.postDraw(cmd, frameIndex, deltaTime);
             }
+
+            pub fn onRendererTeardown(pointer: *anyopaque) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                ptr.onRendererTeardown();
+            }
         };
 
-        inline for (.{ "preDraw", "onBindObject" }) |declName| {
-            if (!@hasDecl(TargetType, declName)) {
-                @compileError(
-                    std.fmt.comptimePrint(
-                        "Tried to Generate {s} for type {s} but it's missing {s}",
-                        .{ @typeName(@This()), @typeName(TargetType), declName },
-                    ),
-                );
-            }
-        }
+        // everything is custom now so, i dont think it even needs to do anything
+        // inline for (.{}) |declName| {
+        //     if (!@hasDecl(TargetType, declName)) {
+        //         @compileError(
+        //             std.fmt.comptimePrint(
+        //                 "Tried to Generate {s} for type {s} but it's missing {s}",
+        //                 .{ @typeName(@This()), @typeName(TargetType), declName },
+        //             ),
+        //         );
+        //     }
+        // }
 
-        var self = @This(){
+        const self = @This(){
             .typeName = MakeTypeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
-            .preDraw = wrappedFuncs.preDraw,
-            .onBindObject = wrappedFuncs.onBindObject,
-            .postDraw = null,
+            .preDraw = if (@hasDecl(TargetType, "preDraw")) wrappedFuncs.preDraw else null,
+            .onBindObject = if (@hasDecl(TargetType, "onBindObject")) wrappedFuncs.onBindObject else null,
+            .onRendererTeardown = if (@hasDecl(TargetType, "onRendererTeardown")) wrappedFuncs.onRendererTeardown else null,
+            .postDraw = if (@hasDecl(TargetType, "postDraw")) wrappedFuncs.postDraw else null,
         };
-
-        if (@hasDecl(TargetType, "postDraw")) {
-            self.postDraw = wrappedFuncs.postDraw;
-        }
 
         return self;
     }

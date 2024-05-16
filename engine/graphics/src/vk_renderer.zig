@@ -551,8 +551,8 @@ pub const NeonVkContext = struct {
         return self;
     }
 
-    pub fn postInit(self: *@This()) core.RttiDataEventError!void {
-        self.init_dynamic_mesh() catch return core.RttiDataEventError.UnknownStatePanic;
+    pub fn postInit(self: *@This()) core.EngineDataEventError!void {
+        self.init_dynamic_mesh() catch return core.EngineDataEventError.UnknownStatePanic;
     }
 
     pub fn init_uploader(self: *@This()) !void {
@@ -1325,7 +1325,9 @@ pub const NeonVkContext = struct {
 
         // let plugins bind the render object.
         for (self.rendererPlugins.items) |*plugin| {
-            plugin.vtable.onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
+            if (plugin.vtable.onBindObject) |onBindObject| {
+                onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
+            }
         }
 
         if (self.lastMesh != render_object.mesh) {
@@ -1382,7 +1384,9 @@ pub const NeonVkContext = struct {
 
         var z10 = tracy.ZoneNC(@src(), "renderer plugins - preDraw", 0xAAFFFF);
         for (self.rendererPlugins.items) |*interface| {
-            interface.vtable.preDraw(interface.ptr, self.nextFrameIndex);
+            if (interface.vtable.preDraw) |preDraw| {
+                preDraw(interface.ptr, self.nextFrameIndex);
+            }
         }
         defer z10.End();
 
@@ -2426,6 +2430,12 @@ pub const NeonVkContext = struct {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
 
+        for (self.rendererPlugins.items) |*interface| {
+            if (interface.vtable.onRendererTeardown) |onRendererTeardown| {
+                onRendererTeardown(interface.ptr);
+            }
+        }
+
         while (self.outstandingJobsCount.load(.seq_cst) > 0) {
             std.debug.print("outstanding jobs: count = {d}\r", .{self.outstandingJobsCount.load(.seq_cst)});
             std.time.sleep(1000 * 1000 * 25);
@@ -2537,7 +2547,7 @@ pub const NeonVkContext = struct {
         return rv;
     }
 
-    pub fn onExitSignal(self: @This()) core.RttiDataEventError!void {
+    pub fn onExitSignal(self: @This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
         self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
     }

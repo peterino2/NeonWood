@@ -1,7 +1,7 @@
 const std = @import("std");
 const logging = @import("logging.zig");
 const input = @import("input.zig");
-const rtti = @import("rtti.zig");
+const engineObject = @import("engineObject.zig");
 const time = @import("engineTime.zig");
 const core = @import("core.zig");
 const jobs = @import("jobs.zig");
@@ -11,12 +11,12 @@ const p2 = @import("p2");
 const nfd = @import("nfd");
 
 const Atomic = std.atomic.Value;
-const RttiDataEventError = rtti.RttiDataEventError;
+const EngineDataEventError = engineObject.EngineDataEventError;
 
 const Name = p2.Name;
 const MakeName = p2.MakeName;
 
-const NeonObjectRef = rtti.NeonObjectRef;
+const EngineObjectRef = engineObject.EngineObjectRef;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const AutoHashMap = std.AutoHashMap;
@@ -24,8 +24,8 @@ const JobManager = jobs.JobManager;
 
 const engine_log = logging.engine_log;
 
-pub const PollFuncFn = *const fn (*anyopaque) RttiDataEventError!void;
-pub const ProcEventsFn = *const fn (*anyopaque, u64) RttiDataEventError!void;
+pub const PollFuncFn = *const fn (*anyopaque) EngineDataEventError!void;
+pub const ProcEventsFn = *const fn (*anyopaque, u64) EngineDataEventError!void;
 
 // perhaps a better name for this guy isn't actually engine, rather 'orchestrator' is more apt.
 // but that's so avant-garde
@@ -35,11 +35,11 @@ pub const Engine = struct {
 
     allocator: std.mem.Allocator,
 
-    // better name for these rtti objects is actually 'engine object'
-    rttiObjects: ArrayListUnmanaged(NeonObjectRef),
-    eventors: ArrayListUnmanaged(NeonObjectRef),
-    exitListeners: ArrayListUnmanaged(NeonObjectRef),
-    preTickables: ArrayListUnmanaged(NeonObjectRef),
+    // better name for these engineObject objects is actually 'engine object'
+    rttiObjects: ArrayListUnmanaged(EngineObjectRef),
+    eventors: ArrayListUnmanaged(EngineObjectRef),
+    exitListeners: ArrayListUnmanaged(EngineObjectRef),
+    preTickables: ArrayListUnmanaged(EngineObjectRef),
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     jobManager: *JobManager,
 
@@ -77,7 +77,9 @@ pub const Engine = struct {
         core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
 
-        for (self.rttiObjects.items) |item| {
+        var i: i32 = @intCast(self.rttiObjects.items.len - 1);
+        while (i >= 0) : (i -= 1) {
+            const item = self.rttiObjects.items[@as(usize, @intCast(i))];
             if (item.vtable.deinit_func) |deinitFn| {
                 deinitFn(item.ptr);
             }
@@ -105,7 +107,7 @@ pub const Engine = struct {
         const vtable = &@field(T, "NeonObjectTable");
         const newObjectPtr = try vtable.init_func(self.allocator);
 
-        const newObjectRef = NeonObjectRef{
+        const newObjectRef = EngineObjectRef{
             .ptr = @as(*anyopaque, @ptrCast(newObjectPtr)),
             .vtable = vtable,
         };

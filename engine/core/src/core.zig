@@ -5,7 +5,7 @@ const std = @import("std");
 pub usingnamespace @import("misc.zig");
 pub usingnamespace @import("logging.zig");
 pub usingnamespace @import("engineTime.zig");
-pub usingnamespace @import("rtti.zig");
+pub usingnamespace @import("engineObject.zig");
 pub usingnamespace @import("jobs.zig");
 pub usingnamespace @import("file_utils.zig");
 pub usingnamespace @import("string_utils.zig");

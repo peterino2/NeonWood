@@ -2,11 +2,11 @@
 // we can build on the rest of the engine.
 
 const std = @import("std");
-const rtti = @import("rtti.zig");
+const engineObject = @import("engineObject.zig");
 
 pub const InputSubsystem = struct {
     const Self = @This();
-    pub var NeonObjectTable: rtti.RttiData = rtti.RttiData.from(Self);
+    pub var NeonObjectTable: engineObject.RttiData = engineObject.RttiData.from(Self);
 
     allocator: std.mem.Allocator,
 

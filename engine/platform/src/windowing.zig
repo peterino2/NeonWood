@@ -155,7 +155,7 @@ pub const PlatformInstance = struct {
         core.setupEnginePlatform(self, enginePoll, processEvents);
     }
 
-    pub fn enginePoll(opaqueSelf: *anyopaque) core.RttiDataEventError!void {
+    pub fn enginePoll(opaqueSelf: *anyopaque) core.EngineDataEventError!void {
         var self: *@This() = @alignCast(@ptrCast(opaqueSelf));
 
         self.pollEvents();
@@ -246,7 +246,7 @@ pub const PlatformInstance = struct {
         }
     }
 
-    pub fn processEvents(ptr: *anyopaque, frameNumber: u64) core.RttiDataEventError!void {
+    pub fn processEvents(ptr: *anyopaque, frameNumber: u64) core.EngineDataEventError!void {
         const self: *@This() = @alignCast(@ptrCast(ptr));
         _ = frameNumber;
         var t1 = tracy.ZoneN(@src(), "Pumping Events");
