@@ -72,7 +72,6 @@ pub const SpirvGenerator2 = struct {
         const spvOutputFile = shaderCompile.addOutputFileArg(finalSpv);
 
         const spvOutputArtifact = self.b.addInstallFile(spvOutputFile, finalSpv);
-        spvOutputArtifact.step.dependOn(&shaderCompile.step);
 
         const jsonReflectStep = self.spirv_build.addSystemCommand(&[_][]const u8{"spirv-cross"});
         jsonReflectStep.addFileArg(spvOutputFile);
@@ -80,13 +79,7 @@ pub const SpirvGenerator2 = struct {
         jsonReflectStep.addArg("--output");
         const outputJson = jsonReflectStep.addOutputFileArg(finalJson);
 
-        jsonReflectStep.step.dependOn(&spvOutputArtifact.step);
-
-        const jsonReflectOutput = self.b.addInstallFile(outputJson, finalJson);
-        jsonReflectOutput.step.dependOn(&jsonReflectStep.step);
-
         const run_cmd = self.b.addRunArtifact(self.reflect);
-        run_cmd.step.dependOn(&jsonReflectOutput.step);
         run_cmd.addFileArg(outputJson);
         run_cmd.addArg("-o");
         const outputZigFile = run_cmd.addOutputFileArg(finalZig);
