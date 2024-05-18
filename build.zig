@@ -34,7 +34,7 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
         .target = opts.target,
         .optimize = opts.optimize,
         .nw_mod = nwdep.module("NeonWood"),
-        .spirvReflect = SpirvReflect.SpirvGenerator2.init(b, .{}),
+        .spirvReflect = SpirvReflect.SpirvGenerator2.init(nwdep.builder, .{}),
     };
 }
 
