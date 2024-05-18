@@ -139,7 +139,6 @@ pub fn build(b: *std.Build) void {
             .{
                 .target = target,
                 .optimize = optimize,
-                // .slow_logging = slow_logging,
             },
         );
         mod.addImport(depName, dep.module(depName));

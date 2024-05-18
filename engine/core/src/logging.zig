@@ -1,7 +1,7 @@
 const std = @import("std");
 const core = @import("core.zig");
 const tracy = @import("tracy");
-const build_opts = @import("game_build_opts");
+const build_opts = core.build_options;
 
 const builtin = @import("builtin");
 
