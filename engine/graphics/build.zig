@@ -22,6 +22,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/graphics.zig" },
     });
 
+    mod.addAnonymousImport("texture_sample.png", .{ .root_source_file = .{ .path = "defaults/texture_sample.png" } });
+
     const options = b.addOptions();
     options.addOption(bool, "force_mailbox", b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false);
 

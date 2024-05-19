@@ -10,9 +10,12 @@ pub const PngContents = struct {
     size: core.Vector2u,
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
-        const pngFileContents = try core.loadFileAlloc(filePath, 1, allocator);
-        defer allocator.free(pngFileContents);
+    pub fn initFromBytes(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8) !@This() {
+        const pngContents = try initFromBytesInner(allocator, pathName, pngFileContents);
+        return pngContents;
+    }
+
+    pub fn initFromBytesInner(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8) !@This() {
         var decoder = try spng.SpngContext.newDecoder();
         defer decoder.deinit();
 
@@ -20,17 +23,23 @@ pub const PngContents = struct {
         const header = try decoder.getHeader();
 
         const imageSize = @as(usize, @intCast(header.width * header.height * 4));
-        core.graphics_log("loaded png {s}, dimensions={d}x{d}", .{ filePath, header.width, header.height });
+        core.graphics_log("png loaded, dimensions={d}x{d}", .{ header.width, header.height });
         const pixels: []u8 = try allocator.alloc(u8, imageSize);
         const len = try decoder.decode(pixels, spng.SPNG_FMT_RGBA8, spng.SPNG_DECODE_TRNS);
         try core.assertf(len == pixels.len, "decoded pixel size not buffer size {d} != {d}", .{ len, pixels.len });
 
         return PngContents{
-            .path = try core.dupe(u8, allocator, filePath),
+            .path = try core.dupe(u8, allocator, pathName),
             .pixels = pixels,
             .size = .{ .x = header.width, .y = header.height },
             .allocator = allocator,
         };
+    }
+
+    pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
+        const pngFileContents = try core.loadFileAlloc(filePath, 1, allocator);
+        defer allocator.free(pngFileContents);
+        return try initFromBytesInner(allocator, filePath, pngFileContents);
     }
 
     pub fn deinit(self: *@This()) void {
