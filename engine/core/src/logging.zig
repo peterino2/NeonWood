@@ -1,18 +1,20 @@
 const std = @import("std");
 const core = @import("core.zig");
 const tracy = @import("tracy");
-const build_opts = core.build_options;
+//const build_opts = core.build_options;
 
 const builtin = @import("builtin");
 
 var gLoggerSys: ?*LoggerSys = null;
 
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
-    if (build_opts.zero_logging) {
+    //if (build_opts.zero_logging) {
+    if (false) {
         return;
     }
 
-    if (build_opts.slow_logging) {
+    //if (build_opts.slow_logging) {
+    if (false) {
         std.debug.print("> " ++ fmt, args);
     } else {
         if (gLoggerSys) |loggerSys| {

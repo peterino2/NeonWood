@@ -41,7 +41,7 @@ pub const MemoryTracker = @import("MemoryTracker.zig");
 const logging = @import("logging.zig");
 const c = @This();
 
-pub const build_options = @import("root").build_options;
+//pub const build_options = @import("root").build_options;
 
 const logs = logging.engine_logs;
 const log = logging.engine_log;

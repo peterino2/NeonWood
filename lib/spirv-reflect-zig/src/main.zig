@@ -94,7 +94,7 @@ fn parseArgs(allocator: std.mem.Allocator) !ProgramOptions {
                 const embedFile = try dupe(allocator, arg);
 
                 const replacements = std.mem.replace(u8, arg, "\\", "/", embedFile);
-                std.debug.print("replacements = {d}", .{replacements});
+                _ = replacements;
 
                 if (opts.embedFile != null)
                     allocator.free(opts.embedFile.?);

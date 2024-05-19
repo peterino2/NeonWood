@@ -34,7 +34,7 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
         .target = opts.target,
         .optimize = opts.optimize,
         .nw_mod = nwdep.module("NeonWood"),
-        .spirvReflect = SpirvReflect.SpirvGenerator2.init(b, .{}),
+        .spirvReflect = SpirvReflect.SpirvGenerator2.init(nwdep.builder, .{}),
     };
 }
 
@@ -85,33 +85,33 @@ pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.C
     return exe;
 }
 
-// pub fn createGameOptions(b: *std.Build) *std.Build.Step.Options {
-//     const opts = b.addOptions();
-//
-//     // build options for core.zig
-//     opts.addOption(
-//         bool,
-//         "mutex_job_queue",
-//         b.option(bool, "mutex_job_queue", "temporary test, reverts to old mutex based queue behaviour in jobs.zig:JobManager") orelse false,
-//     );
-//     opts.addOption(
-//         bool,
-//         "zero_logging",
-//         b.option(bool, "zero_logging", "disables all logging, only intended for use on job dispatch testing") orelse false,
-//     );
-//     opts.addOption(
-//         bool,
-//         "slow_logging",
-//         b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false,
-//     );
-//     opts.addOption(
-//         bool,
-//         "force_mailbox",
-//         b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false,
-//     );
-//
-//     return opts;
-// }
+pub fn createGameOptions(b: *std.Build) *std.Build.Step.Options {
+    const opts = b.addOptions();
+
+    // build options for core.zig
+    opts.addOption(
+        bool,
+        "mutex_job_queue",
+        b.option(bool, "mutex_job_queue", "temporary test, reverts to old mutex based queue behaviour in jobs.zig:JobManager") orelse false,
+    );
+    opts.addOption(
+        bool,
+        "zero_logging",
+        b.option(bool, "zero_logging", "disables all logging, only intended for use on job dispatch testing") orelse false,
+    );
+    opts.addOption(
+        bool,
+        "slow_logging",
+        b.option(bool, "slow_logging", "Disables buffered logging, takes a hit to performance but gain timing information on logging") orelse false,
+    );
+    opts.addOption(
+        bool,
+        "force_mailbox",
+        b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false,
+    );
+
+    return opts;
+}
 
 // ========= standalone build instance =======
 // maybe it should be an engine launcher or something..
