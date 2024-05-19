@@ -148,13 +148,13 @@ pub const DebugDrawSubsystem = struct {
     pub fn createMaterial(self: *@This()) !void {
         var gc: *graphics.NeonVkContext = self.gc;
 
-        core.graphics_logs("creating debug_vert");
-        const vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
-        defer gc.allocator.free(vert_spv);
+        // const vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
+        // defer gc.allocator.free(vert_spv);
+        // const frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
+        // defer gc.allocator.free(frag_spv);
 
-        core.graphics_logs("creating debug_frag");
-        const frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
-        defer gc.allocator.free(frag_spv);
+        const vert_spv = debug_vert.spv();
+        const frag_spv = debug_frag.spv();
 
         var pipelineBuilder = try graphics.NeonVkPipelineBuilder.init(
             gc.dev,

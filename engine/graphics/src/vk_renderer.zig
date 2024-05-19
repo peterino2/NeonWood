@@ -959,10 +959,12 @@ pub const NeonVkContext = struct {
 
         // Initialize the pipeline with the default triangle mesh shader
         // and the default lighting shader
-        const vert_spv = try graphics.loadSpv(self.allocator, "triangle_mesh_vert.spv");
-        defer self.allocator.free(vert_spv);
-        const frag_spv = try graphics.loadSpv(self.allocator, "default_lit.spv");
-        defer self.allocator.free(frag_spv);
+        // const vert_spv = try graphics.loadSpv(self.allocator, "triangle_mesh_vert.spv");
+        // defer self.allocator.free(vert_spv);
+        // const frag_spv = try graphics.loadSpv(self.allocator, "default_lit.spv");
+        // defer self.allocator.free(frag_spv);
+        const vert_spv = triangle_mesh_vert.spv();
+        const frag_spv = default_lit.spv();
 
         var pipeline_builder = try NeonVkPipelineBuilder.init(
             self.dev,
