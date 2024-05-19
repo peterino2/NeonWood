@@ -166,6 +166,12 @@ pub fn createAndInstallTextureFromPixels(
     return res;
 }
 
+pub fn load_and_stage_image_from_bytes(ctx: *NeonVkContext, bytes: []const u8) !LoadAndStageImage {
+    var pngContents = try PngContents.initFromBytes(ctx.allocator, "embeddedFile", bytes);
+    defer pngContents.deinit();
+    return try load_and_stage_image(ctx, pngContents);
+}
+
 pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8) !LoadAndStageImage {
     // When you record command buffers, their command pools can only be used from
     // one thread at a time. While you can create multiple command buffers from a
@@ -180,7 +186,11 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     // seperate command pool for each thread.
 
     var pngContents = try PngContents.init(ctx.allocator, filePath);
+    defer pngContents.deinit();
+    return try load_and_stage_image(ctx, pngContents);
+}
 
+pub fn load_and_stage_image(ctx: *NeonVkContext, pngContents: PngContents) !LoadAndStageImage {
     const imageExtent = vk.Extent3D{
         .width = @as(u32, @intCast(pngContents.size.x)),
         .height = @as(u32, @intCast(pngContents.size.y)),
@@ -204,8 +214,6 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
 
     const newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
     const stagingBuffer = try stagePixels(pngContents, ctx);
-
-    pngContents.deinit();
 
     return .{
         .stagingBuffer = stagingBuffer,

@@ -582,6 +582,30 @@ pub const NeonVkContext = struct {
         self.vkAllocator.vmaAllocator.unmapMemory(allocation);
     }
 
+    pub fn upload_texture_from_bytes(self: *@This(), bytes: []const u8) !*Texture {
+        var stagingResults = try vk_utils.load_and_stage_image_from_bytes(self, bytes);
+        defer stagingResults.stagingBuffer.deinit(self.vkAllocator);
+        try vk_utils.submit_copy_from_staging(self, stagingResults.stagingBuffer, stagingResults.image, stagingResults.mipLevel);
+        const image = stagingResults.image;
+
+        var imageViewCreate = vkinit.imageViewCreateInfo(
+            .r8g8b8a8_srgb,
+            image.image,
+            .{ .color_bit = true },
+            stagingResults.mipLevel,
+        );
+
+        imageViewCreate.subresource_range.level_count = stagingResults.mipLevel;
+        const imageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
+        const newTexture = try self.allocator.create(Texture);
+
+        newTexture.* = Texture{
+            .image = image,
+            .imageView = imageView,
+        };
+        return newTexture;
+    }
+
     pub fn upload_texture_from_file(self: *@This(), texturePath: []const u8) !*Texture {
         var stagingResults = try vk_utils.load_and_stage_image_from_file(self, texturePath);
         defer stagingResults.stagingBuffer.deinit(self.vkAllocator);
@@ -603,7 +627,6 @@ pub const NeonVkContext = struct {
             .image = image,
             .imageView = imageView,
         };
-
         return newTexture;
     }
 
@@ -685,6 +708,12 @@ pub const NeonVkContext = struct {
         try self.textureSets.put(self.allocator, textureToUpdate.handle(), results.descriptor);
     }
 
+    pub fn create_standard_texture_from_bytes(self: *Self, textureName: core.Name, bytes: []const u8) !*Texture {
+        const newTexture = try self.upload_texture_from_bytes(bytes);
+        try self.textures.put(self.allocator, textureName.handle(), newTexture);
+        return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
+    }
+
     pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
         const newTexture = try self.upload_texture_from_file(texturePath);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);
@@ -692,7 +721,8 @@ pub const NeonVkContext = struct {
     }
 
     pub fn load_core_textures(self: *Self) !void {
-        _ = try self.create_standard_texture_from_file(core.MakeName("missing_texture"), "content/textures/texture_sample.png");
+        const texture_sample_png = @embedFile("texture_sample.png");
+        _ = try self.create_standard_texture_from_bytes(core.MakeName("missing_texture"), texture_sample_png);
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {

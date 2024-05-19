@@ -71,7 +71,7 @@ pub const SpngContext = struct {
         };
     }
 
-    pub fn setBuffer(self: *@This(), buffer: []u8) !void {
+    pub fn setBuffer(self: *@This(), buffer: []const u8) !void {
         try checkResult(c.spng_set_png_buffer(self._ctx, buffer.ptr, buffer.len));
     }
 

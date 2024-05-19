@@ -36,7 +36,7 @@ pub fn start_everything_imgui(allocator: std.mem.Allocator, params: platform.win
     core.start_module(allocator); // 1
     try platform.start_module(std.heap.c_allocator, params); // 2
     assets.start_module(allocator); // 3
-    audio.start_module(allocator); //4
+    // audio.start_module(allocator); //4
     graphics.start_module(allocator); //5
     try ui.start_module(allocator); //6
     try vkImgui.start_module(allocator); //7
@@ -46,7 +46,7 @@ pub fn shutdown_everything_imgui(allocator: std.mem.Allocator) void {
     vkImgui.shutdown_module(allocator); //7
     ui.shutdown_module(); //6
     graphics.shutdown_module(); //5
-    audio.shutdown_module(); //4
+    // audio.shutdown_module(); //4
     assets.shutdown_module(allocator); //3
     platform.shutdown_module(allocator); //2
     core.shutdown_module(allocator); // 1
@@ -66,7 +66,7 @@ pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing
     core.start_module(allocator); // 1
     try platform.start_module(std.heap.c_allocator, params); // 2
     assets.start_module(allocator); // 3
-    audio.start_module(allocator); //4
+    // audio.start_module(allocator); //4
     graphics.start_module(allocator); //5
     try ui.start_module(allocator); //6
 }
@@ -74,7 +74,7 @@ pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing
 pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     ui.shutdown_module(); //6
     graphics.shutdown_module(); //5
-    audio.shutdown_module(); //4
+    // audio.shutdown_module(); //4
     assets.shutdown_module(allocator); //3
     platform.shutdown_module(allocator); //2
     core.shutdown_module(allocator); // 1
