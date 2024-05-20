@@ -1,0 +1,8 @@
+.{
+    .name = "packer",
+    .version = "0.0.0",
+    .dependencies = .{ .p2 = .{ .path = "../p2" } },
+    .paths = .{
+        "",
+    },
+}

@@ -7,6 +7,8 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 pub const assertf = utils.assertf;
 pub const asserts = utils.asserts;
 
+pub const createFileWithPath = utils.createFileWithPath;
+
 pub const static_structures = @import("structures/static-structures.zig");
 pub const StaticVector = static_structures.StaticVector;
 

@@ -1,4 +1,5 @@
 const std = @import("std");
+const p2 = @import("p2");
 
 // serialize format of the file:
 //
@@ -159,6 +160,18 @@ pub const PackedArchive = struct {
             try self.entriesByString.put(self.allocator, entry.getFileName(), i);
         }
         self.finished = true;
+    }
+
+    pub fn writeToFile(self: @This(), filePath: []const u8) !void {
+        std.debug.assert(self.contents.items.len == @as(usize, @intCast(self.readHeaderOffset())));
+
+        // create file
+        const file = try p2.createFileWithpath(filePath);
+        defer file.close();
+
+        // 1. write out contents buffer
+
+        // 2. verify that the header
     }
 
     pub fn addHeader(self: *@This(), fileEntry: PackedFileEntry) !void {
