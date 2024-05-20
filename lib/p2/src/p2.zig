@@ -6,6 +6,7 @@ const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 pub const assertf = utils.assertf;
 pub const asserts = utils.asserts;
+pub const assert = utils.assert;
 
 pub const createFileWithPath = utils.createFileWithPath;
 

@@ -9,6 +9,14 @@ const p2 = @import("p2");
 // Header format
 // "pack" @ 0x0 == 0x7061636B
 
+inline fn arrayTo_u32(array: anytype) u32 {
+    return @as(*const u32, @ptrCast(@alignCast(&array))).*;
+}
+
+inline fn arrayTo_u64(array: anytype) u64 {
+    return @as(*const u64, @ptrCast(@alignCast(&array))).*;
+}
+
 const PackerMagicBE: u32 = 0x7061636B; // spells out pack in ascii
 const PackerMagicLE: u32 = 0x6B636170; // spells out pack in ascii in little endian
 
@@ -37,38 +45,6 @@ pub const PackedArchive = struct {
     allocator: std.mem.Allocator,
     contents: *PackedArchiveContents,
     // file by convention is little-endian for u32s and u64s
-    //
-    // layout of packedArchiveContents
-    // 0x0 - 0x8                                                    : headerOffset
-    // 0x8 - headerOffset                                           : fileContents
-    // headerOffset - headerOffset + (headerOffset + 0x4 as u32)    : archiveHeader, header tracks it's length
-    //
-    // layout of archiveHeader
-    // 0x0 - 0x4                                                : headerMagic
-    // 0x4 - 0x8                                                : headerLength
-    // 0x8 - 0x12                                               : checksum/status (filled with 0xCCCCCCCC during writing)
-    // 0x12 - 0x16                                              : entriesCount
-    // 0x16 - 0x16 + entriesCount * sizeOf(archiveHeaderEntry)  : [entriesCount] archiveHeaderEntry
-    //
-    // layout of archiveHeaderEntry
-    // 16,8                        : archiveOffset + len
-    // 4, 4                        : nameHash (cityHash of string)
-    // 4, 4                        : nameLength
-    // 4, 4                        : typeHash (cityHash of header)
-    // 4, 4                        : typelength
-    // 128, 1                      : name
-    // 32, 1                       : type
-    //
-    // 184 bytes per entry...
-    //
-    // some sample asset paths
-    //
-    // basegame/weapons/guns/shotgun/skeleton/base_skeleton - 52 bytes
-    // developers/peter/sample/testing/story/main_region/main_region - 61 bytes
-    //
-    // knowing specifically what I know about a really large AAA game, something like that one world map is like 130,000 files in the archive
-    //
-    // 130,000 assets * 136 = 16 MiB in header info... not too bad...
     headerEntries: std.ArrayListUnmanaged(PackedFileEntry),
     entriesByString: std.StringHashMapUnmanaged(usize), // does not get serialized.
     finished: bool = false,
@@ -100,6 +76,34 @@ pub const PackedArchive = struct {
             return self;
         }
 
+        // todo make this a comptime, when i land and I am able to
+        // find out how comptime allocator interface looks.
+        pub fn calculateHeaderLen() usize {
+            // TODO
+            return 184;
+        }
+
+        // returns bytes written, not a true serialize function,
+        // writes out it's contents as it's meant to be read back to the writer.
+        pub fn writeHeader(self: @This(), writer: anytype, elementsCount: u32) !usize {
+            var bytesWritten: usize = 0;
+
+            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileOffset + (elementsCount * calculateHeaderLen()) + 8)));
+            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileLen)));
+
+            bytesWritten += try writer.write(&@as([4]u8, @bitCast(self.fileNameLen)));
+            bytesWritten += try writer.write(&@as([4]u8, @bitCast(self.typeLen)));
+
+            bytesWritten += try writer.write(&self.fileName);
+            bytesWritten += try writer.write(&self.typeName);
+
+            std.debug.assert(bytesWritten % 8 == 0);
+
+            std.debug.print("{s} serialized {d} bytes\n", .{ self.getFileName(), bytesWritten });
+
+            return bytesWritten;
+        }
+
         pub fn getTypeName(self: *const @This()) []const u8 {
             var slice: []const u8 = undefined;
 
@@ -127,17 +131,13 @@ pub const PackedArchive = struct {
             .entriesByString = .{},
         };
         self.contents.* = .{};
-        const writer = self.contents.writer(self.allocator);
-        // write in some initial stuff
-        const initialOffset: u64 = 0x8;
-        _ = try writer.write(&@as([8]u8, @bitCast(initialOffset)));
 
         return self;
     }
 
     pub fn appendFileByBytes(self: *@This(), fileType: []const u8, fileName: []const u8, bytes: []const u8) !void {
         const writer = self.contents.writer(self.allocator);
-        const fileOffset = self.readHeaderOffset(); // offset in contents, that the file will be written into
+        const fileOffset = self.contents.items.len;
 
         try writer.writeAll(bytes);
         const bytesWritten = bytes.len;
@@ -146,12 +146,8 @@ pub const PackedArchive = struct {
         const padding = 8 - ((bytesWritten + fileOffset) % 8);
         try writer.writeByteNTimes(0x0, padding);
 
-        const newHeaderOffset = fileOffset + bytesWritten + padding;
-
         const newHeaderEntry = try PackedFileEntry.init(fileType, fileName, fileOffset, @intCast(bytes.len));
         try self.addHeader(newHeaderEntry);
-
-        self.updateHeaderOffset(newHeaderOffset);
     }
 
     // finish building
@@ -162,16 +158,55 @@ pub const PackedArchive = struct {
         self.finished = true;
     }
 
-    pub fn writeToFile(self: @This(), filePath: []const u8) !void {
-        std.debug.assert(self.contents.items.len == @as(usize, @intCast(self.readHeaderOffset())));
+    pub fn loadFromReader(self: *@This(), reader: anytype) !void {
+        _ = self;
 
-        // create file
-        const file = try p2.createFileWithpath(filePath);
+        // read and verify magic
+        var magic: [4]u8 align(4) = undefined;
+        try p2.assert(try reader.read(&magic) == 4);
+        try p2.assert(arrayTo_u32(magic) == PackerMagic);
+        std.debug.print("magic = {s}\n", .{magic});
+        // read header entries count
+        var entriesCount: [4]u8 align(4) = undefined;
+        try p2.assert(try reader.read(&entriesCount) == 4);
+        std.debug.print("entriesCount = {d}\n", .{arrayTo_u32(entriesCount)});
+        // debug print all headers read
+    }
+
+    pub fn loadFromFile(self: *@This(), filePath: []const u8) !void {
+        // open file for reading
+        const file = try std.fs.cwd().openFile(filePath, .{});
         defer file.close();
 
-        // 1. write out contents buffer
+        try self.loadFromReader(file.reader());
+    }
 
-        // 2. verify that the header
+    pub fn writeToFile(self: @This(), filePath: []const u8) !void {
+
+        // create file
+        const file = try p2.createFileWithPath(filePath);
+        defer file.close();
+
+        const writer = file.writer();
+        // write out pack magic and number of header elements to indicate start of file.
+        try writer.writeAll(&@as([4]u8, @bitCast(PackerMagic)));
+        try writer.writeAll(&@as([4]u8, @bitCast(
+            @as(
+                u32,
+                @intCast(self.headerEntries.items.len),
+            ),
+        )));
+
+        var headerSize: usize = 0;
+
+        for (self.headerEntries.items) |entry| {
+            headerSize += try entry.writeHeader(writer, @intCast(self.headerEntries.items.len));
+        }
+
+        std.debug.print("total header size = {d}\n", .{headerSize});
+
+        // write out contents buffer,
+        try writer.writeAll(self.contents.items);
     }
 
     pub fn addHeader(self: *@This(), fileEntry: PackedFileEntry) !void {
@@ -183,10 +218,6 @@ pub const PackedArchive = struct {
         p.* = offset;
     }
 
-    pub fn readHeaderOffset(self: @This()) u64 {
-        return @as(*u64, @ptrCast(@alignCast(self.contents.items.ptr))).*;
-    }
-
     pub fn debugPrintAllFiles(self: @This()) void {
         for (self.headerEntries.items) |entry| {
             std.debug.print("> {s}({s}, size = {d} bytes)\n", .{
@@ -196,8 +227,7 @@ pub const PackedArchive = struct {
             });
         }
 
-        std.debug.print("headerOffset = {d} totalContentSize = {d}\n", .{
-            self.readHeaderOffset(),
+        std.debug.print("totalContentSize = {d}\n", .{
             self.contents.items.len - 8,
         });
     }

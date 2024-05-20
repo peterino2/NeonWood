@@ -84,6 +84,12 @@ pub fn asserts(eval: anytype, comptime fmt: []const u8, args: anytype, comptime 
     if (!eval) {
         std.debug.print("[Error]: " ++ fmt, args);
         std.debug.print("> " ++ tag, .{});
-        unreachable;
+        @panic("assertion failed");
+    }
+}
+
+pub fn assert(eval: anytype) !void {
+    if (!eval) {
+        return error.AssertFailure;
     }
 }

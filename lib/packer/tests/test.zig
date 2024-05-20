@@ -25,4 +25,9 @@ test "packer forward path" {
     archive.debugPrintAllFiles();
 
     try archive.writeToFile("test_output/archive.pak");
+
+    var archive2 = try packer.PackedArchive.initEmpty(std.testing.allocator);
+    defer archive2.deinit();
+
+    try archive2.loadFromFile("test_output/archive.pak");
 }
