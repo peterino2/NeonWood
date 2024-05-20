@@ -10,7 +10,7 @@ test "packer magic test" {
     try std.testing.expect(std.mem.eql(u8, &magic_as_u8, "pack"));
 }
 
-test "packer init" {
+test "packer forward path" {
     var archive = try packer.PackedArchive.initEmpty(std.testing.allocator);
     defer archive.deinit();
 
@@ -23,4 +23,6 @@ test "packer init" {
     try std.testing.expect(std.mem.eql(u8, test_zig, archive.getFileByName("testfiles/test/test.zig").?.raw_bytes));
 
     archive.debugPrintAllFiles();
+
+    try archive.writeToFile("test_output/archive.pak");
 }
