@@ -7,7 +7,19 @@ const p2 = @import("p2");
 //
 //
 // Header format
-// "pack" @ 0x0 == 0x7061636B
+inline fn u32_to_slice(array: *u32) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 4;
+    return slice;
+}
+
+inline fn u64_to_slice(array: *u64) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 8;
+    return slice;
+}
 
 inline fn arrayTo_u32(array: anytype) u32 {
     return @as(*const u32, @ptrCast(@alignCast(&array))).*;
@@ -21,6 +33,7 @@ const PackerMagicBE: u32 = 0x7061636B; // spells out pack in ascii
 const PackerMagicLE: u32 = 0x6B636170; // spells out pack in ascii in little endian
 
 // This is used so we can use a single 32 bit compare at the offset to check if we have the correct offset or not.
+// "pack" @ 0x0 == 0x7061636B
 pub const PackerMagic = if (std.mem.eql(u8, "pack", &@as([4]u8, @bitCast(PackerMagicBE))))
     PackerMagicBE
 else
@@ -47,6 +60,7 @@ pub const PackedArchive = struct {
     // file by convention is little-endian for u32s and u64s
     headerEntries: std.ArrayListUnmanaged(PackedFileEntry),
     entriesByString: std.StringHashMapUnmanaged(usize), // does not get serialized.
+    contentBuffer: []const u8 = undefined,
     finished: bool = false,
 
     const PackedFileEntry = struct {
@@ -83,12 +97,28 @@ pub const PackedArchive = struct {
             return 184;
         }
 
+        pub fn loadFromReader(self: *@This(), reader: anytype) !void {
+            var bytesRead: usize = 0;
+            bytesRead += try reader.read(u64_to_slice(&self.fileOffset));
+            bytesRead += try reader.read(u64_to_slice(&self.fileLen));
+            bytesRead += try reader.read(u32_to_slice(&self.fileNameLen));
+            bytesRead += try reader.read(u32_to_slice(&self.typeLen));
+
+            bytesRead += try reader.read(&self.fileName);
+            bytesRead += try reader.read(&self.typeName);
+
+            std.debug.assert(bytesRead == calculateHeaderLen());
+
+            std.debug.print("header deserialized {s} type: {s}\n", .{ self.getFileName(), self.getTypeName() });
+        }
+
         // returns bytes written, not a true serialize function,
         // writes out it's contents as it's meant to be read back to the writer.
         pub fn writeHeader(self: @This(), writer: anytype, elementsCount: u32) !usize {
+            _ = elementsCount;
             var bytesWritten: usize = 0;
 
-            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileOffset + (elementsCount * calculateHeaderLen()) + 8)));
+            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileOffset)));
             bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileLen)));
 
             bytesWritten += try writer.write(&@as([4]u8, @bitCast(self.fileNameLen)));
@@ -136,6 +166,7 @@ pub const PackedArchive = struct {
     }
 
     pub fn appendFileByBytes(self: *@This(), fileType: []const u8, fileName: []const u8, bytes: []const u8) !void {
+        try p2.assert(self.finished != true);
         const writer = self.contents.writer(self.allocator);
         const fileOffset = self.contents.items.len;
 
@@ -150,35 +181,88 @@ pub const PackedArchive = struct {
         try self.addHeader(newHeaderEntry);
     }
 
-    // finish building
-    pub fn finishBuilding(self: *@This()) !void {
+    // finish building, set externalContentData if this contents does NOT contain
+    // the actual content data, such as in the case where the content is
+    // sent over a network or if the content is embedded with @embedFile
+    pub fn finishBuilding(self: *@This(), externalContentData: bool) !void {
+        if (!externalContentData) {
+            self.contentBuffer = self.contents.items;
+        }
+
         for (self.headerEntries.items, 0..) |*entry, i| {
             try self.entriesByString.put(self.allocator, entry.getFileName(), i);
         }
         self.finished = true;
     }
 
-    pub fn loadFromReader(self: *@This(), reader: anytype) !void {
-        _ = self;
-
+    fn loadHeadersFromReader(self: *@This(), reader: anytype) !usize {
+        var bytesWritten: usize = 0;
         // read and verify magic
         var magic: [4]u8 align(4) = undefined;
         try p2.assert(try reader.read(&magic) == 4);
         try p2.assert(arrayTo_u32(magic) == PackerMagic);
         std.debug.print("magic = {s}\n", .{magic});
+        bytesWritten += 4;
+
         // read header entries count
-        var entriesCount: [4]u8 align(4) = undefined;
-        try p2.assert(try reader.read(&entriesCount) == 4);
-        std.debug.print("entriesCount = {d}\n", .{arrayTo_u32(entriesCount)});
-        // debug print all headers read
+        var entriesCount_read: [4]u8 align(4) = undefined;
+        try p2.assert(try reader.read(&entriesCount_read) == 4);
+        const entriesCount = arrayTo_u32(entriesCount_read);
+        std.debug.print("entriesCount = {d}\n", .{entriesCount});
+        bytesWritten += 4;
+
+        for (0..entriesCount) |_| {
+            const newEntry = try self.headerEntries.addOne(self.allocator);
+            try newEntry.loadFromReader(reader);
+            bytesWritten += PackedFileEntry.calculateHeaderLen();
+        }
+
+        return bytesWritten;
+    }
+
+    fn loadContentFromReader(self: *@This(), reader: anytype) !usize {
+        const writer = self.contents.writer(self.allocator);
+        var totalRead: usize = 0;
+
+        var readBuffer: [1024]u8 = undefined;
+        var bytesRead = try reader.read(&readBuffer);
+        totalRead += bytesRead;
+        _ = try writer.write((&readBuffer)[0..bytesRead]);
+
+        while (bytesRead > 0) {
+            bytesRead = try reader.read(&readBuffer);
+            _ = try writer.write((&readBuffer)[0..bytesRead]);
+            totalRead += bytesRead;
+        }
+
+        return totalRead;
+    }
+
+    fn setContentRefToOffset(self: *@This(), bytes: []const u8, offset: usize) void {
+        self.contentBuffer = bytes[offset..];
+    }
+
+    pub fn loadFromBytes(self: *@This(), bytes: []const u8) !void {
+        try p2.assert(self.finished != true);
+        const reader = std.io.fixedBufferStream(&bytes);
+        const bytesRead = try self.loadHeadersFromReader(reader);
+        self.setContentRefToOffset(bytes, bytesRead);
+        self.finishBuilding(true);
     }
 
     pub fn loadFromFile(self: *@This(), filePath: []const u8) !void {
+        try p2.assert(self.finished != true);
         // open file for reading
         const file = try std.fs.cwd().openFile(filePath, .{});
         defer file.close();
 
-        try self.loadFromReader(file.reader());
+        const reader = file.reader();
+        _ = try self.loadHeadersFromReader(reader);
+        const contentBytes = try self.loadContentFromReader(reader);
+
+        try self.finishBuilding(false);
+
+        std.debug.print("total content bytes {d}", .{contentBytes});
     }
 
     pub fn writeToFile(self: @This(), filePath: []const u8) !void {
@@ -244,7 +328,7 @@ pub const PackedArchive = struct {
             const header = &self.headerEntries.items[entryOffset];
             var bytes: []const u8 = undefined;
 
-            bytes.ptr = @ptrCast(&self.contents.items[header.fileOffset]);
+            bytes.ptr = @ptrCast(&self.contentBuffer[header.fileOffset]);
             bytes.len = header.fileLen;
 
             return .{

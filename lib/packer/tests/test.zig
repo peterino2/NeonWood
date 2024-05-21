@@ -18,7 +18,7 @@ test "packer forward path" {
     try archive.appendFileByBytes("text", "testFile.txt", testFile);
     try archive.appendFileByBytes("mesh", "lost_empire.obj", lost_empire);
 
-    try archive.finishBuilding();
+    try archive.finishBuilding(false);
 
     try std.testing.expect(std.mem.eql(u8, test_zig, archive.getFileByName("testfiles/test/test.zig").?.raw_bytes));
 
@@ -30,4 +30,16 @@ test "packer forward path" {
     defer archive2.deinit();
 
     try archive2.loadFromFile("test_output/archive.pak");
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        archive.getFileByName("testFile.txt").?.raw_bytes,
+        archive2.getFileByName("testFile.txt").?.raw_bytes,
+    ));
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        archive.getFileByName("lost_empire.obj").?.raw_bytes,
+        archive2.getFileByName("lost_empire.obj").?.raw_bytes,
+    ));
 }
