@@ -244,10 +244,10 @@ pub const PackedArchive = struct {
 
     pub fn loadFromBytes(self: *@This(), bytes: []const u8) !void {
         try p2.assert(self.finished != true);
-        const reader = std.io.fixedBufferStream(&bytes);
-        const bytesRead = try self.loadHeadersFromReader(reader);
+        var reader = std.io.fixedBufferStream(bytes);
+        const bytesRead = try self.loadHeadersFromReader(&reader);
         self.setContentRefToOffset(bytes, bytesRead);
-        self.finishBuilding(true);
+        try self.finishBuilding(true);
     }
 
     pub fn loadFromFile(self: *@This(), filePath: []const u8) !void {
@@ -262,7 +262,7 @@ pub const PackedArchive = struct {
 
         try self.finishBuilding(false);
 
-        std.debug.print("total content bytes {d}", .{contentBytes});
+        std.debug.print("total content bytes {d}\n", .{contentBytes});
     }
 
     pub fn writeToFile(self: @This(), filePath: []const u8) !void {

@@ -4,6 +4,8 @@ const utils = @import("structures/utils.zig");
 
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
+pub usingnamespace @import("structures/interface.zig");
+
 pub const assertf = utils.assertf;
 pub const asserts = utils.asserts;
 pub const assert = utils.assert;
