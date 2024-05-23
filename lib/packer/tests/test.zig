@@ -1,7 +1,8 @@
 const packer = @import("packer");
 const testFile = @embedFile("testFile.txt");
 const lost_empire = @embedFile("lost_empire.obj");
-const test_zig = @embedFile("test.zig");
+const monkey = @embedFile("monkey.obj");
+const embeddedArchive = @embedFile("archive.pak");
 const std = @import("std");
 
 test "packer magic test" {
@@ -14,13 +15,14 @@ test "packer forward path" {
     var archive = try packer.PackedArchive.initEmpty(std.testing.allocator);
     defer archive.deinit();
 
-    try archive.appendFileByBytes("raw_bytes", "testfiles/test/test.zig", test_zig);
+    try archive.appendFileByBytes("raw_bytes", "monkey.obj", monkey);
     try archive.appendFileByBytes("text", "testFile.txt", testFile);
     try archive.appendFileByBytes("mesh", "lost_empire.obj", lost_empire);
 
     try archive.finishBuilding(false);
 
-    try std.testing.expect(std.mem.eql(u8, test_zig, archive.getFileByName("testfiles/test/test.zig").?.raw_bytes));
+    try std.testing.expect(std.mem.eql(u8, monkey, archive.getFileByName("monkey.obj").?.raw_bytes));
+    // hmmm
 
     archive.debugPrintAllFiles();
 
@@ -41,5 +43,22 @@ test "packer forward path" {
         u8,
         archive.getFileByName("lost_empire.obj").?.raw_bytes,
         archive2.getFileByName("lost_empire.obj").?.raw_bytes,
+    ));
+
+    var archive3 = try packer.PackedArchive.initEmpty(std.testing.allocator);
+    defer archive3.deinit();
+
+    try archive3.loadFromBytes(embeddedArchive);
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        archive.getFileByName("testFile.txt").?.raw_bytes,
+        archive3.getFileByName("testFile.txt").?.raw_bytes,
+    ));
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        archive.getFileByName("lost_empire.obj").?.raw_bytes,
+        archive3.getFileByName("lost_empire.obj").?.raw_bytes,
     ));
 }
