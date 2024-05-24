@@ -26,6 +26,29 @@ pub fn refFromPtr(comptime Interface: type, ptr: anytype) Reference(Interface) {
 test "simple" {
     const std = @import("std");
 
+    const TestOtherInterface = MakeInterface("TestOtherInterfaceVTable", struct {
+        testOtherfn: *const fn (*anyopaque, f64, f64) f64,
+
+        pub fn Implement(comptime T: type) @This() {
+            const Wrap = struct {
+                pub fn testOtherfn(p: *anyopaque, a: f64, b: f64) f64 {
+                    const ptr: *T = @ptrCast(@alignCast(p));
+                    return ptr.testOtherfn(a, b);
+                }
+            };
+
+            inline for (@typeInfo(Wrap).Struct.decls) |d| {
+                if (!@hasDecl(T, d.name)) {
+                    @compileError(@typeName(T) ++ " is missing implementation of func " ++ d.name);
+                }
+            }
+
+            return .{
+                .testOtherfn = Wrap.testOtherfn,
+            };
+        }
+    });
+
     const TestInterface = MakeInterface("TestInterfaceVTable", struct {
         testfn1: *const fn (*anyopaque, f64, f64) f64,
         testfn2: *const fn (*anyopaque, []const u8) void,
@@ -59,14 +82,24 @@ test "simple" {
         name: []const u8,
 
         pub const TestInterfaceVTable = TestInterface.Implement(@This());
+        pub const TestOtherInterfaceVTable = TestOtherInterface.Implement(@This());
 
+        // gathered into TestInterfaceVTable
         pub fn testfn1(self: *@This(), a: f64, b: f64) f64 {
             std.debug.print("{s}: a + b == {d}\n", .{ self.name, a + b });
             return a + b;
         }
 
+        // gathered into TestInterfaceVTable
         pub fn testfn2(self: *@This(), msg: []const u8) void {
             std.debug.print("{s}: msg: {s}\n", .{ self.name, msg });
+        }
+
+        // gathered into TestOtherInterfaceVTable
+        pub fn testOtherfn(self: *@This(), a: f64, b: f64) f64 {
+            _ = self;
+            std.debug.print(">: a - b == {d}\n", .{a - b});
+            return a - b;
         }
     };
 
@@ -97,4 +130,7 @@ test "simple" {
     for (refs) |r| {
         _ = r.vtable.testfn1(r.ptr, 12.0, 24.0);
     }
+
+    const ref = refFromPtr(TestOtherInterface, &t1);
+    _ = ref.vtable.testOtherfn(ref.ptr, 12.0, 42.0);
 }
