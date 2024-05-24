@@ -31,7 +31,7 @@ All executables are built under zig-out/bin
 
 ```{bash}
 git clone https://github.com/peterino2/NeonWood.git --recursive && cd NeonWood
-cd engine
+cd projects
 zig build install
 ```
 

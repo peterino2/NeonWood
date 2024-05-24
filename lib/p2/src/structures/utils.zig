@@ -1,5 +1,19 @@
 const std = @import("std");
 
+pub fn createFileWithPath(filePath: []const u8) !std.fs.File {
+    var splitEndIterator = std.mem.splitBackwardsAny(u8, filePath, "\\/");
+
+    if (splitEndIterator.next()) |first| {
+        const newSlice = filePath[0 .. filePath.len - first.len];
+        std.debug.print("ensuring Dir is created {s}\n", .{newSlice});
+        try std.fs.cwd().makePath(newSlice);
+    }
+
+    // create file
+    const file = try std.fs.cwd().createFile(filePath, .{ .read = true, .truncate = true });
+    return file;
+}
+
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{});
     const filesize = (try file.stat()).size;
@@ -70,6 +84,12 @@ pub fn asserts(eval: anytype, comptime fmt: []const u8, args: anytype, comptime 
     if (!eval) {
         std.debug.print("[Error]: " ++ fmt, args);
         std.debug.print("> " ++ tag, .{});
-        unreachable;
+        @panic("assertion failed");
+    }
+}
+
+pub fn assert(eval: anytype) !void {
+    if (!eval) {
+        return error.AssertFailure;
     }
 }
