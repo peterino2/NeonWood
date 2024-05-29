@@ -1,15 +1,6 @@
 const std = @import("std");
 const logging = @import("logging.zig");
 
-// Higher level file functions.
-pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
-    var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
-    const filesize = (try file.stat()).size;
-    const buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
-    try file.reader().readNoEof(buffer);
-    return buffer;
-}
-
 pub fn writeToFile(data: []const u8, path: []const u8) !void {
     const file = try std.fs.cwd().createFile(
         path,

@@ -34,8 +34,6 @@ pub const Engine = engine.Engine;
 const Name = algorithm.Name;
 pub const spng = @import("spng");
 
-pub const assert = std.debug.assert;
-
 pub const MemoryTracker = @import("MemoryTracker.zig");
 
 const logging = @import("logging.zig");

@@ -128,7 +128,6 @@ pub fn MakeName(string: []const u8) Name {
     return Name.MakeComptime(string);
 }
 
-// To make a Name, create one from a registry, call registry.name() or registry.cname() if it's a comptime name.
 pub const Name = struct {
     index: ?u32 = 0,
     string: []const u8 = "Invalid",

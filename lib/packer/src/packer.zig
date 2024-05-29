@@ -1,48 +1,20 @@
 const std = @import("std");
 const p2 = @import("p2");
 
+const PackedFileEntry = @import("PackedFileEntry.zig");
+
+const packerfs = @import("packerfs.zig");
+pub const PackerFS = packerfs.PackerFS;
+
 // serialize format of the file:
 //
 // HeaderOffset(uint64)@0x00
 //
 //
 // Header format
-inline fn u32_to_slice(array: *u32) []u8 {
-    var slice: []u8 = undefined;
-    slice.ptr = @ptrCast(array);
-    slice.len = 4;
-    return slice;
-}
 
-inline fn u64_to_slice(array: *u64) []u8 {
-    var slice: []u8 = undefined;
-    slice.ptr = @ptrCast(array);
-    slice.len = 8;
-    return slice;
-}
-
-inline fn arrayTo_u32(array: anytype) u32 {
-    return @as(*const u32, @ptrCast(@alignCast(&array))).*;
-}
-
-inline fn arrayTo_u64(array: anytype) u64 {
-    return @as(*const u64, @ptrCast(@alignCast(&array))).*;
-}
-
-const PackerMagicBE: u32 = 0x7061636B; // spells out pack in ascii
-const PackerMagicLE: u32 = 0x6B636170; // spells out pack in ascii in little endian
-
-// This is used so we can use a single 32 bit compare at the offset to check if we have the correct offset or not.
-// "pack" @ 0x0 == 0x7061636B
-pub const PackerMagic = if (std.mem.eql(u8, "pack", &@as([4]u8, @bitCast(PackerMagicBE))))
-    PackerMagicBE
-else
-    PackerMagicLE;
-
-pub const littleEndian = if (std.mem.eql(u8, "pack", &@as([4]u8, @bitCast(PackerMagicBE))))
-    false
-else
-    true;
+const constants = @import("constants.zig");
+pub const PackerMagic = constants.PackerMagic;
 
 // this is invalidated if a PackedArhive is modified
 pub const PackerBytesRef = struct {
@@ -62,96 +34,6 @@ pub const PackedArchive = struct {
     entriesByString: std.StringHashMapUnmanaged(usize), // does not get serialized.
     contentBuffer: []const u8 = undefined,
     finished: bool = false,
-
-    const PackedFileEntry = struct {
-        fileOffset: u64,
-        fileLen: u64,
-
-        fileNameLen: u32,
-
-        typeLen: u32,
-
-        fileName: [128]u8 = std.mem.zeroes([128]u8), // 128 bytes, zero-init because zeros are written to file for padding
-        typeName: [32]u8 = std.mem.zeroes([32]u8), // 32 bytes, zero-init because zeros are written to file for padding
-        //
-        pub fn init(typeName: []const u8, fileName: []const u8, fileOffset: u64, fileLen: u64) !@This() {
-            var self = @This(){
-                .fileLen = fileLen,
-                .fileOffset = fileOffset,
-
-                .fileNameLen = @intCast(fileName.len),
-
-                .typeLen = @intCast(typeName.len),
-            };
-
-            _ = try std.fmt.bufPrint(&self.fileName, "{s}", .{fileName});
-            _ = try std.fmt.bufPrint(&self.typeName, "{s}", .{typeName});
-
-            return self;
-        }
-
-        // todo make this a comptime, when i land and I am able to
-        // find out how comptime allocator interface looks.
-        pub fn calculateHeaderLen() usize {
-            // TODO
-            return 184;
-        }
-
-        pub fn loadFromReader(self: *@This(), reader: anytype) !void {
-            var bytesRead: usize = 0;
-            bytesRead += try reader.read(u64_to_slice(&self.fileOffset));
-            bytesRead += try reader.read(u64_to_slice(&self.fileLen));
-            bytesRead += try reader.read(u32_to_slice(&self.fileNameLen));
-            bytesRead += try reader.read(u32_to_slice(&self.typeLen));
-
-            bytesRead += try reader.read(&self.fileName);
-            bytesRead += try reader.read(&self.typeName);
-
-            std.debug.assert(bytesRead == calculateHeaderLen());
-
-            std.debug.print("header deserialized {s} type: {s}\n", .{ self.getFileName(), self.getTypeName() });
-        }
-
-        // returns bytes written, not a true serialize function,
-        // writes out it's contents as it's meant to be read back to the writer.
-        pub fn writeHeader(self: @This(), writer: anytype, elementsCount: u32) !usize {
-            _ = elementsCount;
-            var bytesWritten: usize = 0;
-
-            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileOffset)));
-            bytesWritten += try writer.write(&@as([8]u8, @bitCast(self.fileLen)));
-
-            bytesWritten += try writer.write(&@as([4]u8, @bitCast(self.fileNameLen)));
-            bytesWritten += try writer.write(&@as([4]u8, @bitCast(self.typeLen)));
-
-            bytesWritten += try writer.write(&self.fileName);
-            bytesWritten += try writer.write(&self.typeName);
-
-            std.debug.assert(bytesWritten % 8 == 0);
-
-            std.debug.print("{s} serialized {d} bytes\n", .{ self.getFileName(), bytesWritten });
-
-            return bytesWritten;
-        }
-
-        pub fn getTypeName(self: *const @This()) []const u8 {
-            var slice: []const u8 = undefined;
-
-            slice.ptr = @ptrCast(&self.typeName);
-            slice.len = self.typeLen;
-
-            return slice;
-        }
-
-        pub fn getFileName(self: *const @This()) []const u8 {
-            var slice: []const u8 = undefined;
-
-            slice.ptr = @ptrCast(&self.fileName);
-            slice.len = self.fileNameLen;
-
-            return slice;
-        }
-    };
 
     pub fn initEmpty(allocator: std.mem.Allocator) !@This() {
         const self: @This() = .{
@@ -196,28 +78,11 @@ pub const PackedArchive = struct {
     }
 
     fn loadHeadersFromReader(self: *@This(), reader: anytype) !usize {
-        var bytesWritten: usize = 0;
-        // read and verify magic
-        var magic: [4]u8 align(4) = undefined;
-        try p2.assert(try reader.read(&magic) == 4);
-        try p2.assert(arrayTo_u32(magic) == PackerMagic);
-        std.debug.print("magic = {s}\n", .{magic});
-        bytesWritten += 4;
-
-        // read header entries count
-        var entriesCount_read: [4]u8 align(4) = undefined;
-        try p2.assert(try reader.read(&entriesCount_read) == 4);
-        const entriesCount = arrayTo_u32(entriesCount_read);
-        std.debug.print("entriesCount = {d}\n", .{entriesCount});
-        bytesWritten += 4;
-
-        for (0..entriesCount) |_| {
-            const newEntry = try self.headerEntries.addOne(self.allocator);
-            try newEntry.loadFromReader(reader);
-            bytesWritten += PackedFileEntry.calculateHeaderLen();
+        var iterator = try PackedFileEntry.ReaderIterator.init(reader);
+        while (try iterator.next(reader)) |entry| {
+            try self.headerEntries.append(self.allocator, entry);
         }
-
-        return bytesWritten;
+        return iterator.bytesRead;
     }
 
     fn loadContentFromReader(self: *@This(), reader: anytype) !usize {
@@ -349,3 +214,28 @@ pub const PackedArchive = struct {
         self.allocator.destroy(self.contents);
     }
 };
+
+fn loadHeadersFromReader(self: *@This(), reader: anytype) !usize {
+    var bytesRead: usize = 0;
+    // read and verify magic
+    var magic: [4]u8 align(4) = undefined;
+    try p2.assert(try reader.read(&magic) == 4);
+    try p2.assert(p2.arrayTo_u32(magic) == PackerMagic);
+    std.debug.print("magic = {s}\n", .{magic});
+    bytesRead += 4;
+
+    // read header entries count
+    var entriesCount_read: [4]u8 align(4) = undefined;
+    try p2.assert(try reader.read(&entriesCount_read) == 4);
+    const entriesCount = p2.arrayTo_u32(entriesCount_read);
+    std.debug.print("entriesCount = {d}\n", .{entriesCount});
+    bytesRead += 4;
+
+    for (0..entriesCount) |_| {
+        const newEntry = try self.headerEntries.addOne(self.allocator);
+        try newEntry.loadFromReader(reader);
+        bytesRead += PackedFileEntry.calculateHeaderLen();
+    }
+
+    return bytesRead;
+}

@@ -18,9 +18,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .root_source_file = .{ .path = "tests/test.zig" },
+        .link_libc = true,
     });
     test_exe.root_module.addImport("packer", mod);
 
-    const test_step = b.step("test", "runs sample unit tests for packer");
+    const test_step = b.step("test-packer", "runs sample unit tests for packer");
     test_step.dependOn(&b.addRunArtifact(test_exe).step);
 }

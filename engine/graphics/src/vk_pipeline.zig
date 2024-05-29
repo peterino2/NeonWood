@@ -214,7 +214,7 @@ pub const NeonVkPipelineBuilder = struct {
     pub fn add_layout(self: *NeonVkPipelineBuilder, layout: vk.DescriptorSetLayout) !void {
         if (self.plci == null) {
             self.plci = default_pipeline_layout();
-            assert(self.descriptorLayouts.items.len == 0);
+            try assert(self.descriptorLayouts.items.len == 0);
         }
 
         try self.descriptorLayouts.append(layout);

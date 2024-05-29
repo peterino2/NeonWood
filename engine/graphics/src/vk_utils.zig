@@ -271,7 +271,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
 }
 
 fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !void {
-    core.assert(mipLevels > 0);
+    try core.assert(mipLevels > 0);
     const cmd = ctx.uploader.commandBuffer;
     const img = vkImage.image;
 

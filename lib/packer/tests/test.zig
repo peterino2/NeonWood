@@ -5,6 +5,8 @@ const monkey = @embedFile("monkey.obj");
 const embeddedArchive = @embedFile("archive.pak");
 const std = @import("std");
 
+const PackerFS = packer.PackerFS;
+
 test "packer magic test" {
     const magic_as_u8: [4]u8 = @bitCast(packer.PackerMagic);
     std.debug.print("magic = {s}\n", .{magic_as_u8});
@@ -61,4 +63,29 @@ test "packer forward path" {
         archive.getFileByName("lost_empire.obj").?.raw_bytes,
         archive3.getFileByName("lost_empire.obj").?.raw_bytes,
     ));
+
+    const file = std.fs.cwd().openFile("tests/archive.pak", .{});
+    defer file.close();
+
+    const mapped_mem = try std.c.mmap(
+        null,
+        embeddedArchive.len,
+        std.posix.PROT.READ,
+        std.posix.MAP.SHARED,
+        file,
+        null,
+    );
+    defer std.posix.munmap(mapped_mem);
+    try std.testing.expect(u8, embeddedArchive, mapped_mem);
+}
+
+test "packerfs_test" {
+    const fs = try PackerFS.init(std.testing.allocator);
+    defer fs.destroy();
+
+    try fs.discoverFromFile("tests/archive.pak");
+    try std.testing.expect(fs.countFilesDiscovered() == 3);
+
+    const lost_empire_mapping = try fs.loadFileByPath();
+    defer fs.unmap(lost_empire_mapping);
 }
