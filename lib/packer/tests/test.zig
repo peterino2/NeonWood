@@ -63,29 +63,18 @@ test "packer forward path" {
         archive.getFileByName("lost_empire.obj").?.raw_bytes,
         archive3.getFileByName("lost_empire.obj").?.raw_bytes,
     ));
-
-    const file = std.fs.cwd().openFile("tests/archive.pak", .{});
-    defer file.close();
-
-    const mapped_mem = try std.c.mmap(
-        null,
-        embeddedArchive.len,
-        std.posix.PROT.READ,
-        std.posix.MAP.SHARED,
-        file,
-        null,
-    );
-    defer std.posix.munmap(mapped_mem);
-    try std.testing.expect(u8, embeddedArchive, mapped_mem);
 }
 
 test "packerfs_test" {
-    const fs = try PackerFS.init(std.testing.allocator);
+    const fs = try PackerFS.init(std.testing.allocator, .{});
     defer fs.destroy();
 
     try fs.discoverFromFile("tests/archive.pak");
     try std.testing.expect(fs.countFilesDiscovered() == 3);
 
-    const lost_empire_mapping = try fs.loadFileByPath();
+    const lost_empire_mapping = try fs.loadFileByPath("lost_empire.obj");
     defer fs.unmap(lost_empire_mapping);
+
+    std.debug.print("mapping len {d} lost_empire len {d}\n", .{ lost_empire_mapping.bytes.len, lost_empire.len });
+    try std.testing.expect(std.mem.eql(u8, lost_empire_mapping.bytes, lost_empire));
 }

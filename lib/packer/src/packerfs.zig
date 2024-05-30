@@ -28,13 +28,13 @@ const PackedFileEntry = @import("PackedFileEntry.zig");
 // this contains information about where the file came from.
 const PakSourceRef = usize;
 
-pub fn getDisplayNameForFileSource(source: PakSourceRef, packerfs: PackerFS) []const u8 {
-    return packerfs.fileMountings.items[source].filePath;
+pub fn getDisplayNameForFileSource(source: PakSourceRef, packerfs: *const PackerFS) []const u8 {
+    return packerfs.pakMountings.items[source].filePath;
 }
 
 pub const PackerBytesMapping = struct {
     bytes: []const u8,
-    mappingId: u32,
+    mappingId: usize,
     inMemory: bool,
 };
 
@@ -55,6 +55,16 @@ pub const PackerFS = struct {
 
         pub fn isFileMounted(self: @This()) bool {
             return self.bytes != null;
+        }
+
+        pub fn unmount(self: *@This(), allocator: std.mem.Allocator) void {
+            if (self.bytes) |bytes| {
+                allocator.free(bytes);
+            }
+            self.mountRefs.deinit(allocator);
+
+            self.bytes = null;
+            self.mountRefs = .{};
         }
 
         pub fn addFileMountRef(self: *@This(), fileRef: usize) !void {
@@ -99,7 +109,7 @@ pub const PackerFS = struct {
 
         const pakMountingIndex = self.pakMountings.items.len;
 
-        try self.pakMountings.append(.{ .filePath = filePath });
+        try self.pakMountings.append(self.allocator, .{ .filePath = filePath });
 
         while (try iterator.next(reader)) |headerEntry| {
             const headerIndex = self.fileHeaders.items.len;
@@ -111,21 +121,14 @@ pub const PackerFS = struct {
                 std.debug.print(
                     // todo; how should I deal with eviction?
                     "file {s} is already discovered, previously from {s}, this previous reference will be overwritten.\n",
-                    .{ headerEntry.getFileName(), getDisplayNameForFileSource(oldFileHeaderSource) },
+                    .{ headerEntry.getFileName(), getDisplayNameForFileSource(oldFileHeaderSource, self) },
                 );
 
                 self.fileHeaders.items[oldFileHeaderIndex] = headerEntry;
                 self.filePakSources.items[oldFileHeaderIndex] = pakMountingIndex;
-
-                if (self.fileBytesMounted.items[oldFileHeaderIndex] != null) {
-                    self.allocator.free(self.fileBytesMounted.items[oldFileHeaderIndex]);
-                }
-
-                self.fileBytesMounted.items[oldFileHeaderIndex] = null;
             } else {
                 try self.fileHeaders.append(self.allocator, headerEntry);
                 try self.filePakSources.append(self.allocator, pakMountingIndex);
-                try self.fileBytesMounted.append(self.allocator, null);
 
                 try self.fileHandlesByName.put(self.allocator, HeaderName.handle(), headerIndex);
 
@@ -139,7 +142,7 @@ pub const PackerFS = struct {
     }
 
     pub fn loadFileByPath(self: @This(), path: []const u8) !PackerBytesMapping {
-        return try self.loadFileByIndex(self, self.fileHandlesByName.get(Name.Make(path)).?);
+        return try self.loadFileByIndex(self.fileHandlesByName.get(Name.Make(path).handle()).?);
     }
 
     // if the file is not loaded, then mount the entire package then load out the bytes
@@ -148,23 +151,38 @@ pub const PackerFS = struct {
 
         // grab the file header,
         // grab the file source,
-        const source = self.fileSourceInfos.items[index];
+        const source = self.filePakSources.items[index];
         const header = self.fileHeaders.items[index];
-        _ = header;
 
         const pakMountingRef = &self.pakMountings.items[source];
 
         if (!pakMountingRef.isFileMounted()) {
-            //pakMountingRef.*.bytes = try self.allocator.alignedAlloc(pakMountingRef.pakSize
             pakMountingRef.*.bytes = try p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator);
         }
+
+        return PackerBytesMapping{
+            .bytes = pakMountingRef.bytes.?[header.fileOffset .. header.fileOffset + header.fileLen],
+            .mappingId = 0,
+            .inMemory = false, // TODO, support in-memory mappings
+        };
+    }
+
+    pub fn unmap(self: @This(), mapping: PackerBytesMapping) void {
+        _ = self;
+        _ = mapping;
+        return;
     }
 
     pub fn destroy(self: *@This()) void {
         self.fileHeaders.deinit(self.allocator);
         self.fileHandlesByName.deinit(self.allocator);
-        self.fileSourceInfos.deinit(self.allocator);
-        self.fileBytesMounted.deinit(self.allocator);
+        self.filePakSources.deinit(self.allocator);
+
+        for (self.pakMountings.items) |*mounting| {
+            mounting.unmount(self.allocator);
+        }
+
+        self.pakMountings.deinit(self.allocator);
 
         self.allocator.destroy(self);
     }
