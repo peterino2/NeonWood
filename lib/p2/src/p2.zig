@@ -2,6 +2,10 @@
 const std = @import("std");
 const utils = @import("structures/utils.zig");
 
+pub const xxd = @import("utils/xxd.zig");
+
+pub const xxdWrite = xxd.xxdWrite;
+
 pub const loadFileAlloc = utils.loadFileAlloc;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;

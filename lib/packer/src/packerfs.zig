@@ -52,6 +52,7 @@ pub const PackerFS = struct {
         filePath: []const u8, // path to the file
         bytes: ?[]u8 align(8) = null,
         mountRefs: std.ArrayListUnmanaged(usize) = .{},
+        contentOffset: usize = 0,
 
         pub fn isFileMounted(self: @This()) bool {
             return self.bytes != null;
@@ -100,6 +101,8 @@ pub const PackerFS = struct {
     }
 
     pub fn discoverFromFile(self: *@This(), filePath: []const u8) !void {
+        std.debug.print("discovering from file: {s} \n", .{filePath});
+
         // load the file and read out all headers from the file at the path
         const file = try std.fs.cwd().openFile(filePath, .{});
         defer file.close();
@@ -135,6 +138,7 @@ pub const PackerFS = struct {
                 try p2.assert(self.filePakSources.items.len == self.fileHeaders.items.len);
             }
         }
+        self.pakMountings.items[pakMountingIndex].contentOffset = iterator.bytesRead;
     }
 
     pub fn countFilesDiscovered(self: @This()) u64 {
@@ -150,18 +154,20 @@ pub const PackerFS = struct {
     pub fn loadFileByIndex(self: @This(), index: usize) !PackerBytesMapping {
 
         // grab the file header,
-        // grab the file source,
         const source = self.filePakSources.items[index];
         const header = self.fileHeaders.items[index];
 
+        // grab the file source,
         const pakMountingRef = &self.pakMountings.items[source];
 
         if (!pakMountingRef.isFileMounted()) {
+            std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
             pakMountingRef.*.bytes = try p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator);
+            try p2.xxdWrite(std.io.getStdErr().writer(), pakMountingRef.*.bytes.?[0..0x40], .{});
         }
 
         return PackerBytesMapping{
-            .bytes = pakMountingRef.bytes.?[header.fileOffset .. header.fileOffset + header.fileLen],
+            .bytes = pakMountingRef.bytes.?[header.fileOffset + pakMountingRef.contentOffset .. header.fileOffset + pakMountingRef.contentOffset + header.fileLen],
             .mappingId = 0,
             .inMemory = false, // TODO, support in-memory mappings
         };

@@ -49,7 +49,7 @@ pub fn loadFromReader(self: *@This(), reader: anytype) !void {
 
     std.debug.assert(bytesRead == calculateHeaderLen());
 
-    std.debug.print("header deserialized {s} type: {s}\n", .{ self.getFileName(), self.getTypeName() });
+    std.debug.print("header deserialized {s} type: {s} fileOffset:{d} \n", .{ self.getFileName(), self.getTypeName(), self.fileOffset });
 }
 
 // returns bytes written, not a true serialize function,

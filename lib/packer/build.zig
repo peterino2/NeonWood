@@ -12,7 +12,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/packer.zig" },
     });
 
-    mod.addImport("p2", p2dep.module("p2"));
+    const p2mod = p2dep.module("p2");
+    mod.addImport("p2", p2mod);
 
     const test_exe = b.addTest(.{
         .target = target,
@@ -21,6 +22,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     test_exe.root_module.addImport("packer", mod);
+    test_exe.root_module.addImport("p2", p2mod);
 
     const test_step = b.step("test-packer", "runs sample unit tests for packer");
     test_step.dependOn(&b.addRunArtifact(test_exe).step);
