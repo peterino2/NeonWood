@@ -14,11 +14,13 @@
 // when we load the file it is mmapped into memory at an address and the pointer to bytes in the file is returned
 //
 // version 1:
-// - I discover files from paks
-// - I want a file, I ask for that file.
-// - I get back a mapping struct which contains a []const u8 bytes struct
+// - discover files from paks
+// - want a file, I ask for that file.
+// - get back a mapping struct which contains a []const u8 bytes struct
 //      - this bytes struct tracks which archive it came from
-// - When I am done with the bytes, I unmap the mapping struct
+// - when finished using the file, unmap the mapping struct,
+//      - if it was the last file to be unmapped,
+//      - then the file shapp be evicted from
 
 const std = @import("std");
 const p2 = @import("p2");
@@ -38,6 +40,13 @@ pub const PackerBytesMapping = struct {
     inMemory: bool,
 };
 
+pub const Settings = struct {
+    mountOnDemand: bool = true, // Disable this if we want to restrict file mounting to be manually mounted only.
+    // If set to false, PackerFS
+    allowContentFolderAccess: bool = true,
+    contentFolderExtraPaths: []const []const u8 = &[_][]const u8{}, // By default, this will mount the content/ folder on disk.
+};
+
 pub const PackerFS = struct {
     allocator: std.mem.Allocator,
     fileHeaders: std.ArrayListUnmanaged(PackedFileEntry) = .{},
@@ -45,6 +54,7 @@ pub const PackerFS = struct {
     fileHandlesByName: std.AutoHashMapUnmanaged(u32, usize) = .{},
 
     pakMountings: std.ArrayListUnmanaged(PakMounting) = .{},
+    contentPaths: std.ArrayListUnmanaged([]u8) = .{},
 
     settings: Settings = .{},
 
@@ -53,6 +63,7 @@ pub const PackerFS = struct {
         bytes: ?[]u8 align(8) = null,
         mountRefs: std.ArrayListUnmanaged(usize) = .{},
         contentOffset: usize = 0,
+        inMemory: bool = false,
 
         pub fn isFileMounted(self: @This()) bool {
             return self.bytes != null;
@@ -83,10 +94,6 @@ pub const PackerFS = struct {
         }
     };
 
-    pub const Settings = struct {
-        mountOnDemand: bool = true, // disable this if mounting a file needs to be done manually
-    };
-
     // todo: implement load memory to file then-map setup.
     // for systems which do not support mmap
 
@@ -97,11 +104,13 @@ pub const PackerFS = struct {
             .settings = settings,
         };
 
+        try self.contentPaths.append(self.allocator, try p2.dupeString(allocator, "content"));
+
         return self;
     }
 
     pub fn discoverFromFile(self: *@This(), filePath: []const u8) !void {
-        std.debug.print("discovering from file: {s} \n", .{filePath});
+        std.debug.print("discovered from file: {s}\n", .{filePath});
 
         // load the file and read out all headers from the file at the path
         const file = try std.fs.cwd().openFile(filePath, .{});
@@ -115,12 +124,11 @@ pub const PackerFS = struct {
         try self.pakMountings.append(self.allocator, .{ .filePath = filePath });
 
         while (try iterator.next(reader)) |headerEntry| {
-            const headerIndex = self.fileHeaders.items.len;
-
             const HeaderName = Name.Make(headerEntry.getFileName());
 
             if (self.fileHandlesByName.get(HeaderName.handle())) |oldFileHeaderIndex| {
                 const oldFileHeaderSource = self.filePakSources.items[oldFileHeaderIndex];
+
                 std.debug.print(
                     // todo; how should I deal with eviction?
                     "file {s} is already discovered, previously from {s}, this previous reference will be overwritten.\n",
@@ -130,12 +138,7 @@ pub const PackerFS = struct {
                 self.fileHeaders.items[oldFileHeaderIndex] = headerEntry;
                 self.filePakSources.items[oldFileHeaderIndex] = pakMountingIndex;
             } else {
-                try self.fileHeaders.append(self.allocator, headerEntry);
-                try self.filePakSources.append(self.allocator, pakMountingIndex);
-
-                try self.fileHandlesByName.put(self.allocator, HeaderName.handle(), headerIndex);
-
-                try p2.assert(self.filePakSources.items.len == self.fileHeaders.items.len);
+                _ = try self.addFileEntry(headerEntry, pakMountingIndex);
             }
         }
         self.pakMountings.items[pakMountingIndex].contentOffset = iterator.bytesRead;
@@ -145,13 +148,75 @@ pub const PackerFS = struct {
         return @intCast(self.fileHeaders.items.len);
     }
 
-    pub fn loadFileByPath(self: @This(), path: []const u8) !PackerBytesMapping {
-        return try self.loadFileByIndex(self.fileHandlesByName.get(Name.Make(path).handle()).?);
+    pub fn loadFileByPath(self: *@This(), path: []const u8) !PackerBytesMapping {
+        if (self.fileHandlesByName.get(Name.Make(path).handle())) |fileNameHandle| {
+            const maybeBytes = try self.loadFileByIndexFromPak(fileNameHandle);
+            if (maybeBytes != null) {
+                return maybeBytes.?;
+            }
+        }
+
+        if (!self.settings.allowContentFolderAccess) {
+            return error.FileNotPackaged;
+        }
+
+        for (self.contentPaths.items) |contentPath| {
+            if (try self.loadFileDirect(contentPath, path)) |bytes| {
+                return bytes;
+            }
+        }
+
+        return error.FileNotFound;
+    }
+
+    fn addFileEntry(self: *@This(), headerEntry: PackedFileEntry, pakMountingIndex: usize) !usize {
+        const headerName = Name.Make(headerEntry.getFileName());
+        const headerIndex = self.fileHeaders.items.len;
+        try self.fileHeaders.append(self.allocator, headerEntry);
+        try self.filePakSources.append(self.allocator, pakMountingIndex);
+
+        try self.fileHandlesByName.put(self.allocator, headerName.handle(), headerIndex);
+
+        try p2.assert(self.filePakSources.items.len == self.fileHeaders.items.len);
+
+        return headerIndex;
+    }
+
+    fn loadFileDirect(self: *@This(), basePath: []const u8, path: []const u8) !?PackerBytesMapping {
+        // if we made it to this function we can assume that the file does not exist in existing pak mounting references.
+        // nor does it exist in self.fileHandlesByName
+        // we can add a new file reference, AND a new pakMounting entry here.
+        const fullPath = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ basePath, path });
+        defer self.allocator.free(fullPath);
+
+        const fileBytes = p2.loadFileAlloc(fullPath, 8, self.allocator) catch return null;
+
+        const pakMountIndex = self.pakMountings.items.len;
+        try self.pakMountings.append(self.allocator, .{
+            .filePath = path,
+            .inMemory = true,
+        });
+
+        try p2.assert(self.filePakSources.items.len == self.fileHeaders.items.len);
+
+        // generate a header for the thing
+        const headerEntry = try PackedFileEntry.init("unknown", path, 0, fileBytes.len);
+        const headerIndex = try self.addFileEntry(headerEntry, pakMountIndex);
+
+        self.pakMountings.items[pakMountIndex].bytes = fileBytes;
+        const mountId = self.pakMountings.items[pakMountIndex].mountRefs.items.len;
+        try self.pakMountings.items[pakMountIndex].mountRefs.append(self.allocator, headerIndex);
+
+        return .{
+            .bytes = fileBytes,
+            .mappingId = mountId,
+            .inMemory = true,
+        };
     }
 
     // if the file is not loaded, then mount the entire package then load out the bytes
     // TODO: implement file memory mapping on windows, or cook up a really good packaging setup.
-    pub fn loadFileByIndex(self: @This(), index: usize) !PackerBytesMapping {
+    fn loadFileByIndexFromPak(self: *@This(), index: usize) !?PackerBytesMapping {
 
         // grab the file header,
         const source = self.filePakSources.items[index];
@@ -162,12 +227,14 @@ pub const PackerFS = struct {
 
         if (!pakMountingRef.isFileMounted()) {
             std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
-            pakMountingRef.*.bytes = try p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator);
+            pakMountingRef.*.bytes = p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null;
             try p2.xxdWrite(std.io.getStdErr().writer(), pakMountingRef.*.bytes.?[0..0x40], .{});
         }
 
+        const offset = header.fileOffset + pakMountingRef.contentOffset;
+
         return PackerBytesMapping{
-            .bytes = pakMountingRef.bytes.?[header.fileOffset + pakMountingRef.contentOffset .. header.fileOffset + pakMountingRef.contentOffset + header.fileLen],
+            .bytes = pakMountingRef.bytes.?[offset .. offset + header.fileLen],
             .mappingId = 0,
             .inMemory = false, // TODO, support in-memory mappings
         };
@@ -189,6 +256,11 @@ pub const PackerFS = struct {
         }
 
         self.pakMountings.deinit(self.allocator);
+
+        for (self.contentPaths.items) |path| {
+            self.allocator.free(path);
+        }
+        self.contentPaths.deinit(self.allocator);
 
         self.allocator.destroy(self);
     }

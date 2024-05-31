@@ -2,6 +2,7 @@
 const std = @import("std");
 const utils = @import("structures/utils.zig");
 
+pub const dupeString = utils.dupeString;
 pub const xxd = @import("utils/xxd.zig");
 
 pub const xxdWrite = xxd.xxdWrite;

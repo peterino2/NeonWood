@@ -78,7 +78,7 @@ test "packer forward path" {
 }
 
 test "packerfs_test" {
-    const fs = try PackerFS.init(std.testing.allocator, .{});
+    var fs = try PackerFS.init(std.testing.allocator, .{});
     defer fs.destroy();
 
     try fs.discoverFromFile("tests/archive.pak");
@@ -96,4 +96,7 @@ test "packerfs_test" {
     try p2.xxdWrite(writer, lost_empire[0..0x40], options);
 
     try std.testing.expect(std.mem.eql(u8, lost_empire_mapping.bytes, lost_empire));
+
+    const lost_empire2 = try fs.loadFileByPath("lost_empire2.obj");
+    try p2.xxdWrite(writer, lost_empire2.bytes[0..0x40], options);
 }

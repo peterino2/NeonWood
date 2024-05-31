@@ -6,13 +6,6 @@ const PackedFileEntry = @import("PackedFileEntry.zig");
 const packerfs = @import("packerfs.zig");
 pub const PackerFS = packerfs.PackerFS;
 
-// serialize format of the file:
-//
-// HeaderOffset(uint64)@0x00
-//
-//
-// Header format
-
 const constants = @import("constants.zig");
 pub const PackerMagic = constants.PackerMagic;
 
