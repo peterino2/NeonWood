@@ -84,7 +84,7 @@ test "packerfs_test" {
     try fs.discoverFromFile("tests/archive.pak");
     try std.testing.expect(fs.countFilesDiscovered() == 3);
 
-    const lost_empire_mapping = try fs.loadFileByPath("lost_empire.obj");
+    const lost_empire_mapping = try fs.loadFile("lost_empire.obj");
     defer fs.unmap(lost_empire_mapping);
 
     std.debug.print("mapping len {d} lost_empire len {d}\n", .{ lost_empire_mapping.bytes.len, lost_empire.len });
@@ -97,6 +97,14 @@ test "packerfs_test" {
 
     try std.testing.expect(std.mem.eql(u8, lost_empire_mapping.bytes, lost_empire));
 
-    const lost_empire2 = try fs.loadFileByPath("lost_empire2.obj");
+    const lost_empire2 = try fs.loadFile("lost_empire2.obj");
+    defer fs.unmap(lost_empire2);
+
+    const lost_empire3 = try fs.loadFile("lost_empire2.obj");
+    defer fs.unmap(lost_empire3);
+
+    const lost_empire4 = try fs.loadFile("lost_empire3.obj");
+    defer fs.unmap(lost_empire4);
+
     try p2.xxdWrite(writer, lost_empire2.bytes[0..0x40], options);
 }

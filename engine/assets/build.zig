@@ -14,6 +14,12 @@ pub fn build(b: *std.Build) void {
         "core",
         .{ .target = target, .optimize = optimize },
     );
-
     mod.addImport("core", core_dep.module("core"));
+
+    const packer_dep = b.dependency(
+        "packer",
+        .{ .target = target, .optimize = optimize },
+    );
+
+    mod.addImport("packer", packer_dep.module("packer"));
 }

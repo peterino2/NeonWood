@@ -37,6 +37,7 @@ pub fn getDisplayNameForFileSource(source: PakSourceRef, packerfs: *const Packer
 pub const PackerBytesMapping = struct {
     bytes: []const u8,
     mappingId: usize,
+    fileEntryId: usize,
     inMemory: bool,
 };
 
@@ -58,9 +59,11 @@ pub const PackerFS = struct {
 
     settings: Settings = .{},
 
+    lock: std.Thread.Mutex = .{},
+
     pub const PakMounting = struct {
         filePath: []const u8, // path to the file
-        bytes: ?[]u8 align(8) = null,
+        bytes: ?[]u8 = null,
         mountRefs: std.ArrayListUnmanaged(usize) = .{},
         contentOffset: usize = 0,
         inMemory: bool = false,
@@ -71,26 +74,27 @@ pub const PackerFS = struct {
 
         pub fn unmount(self: *@This(), allocator: std.mem.Allocator) void {
             if (self.bytes) |bytes| {
+                std.debug.print("unmounting file:{s} bytes: 0x{x}\n", .{ self.filePath, @intFromPtr(bytes.ptr) });
                 allocator.free(bytes);
+                self.mountRefs.deinit(allocator);
+
+                self.bytes = null;
+                self.mountRefs = .{};
             }
-            self.mountRefs.deinit(allocator);
-
-            self.bytes = null;
-            self.mountRefs = .{};
         }
 
-        pub fn addFileMountRef(self: *@This(), fileRef: usize) !void {
-            try self.mountRefs.append(fileRef);
-        }
-
-        pub fn removeFileMountRef(self: *@This(), fileRef: usize) !void {
+        pub fn removeMapping(self: *@This(), allocator: std.mem.Allocator, fileRef: usize) void {
             for (0..self.mountRefs.items.len) |i| {
                 if (self.mountRefs.items[i] == fileRef) {
-                    self.mountRefs.swapRemove(i);
+                    _ = self.mountRefs.swapRemove(i);
+
+                    // TODO: move this into a sweep and clean operation
+                    if (self.mountRefs.items.len == 0) {
+                        self.unmount(allocator);
+                    }
                     return;
                 }
             }
-            return error.MappingNotValid;
         }
     };
 
@@ -110,6 +114,9 @@ pub const PackerFS = struct {
     }
 
     pub fn discoverFromFile(self: *@This(), filePath: []const u8) !void {
+        self.lock.lock();
+        defer self.lock.unlock();
+
         std.debug.print("discovered from file: {s}\n", .{filePath});
 
         // load the file and read out all headers from the file at the path
@@ -148,11 +155,13 @@ pub const PackerFS = struct {
         return @intCast(self.fileHeaders.items.len);
     }
 
-    pub fn loadFileByPath(self: *@This(), path: []const u8) !PackerBytesMapping {
+    pub fn loadFile(self: *@This(), path: []const u8) !PackerBytesMapping {
+        self.lock.lock();
+        defer self.lock.unlock();
+
         if (self.fileHandlesByName.get(Name.Make(path).handle())) |fileNameHandle| {
-            const maybeBytes = try self.loadFileByIndexFromPak(fileNameHandle);
-            if (maybeBytes != null) {
-                return maybeBytes.?;
+            if (try self.loadFileByIndexFromPak(fileNameHandle)) |mapping| {
+                return mapping;
             }
         }
 
@@ -161,11 +170,13 @@ pub const PackerFS = struct {
         }
 
         for (self.contentPaths.items) |contentPath| {
-            if (try self.loadFileDirect(contentPath, path)) |bytes| {
-                return bytes;
+            if (try self.loadFileDirect(contentPath, path)) |mapping| {
+                std.debug.print("direct load - 0x{x}\n", .{@intFromPtr(mapping.bytes.ptr)});
+                return mapping;
             }
         }
 
+        std.debug.print("PackerFS - Error: FileNotFound {s}", .{path});
         return error.FileNotFound;
     }
 
@@ -204,12 +215,14 @@ pub const PackerFS = struct {
         const headerIndex = try self.addFileEntry(headerEntry, pakMountIndex);
 
         self.pakMountings.items[pakMountIndex].bytes = fileBytes;
-        const mountId = self.pakMountings.items[pakMountIndex].mountRefs.items.len;
+        // const mountId = self.pakMountings.items[pakMountIndex].mountRefs.items.len;
         try self.pakMountings.items[pakMountIndex].mountRefs.append(self.allocator, headerIndex);
 
+        std.debug.print("loadFileDirect {s} {d}\n", .{ path, headerIndex });
         return .{
             .bytes = fileBytes,
-            .mappingId = mountId,
+            .mappingId = pakMountIndex,
+            .fileEntryId = headerIndex,
             .inMemory = true,
         };
     }
@@ -232,36 +245,42 @@ pub const PackerFS = struct {
         }
 
         const offset = header.fileOffset + pakMountingRef.contentOffset;
+        try self.pakMountings.items[source].mountRefs.append(self.allocator, index);
 
         return PackerBytesMapping{
             .bytes = pakMountingRef.bytes.?[offset .. offset + header.fileLen],
-            .mappingId = 0,
-            .inMemory = false, // TODO, support in-memory mappings
+            .mappingId = source,
+            .fileEntryId = index,
+            .inMemory = false,
         };
     }
 
-    pub fn unmap(self: @This(), mapping: PackerBytesMapping) void {
-        _ = self;
-        _ = mapping;
+    pub fn unmap(self: *@This(), mapping: PackerBytesMapping) void {
+        self.lock.lock();
+        defer self.lock.unlock();
+
+        std.debug.print("unmapping file: {d},{d} 0x{x}\n", .{ mapping.mappingId, mapping.fileEntryId, @intFromPtr(mapping.bytes.ptr) });
+        self.pakMountings.items[mapping.mappingId].removeMapping(self.allocator, mapping.fileEntryId);
         return;
     }
 
     pub fn destroy(self: *@This()) void {
-        self.fileHeaders.deinit(self.allocator);
-        self.fileHandlesByName.deinit(self.allocator);
-        self.filePakSources.deinit(self.allocator);
+        self.lock.lock();
 
         for (self.pakMountings.items) |*mounting| {
             mounting.unmount(self.allocator);
         }
 
+        self.fileHeaders.deinit(self.allocator);
+        self.fileHandlesByName.deinit(self.allocator);
+        self.filePakSources.deinit(self.allocator);
         self.pakMountings.deinit(self.allocator);
 
         for (self.contentPaths.items) |path| {
             self.allocator.free(path);
         }
         self.contentPaths.deinit(self.allocator);
-
+        self.lock.unlock();
         self.allocator.destroy(self);
     }
 };

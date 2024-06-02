@@ -21,7 +21,6 @@ pub usingnamespace @import("p2");
 const algorithm = @import("p2");
 pub const nfd = @import("nfd");
 pub usingnamespace @import("math.zig");
-pub usingnamespace @import("string.zig");
 pub usingnamespace @import("args.zig");
 pub usingnamespace @import("file_dialogue.zig");
 
@@ -44,10 +43,22 @@ const c = @This();
 const logs = logging.engine_logs;
 const log = logging.engine_log;
 
+pub const packer = @import("packer");
+
+pub const FileSystem = packer.PackerFS;
+const PackerFS = packer.PackerFS;
+
+var gPackerFS: *PackerFS = undefined;
+
 pub var gScene: *SceneSystem = undefined;
+
+pub fn fs() *PackerFS {
+    return gPackerFS;
+}
 
 pub fn start_module(allocator: std.mem.Allocator) void {
     _ = algorithm.createNameRegistry(allocator) catch unreachable;
+    gPackerFS = PackerFS.init(allocator, .{}) catch @panic("unable to initialize packerfs");
     gEngine = allocator.create(Engine) catch unreachable;
     gEngine.* = Engine.init(allocator) catch unreachable;
 
@@ -66,6 +77,7 @@ pub fn shutdown_module(allocator: std.mem.Allocator) void {
 
     algorithm.destroyNameRegistry();
     gEngine.deinit();
+    gPackerFS.destroy();
     return;
 }
 

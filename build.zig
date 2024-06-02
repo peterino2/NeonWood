@@ -56,6 +56,9 @@ pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.C
 
     b.installArtifact(exe);
     const runArtifact = b.addRunArtifact(exe);
+    if (b.args) |args| {
+        runArtifact.addArgs(args);
+    }
     const run_exe = b.step(self.b.fmt("run-{s}", .{opts.name}), opts.desc);
     run_exe.dependOn(&runArtifact.step);
 

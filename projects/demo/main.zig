@@ -14,8 +14,8 @@ const audio = neonwood.audio;
 const glfw3 = neonwood.platform.glfw3;
 var gGame: *GameContext = undefined;
 
-const testimage1 = "content/textures/lost_empire-RGBA.png";
-const testimage2 = "content/textures/texture_sample.png";
+const testimage1 = "textures/lost_empire-RGBA.png";
+const testimage2 = "textures/texture_sample.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
@@ -23,7 +23,7 @@ const AssetReferences = [_]assets.AssetImportReference{
         "Mesh",
         "m_empire",
         .{
-            .path = "content/meshes/lost_empire.obj",
+            .path = "meshes/lost_empire.obj",
         },
     ),
     assets.MakeImportRefOptions("Texture", "t_empire", .{
@@ -404,7 +404,7 @@ pub fn main() anyerror!void {
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
     try neonwood.start_everything_imgui(allocator, .{ .windowName = "NeonWood: ui" }, args);
-    defer neonwood.shutdown_everything_imgui(allocator);
+    defer neonwood.shutdown_everything(allocator);
 
     _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
     try platform.getInstance().installCursorPosCallback(mousePositionCallback);

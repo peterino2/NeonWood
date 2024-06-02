@@ -10,12 +10,14 @@ pub const PngContents = struct {
     size: core.Vector2u,
     allocator: std.mem.Allocator,
 
-    pub fn initFromBytes(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8) !@This() {
-        const pngContents = try initFromBytesInner(allocator, pathName, pngFileContents);
-        return pngContents;
+    pub fn initFromFS(fs: *core.FileSystem, allocator: std.mem.Allocator, path: []const u8) !@This() {
+        const mapping = try fs.loadFile(path);
+        defer fs.unmap(mapping);
+
+        return try initFromBytes(allocator, path, mapping.bytes);
     }
 
-    pub fn initFromBytesInner(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8) !@This() {
+    pub fn initFromBytes(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8) !@This() {
         var decoder = try spng.SpngContext.newDecoder();
         defer decoder.deinit();
 
@@ -34,12 +36,6 @@ pub const PngContents = struct {
             .size = .{ .x = header.width, .y = header.height },
             .allocator = allocator,
         };
-    }
-
-    pub fn init(allocator: std.mem.Allocator, filePath: []const u8) !@This() {
-        const pngFileContents = try core.loadFileAlloc(filePath, 1, allocator);
-        defer allocator.free(pngFileContents);
-        return try initFromBytesInner(allocator, filePath, pngFileContents);
     }
 
     pub fn deinit(self: *@This()) void {

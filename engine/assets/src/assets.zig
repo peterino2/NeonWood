@@ -21,7 +21,7 @@ pub const AsyncAssetJobContext = asset_jobs.AsyncAssetJobContext;
 pub var gAssetSys: *AssetReferenceSys = undefined;
 
 pub fn start_module(allocator: std.mem.Allocator) void {
-    gAssetSys = allocator.create(AssetReferenceSys) catch unreachable;
+    gAssetSys = allocator.create(AssetReferenceSys) catch @panic("unable to initialize asset reference");
     gAssetSys.* = AssetReferenceSys.init(allocator);
 
     core.engine_logs("sound start_module");

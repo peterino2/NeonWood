@@ -3,7 +3,6 @@ const core = @import("core");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
 const vk = @import("vulkan");
-const obj_loader = @import("objLoader");
 const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
 const tracy = core.tracy;
@@ -16,7 +15,6 @@ const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const png = core.png;
 const PngContents = png.PngContents;
 
-const ObjMesh = obj_loader.ObjMesh;
 const ArrayList = std.ArrayList;
 const Vectorf = core.Vectorf;
 const NeonVkContext = vk_renderer.NeonVkContext;
@@ -185,7 +183,7 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     // but calling VkQueueSubmit is not going to be threadsafe unless we create a
     // seperate command pool for each thread.
 
-    var pngContents = try PngContents.init(ctx.allocator, filePath);
+    var pngContents = try PngContents.initFromFS(core.fs(), ctx.allocator, filePath);
     defer pngContents.deinit();
     return try load_and_stage_image(ctx, pngContents);
 }
