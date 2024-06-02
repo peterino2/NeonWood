@@ -2512,6 +2512,9 @@ pub const NeonVkContext = struct {
 
         self.destroy_uploaders();
 
+        self.deferredDescriptorsDestroy.deinit(self.allocator);
+        self.deferredTextureDestroy.deinit(self.allocator);
+
         self.vkd.destroyCommandPool(self.dev, self.commandPool, null);
 
         if (self.vkAllocator.areAllocationsOutstanding()) {
