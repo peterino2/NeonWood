@@ -63,22 +63,22 @@ pub const PackerFS = struct {
 
     pub const PakMounting = struct {
         filePath: []const u8, // path to the file
-        bytes: ?[]u8 = null,
+        bytes: []align(8) u8 = undefined,
+        mounted: bool = false,
         mountRefs: std.ArrayListUnmanaged(usize) = .{},
         contentOffset: usize = 0,
         inMemory: bool = false,
 
         pub fn isFileMounted(self: @This()) bool {
-            return self.bytes != null;
+            return self.mounted;
         }
 
         pub fn unmount(self: *@This(), allocator: std.mem.Allocator) void {
-            if (self.bytes) |bytes| {
-                std.debug.print("unmounting file:{s} bytes: 0x{x}\n", .{ self.filePath, @intFromPtr(bytes.ptr) });
-                allocator.free(bytes);
+            if (self.mounted) {
+                std.debug.print("unmounting file:{s} bytes: 0x{x}\n", .{ self.filePath, @intFromPtr(self.bytes.ptr) });
+                allocator.free(self.bytes);
                 self.mountRefs.deinit(allocator);
-
-                self.bytes = null;
+                self.mounted = false;
                 self.mountRefs = .{};
             }
         }
@@ -200,7 +200,7 @@ pub const PackerFS = struct {
         const fullPath = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ basePath, path });
         defer self.allocator.free(fullPath);
 
-        const fileBytes = p2.loadFileAlloc(fullPath, 8, self.allocator) catch return null;
+        const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(fullPath, 8, self.allocator) catch return null);
 
         const pakMountIndex = self.pakMountings.items.len;
         try self.pakMountings.append(self.allocator, .{
@@ -215,10 +215,10 @@ pub const PackerFS = struct {
         const headerIndex = try self.addFileEntry(headerEntry, pakMountIndex);
 
         self.pakMountings.items[pakMountIndex].bytes = fileBytes;
-        // const mountId = self.pakMountings.items[pakMountIndex].mountRefs.items.len;
         try self.pakMountings.items[pakMountIndex].mountRefs.append(self.allocator, headerIndex);
+        self.pakMountings.items[pakMountIndex].mounted = true;
 
-        std.debug.print("loadFileDirect {s} {d}\n", .{ path, headerIndex });
+        std.debug.print("loadFileDirect {s} {d} 0x{x}\n", .{ path, headerIndex, @intFromPtr(fileBytes.ptr) });
         return .{
             .bytes = fileBytes,
             .mappingId = pakMountIndex,
@@ -240,15 +240,15 @@ pub const PackerFS = struct {
 
         if (!pakMountingRef.isFileMounted()) {
             std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
-            pakMountingRef.*.bytes = p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null;
-            try p2.xxdWrite(std.io.getStdErr().writer(), pakMountingRef.*.bytes.?[0..0x40], .{});
+            pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
         }
 
         const offset = header.fileOffset + pakMountingRef.contentOffset;
         try self.pakMountings.items[source].mountRefs.append(self.allocator, index);
+        self.pakMountings.items[source].mounted = true;
 
         return PackerBytesMapping{
-            .bytes = pakMountingRef.bytes.?[offset .. offset + header.fileLen],
+            .bytes = pakMountingRef.bytes[offset .. offset + header.fileLen],
             .mappingId = source,
             .fileEntryId = index,
             .inMemory = false,

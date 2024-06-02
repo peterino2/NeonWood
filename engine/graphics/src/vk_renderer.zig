@@ -2585,6 +2585,41 @@ pub const NeonVkContext = struct {
     }
 };
 
+pub const RenderThread = struct {
+    vkd: vk_constants.DeviceDispatch,
+    dev: vk.Device,
+    graphicsQueue: NeonVkQueue,
+    presentQueue: NeonVkQueue,
+
+    // stopgap, copy relevant delta info from NeonVkContext
+    pub fn updateFromVkContext(self: *@This(), oth: *NeonVkContext) !void {
+        _ = self;
+        _ = oth;
+    }
+
+    pub fn draw(self: @This(), deltaTime: f64) !void {
+        try self.acquire_next_frame();
+        _ = deltaTime;
+    }
+
+    fn acquire_next_frame(self: @This()) !void {
+        var z1 = tracy.Zone(@src());
+        z1.Name("waiting for frame");
+        defer z1.End();
+
+        self.nextFrameIndex = try self.getNextSwapImage();
+
+        _ = try self.vkd.waitForFences(
+            self.dev,
+            1,
+            @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])),
+            1,
+            1000000000,
+        );
+        try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])));
+    }
+};
+
 pub var gWindowName: []const u8 = "NeonWood Sample Application";
 
 // must be called before graphics.start_module();
