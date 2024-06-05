@@ -5,6 +5,7 @@ target: std.Build.ResolvedTarget,
 optimize: std.builtin.Mode,
 nw_mod: *std.Build.Module,
 spirvReflect: SpirvReflect.SpirvGenerator2,
+options: *std.Build.Step.Options,
 
 const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "ui", "vkImgui" };
 
@@ -25,7 +26,6 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
     const nwdep = b.dependency(opts.import_name, .{
         .target = opts.target,
         .optimize = opts.optimize,
-        .slow_logging = b.option(bool, "slow_logging", "Disables buffered logging, takes a performance hit but timing information across threads is preserved") orelse false,
     });
 
     return .{
@@ -35,6 +35,7 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
         .optimize = opts.optimize,
         .nw_mod = nwdep.module("NeonWood"),
         .spirvReflect = SpirvReflect.SpirvGenerator2.init(nwdep.builder, .{}),
+        .options = createGameOptions(b),
     };
 }
 
@@ -72,6 +73,7 @@ pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.C
     exe.root_module.addImport("main", mod);
     exe.root_module.addImport("NeonWood", self.nw_mod);
     mod.addImport("NeonWood", self.nw_mod);
+    exe.root_module.addOptions("NeonWoodOptions", self.options);
 
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/triangle_mesh.vert"), "triangle_mesh_vert");
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/default_lit.frag"), "default_lit");
@@ -133,8 +135,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .root_source_file = .{ .path = "engine/neonwood.zig" },
     });
-    const slow_logging = b.option(bool, "slow_logging", "Disables buffered logging, takes a performance hit but timing information across threads is preserved") orelse false;
-    _ = slow_logging;
 
     for (engineDepList) |depName| {
         const dep = b.dependency(

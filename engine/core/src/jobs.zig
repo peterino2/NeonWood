@@ -5,7 +5,7 @@ const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
-const build_opts = @import("game_build_opts");
+const build_opts = @import("root").options;
 
 pub const JobManager = struct {
     allocator: std.mem.Allocator,

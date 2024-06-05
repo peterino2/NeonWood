@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
+pub const options = @import("NeonWoodOptions");
 
 const core = neonwood.core;
 const platform = neonwood.platform;
