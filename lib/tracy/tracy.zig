@@ -3,16 +3,7 @@ const builtin = @import("builtin");
 const Src = std.builtin.SourceLocation;
 
 // check for a decl named tracy_enabled in root
-pub const enabled = blk: {
-    var root_enable: ?bool = null;
-
-    const root = @import("root");
-    if (@hasDecl(root, "tracy_enabled")) {
-        root_enable = @as(bool, root.tracy_enabled);
-    }
-
-    break :blk root_enable orelse false;
-};
+pub const enabled = @import("build_options").tracy_enabled;
 
 const debug_verify_stack_order = false;
 
