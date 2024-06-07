@@ -146,15 +146,17 @@ pub const Mesh = struct {
         try ctx.stage_and_push_mesh(self);
     }
 
-    pub fn load_from_obj_file(self: *Mesh, filename: []const u8) !void {
-        var fileContents = try obj_loader.loadObj(filename, self.allocator);
-        defer fileContents.deinit();
+    pub fn load_from_obj_file(self: *Mesh, fileName: []const u8) !void {
+        const mapping = try core.fs().loadFile(fileName);
+        defer core.fs().unmap(mapping);
+        var fileObjs = try obj_loader.loadObjBytes(mapping.bytes, self.allocator);
+        defer fileObjs.deinit();
 
-        if (fileContents.meshes.items.len > 0) {
+        if (fileObjs.meshes.items.len > 0) {
             // default grabbing shape zero
-            core.graphics_log("loading mesh: {s}", .{filename});
-            fileContents.meshes.items[0].print_stats();
-            try self.load_from_obj_mesh(fileContents.meshes.items[0]);
+            core.graphics_log("loading mesh: {s}", .{fileName});
+            fileObjs.meshes.items[0].print_stats();
+            try self.load_from_obj_mesh(fileObjs.meshes.items[0]);
         }
     }
 

@@ -53,7 +53,7 @@ pub const PlatformParams = struct {
     extent: core.Vector2c = .{ .x = 1600, .y = 900 },
     windowName: []const u8 = "sample window",
     noinit: bool = false,
-    icon: []const u8 = "content/textures/icon.png",
+    icon: []const u8 = "textures/icon.png",
 };
 
 pub var gPlatformSettings: struct {
@@ -92,7 +92,7 @@ pub const PlatformInstance = struct {
     window: ?*glfw3.GLFWwindow = null,
     extent: core.Vector2c,
     exitSignal: bool = false,
-    eventQueue: RingQueue(IOEvent),
+    eventQueue: core.ConcurrentQueueU(IOEvent),
     handlers: InstalledEvents,
     workBuffer: std.ArrayList(IOEvent),
     listeners: std.ArrayList(RawInputObjectRef),
@@ -109,7 +109,7 @@ pub const PlatformInstance = struct {
 
     pub fn deinit(self: *@This()) void {
         self.workBuffer.deinit();
-        self.eventQueue.deinit();
+        self.eventQueue.deinit(self.allocator);
         self.handlers.deinit();
         self.gameInput.deinit();
         self.allocator.destroy(self.gameInput);
@@ -130,7 +130,7 @@ pub const PlatformInstance = struct {
             .allocator = allocator,
             .iconPath = params.icon,
             .extent = params.extent,
-            .eventQueue = try RingQueue(IOEvent).init(allocator, 8096),
+            .eventQueue = try core.ConcurrentQueueU(IOEvent).initCapacity(allocator, 8096),
             .handlers = InstalledEvents.init(allocator),
             .listeners = std.ArrayList(RawInputObjectRef).init(allocator),
             .workBuffer = std.ArrayList(IOEvent).init(allocator),
@@ -226,7 +226,7 @@ pub const PlatformInstance = struct {
     }
 
     pub fn maybeSetPngIcon(self: *@This()) void {
-        var pngContents = core.png.PngContents.init(self.allocator, self.iconPath) catch return;
+        var pngContents = core.png.PngContents.initFromFS(core.fs(), self.allocator, self.iconPath) catch return;
         defer pngContents.deinit();
 
         const pixels: ?*u8 = &pngContents.pixels[0];
@@ -274,13 +274,9 @@ pub const PlatformInstance = struct {
 
     pub fn pumpEvents(self: *@This()) !void {
         if (self.eventQueue.count() > 0) {
-            self.eventQueue.lock();
-
-            while (self.eventQueue.popFromUnlocked()) |event| {
+            while (self.eventQueue.pop()) |event| {
                 try self.workBuffer.append(event);
             }
-
-            self.eventQueue.unlock();
 
             for (self.workBuffer.items) |event| {
                 for (self.listeners.items) |listener| {
@@ -365,7 +361,7 @@ fn windowResizeCallback(_: ?*glfw3.GLFWwindow, newWidth: c_int, newHeight: c_int
 //
 // Excessive events shall be dropped.
 pub fn pushEventSafe(event: IOEvent) void {
-    platform.getInstance().eventQueue.pushLocked(event) catch {
+    platform.getInstance().eventQueue.push(event) catch {
         core.engine_logs("too many events queued, dropping event...");
     };
 }

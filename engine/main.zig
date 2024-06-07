@@ -5,6 +5,8 @@ const panickers = core.panickers;
 
 const realMain = @import("main");
 
+pub const options = @import("NeonWoodOptions");
+
 pub const std_options = std.Options{
     .enable_segfault_handler = false,
 };

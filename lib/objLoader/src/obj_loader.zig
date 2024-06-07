@@ -6,6 +6,10 @@ pub fn loadObj(filename: []const u8, allocator: std.mem.Allocator) !ObjContents 
     return try ObjContents.load(filename, allocator);
 }
 
+pub fn loadObjBytes(bytes: []const u8, allocator: std.mem.Allocator) !ObjContents {
+    return try ObjContents.loadFromBytes(bytes, allocator);
+}
+
 // Higher level file functions.
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]const u8 {
     var file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
@@ -365,15 +369,19 @@ pub fn fileIntoLines(file_contents: []const u8) std.mem.SplitIterator(u8, .seque
 const ObjContents = struct {
     meshes: std.ArrayList(ObjMesh),
 
-    pub fn load(fileName: []const u8, allocator: std.mem.Allocator) !ObjContents {
+    pub fn load(file_path: []const u8, allocator: std.mem.Allocator) !ObjContents {
+        const file_contents = try loadFileAlloc(file_path, 1, allocator);
+        defer allocator.free(file_contents);
+
+        return try loadFromBytes(file_contents);
+    }
+
+    pub fn loadFromBytes(file_contents: []const u8, allocator: std.mem.Allocator) !ObjContents {
         var self = ObjContents{
             .meshes = std.ArrayList(ObjMesh).init(allocator),
         };
 
         var mesh = try ObjMesh.init("root", allocator);
-
-        const file_contents = try loadFileAlloc(fileName, 1, allocator);
-        defer allocator.free(file_contents);
         var lines = fileIntoLines(file_contents);
 
         while (lines.next()) |line| {

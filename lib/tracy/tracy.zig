@@ -3,18 +3,9 @@ const builtin = @import("builtin");
 const Src = std.builtin.SourceLocation;
 
 // check for a decl named tracy_enabled in root
-pub const enabled = blk: {
-    var root_enable: ?bool = null;
+pub const enabled = @import("build_options").tracy_enabled;
 
-    const root = @import("root");
-    if (@hasDecl(root, "tracy_enabled")) {
-        root_enable = @as(bool, root.tracy_enabled);
-    }
-
-    break :blk root_enable orelse false;
-};
-
-const debug_verify_stack_order = false;
+const debug_verify_stack_order = true;
 
 pub usingnamespace if (enabled) tracy_full else tracy_stub;
 
@@ -235,8 +226,8 @@ const tracy_full = struct {
         @cInclude("TracyC.h");
     });
 
-    const has_callstack_support = @hasDecl(c, "TRACY_HAS_CALLSTACK") and @hasDecl(c, "TRACY_CALLSTACK");
-    const callstack_enabled: c_int = if (has_callstack_support) c.TRACY_CALLSTACK else 0;
+    const has_callstack_support = false; // @hasDecl(c, "TRACY_HAS_CALLSTACK") and @hasDecl(c, "TRACY_CALLSTACK");
+    const callstack_enabled: c_int = 0; //if (has_callstack_support) c.TRACY_CALLSTACK else 0;
 
     threadlocal var stack_depth: if (debug_verify_stack_order) usize else u0 = 0;
 
@@ -279,15 +270,19 @@ const tracy_full = struct {
         }
     };
 
-    inline fn initZone(comptime src: Src, name: ?[*:0]const u8, color: u32, depth: c_int) ZoneCtx {
-        // Tracy uses pointer identity to identify contexts.
-        // The `src` parameter being comptime ensures that
-        // each zone gets its own unique global location for this
-        // struct.
-        const static = struct {
-            var loc: c.___tracy_source_location_data = undefined;
+    fn StaticGen(comptime src: Src) type {
+        return struct {
+            pub const s = src;
+            pub var _loc: c.___tracy_source_location_data = undefined;
         };
-        static.loc = .{
+    }
+
+    inline fn MakeTracyZone(comptime src: Src, name: ?[*:0]const u8, color: u32, depth: c_int) ZoneCtx {
+
+        // so tracy needs a unique location address per function.
+        const Statics = StaticGen(src);
+
+        Statics._loc = .{
             .name = name,
             .function = src.fn_name.ptr,
             .file = src.file.ptr,
@@ -296,9 +291,9 @@ const tracy_full = struct {
         };
 
         const zone = if (has_callstack_support)
-            c.___tracy_emit_zone_begin_callstack(&static.loc, depth, 1)
+            c.___tracy_emit_zone_begin_callstack(&Statics._loc, depth, 1)
         else
-            c.___tracy_emit_zone_begin(&static.loc, 1);
+            c.___tracy_emit_zone_begin(&Statics._loc, 1);
 
         if (debug_verify_stack_order) {
             stack_depth += 1;
@@ -309,35 +304,35 @@ const tracy_full = struct {
     }
 
     pub inline fn InitThread() void {
-        c.___tracy_init_thread();
+        // c.___tracy_init_thread();
     }
     pub inline fn SetThreadName(name: [*:0]const u8) void {
         c.___tracy_set_thread_name(name);
     }
 
     pub inline fn Zone(comptime src: Src) ZoneCtx {
-        return initZone(src, null, 0, callstack_enabled);
+        return MakeTracyZone(src, null, 0, callstack_enabled);
     }
     pub inline fn ZoneN(comptime src: Src, name: [*:0]const u8) ZoneCtx {
-        return initZone(src, name, 0, callstack_enabled);
+        return MakeTracyZone(src, name, 0, callstack_enabled);
     }
     pub inline fn ZoneC(comptime src: Src, color: u32) ZoneCtx {
-        return initZone(src, null, color, callstack_enabled);
+        return MakeTracyZone(src, null, color, callstack_enabled);
     }
     pub inline fn ZoneNC(comptime src: Src, name: [*:0]const u8, color: u32) ZoneCtx {
-        return initZone(src, name, color, callstack_enabled);
+        return MakeTracyZone(src, name, color, callstack_enabled);
     }
     pub inline fn ZoneS(comptime src: Src, depth: i32) ZoneCtx {
-        return initZone(src, null, 0, depth);
+        return MakeTracyZone(src, null, 0, depth);
     }
     pub inline fn ZoneNS(comptime src: Src, name: [*:0]const u8, depth: i32) ZoneCtx {
-        return initZone(src, name, 0, depth);
+        return MakeTracyZone(src, name, 0, depth);
     }
     pub inline fn ZoneCS(comptime src: Src, color: u32, depth: i32) ZoneCtx {
-        return initZone(src, null, color, depth);
+        return MakeTracyZone(src, null, color, depth);
     }
     pub inline fn ZoneNCS(comptime src: Src, name: [*:0]const u8, color: u32, depth: i32) ZoneCtx {
-        return initZone(src, name, color, depth);
+        return MakeTracyZone(src, name, color, depth);
     }
 
     pub inline fn Alloc(ptr: ?*const anyopaque, size: usize) void {

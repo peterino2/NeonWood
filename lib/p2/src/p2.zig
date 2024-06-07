@@ -2,6 +2,12 @@
 const std = @import("std");
 const utils = @import("structures/utils.zig");
 
+pub const dupeString = utils.dupeString;
+pub const xxd = @import("utils/xxd.zig");
+
+pub const xxdWrite = xxd.xxdWrite;
+
+pub const loadFileAlloc = utils.loadFileAlloc;
 const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 pub usingnamespace @import("structures/interface.zig");
@@ -248,4 +254,26 @@ test "ringBuffer" {
 
     try expect(b.count() == 5);
     try expect(b.peek().?.* == 44);
+}
+
+pub inline fn u32_to_slice(array: *u32) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 4;
+    return slice;
+}
+
+pub inline fn u64_to_slice(array: *u64) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 8;
+    return slice;
+}
+
+pub inline fn arrayTo_u32(array: anytype) u32 {
+    return @as(*const u32, @ptrCast(@alignCast(&array))).*;
+}
+
+pub inline fn arrayTo_u64(array: anytype) u64 {
+    return @as(*const u64, @ptrCast(@alignCast(&array))).*;
 }

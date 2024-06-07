@@ -1,12 +1,16 @@
 const std = @import("std");
 
-const tracy_path = "tracy-0.7.8/";
+const tracy_path = "tracy-0.10/public";
+const tracy_path_include = tracy_path ++ "/tracy";
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const tracy_enabled = b.option(bool, "tracy", "Enables tracy integration") orelse false;
+    //const tracy_enabled = b.option(bool, "tracy", "Enables tracy integration") orelse false;
+
+    const tracy_enabled = if (b.graph.env_map.hash_map.get("WITH_TRACY") != null) true else false;
+    std.debug.print("tracy enabled {s}\n", .{if (tracy_enabled) "true" else "false"});
 
     const mod = b.addModule("tracy", .{
         .target = target,
@@ -17,8 +21,9 @@ pub fn build(b: *std.Build) void {
     });
 
     if (tracy_enabled) {
+        mod.addIncludePath(.{ .path = tracy_path_include });
         mod.addCSourceFile(.{
-            .file = .{ .path = tracy_path ++ "TracyClient.cpp" },
+            .file = .{ .path = tracy_path ++ "/TracyClient.cpp" },
             .flags = &[_][]const u8{
                 "-DTRACY_ENABLE",
                 // MinGW doesn't have all the newfangled windows features,

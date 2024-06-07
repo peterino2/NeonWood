@@ -5,7 +5,7 @@ const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
-const build_opts = @import("game_build_opts");
+const build_opts = @import("root").options;
 
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
@@ -141,6 +141,7 @@ pub const JobWorker = struct {
 
     pub fn workerThreadFunc(self: *@This()) void {
         const printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
+        tracy.InitThread();
         tracy.SetThreadName(@as([*:0]u8, @ptrCast(printed.ptr)));
 
         self.allocator.free(printed);

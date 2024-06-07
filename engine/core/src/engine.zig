@@ -206,12 +206,13 @@ pub const Engine = struct {
     fn mainLoop(self: *@This()) !void {
         while (!self.exitConfirmed.load(.acquire)) {
             if (self.platformPollFunc) |pollFunc| {
+                const z = core.tracy.ZoneN(@src(), "glfw input polling");
                 try pollFunc(self.platformCtx);
+                defer z.End();
             }
+            std.time.sleep(1000 * 1000);
 
             try self.nfdRuntime.processMessages();
-
-            std.time.sleep(1000 * 1000 * 10);
         }
     }
 

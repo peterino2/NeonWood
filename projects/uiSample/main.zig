@@ -81,7 +81,7 @@ pub const GameContext = struct {
             self.testTime = 10.0;
         }
 
-        try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "content/textures/singleSpriteTest.png"));
+        try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "textures/singleSpriteTest.png"));
 
         var ctx = ui.getContext();
         ctx.drawDebug = true;

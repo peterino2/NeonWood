@@ -410,8 +410,10 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     var imagesGpu = self.mappedBuffers[frameId].objects;
     var imagesText = self.textImageBuffers[frameId].objects;
 
+    var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
     try self.papyrusCtx.makeDrawList(&self.drawList);
     self.drawCommands.clearRetainingCapacity();
+    z1.End();
 
     self.textSsboCount = 0;
     self.ssboCount = 0;
