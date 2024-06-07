@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const tracy_path = "tracy-0.7.8/";
+const tracy_path = "tracy-0.10/public";
+const tracy_path_include = tracy_path ++ "/tracy";
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -20,9 +21,9 @@ pub fn build(b: *std.Build) void {
     });
 
     if (tracy_enabled) {
-        mod.addIncludePath(.{ .path = tracy_path });
+        mod.addIncludePath(.{ .path = tracy_path_include });
         mod.addCSourceFile(.{
-            .file = .{ .path = tracy_path ++ "TracyClient.cpp" },
+            .file = .{ .path = tracy_path ++ "/TracyClient.cpp" },
             .flags = &[_][]const u8{
                 "-DTRACY_ENABLE",
                 // MinGW doesn't have all the newfangled windows features,

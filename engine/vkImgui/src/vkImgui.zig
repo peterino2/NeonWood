@@ -67,11 +67,15 @@ pub const NeonVkImGui = struct {
         _ = self;
         _ = deltaTime;
 
+        const z = core.tracy.ZoneN(@src(), "imgui render");
+
         c.igRender();
         c.cImGui_vk_RenderDrawData(c.igGetDrawData(), vkCast(c.VkCommandBuffer, cmd), vkCast(c.VkPipeline, vk.Pipeline.null_handle));
         c.igUpdatePlatformWindows();
         c.igRenderPlatformWindowsDefault(null, null);
         c.igRender();
+
+        z.End();
     }
     // VkRenderer interface end
 

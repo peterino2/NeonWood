@@ -80,13 +80,15 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
     core.shutdown_module(allocator); // 1
 }
 
-pub fn run_everything(comptime T: type) !void {
-    var gameContext = try core.createObject(T, .{ .can_tick = true });
+pub fn run_everything(comptime GameContext: type) !void {
+    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
     try gameContext.prepare_game();
 
     try core.gEngine.run();
 
     while (!core.gEngine.exitFinished()) {
+        const z = core.tracy.ZoneN(@src(), "shutdown poll");
         platform.getInstance().pollEvents();
+        z.End();
     }
 }
