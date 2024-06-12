@@ -104,3 +104,19 @@ pub fn signalShutdown() void {
 pub fn getEngine() *Engine {
     return gEngine;
 }
+
+const EngineDelegates = @import("EngineDelegates.zig");
+
+// binds a function + a context to
+pub fn addEngineDelegateBinding(comptime event: []const u8, func: anytype, ctx: *anyopaque) !usize {
+    if (!@hasField(EngineDelegates, event)) {
+        @compileError("Engine does not have delegate " ++ event);
+    }
+
+    const handle = @field(gEngine.delegates, event).items.len;
+    try @field(gEngine.delegates, event).append(gEngine.delegates.allocator, .{ .func = func, .ctx = ctx });
+
+    return handle;
+}
+
+// pub fn removeBinding todo...

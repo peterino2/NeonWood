@@ -28,6 +28,10 @@ drawCommands: std.ArrayList(VkCommand),
 
 textRenderer: *TextRenderer,
 
+averageFrameTime: f64 = 0,
+
+onDebugInfoBinding: usize = 0,
+
 const std = @import("std");
 const core = @import("core");
 const memory = core.MemoryTracker;
@@ -80,11 +84,18 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .defaultTextureSet = undefined,
     };
 
+    self.onDebugInfoBinding = try core.addEngineDelegateBinding("onFrameDebugInfoEmitted", onFrameDebugInfo, self);
+
     core.engine_logs("PapyrusSystem init");
     memory.MTPrintStatsDelta();
 
     try platform.getInstance().installListener(self);
     return self;
+}
+
+pub fn onFrameDebugInfo(ctx: *anyopaque, averageFrameTime: f64) core.EngineDataEventError!void {
+    const self: *@This() = @ptrCast(@alignCast(ctx));
+    self.averageFrameTime = averageFrameTime;
 }
 
 pub fn OnIoEvent(self: *@This(), event: platform.IOEvent) platform.InputListenerError!void {
@@ -292,6 +303,7 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     if (self.gc.vulkanValidation) {
         self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;
     }
+    self.papyrusCtx.pushDebugText("frameTime (ms): {d:.4} fps: {d:.3}", .{ self.averageFrameTime * 1000.0, 1.0 / self.averageFrameTime }) catch unreachable;
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
