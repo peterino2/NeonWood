@@ -27,6 +27,8 @@ const engine_log = logging.engine_log;
 pub const PollFuncFn = *const fn (*anyopaque) EngineDataEventError!void;
 pub const ProcEventsFn = *const fn (*anyopaque, u64) EngineDataEventError!void;
 
+const EngineDelegates = @import("EngineDelegates.zig");
+
 // perhaps a better name for this guy isn't actually engine, rather 'orchestrator' is more apt.
 // but that's so avant-garde
 pub const Engine = struct {
@@ -47,11 +49,16 @@ pub const Engine = struct {
     deltaTime: f64, // delta time for this frame from the previous frame
     frameNumber: u64,
 
+    averageFrameTime: f64 = 0,
+    averageFrameSampleWindow: u32 = 60, // rolling weighted average
+
     platformCtx: *anyopaque = undefined,
     platformPollFunc: ?PollFuncFn = null,
     platformProcEventsFunc: ?ProcEventsFn = null,
 
     nfdRuntime: *nfd.NFDRuntime,
+
+    delegates: EngineDelegates,
 
     first: bool = true,
 
@@ -68,6 +75,7 @@ pub const Engine = struct {
             .frameNumber = 0,
             .exitListeners = .{},
             .nfdRuntime = try nfd.NFDRuntime.create(allocator, .{}),
+            .delegates = EngineDelegates.init(allocator),
         };
 
         return rv;
@@ -95,6 +103,7 @@ pub const Engine = struct {
         self.tickables.deinit(self.allocator);
         self.preTickables.deinit(self.allocator);
         self.nfdRuntime.destroy();
+        self.delegates.deinit();
 
         core.engine_logs("calling onexit listeners");
         self.exitListeners.deinit(self.allocator);
@@ -145,6 +154,8 @@ pub const Engine = struct {
     pub fn tick(self: *@This()) !void {
         tracy.FrameMark();
         tracy.FrameMarkStart("frame");
+        tracy.FrameMarkEnd("frame");
+
         const newTime = time.getEngineTime();
 
         if (self.first) {
@@ -153,6 +164,13 @@ pub const Engine = struct {
         }
 
         self.deltaTime = newTime - self.lastEngineTime;
+        const sampleWindowf: f64 = @floatFromInt(self.averageFrameSampleWindow);
+        self.averageFrameTime = self.averageFrameTime - (self.averageFrameTime / sampleWindowf) + self.deltaTime / sampleWindowf;
+
+        for (self.delegates.onFrameDebugInfoEmitted.items) |l| {
+            try l.func(l.ctx, self.averageFrameTime);
+        }
+
         self.frameNumber += 1;
 
         if (self.platformProcEventsFunc) |procEventsFn| {
@@ -176,7 +194,6 @@ pub const Engine = struct {
             z.End();
         }
         self.lastEngineTime = newTime;
-        tracy.FrameMarkEnd("frame");
     }
 
     pub fn run(self: *@This()) !void {
@@ -210,8 +227,8 @@ pub const Engine = struct {
                 try pollFunc(self.platformCtx);
                 defer z.End();
             }
-            std.time.sleep(1000 * 1000);
-
+            std.time.sleep(1000 * 1000); // 1ms delay between polling functions, effectively limits input to 1khz.
+            // (there is a noticable power consumption draw on laptops and battery based systems if this is unlimited)
             try self.nfdRuntime.processMessages();
         }
     }
