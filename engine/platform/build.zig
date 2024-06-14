@@ -27,13 +27,13 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("platform", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/platform.zig" },
+        .root_source_file = b.path("src/platform.zig"),
     });
 
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tests/tests.zig" },
+        .root_source_file = b.path("tests/tests.zig"),
     });
 
     for (dependencyList) |depName| {

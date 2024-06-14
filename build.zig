@@ -135,7 +135,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("NeonWood", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "engine/neonwood.zig" },
+        .root_source_file = b.path("engine/neonwood.zig"),
     });
 
     for (engineDepList) |depName| {

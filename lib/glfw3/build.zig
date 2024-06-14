@@ -4,12 +4,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const mod = b.addModule("glfw3", .{ .target = target, .optimize = optimize, .root_source_file = .{ .path = "src/glfw3.zig" } });
+    const mod = b.addModule("glfw3", .{ .target = target, .optimize = optimize, .root_source_file = b.path("src/glfw3.zig") });
 
-    mod.addIncludePath(.{ .path = "./include" });
+    mod.addIncludePath(b.path("./include"));
 
     if (target.result.os.tag == .windows) {
-        mod.addLibraryPath(.{ .path = "." });
+        mod.addLibraryPath(b.path("."));
         mod.linkSystemLibrary("glfw3dll", .{});
     } else {
         mod.linkSystemLibrary("glfw", .{});
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     }
 
     if (target.result.os.tag == .macos) {
-        mod.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
+        mod.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib/" });
     }
 
     // ======== tests ============
@@ -26,10 +26,10 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/glfw3.zig" },
+        .root_source_file = b.path("src/glfw3.zig"),
         .link_libc = true,
     });
-    tests.addIncludePath(.{ .path = "./include" });
+    tests.addIncludePath(b.path("./include"));
 
     tests.root_module.addImport("glfw3", mod);
     const runArtifact = b.addRunArtifact(tests);

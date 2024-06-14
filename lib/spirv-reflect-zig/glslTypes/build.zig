@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("glslTypes", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "glslTypes.zig" },
+        .root_source_file = b.path("glslTypes.zig"),
     });
 
     _ = mod;

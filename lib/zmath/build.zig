@@ -7,14 +7,14 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("zmath", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "zmath.zig" },
+        .root_source_file = b.path("zmath.zig"),
     });
 
     const test_step = b.step("test-zmath", "runs tests for zmath");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "zmath.zig" },
+        .root_source_file = b.path("zmath.zig"),
         .link_libc = true,
     });
 

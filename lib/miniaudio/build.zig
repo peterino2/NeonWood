@@ -10,23 +10,23 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    miniaudio_c.addCSourceFile(.{ .file = .{ .path = "src/miniaudio.cpp" }, .flags = &.{"-fno-sanitize=all"} });
-    miniaudio_c.addIncludePath(.{ .path = "include" });
+    miniaudio_c.addCSourceFile(.{ .file = b.path("src/miniaudio.cpp"), .flags = &.{"-fno-sanitize=all"} });
+    miniaudio_c.addIncludePath(b.path("include"));
 
-    const mod = b.addModule("miniaudio", .{ .target = target, .optimize = optimize, .root_source_file = .{ .path = "src/miniaudio.zig" } });
+    const mod = b.addModule("miniaudio", .{ .target = target, .optimize = optimize, .root_source_file = b.path("src/miniaudio.zig") });
 
     mod.linkLibrary(miniaudio_c);
-    mod.addIncludePath(.{ .path = "./include" });
+    mod.addIncludePath(b.path("./include"));
 
     // ======== tests ============
     const test_step = b.step("test-miniaudio", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/miniaudio.zig" },
+        .root_source_file = b.path("src/miniaudio.zig"),
         .link_libc = true,
     });
-    tests.addIncludePath(.{ .path = "./include" });
+    tests.addIncludePath(b.path("./include"));
 
     tests.root_module.addImport("miniaudio", mod);
     const runArtifact = b.addRunArtifact(tests);

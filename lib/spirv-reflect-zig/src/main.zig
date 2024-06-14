@@ -146,5 +146,8 @@ pub fn main() !void {
 
     const rendered = try reflectedJson.render(allocator);
     defer allocator.free(rendered);
-    try std.fs.cwd().writeFile(opts.outputFile, rendered);
+    try std.fs.cwd().writeFile(.{
+        .sub_path = opts.outputFile,
+        .data = rendered,
+    });
 }

@@ -87,21 +87,19 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("vma", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "vma.zig" },
+        .root_source_file = b.path("vma.zig"),
         .link_libc = true,
         .link_libcpp = target.result.abi != .msvc,
     });
 
     if (target.result.os.tag == .macos) {
-        mod.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
-        mod.addLibraryPath(.{
-            .path = b.fmt("{s}/1.3.250.1/macOS/lib/", .{macos_vulkan_sdk.?}),
-        });
+        mod.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib/" });
+        mod.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/1.3.250.1/macOS/lib/", .{macos_vulkan_sdk.?}) });
         mod.linkSystemLibrary("vulkan", .{});
     }
 
-    mod.addIncludePath(.{ .path = "vulkan" });
-    mod.addCSourceFile(.{ .file = .{ .path = "vk_mem_alloc.cpp" }, .flags = args });
+    mod.addIncludePath(b.path("vulkan"));
+    mod.addCSourceFile(.{ .file = b.path("vk_mem_alloc.cpp"), .flags = args });
 
     mod.addImport("vulkan", vulkan);
 
@@ -110,7 +108,7 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "vma_test.zig" },
+        .root_source_file = b.path("vma_test.zig"),
     });
     tests.root_module.addImport("vma", mod);
     const runArtifact = b.addRunArtifact(tests);

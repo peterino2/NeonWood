@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .link_libc = true,
-        .root_source_file = .{ .path = "src/graphics.zig" },
+        .root_source_file = b.path("src/graphics.zig"),
     });
 
     mod.addAnonymousImport("texture_sample.png", .{ .root_source_file = .{ .path = "defaults/texture_sample.png" } });
@@ -35,11 +35,11 @@ pub fn build(b: *std.Build) void {
     }
 
     const spirvGen = SpirvReflect.SpirvGenerator2.init(b, .{ .optimize = optimize });
-    spirvGen.addShader(mod, "shaders/triangle_mesh.vert", "triangle_mesh_vert");
-    spirvGen.addShader(mod, "shaders/default_lit.frag", "default_lit");
+    spirvGen.addShader(mod, b.path("shaders/triangle_mesh.vert"), "triangle_mesh_vert");
+    spirvGen.addShader(mod, b.path("shaders/default_lit.frag"), "default_lit");
 
-    spirvGen.addShader(mod, "shaders/debug.vert", "debug_vert");
-    spirvGen.addShader(mod, "shaders/debug.frag", "debug_frag");
+    spirvGen.addShader(mod, b.path("shaders/debug.vert"), "debug_vert");
+    spirvGen.addShader(mod, b.path("shaders/debug.frag"), "debug_frag");
 
     // === simple little integration test ===
     //
@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tests/tests.zig" },
+        .root_source_file = b.path("tests/tests.zig"),
         .link_libc = true,
     });
 

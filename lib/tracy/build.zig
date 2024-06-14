@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("tracy", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tracy.zig" },
+        .root_source_file = b.path("tracy.zig"),
         .link_libc = true,
         .link_libcpp = true,
     });
@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) void {
     if (tracy_enabled) {
         mod.addIncludePath(.{ .path = tracy_path_include });
         mod.addCSourceFile(.{
-            .file = .{ .path = tracy_path ++ "/TracyClient.cpp" },
+            .file = b.path(tracy_path ++ "/TracyClient.cpp"),
             .flags = &[_][]const u8{
                 "-DTRACY_ENABLE",
                 // MinGW doesn't have all the newfangled windows features,
@@ -50,7 +50,7 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tracy_test.zig" },
+        .root_source_file = b.path("tracy_test.zig"),
     });
     tests.root_module.addImport("tracy", mod);
     const runArtifact = b.addRunArtifact(tests);

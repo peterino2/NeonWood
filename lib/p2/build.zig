@@ -7,14 +7,14 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("p2", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/p2.zig" },
+        .root_source_file = b.path("src/p2.zig"),
     });
 
     const test_step = b.step("test-p2", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/p2.zig" },
+        .root_source_file = b.path("src/p2.zig"),
         .link_libc = true,
     });
 
