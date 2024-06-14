@@ -7,32 +7,32 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("nfd", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/nfd.zig" },
+        .root_source_file = b.path("src/nfd.zig"),
         .link_libc = true,
     });
 
     mod.addCSourceFile(.{
-        .file = .{ .path = "src/nfd_common.c" },
+        .file = b.path("src/nfd_common.c"),
         .flags = &.{},
     });
 
-    mod.addIncludePath(.{ .path = "include" });
+    mod.addIncludePath(b.path("include"));
 
     if (target.result.os.tag == .macos) {
         mod.addCSourceFile(.{
-            .file = .{ .path = "src/nfd_cocoa.m" },
+            .file = b.path("src/nfd_cocoa.m"),
             .flags = &.{},
         });
         mod.linkFramework("AppKit", .{});
     } else if (target.result.os.tag == .windows) {
         mod.addCSourceFile(.{
-            .file = .{ .path = "src/nfd_win.cpp" },
+            .file = b.path("src/nfd_win.cpp"),
             .flags = &.{},
         });
         mod.linkSystemLibrary("ole32", .{});
     } else if (target.result.os.tag == .linux) {
         mod.addCSourceFile(.{
-            .file = .{ .path = "src/nfd_gtk.c" },
+            .file = b.path("src/nfd_gtk.c"),
             .flags = &.{},
         });
         mod.linkSystemLibrary("gdk-3", .{});
@@ -46,10 +46,10 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/nfd.zig" },
+        .root_source_file = b.path("src/nfd.zig"),
         .link_libc = true,
     });
-    tests.addIncludePath(.{ .path = "./include" });
+    tests.addIncludePath(b.path("./include"));
 
     tests.root_module.addImport("nfd", mod);
     const runArtifact = b.addRunArtifact(tests);

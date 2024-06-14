@@ -9,14 +9,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .link_libc = true,
-        .root_source_file = .{ .path = "src/vkImgui.zig" },
+        .root_source_file = b.path("src/vkImgui.zig"),
     });
 
-    mod.addIncludePath(.{ .path = "cimgui" });
-    mod.addIncludePath(.{ .path = "cimgui/imgui" });
-    mod.addIncludePath(.{ .path = "cimgui/imgui/backends" });
+    mod.addIncludePath(b.path("cimgui"));
+    mod.addIncludePath(b.path("cimgui/imgui"));
+    mod.addIncludePath(b.path("cimgui/imgui/backends"));
     mod.addCSourceFiles(.{
-        .root = .{ .path = "cimgui/imgui" },
+        .root = b.path("cimgui/imgui"),
         .files = &[_][]const u8{
             "cimgui.cpp",
             "cimgui_compat.cpp",

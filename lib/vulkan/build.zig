@@ -12,12 +12,10 @@ pub fn build(b: *std.Build) void {
     const mod = gen.package;
 
     if (target.result.os.tag == .windows) {
-        mod.addObjectFile(.{ .path = "objs/vulkan-1.lib" });
+        mod.addObjectFile(b.path("objs/vulkan-1.lib"));
     } else if (target.result.os.tag == .macos) {
-        mod.addLibraryPath(.{ .path = "/opt/homebrew/lib/" });
-        mod.addLibraryPath(.{
-            .path = b.fmt("{s}/1.3.250.1/macOS/lib/", .{macos_vulkan_sdk.?}),
-        });
+        mod.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib/" });
+        mod.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/1.3.250.1/macOS/lib/", .{macos_vulkan_sdk.?}) });
     } else {
         mod.linkSystemLibrary("vulkan", .{});
     }
@@ -26,7 +24,7 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "test_integration.zig" },
+        .root_source_file = b.path("test_integration.zig"),
         .link_libc = true,
     });
 

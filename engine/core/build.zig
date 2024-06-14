@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("core", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/core.zig" },
+        .root_source_file = b.path("src/core.zig"),
     });
 
     for (dependencyList) |depName| {
@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tests/tests.zig" },
+        .root_source_file = b.path("tests/tests.zig"),
     });
 
     tests.root_module.addImport("core", mod);

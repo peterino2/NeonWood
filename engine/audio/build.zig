@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("audio", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/audio.zig" },
+        .root_source_file = b.path("src/audio.zig"),
     });
 
     for (depList) |depName| {

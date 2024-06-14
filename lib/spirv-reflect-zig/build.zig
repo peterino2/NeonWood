@@ -30,7 +30,7 @@ pub const SpirvGenerator2 = struct {
     fn initFromBuilder(b: *Build, spirv_build: *Build, opts: BuildOptions) SpirvGenerator2 {
         const reflect = spirv_build.addExecutable(.{
             .name = "spirv-reflect-zig",
-            .root_source_file = .{ .path = "src/main.zig" },
+            .root_source_file = spirv_build.path("src/main.zig"),
             .target = spirv_build.host,
             .optimize = opts.optimize,
         });
@@ -104,10 +104,10 @@ pub const SpirvGenerator2 = struct {
     pub fn addShader(
         self: SpirvGenerator2,
         module: *Build.Module,
-        shaderPath: []const u8,
+        shaderPath: LazyPath,
         shaderName: []const u8,
     ) void {
-        const results = self.createShader(.{ .path = shaderPath }, shaderName);
+        const results = self.createShader(shaderPath, shaderName);
         module.addImport(shaderName, results.mod);
     }
 

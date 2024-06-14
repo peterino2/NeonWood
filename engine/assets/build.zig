@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("assets", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/assets.zig" },
+        .root_source_file = b.path("src/assets.zig"),
     });
 
     const core_dep = b.dependency(

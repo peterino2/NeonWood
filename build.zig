@@ -43,6 +43,7 @@ pub const AddProgramOptions = struct {
     name: []const u8,
     desc: []const u8,
     root_source_file: LazyPath,
+    imports: []const Build.Module.Import = &.{},
 };
 
 pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.Compile {
@@ -68,6 +69,7 @@ pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.C
         .target = self.target,
         .optimize = self.optimize,
         .root_source_file = opts.root_source_file,
+        .imports = opts.imports,
     });
 
     exe.root_module.addImport("main", mod);
@@ -133,7 +135,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("NeonWood", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "engine/neonwood.zig" },
+        .root_source_file = b.path("engine/neonwood.zig"),
     });
 
     for (engineDepList) |depName| {

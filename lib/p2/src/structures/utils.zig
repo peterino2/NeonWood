@@ -30,7 +30,7 @@ pub fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFil
     const imageFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{pngFile});
     defer allocator.free(imageFile);
 
-    var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
+    var childProc = std.process.Child.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
     try childProc.spawn();
 }
 

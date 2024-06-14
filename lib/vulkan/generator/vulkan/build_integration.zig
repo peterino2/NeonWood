@@ -34,7 +34,7 @@ pub const GenerateStep = struct {
         };
 
         self.package = builder.addModule("vulkan", .{
-            .root_source_file = .{ .generated = &self.output_file },
+            .root_source_file = .{ .generated = .{ .file = &self.output_file } },
         });
 
         return self;
@@ -57,7 +57,7 @@ pub const GenerateStep = struct {
     /// the final bindings. The resulting generated bindings are not formatted, which is why an ArrayList
     /// writer is passed instead of a file writer. This is then formatted into standard formatting
     /// by parsing it and rendering with `std.zig.parse` and `std.zig.render` respectively.
-    fn make(step: *Step, progress: *std.Progress.Node) !void {
+    fn make(step: *Step, progress: std.Progress.Node) !void {
         _ = progress;
         const self: *GenerateStep = @fieldParentPtr("step", step);
         const cwd = std.fs.cwd();
@@ -76,6 +76,9 @@ pub const GenerateStep = struct {
 
         const dir = path.dirname(self.output_file.path.?).?;
         try cwd.makePath(dir);
-        try cwd.writeFile(self.output_file.path.?, formatted);
+        try cwd.writeFile(.{
+            .sub_path = self.output_file.path.?,
+            .data = formatted,
+        });
     }
 };

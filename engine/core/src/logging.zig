@@ -108,7 +108,10 @@ pub const FileLog = struct {
         defer self.allocator.free(ofile);
 
         try cwd.makePath("Saved");
-        try cwd.writeFile(ofile, obuf);
+        try cwd.writeFile(.{
+            .sub_path = ofile,
+            .data = obuf,
+        });
     }
 
     pub fn writeOut(self: @This(), fileName: []const u8) !void {
@@ -116,7 +119,10 @@ pub const FileLog = struct {
         const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
         defer self.allocator.free(ofile);
         try cwd.makePath("Saved");
-        try cwd.writeFile(ofile, self.buffer.items);
+        try cwd.writeFile(.{
+            .sub_path = ofile,
+            .data = self.buffer.items,
+        });
     }
 
     pub fn deinit(self: *@This()) void {
