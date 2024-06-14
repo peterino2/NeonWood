@@ -13,6 +13,7 @@ pub fn build(b: *std.Build) void {
     });
 
     mod.addIncludePath(b.path("cimgui"));
+    mod.addIncludePath(b.path("cimplot"));
     mod.addIncludePath(b.path("cimgui/imgui"));
     mod.addIncludePath(b.path("cimgui/imgui/backends"));
     mod.addCSourceFiles(.{
@@ -27,6 +28,16 @@ pub fn build(b: *std.Build) void {
             "imgui_widgets.cpp",
             "backends/imgui_impl_vulkan.cpp",
             "backends/imgui_impl_glfw.cpp",
+        },
+    });
+
+    mod.addCSourceFiles(.{
+        .root = b.path("cimplot"),
+        .files = &[_][]const u8{
+            "cimplot.cpp",
+            "implot/implot.cpp",
+            "implot/implot_demo.cpp",
+            "implot/implot_items.cpp",
         },
     });
 

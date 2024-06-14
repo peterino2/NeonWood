@@ -5,12 +5,14 @@ const platform = @import("platform");
 const vk_renderer = graphics.vk_renderer;
 const core = @import("core");
 const vk_constants = graphics.constants;
+
 pub const c = @cImport({
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
     @cDefine("CIMGUI_USE_GLFW", "1"); // if this needs a reference to glfw3, cleanest thing to do is to copy the glfw3 header here. I suspect it won't need it though.
     @cInclude("cimgui.h");
     @cInclude("cimgui_compat.h");
     @cInclude("cimgui_impl.h");
+    @cInclude("cimplot.h");
 });
 
 const NeonVkContext = vk_renderer.NeonVkContext;
