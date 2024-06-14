@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("packer", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/packer.zig" },
+        .root_source_file = b.path("src/packer.zig"),
     });
 
     const p2mod = p2dep.module("p2");
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     const test_exe = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "tests/test.zig" },
+        .root_source_file = b.path("tests/test.zig"),
         .link_libc = true,
     });
     test_exe.root_module.addImport("packer", mod);

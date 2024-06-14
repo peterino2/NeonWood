@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     });
 
     if (tracy_enabled) {
-        mod.addIncludePath(.{ .path = tracy_path_include });
+        mod.addIncludePath(b.path(tracy_path_include));
         mod.addCSourceFile(.{
             .file = b.path(tracy_path ++ "/TracyClient.cpp"),
             .flags = &[_][]const u8{
