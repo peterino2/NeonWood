@@ -1,5 +1,6 @@
 *.fbx filter=lfs diff=lfs merge=lfs -text
 lib/** linguist-vendored
+engine/vkImgui/cimplot/** linguist-vendored
 engine/vkImgui/cimgui/** linguist-vendored
 engine/papyrus/src/stb_ttf.h linguist-vendored
 

@@ -12,13 +12,16 @@ pub const GameContext = struct {
     allocator: std.mem.Allocator,
     showDemoWindow: bool = true,
 
+    implot: [*c]c.ImPlotContext = null,
+
     pub fn tick(self: *@This(), deltaTime: f64) void {
         _ = deltaTime;
         c.igShowDemoWindow(&self.showDemoWindow);
+        c.ImPlot_ShowDemoWindow(&self.showDemoWindow);
     }
 
     pub fn prepare_game(self: *@This()) !void {
-        _ = self;
+        self.implot = c.ImPlot_CreateContext();
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
@@ -30,6 +33,7 @@ pub const GameContext = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        c.ImPlot_DestroyContext(self.implot);
         self.allocator.destroy(self);
     }
 };

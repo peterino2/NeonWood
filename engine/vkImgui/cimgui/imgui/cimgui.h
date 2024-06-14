@@ -41,6 +41,8 @@ typedef unsigned __int64 ImU64;
 
 #ifdef CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 
+typedef int ImVector_int;
+
 typedef struct ImDrawChannel ImDrawChannel;
 typedef struct ImDrawCmd ImDrawCmd;
 typedef struct ImDrawData ImDrawData;
