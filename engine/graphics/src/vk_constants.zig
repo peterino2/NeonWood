@@ -3,8 +3,8 @@ const vk = @import("vulkan");
 const core = @import("core");
 
 pub const NumFrames = NUM_FRAMES;
-pub const FrameTimeout = 10_000_000_000; // 1 full second frame timeout
-pub const MAX_OBJECTS = 100000;
+pub const FrameTimeout = 10_000_000_000; // 10 full second frame timeout
+pub const MAX_OBJECTS = 100000; // 100k objects ought to be enough for anyone
 pub const NUM_FRAMES: usize = 2;
 pub const DEVICE_LAYERS = [_]core.CStr{VK_KHRONOS_VALIDATION_LAYER_STRING};
 
