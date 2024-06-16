@@ -217,14 +217,14 @@ pub const GpuPipeDataBuilder = struct {
         // uniforms require that the buffer object gets padded to the correct size.
         if (descriptorType != .storage_buffer) {
             bindingObjectInfo.finalObjectSize = gc.pad_uniform_buffer_size(bindingObjectInfo.finalObjectSize);
-            core.engine_log("final object size has been padded: {d}", .{bindingObjectInfo.finalObjectSize});
+            // core.engine_log("final object size has been padded: {d}", .{bindingObjectInfo.finalObjectSize});
         } else {
             var trueSize: usize = 1;
             while (trueSize < bindingObjectInfo.finalObjectSize) {
                 trueSize *= 2;
             }
             bindingObjectInfo.finalObjectSize = trueSize;
-            core.engine_log("final object size has been padded as storage: {d}", .{bindingObjectInfo.finalObjectSize});
+            // core.engine_log("final object size has been padded as storage: {d}", .{bindingObjectInfo.finalObjectSize});
         }
 
         try self.bindingObjectInfos.append(self.allocator, bindingObjectInfo);
@@ -237,7 +237,7 @@ pub const GpuPipeDataBuilder = struct {
         var setInfo = vk.DescriptorSetLayoutCreateInfo{ .binding_count = @as(u32, @intCast(self.bindings.items.len)), .flags = .{}, .p_bindings = self.bindings.items.ptr };
         rv.descriptorSetLayout = try gc.vkd.createDescriptorSetLayout(gc.dev, &setInfo, null);
         rv.descriptorSetLayoutIsAllocated = true;
-        core.graphics_log("finalizing build creating descriptor set layout at 0x{x} buildName: {s}", .{ @intFromEnum(rv.descriptorSetLayout), buildName });
+        // core.graphics_log("finalizing build creating descriptor set layout at 0x{x} buildName: {s}", .{ @intFromEnum(rv.descriptorSetLayout), buildName });
 
         for (rv.descriptorSets, 0..) |_, frameId| {
             var descriptorAllocInfo = vk.DescriptorSetAllocateInfo{
@@ -254,7 +254,7 @@ pub const GpuPipeDataBuilder = struct {
             const binding = &rv.bindings[bindingId];
             const bindingInfo: BindingObjectInfo = self.bindingObjectInfos.items[bindingId];
 
-            core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{ binding.buffers.len, bindingId, bindingInfo.finalObjectSize * bindingInfo.objectCount, bindingInfo.finalObjectSize });
+            // core.graphics_log("allocating {d} frame buffers for binding {d} buffer size = {d} object size = {d}", .{ binding.buffers.len, bindingId, bindingInfo.finalObjectSize * bindingInfo.objectCount, bindingInfo.finalObjectSize });
 
             for (binding.buffers, 0..) |*buffer, frameId| {
                 var usageFlags: vk.BufferUsageFlags = .{};

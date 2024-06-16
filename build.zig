@@ -116,7 +116,11 @@ pub fn createGameOptions(b: *std.Build) *std.Build.Step.Options {
         "force_mailbox",
         b.option(bool, "force_mailbox", "forces mailbox mode for present mode. unlocks framerate to irresponsible levels") orelse false,
     );
-
+    opts.addOption(
+        bool,
+        "use_renderthread",
+        b.option(bool, "use_renderthread", "enables the use of renderthread") orelse false,
+    );
     return opts;
 }
 

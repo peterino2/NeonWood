@@ -105,6 +105,15 @@ pub fn getEngine() *Engine {
     return gEngine;
 }
 
+pub fn BuildOption(comptime option: []const u8) bool {
+    const r = @import("root").options;
+    if (@hasDecl(r, option)) {
+        return @field(r, option);
+    } else {
+        return false;
+    }
+}
+
 const EngineDelegates = @import("EngineDelegates.zig");
 
 // binds a function + a context to
@@ -112,7 +121,6 @@ pub fn addEngineDelegateBinding(comptime event: []const u8, func: anytype, ctx: 
     if (!@hasField(EngineDelegates, event)) {
         @compileError("Engine does not have delegate " ++ event);
     }
-
     const handle = @field(gEngine.delegates, event).items.len;
     try @field(gEngine.delegates, event).append(gEngine.delegates.allocator, .{ .func = func, .ctx = ctx });
 

@@ -79,7 +79,8 @@ pub fn newVkImage(size: core.Vector2i, ctx: *NeonVkContext, mipLevel: u32) !Neon
     }, imageExtent, mipLevel);
 
     if (mipLevel > 1) {
-        core.graphics_log("creating image with mip level: {d} {d}x{d}", .{ mipLevel, size.x, size.y });
+        // core.graphics_log("creating image with mip level: {d} {d}x{d}", .{ mipLevel, size.x, size.y });
+
         imgCreateInfo.usage = .{
             .transfer_dst_bit = true,
             .transfer_src_bit = true,
@@ -258,7 +259,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             @ptrCast(&copyRegion),
         );
 
-        core.graphics_log("miplevel count: {d}", .{mipLevel});
+        // core.graphics_log("miplevel count: {d}", .{mipLevel});
         try generateMipMaps(ctx, newImage, mipLevel);
 
         transitions.transferDst_into_shaderReadOnly(ctx.vkd, cmd, newImage.image, mipLevel);
@@ -366,6 +367,7 @@ pub const NeonVkUploader = struct {
     commandBuffer: vk.CommandBuffer = undefined,
     mutex: std.Thread.Mutex = .{},
     isActive: bool = false,
+    tag: []const u8,
 
     pub fn init(gc: *NeonVkContext, comptime tag: []const u8) !@This() {
         var arena = std.heap.ArenaAllocator.init(gc.allocator);
@@ -373,6 +375,7 @@ pub const NeonVkUploader = struct {
             .arena = arena,
             .allocator = arena.allocator(),
             .gc = gc,
+            .tag = tag,
         };
 
         // create the uploadFence
@@ -398,8 +401,6 @@ pub const NeonVkUploader = struct {
             &cbai,
             @as([*]vk.CommandBuffer, @ptrCast(&self.commandBuffer)),
         );
-
-        core.graphics_log("command buffer created from uploader {any} with tag {s}", .{ self.commandBuffer, tag });
 
         return self;
     }

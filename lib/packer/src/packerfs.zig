@@ -75,7 +75,7 @@ pub const PackerFS = struct {
 
         pub fn unmount(self: *@This(), allocator: std.mem.Allocator) void {
             if (self.mounted) {
-                std.debug.print("unmounting file:{s} bytes: 0x{x}\n", .{ self.filePath, @intFromPtr(self.bytes.ptr) });
+                // std.debug.print("unmounting file:{s} bytes: 0x{x}\n", .{ self.filePath, @intFromPtr(self.bytes.ptr) });
                 allocator.free(self.bytes);
                 self.mountRefs.deinit(allocator);
                 self.mounted = false;
@@ -117,7 +117,7 @@ pub const PackerFS = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        std.debug.print("discovered from file: {s}\n", .{filePath});
+        // std.debug.print("discovered from file: {s}\n", .{filePath});
 
         // load the file and read out all headers from the file at the path
         const file = try std.fs.cwd().openFile(filePath, .{});
@@ -134,13 +134,13 @@ pub const PackerFS = struct {
             const HeaderName = Name.Make(headerEntry.getFileName());
 
             if (self.fileHandlesByName.get(HeaderName.handle())) |oldFileHeaderIndex| {
-                const oldFileHeaderSource = self.filePakSources.items[oldFileHeaderIndex];
+                // const oldFileHeaderSource = self.filePakSources.items[oldFileHeaderIndex];
 
-                std.debug.print(
-                    // todo; how should I deal with eviction?
-                    "file {s} is already discovered, previously from {s}, this previous reference will be overwritten.\n",
-                    .{ headerEntry.getFileName(), getDisplayNameForFileSource(oldFileHeaderSource, self) },
-                );
+                // std.debug.print(
+                //     // todo; how should I deal with eviction?
+                //     "file {s} is already discovered, previously from {s}, this previous reference will be overwritten.\n",
+                //     .{ headerEntry.getFileName(), getDisplayNameForFileSource(oldFileHeaderSource, self) },
+                // );
 
                 self.fileHeaders.items[oldFileHeaderIndex] = headerEntry;
                 self.filePakSources.items[oldFileHeaderIndex] = pakMountingIndex;
@@ -171,7 +171,7 @@ pub const PackerFS = struct {
 
         for (self.contentPaths.items) |contentPath| {
             if (try self.loadFileDirect(contentPath, path)) |mapping| {
-                std.debug.print("direct load - 0x{x}\n", .{@intFromPtr(mapping.bytes.ptr)});
+                // std.debug.print("direct load - 0x{x}\n", .{@intFromPtr(mapping.bytes.ptr)});
                 return mapping;
             }
         }
@@ -218,7 +218,7 @@ pub const PackerFS = struct {
         try self.pakMountings.items[pakMountIndex].mountRefs.append(self.allocator, headerIndex);
         self.pakMountings.items[pakMountIndex].mounted = true;
 
-        std.debug.print("loadFileDirect {s} {d} 0x{x}\n", .{ path, headerIndex, @intFromPtr(fileBytes.ptr) });
+        // std.debug.print("loadFileDirect {s} {d} 0x{x}\n", .{ path, headerIndex, @intFromPtr(fileBytes.ptr) });
         return .{
             .bytes = fileBytes,
             .mappingId = pakMountIndex,
@@ -239,7 +239,7 @@ pub const PackerFS = struct {
         const pakMountingRef = &self.pakMountings.items[source];
 
         if (!pakMountingRef.isFileMounted()) {
-            std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
+            // std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
             pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
         }
 
@@ -259,7 +259,7 @@ pub const PackerFS = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        std.debug.print("unmapping file: {d},{d} 0x{x}\n", .{ mapping.mappingId, mapping.fileEntryId, @intFromPtr(mapping.bytes.ptr) });
+        // std.debug.print("unmapping file: {d},{d} 0x{x}\n", .{ mapping.mappingId, mapping.fileEntryId, @intFromPtr(mapping.bytes.ptr) });
         self.pakMountings.items[mapping.mappingId].removeMapping(self.allocator, mapping.fileEntryId);
         return;
     }

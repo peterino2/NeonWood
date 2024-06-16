@@ -9,16 +9,6 @@ const NeonVkContext = vk_renderer.NeonVkContext;
 const vk_allocator = @import("../vk_allocator.zig");
 const vk_constants = @import("../vk_constants.zig");
 
-pub const NeonVkSwapImage = struct {
-    image: vk.Image,
-    view: vk.ImageView,
-    imageIndex: usize,
-
-    pub fn deinit(self: *NeonVkSwapImage, ctx: *NeonVkContext) void {
-        ctx.vkd.destroyImageView(ctx.dev, self.view, null);
-    }
-};
-
 pub const NeonVkQueue = struct {
     handle: vk.Queue,
     family: u32,
@@ -60,4 +50,14 @@ pub const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
     .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
     .{ .type = .storage_buffer, .descriptor_count = 1000 },
     .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+};
+
+pub const NeonVkSwapImage = struct {
+    image: vk.Image,
+    view: vk.ImageView,
+    imageIndex: usize,
+
+    pub fn deinit(self: *NeonVkSwapImage, vkd: vk_constants.DeviceDispatch, dev: vk.Device) void {
+        vkd.destroyImageView(dev, self.view, null);
+    }
 };

@@ -81,7 +81,7 @@ pub const GameContext = struct {
     var texName = core.MakeName("t_empire");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
-        ig.igShowDemoWindow(&self.showDemo);
+        // ig.igShowDemoWindow(&self.showDemo);
         if (!self.assetReady) {
             if (self.gc.textures.contains(texName.handle())) {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;

@@ -206,7 +206,6 @@ pub const FontAtlas = struct {
         }
 
         self.glyphMax = max;
-        std.debug.print("creating atlas: {any}\n", .{self.glyphMax});
         // allocate the atlasBuffer, just a linear strip
         self.atlasSize = .{ .x = (max.x + 1) * glyphCount, .y = (max.y + 1) };
         self.glyphStride = max.x + 1;

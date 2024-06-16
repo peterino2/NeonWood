@@ -104,7 +104,7 @@ pub const IndexBuffer = struct {
             };
 
             const cmd = gc.uploader.commandBuffer;
-            core.graphics_log("Starting command copy buffer", .{});
+            // core.graphics_log("Starting command copy buffer", .{});
 
             gc.vkd.cmdCopyBuffer(
                 cmd,
@@ -155,7 +155,7 @@ pub const Mesh = struct {
         if (fileObjs.meshes.items.len > 0) {
             // default grabbing shape zero
             core.graphics_log("loading mesh: {s}", .{fileName});
-            fileObjs.meshes.items[0].print_stats();
+            // fileObjs.meshes.items[0].print_stats();
             try self.load_from_obj_mesh(fileObjs.meshes.items[0]);
         }
     }

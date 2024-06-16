@@ -136,9 +136,6 @@ pub const PlatformInstance = struct {
             .workBuffer = std.ArrayList(IOEvent).init(allocator),
         };
 
-        core.engine_log("Creating IO Buffer with {x} size", .{@sizeOf(IOEvent) * 8096});
-
-        //if (graphicsBackend.UseVulkan) {
         core.engine_logs("Initializing with Vulkan 1.3");
         // }
         // if (graphicsBackend.UseGLES2) {
@@ -167,7 +164,6 @@ pub const PlatformInstance = struct {
     }
 
     pub fn installListener(self: *@This(), listener: anytype) !void {
-        core.engine_logs("installed listener:");
         try self.listeners.append(RawInputObjectRef.from(listener));
     }
 
@@ -176,8 +172,6 @@ pub const PlatformInstance = struct {
             core.engine_errs("Glfw Init Failed");
             return error.GlfwInitFailed;
         }
-
-        core.engine_log("platform starting: GLFW", .{});
 
         //if (graphicsBackend.UseVulkan) {
         glfw3.glfwWindowHint(glfw3.GLFW_CLIENT_API, glfw3.GLFW_NO_API);
@@ -209,18 +203,18 @@ pub const PlatformInstance = struct {
         glfw3.glfwSetWindowAspectRatio(self.window, 16, 9);
 
         //if (graphicsBackend.UseVulkan) {
-        var extensionsCount: u32 = 0;
-        const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extensionsCount);
+        // var extensionsCount: u32 = 0;
+        // const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extensionsCount);
 
-        core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
-        if (extensionsCount > 0) {
-            var i: usize = 0;
-            while (i < extensionsCount) : (i += 1) {
-                const x = @as([*]const core.CStr, @ptrCast(extensions));
-                core.engine_log("  glfw_extension: {s}", .{x[i]});
-            }
-        }
-        //}
+        // core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
+        // if (extensionsCount > 0) {
+        //     var i: usize = 0;
+        //     while (i < extensionsCount) : (i += 1) {
+        //         const x = @as([*]const core.CStr, @ptrCast(extensions));
+        //         core.engine_log("  glfw_extension: {s}", .{x[i]});
+        //     }
+        // }
+        // //}
 
         self.installHandlers();
     }
@@ -260,7 +254,6 @@ pub const PlatformInstance = struct {
     }
 
     pub fn installHandlers(self: *@This()) void {
-        core.engine_logs("platform.windowing:: installing handlers");
         _ = glfw3.glfwSetCursorPosCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), mousePositionCallback);
         _ = glfw3.glfwSetMouseButtonCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
         _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), keyCallback);
@@ -268,8 +261,6 @@ pub const PlatformInstance = struct {
         _ = glfw3.glfwSetCharCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), charCallback);
 
         glfw3.glfwGetWindowContentScale(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
-
-        core.engine_log("contentScale: {any}", .{self.contentScale});
     }
 
     pub fn pumpEvents(self: *@This()) !void {

@@ -25,7 +25,6 @@ pub const PngContents = struct {
         const header = try decoder.getHeader();
 
         const imageSize = @as(usize, @intCast(header.width * header.height * 4));
-        core.graphics_log("png loaded, dimensions={d}x{d}", .{ header.width, header.height });
         const pixels: []u8 = try allocator.alloc(u8, imageSize);
         const len = try decoder.decode(pixels, spng.SPNG_FMT_RGBA8, spng.SPNG_DECODE_TRNS);
         try core.assertf(len == pixels.len, "decoded pixel size not buffer size {d} != {d}", .{ len, pixels.len });

@@ -14,7 +14,6 @@ pub fn start_module(allocator: std.mem.Allocator, params: windowing.PlatformPara
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
     try gPlatformInstance.setup();
-    core.engine_log("platform start_module @ 0x{x}", .{@intFromPtr(gPlatformInstance)});
 }
 
 pub fn getInstance() *windowing.PlatformInstance {
@@ -22,19 +21,13 @@ pub fn getInstance() *windowing.PlatformInstance {
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    core.engine_logs("destroying platform");
+    core.engine_logs("Shutting down platform");
     gPlatformInstance.deinit();
 
     // I have a bug somewhere. need to find out where it is
     const builtin = @import("builtin");
     if (builtin.is_test)
         allocator.destroy(gPlatformInstance);
-}
-
-pub fn shutdown_module2(allocator: std.mem.Allocator) void {
-    core.engine_logs("destroying platform");
-    gPlatformInstance.deinit();
-    allocator.destroy(gPlatformInstance);
 }
 
 pub const vkLoadFunc = windowing.c.glfwGetInstanceProcAddress;

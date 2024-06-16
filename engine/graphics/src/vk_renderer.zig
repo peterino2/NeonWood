@@ -26,6 +26,9 @@ const vk_allocator = @import("vk_allocator.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
 
+const use_renderthread = core.BuildOption("use_renderthread");
+const force_mailbox = core.BuildOption("force_mailbox");
+
 const vk_renderer_camera_gpu = @import("vk_renderer/vk_renderer_camera_gpu.zig");
 const NeonVkCameraDataGpu = vk_renderer_camera_gpu.NeonVkCameraDataGpu;
 
@@ -35,7 +38,6 @@ const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
 
-const force_mailbox: bool = build_opts.force_mailbox;
 const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
 
 const SparseSet = core.SparseSet;
@@ -43,6 +45,8 @@ const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
 pub const NeonVkBuffer = vk_allocator.NeonVkBuffer;
 pub const NeonVkImage = vk_allocator.NeonVkImage;
+
+const RenderThread = @import("vk_renderer/RenderThread.zig");
 
 fn vkCast(comptime T: type, handle: anytype) T {
     return @as(T, @ptrCast(@as(?*anyopaque, @ptrFromInt(@as(usize, @intCast(@intFromEnum(handle)))))));
@@ -213,7 +217,6 @@ pub const NeonVkContext = struct {
     vkd: vk_constants.DeviceDispatch,
 
     outstandingJobsCount: std.atomic.Value(u32),
-    framesInFlight: std.atomic.Value(u32),
 
     instance: vk.Instance,
     surface: vk.SurfaceKHR,
@@ -317,6 +320,8 @@ pub const NeonVkContext = struct {
 
     destructionQueue: ArrayListUnmanaged(DestructionLambda),
 
+    renderthread: RenderThread,
+
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         const meshRef = self.meshes.get(meshName.handle()).?;
         self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
@@ -416,7 +421,6 @@ pub const NeonVkContext = struct {
         }
 
         self.outstandingJobsCount = std.atomic.Value(u32).init(0);
-        self.framesInFlight = std.atomic.Value(u32).init(0);
 
         self.platformInstance = platform.getInstance();
     }
@@ -507,24 +511,11 @@ pub const NeonVkContext = struct {
         try self.graph.write("  root->init_command_pools\n", .{});
         try self.init_command_pools();
 
-        // command buffer initialization
-        try self.graph.write("  root->init_command_buffers\n", .{});
-        try self.init_command_buffers();
-
-        try self.graph.write("  root->init_syncs\n", .{});
-        try self.init_syncs();
-
-        try self.graph.write("  root->init_or_recycle_swapchain\n", .{});
-        try self.init_or_recycle_swapchain();
-
-        try self.graph.write("  root->init_rendertarget\n", .{});
-        try self.init_rendertarget();
+        try self.graph.write("  root->init_depthFormat\n", .{});
+        try self.init_depthFormat();
 
         try self.graph.write("  root->init_renderpasses\n", .{});
         try self.init_renderpasses();
-
-        try self.graph.write("  root->init_framebuffers\n", .{});
-        try self.init_framebuffers();
 
         // resource initialization
         try self.init_uploader();
@@ -544,6 +535,22 @@ pub const NeonVkContext = struct {
         try self.init_primitive_meshes();
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
+        // this stuff should be controlled by renderthread
+        if (!use_renderthread) {
+            // command buffer initialization
+            try self.graph.write("  root->init_command_buffers\n", .{});
+            try self.init_command_buffers();
+
+            try self.graph.write("  root->init_syncs\n", .{});
+            try self.init_syncs();
+
+            try self.graph.write("  root->init_or_recycle_swapchain\n", .{});
+            try self.init_or_recycle_swapchain();
+
+            try self.graph.write("  root->init_framebuffers\n", .{});
+            try self.init_framebuffers();
+        }
+
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut("renderer_graph.viz");
 
@@ -553,10 +560,48 @@ pub const NeonVkContext = struct {
 
     pub fn postInit(self: *@This()) core.EngineDataEventError!void {
         self.init_dynamic_mesh() catch return core.EngineDataEventError.UnknownStatePanic;
+        if (use_renderthread) {
+            self.init_renderthread() catch return core.EngineDataEventError.UnknownStatePanic;
+        }
     }
 
     pub fn init_uploader(self: *@This()) !void {
         self.uploader = try vk_utils.NeonVkUploader.init(self, "vk_renderer uploader");
+    }
+
+    fn init_renderthread(self: *@This()) !void {
+        self.renderthread = .{
+            .vki = self.vki,
+            .vkb = self.vkb,
+            .vkd = self.vkd,
+            .allocator = self.allocator,
+            .vkAllocator = self.vkAllocator,
+
+            .minUniformBufferAlignment = @as(usize, @intCast(self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment)),
+            .dev = self.dev,
+            .pdev = self.physicalDevice,
+            .extent = self.extent,
+            .renderPass = self.renderPass,
+            .displayTarget = .{
+                .surface = self.surface,
+                .surfaceFormat = self.surfaceFormat,
+                .depthFormat = self.depthFormat,
+                .presentMode = self.presentMode,
+            },
+            .cmdPool = self.commandPool,
+
+            .graphicsQueue = self.graphicsQueue,
+            .presentQueue = self.presentQueue,
+            .frameData = self.frameData,
+            .caps = self.caps,
+            .framesInFlight = std.atomic.Value(u32).init(0),
+            .maxObjectCount = self.maxObjectCount,
+
+            // render resources
+            .sceneParameterBuffer = self.sceneParameterBuffer,
+        };
+
+        try self.renderthread.setup();
     }
 
     pub fn init_dynamic_mesh(self: *@This()) !void {
@@ -771,10 +816,10 @@ pub const NeonVkContext = struct {
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
-        core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
+        //core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
 
         const sceneParamBufferSize = NumFrames * paddedSceneSize;
-        core.graphics_log("NumFrames = {d}", .{NumFrames});
+        //core.graphics_log("NumFrames = {d}", .{NumFrames});
 
         self.sceneParameterBuffer = try self.create_buffer(
             sceneParamBufferSize,
@@ -943,7 +988,7 @@ pub const NeonVkContext = struct {
 
         uploadedMesh.buffer = try self.vkAllocator.createBuffer(gpuBci, gpuVmaCreateInfo, @src().fn_name ++ "-- mesh buffer");
 
-        core.graphics_log("Staring upload context", .{});
+        // core.graphics_log("Staring upload context", .{});
         try self.uploader.startUploadContext();
         {
             var copy = vk.BufferCopy{
@@ -952,7 +997,7 @@ pub const NeonVkContext = struct {
                 .size = bufferSize,
             };
             const cmd = self.uploader.commandBuffer;
-            core.graphics_log("Starting command copy buffer", .{});
+            // core.graphics_log("Starting command copy buffer", .{});
             self.vkd.cmdCopyBuffer(
                 cmd,
                 stagingBuffer.buffer,
@@ -961,7 +1006,7 @@ pub const NeonVkContext = struct {
                 @as([*]const vk.BufferCopy, @ptrCast(&copy)),
             );
         }
-        core.graphics_log("Finishing upload context", .{});
+        // core.graphics_log("Finishing upload context", .{});
         try self.uploader.finishUploadContext();
     }
 
@@ -985,7 +1030,7 @@ pub const NeonVkContext = struct {
 
     fn create_mesh_material(self: *Self) !void {
         // Creates the standard mesh pipeline, this pipeline is statically stored as
-        core.graphics_logs("Creating mesh pipeline");
+        // core.graphics_logs("Creating mesh pipeline");
 
         // Initialize the pipeline with the default triangle mesh shader
         // and the default lighting shader
@@ -1079,7 +1124,7 @@ pub const NeonVkContext = struct {
 
         try self.create_mesh_material();
 
-        core.graphics_logs("Finishing up pipeline creation");
+        // core.graphics_logs("Finishing up pipeline creation");
     }
 
     pub fn getNextSwapImage(self: *Self) !u32 {
@@ -1109,41 +1154,28 @@ pub const NeonVkContext = struct {
         self.updateTime(dt);
 
         core.gScene.updateTransforms();
+
+        // unreachable instead of panic so releasefast
         self.sceneManager.update(self) catch unreachable;
 
-        if (gGraphicsStartupSettings.useSeperateRenderThread) {
-            self.requestRenderJob(dt) catch unreachable;
+        if (use_renderthread) {
+            const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
+            try self.sendSharedData(frameIndex);
+            self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
         } else {
             self.draw(dt) catch unreachable;
             self.dynamicMeshManager.finishUpload() catch unreachable;
         }
     }
 
-    pub fn requestRenderJob(self: *@This(), dt: f64) !void {
-        var z2 = tracy.ZoneN(@src(), "rendering job request");
-        defer z2.End();
+    fn sendSharedData(self: *@This(), frameIndex: u32) !void {
+        const shared = self.renderthread.getShared(frameIndex);
+        shared.lock.lock();
+        defer shared.lock.unlock();
+        shared.cameraData.viewproj = self.cameraRef.?.final;
+        shared.cameraData.position = self.cameraRef.?.position;
 
-        // spin
-        while (self.framesInFlight.load(.seq_cst) > 0) {}
-
-        const Lambda = struct {
-            gc: *NeonVkContext,
-            dt: f64,
-            pub fn func(ctx: @This(), _: *core.JobContext) void {
-                var z1 = tracy.ZoneN(@src(), "rendering job");
-                defer z1.End();
-                ctx.gc.draw(ctx.dt) catch unreachable;
-                ctx.gc.dynamicMeshManager.finishUpload() catch unreachable;
-                _ = ctx.gc.framesInFlight.fetchSub(1, .seq_cst);
-            }
-        };
-
-        _ = self.framesInFlight.fetchAdd(1, .seq_cst);
-
-        try core.dispatchJob(Lambda{
-            .gc = self,
-            .dt = dt,
-        });
+        shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
     }
 
     // convert game state into some intermediate graphics data.
@@ -1158,7 +1190,7 @@ pub const NeonVkContext = struct {
             z11.End();
         }
 
-        // ---- bind global descriptors ----
+        // ---- upload global push constants ----
         var z2 = tracy.ZoneN(@src(), "mapping memory");
         const data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
         z2.End();
@@ -1511,7 +1543,7 @@ pub const NeonVkContext = struct {
         }
         self.framebuffers.deinit();
         for (self.swapImages.items, 0..) |_, i| {
-            self.swapImages.items[i].deinit(self);
+            self.swapImages.items[i].deinit(self.vkd, self.dev);
         }
         self.swapImages.deinit();
     }
@@ -1540,11 +1572,10 @@ pub const NeonVkContext = struct {
             attachments[0] = image.view;
             //debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
             self.framebuffers.items[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
-            core.graphics_logs("Created a framebuffer!");
         }
     }
 
-    fn init_rendertarget(self: *Self) !void {
+    fn init_depthFormat(self: *Self) !void {
         var formats = [_]vk.Format{
             .d32_sfloat,
             .d24_unorm_s8_uint,
@@ -1555,7 +1586,7 @@ pub const NeonVkContext = struct {
             .optimal,
             .{ .depth_stencil_attachment_bit = true },
         );
-        core.graphics_log("created depth format: {any}", .{self.depthFormat});
+        // core.graphics_log("created depth format: {any}", .{self.depthFormat});
     }
 
     fn init_renderpasses(self: *Self) !void {
@@ -1687,13 +1718,13 @@ pub const NeonVkContext = struct {
         self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
 
         try self.find_surface_format();
-        debug_struct("selected surface format", self.surfaceFormat);
+        // debug_struct("selected surface format", self.surfaceFormat);
 
         try self.find_present_mode();
-        debug_struct("selected present mode", self.presentMode);
+        // debug_struct("selected present mode", self.presentMode);
 
         try self.find_actual_extent();
-        debug_struct("actual extent", self.actual_extent);
+        // debug_struct("actual extent", self.actual_extent);
 
         if (self.actual_extent.width == 0 or self.actual_extent.height == 0) {
             return error.InvalidSurfaceDimensions;
@@ -1756,6 +1787,10 @@ pub const NeonVkContext = struct {
     }
 
     pub fn init_syncs(self: *Self) !void {
+        if (use_renderthread) {
+            return;
+        }
+
         self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
         self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
 
@@ -1827,8 +1862,6 @@ pub const NeonVkContext = struct {
             .height = self.actual_extent.height,
             .depth = 1,
         };
-
-        self.depthFormat = .d32_sfloat;
 
         const dimg_ici = vk.ImageCreateInfo{
             .flags = .{},
@@ -1974,10 +2007,8 @@ pub const NeonVkContext = struct {
             .pp_enabled_extension_names = @as(?[*]const [*:0]const u8, @ptrCast(&requestedExtensions)) orelse undefined,
         };
 
-        core.graphics_logs("creating Instance");
         try self.graph.write("  create_vulkan_instance->\"vkb.createInstance\"\n", .{});
         self.instance = try self.vkb.createInstance(&icis, null);
-        core.graphics_logs("instance created");
 
         try self.graph.write("  create_vulkan_instance->\"vki.load\"\n", .{});
         // load vulkan per instance functions
@@ -1985,7 +2016,6 @@ pub const NeonVkContext = struct {
     }
 
     fn init_device(self: *Self) !void {
-        core.graphics_logs(" init device");
         try self.graph.write("  init_device->create_physical_devices\n", .{});
         try self.create_physical_devices();
 
@@ -2021,10 +2051,6 @@ pub const NeonVkContext = struct {
             .shader_draw_parameters = vk.TRUE,
         };
 
-        for (self.requiredExtensions.items) |required| {
-            core.graphics_log("required extension: {s}", .{required});
-        }
-
         var dci = vk.DeviceCreateInfo{
             .flags = .{},
             .p_next = &shaderDrawFeatures,
@@ -2047,6 +2073,11 @@ pub const NeonVkContext = struct {
 
         self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex);
         self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex);
+
+        self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
+
+        try self.find_surface_format();
+        // debug_struct("selected surface format", self.surfaceFormat);
 
         core.graphics_logs("Successfully created device");
     }
@@ -2133,7 +2164,7 @@ pub const NeonVkContext = struct {
                 core.graphics_log("Found graphics queue family with id {d} [ {d} available ]", .{ graphicsID, pDeviceInfo.queueFamilyProperties.items.len });
                 core.graphics_log("Found present queue family with id {d} [ {d} available ]", .{ presentID, pDeviceInfo.queueFamilyProperties.items.len });
                 debug_struct("selected physical device:", self.physicalDevice);
-                core.graphics_log("GPU minimum buffer alignment {d}", .{self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment});
+                // core.graphics_log("GPU minimum buffer alignment {d}", .{self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment});
 
                 for (pDeviceInfo.supportedExtensions.items) |item| {
                     const search: CStr = "VK_KHR_portability_subset";
@@ -2145,8 +2176,8 @@ pub const NeonVkContext = struct {
                 }
 
                 {
-                    const sampleCounts: u32 = @bitCast(self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts);
-                    core.graphics_log("Sample counts available on device: 0x{x} {any}", .{ sampleCounts, self.getMsaaSampleCountFlag() });
+                    //const sampleCounts: u32 = @bitCast(self.physicalDeviceProperties.limits.framebuffer_depth_sample_counts);
+                    // core.graphics_log("Sample counts available on device: 0x{x} {any}", .{ sampleCounts, self.getMsaaSampleCountFlag() });
                 }
                 return;
             }
@@ -2305,7 +2336,7 @@ pub const NeonVkContext = struct {
 
         self.surfaceFormat = surface_formats[0];
 
-        core.graphics_log("selected surface format\n   {any}", .{self.surfaceFormat});
+        core.graphics_log("Selected surface format\n   {any}", .{self.surfaceFormat});
     }
 
     pub fn find_present_mode(self: *Self) !void {
@@ -2585,41 +2616,6 @@ pub const NeonVkContext = struct {
     pub fn onExitSignal(self: @This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
         self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
-    }
-};
-
-pub const RenderThread = struct {
-    vkd: vk_constants.DeviceDispatch,
-    dev: vk.Device,
-    graphicsQueue: NeonVkQueue,
-    presentQueue: NeonVkQueue,
-
-    // stopgap, copy relevant delta info from NeonVkContext
-    pub fn updateFromVkContext(self: *@This(), oth: *NeonVkContext) !void {
-        _ = self;
-        _ = oth;
-    }
-
-    pub fn draw(self: @This(), deltaTime: f64) !void {
-        try self.acquire_next_frame();
-        _ = deltaTime;
-    }
-
-    fn acquire_next_frame(self: @This()) !void {
-        var z1 = tracy.Zone(@src());
-        z1.Name("waiting for frame");
-        defer z1.End();
-
-        self.nextFrameIndex = try self.getNextSwapImage();
-
-        _ = try self.vkd.waitForFences(
-            self.dev,
-            1,
-            @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])),
-            1,
-            1000000000,
-        );
-        try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])));
     }
 };
 
