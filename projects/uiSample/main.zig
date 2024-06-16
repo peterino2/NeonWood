@@ -7,6 +7,8 @@ const core = nw.core;
 const colors = core.colors;
 const graphics = nw.graphics;
 
+const DynamicTexture = graphics.DynamicTexture;
+
 const assets = nw.assets;
 const c = nw.graphics.c;
 const NodeHandle = ui.NodeHandle;
@@ -22,6 +24,8 @@ pub const GameContext = struct {
     panel: NodeHandle = .{},
     time: f64 = 0,
     testTime: f64 = 0,
+
+    dynTex: *DynamicTexture = undefined,
 
     fpsText: ?[]u8 = null,
 
@@ -43,6 +47,8 @@ pub const GameContext = struct {
         if (self.fpsText) |text| {
             self.allocator.free(text);
         }
+
+        self.dynTex.destroy(graphics.getContext().vkAllocator);
         self.pixelBuffer.deinit(self.allocator);
         self.allocator.destroy(self);
     }
@@ -80,6 +86,11 @@ pub const GameContext = struct {
         if (gAutomaticTest) {
             self.testTime = 10.0;
         }
+
+        self.dynTex = try graphics.DynamicTexture.create(self.allocator, graphics.getContext().vkAllocator, .{
+            .width = 300,
+            .height = 300,
+        });
 
         try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "textures/singleSpriteTest.png"));
 

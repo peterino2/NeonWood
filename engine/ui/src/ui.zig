@@ -29,5 +29,5 @@ pub fn start_module(allocator: std.mem.Allocator) !void {
 }
 
 pub fn shutdown_module() void {
-    gPapyrus.shutdown();
+    // gPapyrus.shutdown();
 }

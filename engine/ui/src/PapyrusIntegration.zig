@@ -616,6 +616,7 @@ pub fn shutdown(self: *@This()) void {
 }
 
 pub fn deinit(self: *@This()) void {
+    self.shutdown();
     self.allocator.destroy(self);
 }
 

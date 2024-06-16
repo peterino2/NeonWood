@@ -24,6 +24,8 @@ pub const DynamicMesh = mesh.DynamicMesh;
 pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
+pub const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
+
 pub const vk_util = @import("vk_utils.zig");
 pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
 
@@ -70,7 +72,7 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 
     const context: *NeonVkContext = core.gEngine.createObject(
         NeonVkContext,
-        .{ .can_tick = true },
+        .{ .can_tick = true, .isCore = true },
     ) catch unreachable;
 
     vk_renderer.gContext = context;
