@@ -56,7 +56,7 @@ pub const TextureLoader = struct {
                 tracy.Message(ctx.assetRef.name.utf8());
                 tracy.Message(ctx.properties.path);
 
-                core.engine_log("loaded: {d} from: {d}", .{ ctx.assetRef.name.utf8(), ctx.properties.path });
+                core.engine_log("loaded: {s} from: {s}", .{ ctx.assetRef.name.utf8(), ctx.properties.path });
                 const loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
                     .stagingResults = stagingResults,

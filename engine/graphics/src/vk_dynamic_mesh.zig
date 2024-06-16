@@ -38,7 +38,7 @@ pub const DynamicMeshManager = struct {
             .uploader = try NeonVkUploader.init(gc, "dynamic mesh manager uploader"),
         };
 
-        core.graphics_log("creating the mesh manager", .{});
+        // core.graphics_log("creating the mesh manager", .{});
         return self;
     }
 

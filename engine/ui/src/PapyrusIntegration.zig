@@ -85,8 +85,8 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
     };
 
     self.onDebugInfoBinding = try core.addEngineDelegateBinding("onFrameDebugInfoEmitted", onFrameDebugInfo, self);
+    // core.engine_logs("PapyrusSystem init");
 
-    core.engine_logs("PapyrusSystem init");
     memory.MTPrintStatsDelta();
 
     try platform.getInstance().installListener(self);
@@ -229,7 +229,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
 
     self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, ImageGpu, 0);
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
-    core.ui_log("Mapping buffers.", .{});
+    // core.ui_log("Mapping buffers.", .{});
     const extent = self.gc.actual_extent;
     const pi = platform.getInstance();
 
@@ -307,7 +307,6 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
-    core.ui_log(">> PapyrusSystem.zig: buildTextPipeline", .{});
     var gpdBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     gpdBuilder.objectCount = 64;
     try gpdBuilder.addBufferBinding(
@@ -317,7 +316,6 @@ pub fn buildTextPipeline(self: *@This()) !void {
         .storageBuffer,
     );
 
-    core.ui_logs("text pipe data: Papyrus-Text");
     self.textPipeData = try gpdBuilder.build("Papyrus-Text");
     defer gpdBuilder.deinit();
 
@@ -329,7 +327,6 @@ pub fn buildTextPipeline(self: *@This()) !void {
     const vert_spv = FontSDF_vert.spv();
     const frag_spv = FontSDF_frag.spv();
 
-    core.ui_logs("Building text pipeline builder");
     var builder = try graphics.NeonVkPipelineBuilder.init(
         self.gc.dev,
         self.gc.vkd,
@@ -345,7 +342,6 @@ pub fn buildTextPipeline(self: *@This()) !void {
     try builder.add_layout(self.gc.singleTextureSetLayout);
     try builder.add_depth_stencil();
     try builder.add_push_constant_custom(PushConstant);
-    core.ui_logs("creating triangle pipeline");
     try builder.init_triangle_pipeline(self.gc.actual_extent);
 
     self.textMaterial = try self.allocator.create(graphics.Material);
@@ -359,8 +355,6 @@ pub fn buildTextPipeline(self: *@This()) !void {
 }
 
 pub fn buildImagePipeline(self: *@This()) !void {
-    core.ui_log("buildingImagePipeline", .{});
-
     var spriteDataBuilder = gpd.GpuPipeDataBuilder.init(self.allocator, self.gc);
     try spriteDataBuilder.addBufferBinding(
         ImageGpu,

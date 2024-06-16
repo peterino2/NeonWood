@@ -133,7 +133,7 @@ extern "C" void setFontScale(int newWidth, int newHeight)
 
     auto& io = ImGui::GetIO();
     io.FontGlobalScale = (ratio * 1.0);
-    printf("global scale: %f (%d x %d)\n", ratio, newWidth, newWidth);
+    // printf("global scale: %f (%d x %d)\n", ratio, newWidth, newWidth);
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = {20 * ratio, 20 * ratio};

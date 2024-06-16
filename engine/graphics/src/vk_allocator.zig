@@ -114,7 +114,7 @@ pub const NeonVkAllocator = struct {
         const pipelineLayout = try self.vkd.createPipelineLayout(dev, &plci, null);
 
         try self.livePipelines.put(@intFromEnum(pipelineLayout), try core.dupeString(self.allocator, tag));
-        core.graphics_log("constructing pipeline at @0x{x} tag: {s}", .{ @intFromEnum(pipelineLayout), tag });
+        // core.graphics_log("constructing pipeline at @0x{x} tag: {s}", .{ @intFromEnum(pipelineLayout), tag });
 
         return pipelineLayout;
     }

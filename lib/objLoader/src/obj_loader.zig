@@ -277,7 +277,7 @@ fn parse_line(lineIn: []const u8, allocator: std.mem.Allocator) !LineParseResult
     } else if (std.mem.eql(u8, "o", first)) {
         // get a slice of the entire group
         const groupName = line[first.len + 1 .. line.len];
-        std.debug.print("LOADING OBJECT: {s}\n", .{groupName});
+        // std.debug.print("LOADING OBJECT: {s}\n", .{groupName});
         return LineParseResult{
             .object = groupName,
         };
@@ -429,7 +429,7 @@ test "load_monkey_full" {
     var obj_contents = try ObjContents.load(monkey_obj_path, std.testing.allocator);
     defer obj_contents.deinit();
     try std.testing.expect(obj_contents.meshes.items.len == 1);
-    obj_contents.meshes.items[0].print_stats();
+    // obj_contents.meshes.items[0].print_stats();
 }
 
 test "parse_monkey" {

@@ -127,7 +127,9 @@ pub fn MTRemoveAllocation(allocatedSize: usize) void {
 
 pub fn MTPrintStatsDelta() void {
     if (gMemTracker) |mt| {
-        core.engine_log("allocated size: {d}", .{mt.totalAllocSize});
+        _ = mt;
+        // todo;
+        // core.engine_log("allocated size: {d}", .{mt.totalAllocSize});
     }
 }
 
