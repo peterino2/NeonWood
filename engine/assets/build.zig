@@ -10,10 +10,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/assets.zig"),
     });
 
-    const core_dep = b.dependency(
-        "core",
-        .{ .target = target, .optimize = optimize },
-    );
+    const core_dep = b.dependency("core", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for assets module"),
+    });
     mod.addImport("core", core_dep.module("core"));
 
     const packer_dep = b.dependency(

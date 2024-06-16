@@ -5,12 +5,39 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for vkImgui module");
+    const core_dep = b.dependency("core", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const graphics_dep = b.dependency("graphics", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const platform_dep = b.dependency("platform", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const vulkan_dep = b.dependency("vulkan", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const mod = b.addModule("vkImgui", .{
         .target = target,
         .optimize = optimize,
         .link_libc = true,
         .root_source_file = b.path("src/vkImgui.zig"),
     });
+    mod.addImport("core", core_dep.module("core"));
+    mod.addImport("graphics", graphics_dep.module("graphics"));
+    mod.addImport("platform", platform_dep.module("platform"));
+    mod.addImport("vulkan", vulkan_dep.module("vulkan"));
 
     mod.addIncludePath(b.path("cimgui"));
     mod.addIncludePath(b.path("cimplot"));
@@ -40,19 +67,6 @@ pub fn build(b: *std.Build) void {
             "implot/implot_items.cpp",
         },
     });
-
-    const depList = [_][]const u8{
-        "core",
-        "graphics",
-        "platform",
-        "vulkan",
-    };
-
-    for (depList) |depName| {
-        const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
-        const depMod = dep.module(depName);
-        mod.addImport(depName, depMod);
-    }
 
     // I could've made cimgui a seperate lib,
     // I can seperate it out later if needed.

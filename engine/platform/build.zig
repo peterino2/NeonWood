@@ -8,15 +8,27 @@ const std = @import("std");
 //     exe.addLibraryPath(.{ .path = packagePath ++ "/lib" });
 // }
 
-const dependencyList = [_][]const u8{
-    "glfw3",
-    "vulkan",
-    "core",
-};
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse false;
+
+    const glfw3_dep = b.dependency("glfw3", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const vulkan_dep = b.dependency("vulkan", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const core_dep = b.dependency("core", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
 
     // oh that is interesting. what I can do is have two
     // different modules specified here.
@@ -29,19 +41,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .root_source_file = b.path("src/platform.zig"),
     });
+    mod.addImport("glfw3", glfw3_dep.module("glfw3"));
+    mod.addImport("vulkan", vulkan_dep.module("vulkan"));
+    mod.addImport("core", core_dep.module("core"));
 
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("tests/tests.zig"),
     });
-
-    for (dependencyList) |depName| {
-        const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
-        const dep_mod = dep.module(depName);
-        mod.addImport(depName, dep_mod);
-        tests.root_module.addImport(depName, dep_mod);
-    }
+    tests.root_module.addImport("glfw3", glfw3_dep.module("glfw3"));
+    tests.root_module.addImport("vulkan", vulkan_dep.module("vulkan"));
+    tests.root_module.addImport("core", core_dep.module("core"));
 
     const test_step = b.step("test-platform", "run unit tests for platform");
 

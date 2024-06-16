@@ -7,8 +7,6 @@ nw_mod: *std.Build.Module,
 spirvReflect: SpirvReflect.SpirvGenerator2,
 options: *std.Build.Step.Options,
 
-const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "ui", "vkImgui" };
-
 const BuildSystem = @This();
 const std = @import("std");
 const Build = std.Build;
@@ -136,21 +134,65 @@ pub fn build(b: *std.Build) void {
     });
     _ = spirvDep;
 
+    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse false;
+    const assets_dep = b.dependency("assets", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const audio_dep = b.dependency("audio", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const core_dep = b.dependency("core", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const graphics_dep = b.dependency("graphics", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const papyrus_dep = b.dependency("papyrus", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const platform_dep = b.dependency("platform", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const ui_dep = b.dependency("ui", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
+    const vk_imgui_dep = b.dependency("vkImgui", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = enable_tracy,
+    });
+
     const mod = b.addModule("NeonWood", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("engine/neonwood.zig"),
     });
-
-    for (engineDepList) |depName| {
-        const dep = b.dependency(
-            depName,
-            .{
-                .target = target,
-                .optimize = optimize,
-            },
-        );
-        mod.addImport(depName, dep.module(depName));
-        b.getInstallStep().dependOn(dep.builder.getInstallStep());
-    }
+    mod.addImport("assets", assets_dep.module("assets"));
+    mod.addImport("audio", audio_dep.module("audio"));
+    mod.addImport("core", core_dep.module("core"));
+    mod.addImport("graphics", graphics_dep.module("graphics"));
+    mod.addImport("papyrus", papyrus_dep.module("papyrus"));
+    mod.addImport("platform", platform_dep.module("platform"));
+    mod.addImport("ui", ui_dep.module("ui"));
+    mod.addImport("vkImgui", vk_imgui_dep.module("vkImgui"));
 }

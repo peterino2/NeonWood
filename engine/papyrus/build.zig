@@ -14,7 +14,11 @@ pub fn build(b: *std.Build) void {
     mod.addIncludePath(b.path("src/"));
     mod.addCSourceFile(.{ .file = b.path("src/compat.cpp") });
 
-    const core_dep = b.dependency("core", .{ .target = target, .optimize = optimize });
+    const core_dep = b.dependency("core", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for papyrus module"),
+    });
 
     mod.addImport("core", core_dep.module("core"));
 
