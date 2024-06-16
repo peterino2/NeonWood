@@ -9,17 +9,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for audio module");
     const core_dep = b.dependency("core", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const assets_dep = b.dependency("assets", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const mod = b.addModule("audio", .{

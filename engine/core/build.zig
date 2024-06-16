@@ -22,7 +22,6 @@ pub fn build(b: *std.Build) void {
     const tracy_dep = b.dependency("tracy", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for core module"),
     });
 
     const zmath_dep = b.dependency("zmath", .{

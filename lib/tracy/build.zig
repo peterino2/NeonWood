@@ -7,8 +7,9 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const tracy_enabled = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for tracy module");
+    //const tracy_enabled = b.option(bool, "tracy", "Enables tracy integration") orelse false;
 
+    const tracy_enabled = if (b.graph.env_map.hash_map.get("WITH_TRACY") != null) true else false;
     std.debug.print("tracy enabled {s}\n", .{if (tracy_enabled) "true" else "false"});
 
     const mod = b.addModule("tracy", .{

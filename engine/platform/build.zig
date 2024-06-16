@@ -12,8 +12,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse false;
-
     const glfw3_dep = b.dependency("glfw3", .{
         .target = target,
         .optimize = optimize,
@@ -27,7 +25,6 @@ pub fn build(b: *std.Build) void {
     const core_dep = b.dependency("core", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     // oh that is interesting. what I can do is have two

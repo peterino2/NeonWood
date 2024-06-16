@@ -11,23 +11,19 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse @panic("enable_tracy must be defined for ui module");
     const core_dep = b.dependency("core", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const assets_dep = b.dependency("assets", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const graphics_dep = b.dependency("graphics", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const platform_dep = b.dependency("platform", .{
@@ -38,7 +34,6 @@ pub fn build(b: *std.Build) void {
     const papyrus_dep = b.dependency("papyrus", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const vulkan_dep = b.dependency("vulkan", .{

@@ -134,35 +134,29 @@ pub fn build(b: *std.Build) void {
     });
     _ = spirvDep;
 
-    const enable_tracy = b.option(bool, "enable_tracy", "Enables tracy integration") orelse false;
     const assets_dep = b.dependency("assets", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const audio_dep = b.dependency("audio", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const core_dep = b.dependency("core", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const graphics_dep = b.dependency("graphics", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const papyrus_dep = b.dependency("papyrus", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const platform_dep = b.dependency("platform", .{
@@ -173,13 +167,11 @@ pub fn build(b: *std.Build) void {
     const ui_dep = b.dependency("ui", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const vk_imgui_dep = b.dependency("vkImgui", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
     });
 
     const mod = b.addModule("NeonWood", .{
