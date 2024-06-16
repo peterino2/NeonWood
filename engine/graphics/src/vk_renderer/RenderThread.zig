@@ -1,7 +1,7 @@
 // API dispatch functions
-vkd: vk_constants.DeviceDispatch,
-vki: vk_constants.InstanceDispatch,
-vkb: vk_constants.BaseDispatch,
+const vkd = &vk_api.vkd;
+const vki = &vk_api.vki;
+const vkb = &vk_api.vkb;
 
 // allocators
 allocator: std.mem.Allocator,
@@ -95,14 +95,14 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
 
     const nextFrameIndex = try self.getNextSwapImage();
 
-    _ = try self.vkd.waitForFences(
+    _ = try vkd.waitForFences(
         self.dev,
         1,
         @as([*]const vk.Fence, @ptrCast(&self.frameSync[nextFrameIndex].cmdFence)),
         1,
         vk_constants.FrameTimeout,
     );
-    try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.frameSync[nextFrameIndex].cmdFence)));
+    try vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.frameSync[nextFrameIndex].cmdFence)));
     return nextFrameIndex;
 }
 
@@ -152,13 +152,14 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     try self.beginMainRenderpass(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
-    try self.vkd.endCommandBuffer(cmd);
+    try vkd.endCommandBuffer(cmd);
     try self.finishFrame(fi);
 }
 
 fn finishMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
+    _ = self;
     _ = fi;
-    self.vkd.cmdEndRenderPass(cmd);
+    vkd.cmdEndRenderPass(cmd);
 }
 
 fn preFrameUpdate(self: *@This(), fi: u32) !void {
@@ -227,14 +228,14 @@ fn padUniformBufferSize(self: @This(), originalSize: usize) usize {
 fn startFrameCommands(self: *@This(), fi: u32) !vk.CommandBuffer {
     const cmd = self.commandBuffers[fi];
 
-    try self.vkd.resetCommandBuffer(cmd, .{});
+    try vkd.resetCommandBuffer(cmd, .{});
 
     var cbi = vk.CommandBufferBeginInfo{
         .p_inheritance_info = null,
         .flags = .{ .one_time_submit_bit = true },
     };
 
-    try self.vkd.beginCommandBuffer(cmd, &cbi);
+    try vkd.beginCommandBuffer(cmd, &cbi);
 
     return cmd;
 }
@@ -266,10 +267,10 @@ fn beginMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
         .p_clear_values = @as([*]const vk.ClearValue, @ptrCast(&clearValues)),
     };
 
-    self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
+    vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
 
-    self.vkd.cmdSetViewport(cmd, 0, 1, @ptrCast(&self.displayTarget.viewport));
-    self.vkd.cmdSetScissor(cmd, 0, 1, @ptrCast(&self.displayTarget.scissor));
+    vkd.cmdSetViewport(cmd, 0, 1, @ptrCast(&self.displayTarget.viewport));
+    vkd.cmdSetScissor(cmd, 0, 1, @ptrCast(&self.displayTarget.scissor));
 }
 
 fn finishFrame(self: *@This(), frameIndex: u32) !void {
@@ -285,7 +286,7 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         .p_command_buffers = @as([*]const vk.CommandBuffer, @ptrCast(&self.commandBuffers[frameIndex])),
     };
 
-    try self.vkd.queueSubmit(
+    try vkd.queueSubmit(
         self.graphicsQueue.handle,
         1,
         @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
@@ -303,7 +304,7 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
     };
 
     var outOfDate: bool = false;
-    _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
+    _ = vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
         error.OutOfDateKHR => {
             outOfDate = true;
         },
@@ -312,7 +313,7 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
 }
 
 fn getNextSwapImage(self: *@This()) !u32 {
-    const imageIndex = (try self.vkd.acquireNextImageKHR(
+    const imageIndex = (try vkd.acquireNextImageKHR(
         self.dev,
         self.displayTarget.swapchain,
         1000000000,
@@ -341,12 +342,12 @@ fn createSyncs(self: *@This()) !void {
     };
 
     for (0..NumFrames) |i| {
-        self.frameSync[i].acquire = try self.vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
-        self.frameSync[i].renderComplete = try self.vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
-        self.frameSync[i].cmdFence = try self.vkd.createFence(self.dev, &fci, null);
+        self.frameSync[i].acquire = try vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
+        self.frameSync[i].renderComplete = try vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
+        self.frameSync[i].cmdFence = try vkd.createFence(self.dev, &fci, null);
     }
 
-    self.emptyAcquireSemaphore = try self.vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
+    self.emptyAcquireSemaphore = try vkd.createSemaphore(self.dev, &semaphoreCreateInfo, null);
 }
 
 // -- init command buffers --
@@ -356,14 +357,14 @@ fn initCommandBuffers(self: *@This()) !void {
         .level = vk.CommandBufferLevel.primary,
         .command_buffer_count = NumFrames,
     };
-    try self.vkd.allocateCommandBuffers(self.dev, &cbai, &self.commandBuffers);
+    try vkd.allocateCommandBuffers(self.dev, &cbai, &self.commandBuffers);
 }
 
 // -- Swapchain initialization --
 fn initOrRecycleSwapchain(self: *@This()) !void {
-    self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.pdev, self.surface);
+    self.caps = try vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.pdev, self.displayTarget.surface);
 
-    self.displayTarget.presentMode = try vk_swapchain_helpers.findPresentMode(self.allocator, self.vki, self.pdev, self.displayTarget.surface);
+    self.displayTarget.presentMode = try vk_swapchain_helpers.findPresentMode(self.allocator, self.pdev, self.displayTarget.surface);
 
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
 
@@ -402,11 +403,11 @@ fn initOrRecycleSwapchain(self: *@This()) !void {
         .old_swapchain = self.displayTarget.swapchain,
     };
 
-    const newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
-    errdefer self.vkd.destroySwapchainKHR(self.dev, newSwapchain, null);
+    const newSwapchain = try vkd.createSwapchainKHR(self.dev, &scci, null);
+    errdefer vkd.destroySwapchainKHR(self.dev, newSwapchain, null);
 
     if (self.displayTarget.swapchain != .null_handle) {
-        self.vkd.destroySwapchainKHR(self.dev, self.displayTarget.swapchain, null);
+        vkd.destroySwapchainKHR(self.dev, self.displayTarget.swapchain, null);
     }
 
     self.displayTarget.swapchain = newSwapchain;
@@ -429,7 +430,7 @@ fn initOrRecycleSwapchain(self: *@This()) !void {
 
 fn createSwapchainImagesAndViews(self: *@This()) !void {
     var count: u32 = 0;
-    _ = try self.vkd.getSwapchainImagesKHR(self.dev, self.displayTarget.swapchain, &count, null);
+    _ = try vkd.getSwapchainImagesKHR(self.dev, self.displayTarget.swapchain, &count, null);
     if (count == 0) {
         core.engine_errs("No swap chain image found");
         return error.NoSwapchainImagesFound;
@@ -440,7 +441,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
     const images = try self.allocator.alloc(vk.Image, count);
     defer self.allocator.free(images);
 
-    _ = try self.vkd.getSwapchainImagesKHR(self.dev, self.displayTarget.swapchain, &count, images.ptr);
+    _ = try vkd.getSwapchainImagesKHR(self.dev, self.displayTarget.swapchain, &count, images.ptr);
 
     for (0..NumFrames) |i| {
         const image = images[i];
@@ -462,7 +463,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
             },
         };
 
-        const imageView = try self.vkd.createImageView(self.dev, &ivci, null);
+        const imageView = try vkd.createImageView(self.dev, &ivci, null);
 
         const swapImage = NeonVkSwapImage{
             .image = image,
@@ -523,7 +524,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
         },
     };
 
-    self.displayTarget.depthImageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
+    self.displayTarget.depthImageView = try vkd.createImageView(self.dev, &imageViewCreate, null);
 }
 
 fn initShared(self: *@This()) !void {
@@ -551,7 +552,7 @@ fn initFramebuffers(self: *@This()) !void {
     for (self.displayTarget.swapImages, 0..) |image, i| {
         attachments[0] = image.view;
         attachments[1] = self.displayTarget.depthImageView;
-        self.displayTarget.framebuffers[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
+        self.displayTarget.framebuffers[i] = try vkd.createFramebuffer(self.dev, &fbci, null);
     }
 }
 
@@ -571,6 +572,7 @@ const platform = @import("platform");
 const vma = @import("vma");
 const tracy = core.tracy;
 
+const vk_api = @import("../vk_api.zig");
 const vk_constants = @import("../vk_constants.zig");
 const vk_allocator = @import("../vk_allocator.zig");
 const render_objects = @import("../render_objects.zig");

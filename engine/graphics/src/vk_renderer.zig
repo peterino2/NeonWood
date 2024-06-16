@@ -4,6 +4,8 @@ const vk = @import("vulkan");
 pub const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
+const vk_api = @import("vk_api.zig");
+
 const graphics = @import("graphics.zig");
 const vma = @import("vma");
 const core = @import("core");
@@ -505,6 +507,10 @@ pub const NeonVkContext = struct {
         try self.graph.write("  root->init_device\n", .{});
         try self.init_device();
 
+        vk_api.vkb = self.vkb;
+        vk_api.vki = self.vki;
+        vk_api.vkd = self.vkd;
+
         try self.graph.write("  root->init_vma\n", .{});
         try self.init_vma();
 
@@ -571,9 +577,6 @@ pub const NeonVkContext = struct {
 
     fn init_renderthread(self: *@This()) !void {
         self.renderthread = .{
-            .vki = self.vki,
-            .vkb = self.vkb,
-            .vkd = self.vkd,
             .allocator = self.allocator,
             .vkAllocator = self.vkAllocator,
 
