@@ -151,6 +151,5 @@ pub fn build(b: *std.Build) void {
             },
         );
         mod.addImport(depName, dep.module(depName));
-        b.getInstallStep().dependOn(dep.builder.getInstallStep());
     }
 }
