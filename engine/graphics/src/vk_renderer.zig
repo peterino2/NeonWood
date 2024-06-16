@@ -507,9 +507,9 @@ pub const NeonVkContext = struct {
         try self.graph.write("  root->init_device\n", .{});
         try self.init_device();
 
-        vk_api.vkb = self.vkb;
-        vk_api.vki = self.vki;
-        vk_api.vkd = self.vkd;
+        vk_api.vkb.* = self.vkb;
+        vk_api.vki.* = self.vki;
+        vk_api.vkd.* = self.vkd;
 
         try self.graph.write("  root->init_vma\n", .{});
         try self.init_vma();

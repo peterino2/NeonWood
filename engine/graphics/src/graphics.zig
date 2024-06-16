@@ -27,6 +27,11 @@ pub const Texture = texture.Texture;
 pub const vk_util = @import("vk_utils.zig");
 pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
 
+const vk_api = @import("../vk_api.zig");
+pub const vkd = &vk_api.vkd;
+pub const vki = &vk_api.vki;
+pub const vkb = &vk_api.vkb;
+
 pub const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");
 
 pub const vk_assetLoaders = @import("vk_assetLoaders.zig");

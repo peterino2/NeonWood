@@ -1,7 +1,7 @@
 // API dispatch functions
-const vkd = &vk_api.vkd;
-const vki = &vk_api.vki;
-const vkb = &vk_api.vkb;
+const vkd = vk_api.vkd;
+const vki = vk_api.vki;
+const vkb = vk_api.vkb;
 
 // allocators
 allocator: std.mem.Allocator,
