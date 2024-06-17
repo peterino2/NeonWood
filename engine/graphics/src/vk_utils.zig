@@ -142,7 +142,7 @@ pub fn createTextureFromPixels(
     };
 
     // create descriptors for
-    const textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
+    const textureSet = ctx.create_mesh_image_for_texture(newTexture.*, .{
         .useBlocky = useBlocky,
     }) catch unreachable;
 

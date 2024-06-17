@@ -108,6 +108,8 @@ const NeonVkFrameData = vk_renderer_types.NeonVkFrameData;
 const NeonVkSceneDataGpu = vk_renderer_types.NeonVkSceneDataGpu;
 const NeonVkObjectDataGpu = vk_renderer_types.NeonVkObjectDataGpu;
 
+pub const ImageSamplerParams = struct { useBlocky: bool = true };
+
 pub const NeonVkPhysicalDeviceInfo = struct {
     physicalDevice: vk.PhysicalDevice,
     queueFamilyProperties: ArrayList(vk.QueueFamilyProperties),
@@ -678,7 +680,8 @@ pub const NeonVkContext = struct {
         return newTexture;
     }
 
-    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: *Texture, params: struct { useBlocky: bool = true }) !vk.DescriptorSet {
+    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: Texture, params: ImageSamplerParams) !vk.DescriptorSet {
+
         // var textureSet = try self.allocator.create(vk.DescriptorSet);
         var textureSet: vk.DescriptorSet = undefined;
         var allocInfo = vk.DescriptorSetAllocateInfo{

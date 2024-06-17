@@ -82,15 +82,19 @@ pub const GameContext = struct {
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
     }
 
+    var t_dynamicImage = core.MakeName("t_dynamicImage");
+
     pub fn prepare_game(self: *@This()) !void {
         if (gAutomaticTest) {
             self.testTime = 10.0;
         }
 
-        self.dynTex = try graphics.DynamicTexture.create(self.allocator, graphics.getContext().vkAllocator, .{
+        self.dynTex = try graphics.DynamicTexture.create(graphics.getContext(), .{
             .width = 300,
             .height = 300,
         });
+
+        // try self.dynTex.debug_installToContext(t_dynamicImage);
 
         try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "textures/singleSpriteTest.png"));
 
