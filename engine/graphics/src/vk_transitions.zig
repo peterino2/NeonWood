@@ -5,9 +5,10 @@ const core = @import("core");
 const vk = @import("vulkan");
 const vma = @import("vma");
 const vk_constants = @import("vk_constants.zig");
+const vk_api = @import("vk_api.zig");
+const vkd = vk_api.vkd;
 
 pub fn transferDst_into_shaderReadOnly(
-    vkd: vk_constants.DeviceDispatch,
     cmd: vk.CommandBuffer,
     image: vk.Image,
     mipLevel: u32,
@@ -53,7 +54,6 @@ pub fn transferDst_into_shaderReadOnly(
 }
 
 pub fn into_transferDst(
-    vkd: vk_constants.DeviceDispatch,
     cmd: vk.CommandBuffer,
     image: vk.Image,
     mipLevel: u32,

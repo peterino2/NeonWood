@@ -26,6 +26,7 @@ pub const GameContext = struct {
     testTime: f64 = 0,
 
     dynTex: *DynamicTexture = undefined,
+    dynamicPixelBuffer: []core.colors.ColorRGBA8 = undefined,
 
     fpsText: ?[]u8 = null,
 
@@ -48,6 +49,7 @@ pub const GameContext = struct {
             self.allocator.free(text);
         }
 
+        self.dynTex.debug_removeMapping();
         self.dynTex.destroy(graphics.getContext().vkAllocator);
         self.pixelBuffer.deinit(self.allocator);
         self.allocator.destroy(self);
@@ -58,13 +60,18 @@ pub const GameContext = struct {
 
         if (self.testTime > 0) {
             self.testTime -= dt;
-            std.debug.print("test running {d}\r", .{self.testTime});
             if (self.testTime <= 0) {
                 core.engine_logs("shutting down everything");
                 core.signalShutdown();
             }
 
             // self.testTimeline.tick(dt);
+        }
+
+        const color: u8 = @intCast(128 + @as(i32, @intFromFloat(@floor(32 * std.math.sin(self.time)))));
+
+        for (self.dynamicPixelBuffer) |*d| {
+            d.* = .{ .g = color };
         }
 
         if (self.time > 5.0) {
@@ -94,7 +101,8 @@ pub const GameContext = struct {
             .height = 300,
         });
 
-        // try self.dynTex.debug_installToContext(t_dynamicImage);
+        try self.dynTex.debug_installToContext(t_dynamicImage);
+        self.dynamicPixelBuffer = try self.dynTex.debug_getBufferMapping();
 
         try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "textures/singleSpriteTest.png"));
 
@@ -203,7 +211,7 @@ pub const GameContext = struct {
 
         const image = try ctx.addPanel(unk);
         ctx.getPanel(image).useImage = true;
-        ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
+        ctx.getPanel(image).imageReference = t_dynamicImage;
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
         const imageChangeBtn = try ctx.addButton(unk, "change image");

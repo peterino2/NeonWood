@@ -25,6 +25,7 @@ const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
 const platform = @import("platform");
 const vk_allocator = @import("vk_allocator.zig");
+const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
 
@@ -315,6 +316,7 @@ pub const NeonVkContext = struct {
     singleTextureSetLayout: vk.DescriptorSetLayout,
     sceneManager: NeonVkSceneManager,
     dynamicMeshManager: *mesh.DynamicMeshManager,
+    dynamicTextures: std.ArrayListUnmanaged(*DynamicTexture),
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
     uploader: vk_utils.NeonVkUploader,
@@ -419,6 +421,7 @@ pub const NeonVkContext = struct {
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.requiredExtensions = .{};
+        self.dynamicTextures = .{};
 
         for (required_device_extensions) |required| {
             try self.requiredExtensions.append(self.allocator, required);
@@ -1295,6 +1298,8 @@ pub const NeonVkContext = struct {
             var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
             const cmd = try self.start_frame_command_buffer();
 
+            try self.uploadDynamicMeshes(cmd);
+
             try self.begin_main_renderpass(cmd);
             try self.render_meshes(deltaTime);
 
@@ -1442,9 +1447,16 @@ pub const NeonVkContext = struct {
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
     }
 
+    fn uploadDynamicMeshes(self: *Self, cmd: vk.CommandBuffer) !void {
+        for (self.dynamicTextures.items) |dynTex| {
+            try dynTex.issueUpload(cmd);
+        }
+    }
+
     fn render_meshes(self: *Self, deltaTime: f64) !void {
         var z = tracy.ZoneNC(@src(), "render meshes", 0xAAFFFF);
         defer z.End();
+        const cmd = self.commandBuffers.items[self.nextFrameIndex];
         var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
         try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
@@ -1459,8 +1471,6 @@ pub const NeonVkContext = struct {
             }
         }
         defer z10.End();
-
-        const cmd = self.commandBuffers.items[self.nextFrameIndex];
 
         self.lastMaterial = null;
         self.lastMesh = null;
@@ -2520,6 +2530,8 @@ pub const NeonVkContext = struct {
             var dlambda = self.destructionQueue.items[@intCast(i)];
             dlambda.exec(self);
         }
+
+        self.dynamicTextures.deinit(self.allocator);
 
         self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 

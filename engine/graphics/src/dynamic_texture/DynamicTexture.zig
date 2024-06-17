@@ -43,7 +43,7 @@ pub fn create(
 
     const data = try gc.vkAllocator.mapBuffer(core.colors.ColorRGBA8, stagingBuffer);
     for (data) |*d| {
-        d.* = .{ .r = 0xff };
+        d.* = .{ .g = 0xff };
     }
 
     gc.vkAllocator.unmapMemory(stagingBuffer);
@@ -70,6 +70,43 @@ pub fn create(
     return self;
 }
 
+pub fn issueUpload(self: *@This(), cmd: vk.CommandBuffer) !void {
+    const mipLevel = 1;
+    const z1 = tracy.ZoneN(@src(), "submitting dynamic texture buffer");
+    defer z1.End();
+
+    transitions.into_transferDst(cmd, self.image.image, 1);
+
+    var copyRegion = vk.BufferImageCopy{
+        .buffer_offset = 0,
+        .buffer_row_length = 0,
+        .buffer_image_height = 0,
+        .image_offset = std.mem.zeroes(vk.Offset3D),
+        .image_subresource = .{
+            .aspect_mask = .{ .color_bit = true },
+            .mip_level = 0,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+        .image_extent = .{
+            .width = self.image.pixelWidth,
+            .height = self.image.pixelHeight,
+            .depth = 1,
+        },
+    };
+
+    vkd.cmdCopyBufferToImage(
+        cmd,
+        self.stagingBuffer.buffer,
+        self.image.image,
+        .transfer_dst_optimal,
+        1,
+        @ptrCast(&copyRegion),
+    );
+
+    transitions.transferDst_into_shaderReadOnly(cmd, self.image.image, mipLevel);
+}
+
 pub fn debug_installToContext(self: *@This(), name: core.Name) !void {
     const gc = graphics.getContext();
 
@@ -83,6 +120,15 @@ pub fn debug_installToContext(self: *@This(), name: core.Name) !void {
     };
 
     try gc.install_texture_into_registry(name, newTexture, self.descriptor);
+    try gc.dynamicTextures.append(self.allocator, self);
+}
+
+pub fn debug_getBufferMapping(self: *@This()) ![]core.colors.ColorRGBA8 {
+    return try graphics.getContext().vkAllocator.mapBuffer(core.colors.ColorRGBA8, self.stagingBuffer);
+}
+
+pub fn debug_removeMapping(self: *@This()) void {
+    graphics.getContext().vkAllocator.unmapMemory(self.stagingBuffer);
 }
 
 pub fn destroy(self: *@This(), vkAllocator: *NeonVkAllocator) void {
@@ -94,8 +140,10 @@ pub fn destroy(self: *@This(), vkAllocator: *NeonVkAllocator) void {
     self.allocator.destroy(self);
 }
 
+const transitions = @import("../vk_transitions.zig");
 const std = @import("std");
 const core = @import("core");
+const tracy = core.tracy;
 const graphics = @import("../graphics.zig");
 const vk = @import("vulkan");
 
