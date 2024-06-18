@@ -273,6 +273,7 @@ pub fn forceFlush() void {
 pub fn setupLogging(engine: *core.Engine) !void {
     gLoggerSys = try engine.createObject(LoggerSys, .{
         .responds_to_events = true,
+        .isCore = true,
     });
 }
 

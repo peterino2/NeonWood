@@ -295,6 +295,13 @@ pub const NeonVkAllocator = struct {
         return object.image;
     }
 
+    pub fn mapBuffer(self: *@This(), comptime T: type, buffer: NeonVkBuffer) ![]T {
+        var slice: []T = undefined;
+        slice.ptr = try self.mapMemory(buffer, T);
+        slice.len = buffer.size / @sizeOf(T);
+        return slice;
+    }
+
     pub fn mapMemorySlice(self: *@This(), comptime T: type, buffer: NeonVkBuffer, size: usize) ![]T {
         var slice: []T = undefined;
         slice.ptr = try self.mapMemory(buffer, T);

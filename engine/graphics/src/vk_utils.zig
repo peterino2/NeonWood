@@ -142,7 +142,7 @@ pub fn createTextureFromPixels(
     };
 
     // create descriptors for
-    const textureSet = ctx.create_mesh_image_for_texture(newTexture, .{
+    const textureSet = ctx.create_mesh_image_for_texture(newTexture.*, .{
         .useBlocky = useBlocky,
     }) catch unreachable;
 
@@ -230,7 +230,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
         const cmd = ctx.uploader.commandBuffer;
 
-        transitions.into_transferDst(ctx.vkd, cmd, newImage.image, mipLevel);
+        transitions.into_transferDst(cmd, newImage.image, mipLevel);
 
         var copyRegion = vk.BufferImageCopy{
             .buffer_offset = 0,
@@ -262,7 +262,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
         // core.graphics_log("miplevel count: {d}", .{mipLevel});
         try generateMipMaps(ctx, newImage, mipLevel);
 
-        transitions.transferDst_into_shaderReadOnly(ctx.vkd, cmd, newImage.image, mipLevel);
+        transitions.transferDst_into_shaderReadOnly(cmd, newImage.image, mipLevel);
         z2.End();
     }
     try ctx.uploader.finishUploadContext();

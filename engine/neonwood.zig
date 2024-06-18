@@ -10,7 +10,7 @@ pub const vkImgui = @import("vkImgui");
 const std = @import("std");
 
 pub const NwArgs = struct {
-    useGPA: bool = false,
+    useGPA: bool = true,
     vulkanValidation: bool = true,
     fastTest: bool = false,
     renderThread: bool = false,
@@ -95,4 +95,46 @@ pub fn run_everything(comptime GameContext: type) !void {
         platform.getInstance().pollEvents();
         z.End();
     }
+}
+
+const StandardProgramOptions = struct {
+    programName: []const u8,
+};
+
+pub fn initializeAndRunStandardProgram(comptime GameContext: type, opts: StandardProgramOptions) !void {
+    const args = try getArgs();
+
+    var backingAllocator: std.mem.Allocator = std.heap.c_allocator;
+    var gpa: std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }) = .{};
+
+    defer {
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            std.debug.print("gpa cleanup leaked memory\n", .{});
+        }
+    }
+
+    if (args.useGPA) {
+        backingAllocator = gpa.allocator();
+    }
+
+    const memory = core.MemoryTracker;
+    memory.MTSetup(backingAllocator);
+    defer memory.MTShutdown();
+
+    var tracker = memory.MTGet().?;
+    const allocator = tracker.allocator();
+
+    if (args.vulkanValidation) {
+        core.engine_logs("Using vulkan validation");
+    }
+
+    graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
+
+    try start_everything_imgui(allocator, .{ .windowName = opts.programName }, args);
+    defer shutdown_everything_imgui(allocator);
+
+    try run_everything(GameContext);
 }

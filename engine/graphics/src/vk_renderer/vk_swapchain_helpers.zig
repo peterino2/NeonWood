@@ -4,11 +4,15 @@ const core = @import("core");
 const vk_constants = @import("../vk_constants.zig");
 const vk_renderer_types = @import("vk_renderer_types.zig");
 
+const vk_api = @import("../vk_api.zig");
+const vkd = vk_api.vkd;
+const vki = vk_api.vki;
+const vkb = vk_api.vkb;
+
 const force_mailbox = core.BuildOption("force_mailbox");
 
 pub fn findSurfaceFormat(
     allocator: std.mem.Allocator,
-    vki: vk_constants.InstanceDispatch,
     pdev: vk.PhysicalDevice,
     surface: vk.SurfaceKHR,
 ) !vk.SurfaceFormatKHR {
@@ -40,7 +44,6 @@ pub fn findSurfaceFormat(
 
 pub fn findPresentMode(
     allocator: std.mem.Allocator,
-    vki: vk_constants.InstanceDispatch,
     pdev: vk.PhysicalDevice,
     surface: vk.SurfaceKHR,
 ) !vk.PresentModeKHR {

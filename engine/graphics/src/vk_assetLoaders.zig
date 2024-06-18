@@ -115,7 +115,8 @@ pub const TextureLoader = struct {
                     .image = image,
                     .imageView = imageView,
                 };
-                const textureSet = gc.create_mesh_image_for_texture(newTexture, .{
+
+                const textureSet = gc.create_mesh_image_for_texture(newTexture.*, .{
                     .useBlocky = assetReady.properties.textureUseBlockySampler,
                 }) catch unreachable;
 

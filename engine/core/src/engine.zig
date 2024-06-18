@@ -45,6 +45,9 @@ pub const Engine = struct {
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     jobManager: *JobManager,
 
+    destroyListSimple: ArrayListUnmanaged(EngineObjectRef) = .{},
+    destroyListCore: ArrayListUnmanaged(EngineObjectRef) = .{},
+
     lastEngineTime: f64,
     deltaTime: f64, // delta time for this frame from the previous frame
     frameNumber: u64,
@@ -85,13 +88,15 @@ pub const Engine = struct {
         core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
 
-        var i: i32 = @intCast(self.rttiObjects.items.len - 1);
+        var i: i32 = @intCast(self.destroyListCore.items.len - 1);
         while (i >= 0) : (i -= 1) {
-            const item = self.rttiObjects.items[@as(usize, @intCast(i))];
+            const item = self.destroyListCore.items[@as(usize, @intCast(i))];
             if (item.vtable.deinit_func) |deinitFn| {
                 deinitFn(item.ptr);
             }
         }
+        self.destroyListCore.deinit(self.allocator);
+        self.destroyListSimple.deinit(self.allocator);
 
         core.engine_logs("destroying engine objects");
         self.rttiObjects.deinit(self.allocator);
@@ -122,6 +127,12 @@ pub const Engine = struct {
         };
 
         try self.rttiObjects.append(self.allocator, newObjectRef);
+
+        if (params.isCore) {
+            try self.destroyListCore.append(self.allocator, newObjectRef);
+        } else {
+            try self.destroyListSimple.append(self.allocator, newObjectRef);
+        }
 
         if (params.can_tick) {
             if (!@hasDecl(T, "tick")) {
@@ -218,6 +229,14 @@ pub const Engine = struct {
         try core.dispatchJob(L{ .engine = self });
 
         try self.mainLoop();
+
+        var i: i32 = @intCast(self.destroyListSimple.items.len - 1);
+        while (i >= 0) : (i -= 1) {
+            const item = self.destroyListSimple.items[@as(usize, @intCast(i))];
+            if (item.vtable.deinit_func) |deinitFn| {
+                deinitFn(item.ptr);
+            }
+        }
     }
 
     fn mainLoop(self: *@This()) !void {
@@ -249,6 +268,7 @@ pub const Engine = struct {
 pub const NeonObjectParams = struct {
     can_tick: bool = false,
     responds_to_events: bool = false,
+    isCore: bool = false,
 };
 
 test "comptime registration implementation" {}
