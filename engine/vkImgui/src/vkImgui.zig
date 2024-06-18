@@ -155,13 +155,14 @@ pub const NeonVkImGui = struct {
 
     pub fn onRendererTeardown(self: *Self) void {
         // c.ImGui_ImplGlfw_Shutdown();
+        _ = self;
+    }
+
+    pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
         c.cImGui_vk_Shutdown();
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
-    }
-
-    pub fn deinit(self: *Self) void {
         self.allocator.destroy(self);
     }
 };

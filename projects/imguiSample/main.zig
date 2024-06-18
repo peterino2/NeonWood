@@ -38,5 +38,5 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    try neonwood.initializeAndRunStandardProgram(GameContext, .{});
+    try neonwood.initializeAndRunStandardProgram(GameContext, .{ .programName = "imgui sample" });
 }

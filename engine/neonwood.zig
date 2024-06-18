@@ -10,7 +10,7 @@ pub const vkImgui = @import("vkImgui");
 const std = @import("std");
 
 pub const NwArgs = struct {
-    useGPA: bool = false,
+    useGPA: bool = true,
     vulkanValidation: bool = true,
     fastTest: bool = false,
     renderThread: bool = false,
@@ -104,7 +104,7 @@ const StandardProgramOptions = struct {
 pub fn initializeAndRunStandardProgram(comptime GameContext: type, opts: StandardProgramOptions) !void {
     const args = try getArgs();
 
-    var backingAllocator: std.mem.Allocator = undefined;
+    var backingAllocator: std.mem.Allocator = std.heap.c_allocator;
     var gpa: std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 20,
     }) = .{};
