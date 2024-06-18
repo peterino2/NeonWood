@@ -107,6 +107,8 @@ pub fn issueUpload(self: *@This(), cmd: vk.CommandBuffer) !void {
     transitions.transferDst_into_shaderReadOnly(cmd, self.image.image, mipLevel);
 }
 
+// when this is called, the texture will automatically be installed into the main GC registry as a texture
+// we will no longer be the owner for image and imageView.
 pub fn debug_installToContext(self: *@This(), name: core.Name) !void {
     const gc = graphics.getContext();
 
