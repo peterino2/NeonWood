@@ -29,10 +29,14 @@ A couple of sample programs ship with the integration branch.
 
 All executables are built under zig-out/bin
 
+Neonwood will always track latest zig release version (not master)
+
+As of Jun 19th 2024, this is zig version 0.13.0
+
 ```{bash}
 git clone https://github.com/peterino2/NeonWood.git --recursive && cd NeonWood
 cd projects
-zig build install
+zig build run-demo
 ```
 
 ## Engine Highlights
