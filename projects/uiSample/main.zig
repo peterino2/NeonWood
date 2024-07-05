@@ -64,8 +64,6 @@ pub const GameContext = struct {
                 core.engine_logs("shutting down everything");
                 core.signalShutdown();
             }
-
-            // self.testTimeline.tick(dt);
         }
 
         const color: u8 = @intCast(128 + @as(i32, @intFromFloat(@floor(32 * std.math.sin(self.time)))));
@@ -248,7 +246,6 @@ const BurnStyle = ui.papyrus.BurnStyle;
 fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     _ = node;
     if (eventType == .onPressed) {
-        //var selected_path = core.openFileDialog("", "") catch unreachable;
         const selected_path = core.openFolderDialog("") catch unreachable;
         if (selected_path != null) {
             core.ui_log("selected path: {s}", .{selected_path});

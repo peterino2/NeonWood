@@ -194,15 +194,6 @@ pub const NeonVkPhysicalDeviceInfo = struct {
     }
 };
 
-pub const DestructionLambda = struct {
-    func: *const fn (self: *NeonVkContext, ctx: ?*anyopaque) void,
-    ctx: ?*anyopaque,
-
-    pub fn exec(self: @This(), gc: *NeonVkContext) void {
-        self.func(gc, self.ctx);
-    }
-};
-
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
@@ -324,8 +315,6 @@ pub const NeonVkContext = struct {
 
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
-    destructionQueue: ArrayListUnmanaged(DestructionLambda),
-
     renderthread: RenderThread,
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
@@ -417,7 +406,6 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
-        self.destructionQueue = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
         self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.requiredExtensions = .{};
@@ -485,23 +473,11 @@ pub const NeonVkContext = struct {
         return create_object(allocator) catch unreachable;
     }
 
-    pub fn pushDestruction(self: *@This(), comptime L: type, ctx: ?*anyopaque) !void {
-        try self.destructionQueue.append(self.allocator, .{ .func = L.func, .ctx = ctx });
-    }
-
     // this is the old version
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
         self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
         try self.init_zig_data(allocator);
-
-        try self.pushDestruction(struct {
-            pub fn func(s: *NeonVkContext, ctx: ?*anyopaque) void {
-                _ = ctx;
-                _ = s;
-                core.engine_logs("destruction finished");
-            }
-        }, null);
 
         self.graph = try core.FileLog.init(allocator);
         try self.graph.write("digraph G {{\n", .{});
@@ -565,7 +541,6 @@ pub const NeonVkContext = struct {
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut("renderer_graph.viz");
 
-        // destruction queue is availbe from this point
         return self;
     }
 
@@ -2509,6 +2484,8 @@ pub const NeonVkContext = struct {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
 
+        if (use_renderthread) {}
+
         for (self.rendererPlugins.items) |*interface| {
             if (interface.vtable.onRendererTeardown) |onRendererTeardown| {
                 onRendererTeardown(interface.ptr);
@@ -2524,12 +2501,6 @@ pub const NeonVkContext = struct {
 
         // clean out any existing assets in the assets ready queue
         vk_assetLoaders.discardAll();
-
-        var i: isize = @intCast(self.destructionQueue.items.len - 1);
-        while (i >= 0) : (i -= 1) {
-            var dlambda = self.destructionQueue.items[@intCast(i)];
-            dlambda.exec(self);
-        }
 
         self.dynamicTextures.deinit(self.allocator);
 
@@ -2547,15 +2518,18 @@ pub const NeonVkContext = struct {
         self.destroy_renderpass() catch {
             core.engine_errs("unable to destroy renderpass");
         };
-        self.destroy_syncs() catch {
-            core.engine_errs("unable to destroy syncs");
-        };
-        self.destroy_renderobjects() catch {
-            core.engine_errs("unable to destroy renderObjects");
-        };
-        self.destroy_framebuffers() catch {
-            core.engine_errs("unable to destroy framebuffers");
-        };
+
+        if (!use_renderthread) {
+            self.destroy_syncs() catch {
+                core.engine_errs("unable to destroy syncs");
+            };
+            self.destroy_renderobjects() catch {
+                core.engine_errs("unable to destroy renderObjects");
+            };
+            self.destroy_framebuffers() catch {
+                core.engine_errs("unable to destroy framebuffers");
+            };
+        }
 
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
@@ -2587,7 +2561,6 @@ pub const NeonVkContext = struct {
 
         self.renderObjectsByMaterial.deinit(self.allocator);
         self.commandBuffers.deinit();
-        self.destructionQueue.deinit(self.allocator);
         self.materials.deinit(self.allocator);
     }
 
@@ -2631,9 +2604,12 @@ pub const NeonVkContext = struct {
         return rv;
     }
 
-    pub fn onExitSignal(self: @This()) core.EngineDataEventError!void {
+    pub fn onExitSignal(self: *@This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
         self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
+        if (use_renderthread) {
+            self.renderthread.onExitSignal();
+        }
     }
 };
 
