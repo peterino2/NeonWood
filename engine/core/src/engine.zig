@@ -34,6 +34,7 @@ const EngineDelegates = @import("EngineDelegates.zig");
 pub const Engine = struct {
     exitSignal: Atomic(bool) = Atomic(bool).init(false),
     exitConfirmed: Atomic(bool) = Atomic(bool).init(false),
+    dependentsDestroyed: Atomic(bool) = Atomic(bool).init(false),
 
     allocator: std.mem.Allocator,
 
@@ -85,6 +86,9 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        if (!self.dependentsDestroyed.load(.seq_cst)) {
+            self.destroyDependents();
+        }
         core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
 
@@ -230,6 +234,10 @@ pub const Engine = struct {
 
         try self.mainLoop();
 
+        destroyDependents();
+    }
+
+    fn destroyDependents(self: *@This()) void {
         var i: i32 = @intCast(self.destroyListSimple.items.len - 1);
         while (i >= 0) : (i -= 1) {
             const item = self.destroyListSimple.items[@as(usize, @intCast(i))];
@@ -237,6 +245,7 @@ pub const Engine = struct {
                 deinitFn(item.ptr);
             }
         }
+        self.dependentsDestroyed.store(true, .seq_cst);
     }
 
     fn mainLoop(self: *@This()) !void {
