@@ -34,11 +34,12 @@ const EngineDelegates = @import("EngineDelegates.zig");
 pub const Engine = struct {
     exitSignal: Atomic(bool) = Atomic(bool).init(false),
     exitConfirmed: Atomic(bool) = Atomic(bool).init(false),
+    dependentsDestroyed: Atomic(bool) = Atomic(bool).init(false),
 
     allocator: std.mem.Allocator,
 
     // better name for these engineObject objects is actually 'engine object'
-    rttiObjects: ArrayListUnmanaged(EngineObjectRef),
+    engineObjects: ArrayListUnmanaged(EngineObjectRef),
     eventors: ArrayListUnmanaged(EngineObjectRef),
     exitListeners: ArrayListUnmanaged(EngineObjectRef),
     preTickables: ArrayListUnmanaged(EngineObjectRef),
@@ -68,7 +69,7 @@ pub const Engine = struct {
     pub fn init(allocator: std.mem.Allocator) !@This() {
         const rv = Engine{
             .allocator = allocator,
-            .rttiObjects = .{},
+            .engineObjects = .{},
             .tickables = .{},
             .preTickables = .{},
             .deltaTime = 0.0,
@@ -85,6 +86,9 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        if (!self.dependentsDestroyed.load(.seq_cst)) {
+            self.destroyDependents();
+        }
         core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
 
@@ -99,7 +103,7 @@ pub const Engine = struct {
         self.destroyListSimple.deinit(self.allocator);
 
         core.engine_logs("destroying engine objects");
-        self.rttiObjects.deinit(self.allocator);
+        self.engineObjects.deinit(self.allocator);
 
         core.engine_logs("destroying eventors");
         self.eventors.deinit(self.allocator);
@@ -117,7 +121,7 @@ pub const Engine = struct {
 
     // creates an engine object using the engine's allocator.
     pub fn createObject(self: *@This(), comptime T: type, params: NeonObjectParams) !*T {
-        const newIndex = self.rttiObjects.items.len;
+        const newIndex = self.engineObjects.items.len;
         const vtable = &@field(T, "NeonObjectTable");
         const newObjectPtr = try vtable.init_func(self.allocator);
 
@@ -126,7 +130,7 @@ pub const Engine = struct {
             .vtable = vtable,
         };
 
-        try self.rttiObjects.append(self.allocator, newObjectRef);
+        try self.engineObjects.append(self.allocator, newObjectRef);
 
         if (params.isCore) {
             try self.destroyListCore.append(self.allocator, newObjectRef);
@@ -199,7 +203,7 @@ pub const Engine = struct {
         var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;
         while (index >= 0) : (index -= 1) {
             var z = tracy.Zone(@src());
-            const objectRef = self.rttiObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
+            const objectRef = self.engineObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
             z.Name(objectRef.vtable.typeName.utf8());
             z.End();
@@ -230,6 +234,10 @@ pub const Engine = struct {
 
         try self.mainLoop();
 
+        self.destroyDependents();
+    }
+
+    fn destroyDependents(self: *@This()) void {
         var i: i32 = @intCast(self.destroyListSimple.items.len - 1);
         while (i >= 0) : (i -= 1) {
             const item = self.destroyListSimple.items[@as(usize, @intCast(i))];
@@ -237,6 +245,7 @@ pub const Engine = struct {
                 deinitFn(item.ptr);
             }
         }
+        self.dependentsDestroyed.store(true, .seq_cst);
     }
 
     fn mainLoop(self: *@This()) !void {

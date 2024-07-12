@@ -3,6 +3,8 @@ const vkd = vk_api.vkd;
 const vki = vk_api.vki;
 const vkb = vk_api.vkb;
 
+exitSignal: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+exitConfirmed: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 // allocators
 allocator: std.mem.Allocator,
 vkAllocator: *NeonVkAllocator,
@@ -63,6 +65,23 @@ const DisplayTarget = struct {
     swapchain: vk.SwapchainKHR = .null_handle,
     swapImages: []NeonVkSwapImage = undefined,
     framebuffers: []vk.Framebuffer = undefined,
+
+    pub fn deinit(self: *@This(), rt: *RenderThread) void {
+        for (self.swapImages) |*swapImage| {
+            swapImage.deinit(vkd.*, rt.dev);
+        }
+        rt.allocator.free(self.swapImages);
+
+        for (self.framebuffers) |fb| {
+            vkd.destroyFramebuffer(rt.dev, fb, null);
+        }
+        rt.allocator.free(self.framebuffers);
+
+        vkd.destroySwapchainKHR(rt.dev, self.swapchain, null);
+
+        vkd.destroyImageView(rt.dev, self.depthImageView, null);
+        self.depthImage.deinit(rt.vkAllocator);
+    }
 };
 
 // all the high level synchronization required for a frame
@@ -75,6 +94,12 @@ const FrameSyncs = struct {
     acquire: vk.Semaphore,
     renderComplete: vk.Semaphore,
     cmdFence: vk.Fence,
+
+    pub fn deinit(self: *@This(), dev: vk.Device) void {
+        vkd.destroySemaphore(dev, self.acquire, null);
+        vkd.destroySemaphore(dev, self.renderComplete, null);
+        vkd.destroyFence(dev, self.cmdFence, null);
+    }
 };
 
 pub fn setup(self: *@This()) !void {
@@ -84,6 +109,44 @@ pub fn setup(self: *@This()) !void {
     try self.initOrRecycleSwapchain();
     try self.initFramebuffers();
     try self.initShared();
+}
+
+fn deinitExtras(self: *@This()) void {
+    _ = self;
+}
+
+pub fn onExitSignal(self: *@This()) void {
+    self.exitSignal.store(true, .seq_cst);
+}
+
+fn destroySyncs(self: *@This()) void {
+    for (&self.frameSync) |*frameSync| {
+        frameSync.deinit(self.dev);
+    }
+    vkd.destroySemaphore(self.dev, self.emptyAcquireSemaphore, null);
+}
+
+fn deinitCommandBuffers(self: *@This()) void {
+    // no-op
+    _ = self;
+}
+
+fn deinitFramebuffers(self: *@This()) void {
+    self.displayTarget.deinit();
+    self.allocator.free(self.displayTarget.frameBuffers);
+}
+
+fn deinitSwapchain(_: *@This()) void {}
+
+fn deinitShared(_: *@This()) void {}
+
+fn processExitSignal(self: *@This()) void {
+    self.deinitShared();
+    self.destroySyncs();
+    self.deinitCommandBuffers();
+    self.displayTarget.deinit(self);
+    self.deinitExtras();
+    self.exitConfirmed.store(true, .seq_cst);
 }
 
 pub fn acquireNextFrame(self: *@This()) !u32 {
@@ -111,6 +174,11 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
 pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void {
     var z2 = tracy.ZoneN(@src(), "rendering job request");
     defer z2.End();
+
+    if (self.exitSignal.load(.seq_cst)) {
+        self.processExitSignal();
+        return;
+    }
 
     const L = struct {
         r: *RenderThread,

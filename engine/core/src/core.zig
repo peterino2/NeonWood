@@ -18,7 +18,7 @@ pub const colors = @import("colors.zig");
 
 pub const zm = @import("zmath");
 pub usingnamespace @import("p2");
-const algorithm = @import("p2");
+pub const algorithm = @import("p2");
 pub const nfd = @import("nfd");
 pub usingnamespace @import("math.zig");
 pub usingnamespace @import("args.zig");
@@ -106,12 +106,15 @@ pub fn getEngine() *Engine {
 }
 
 pub fn BuildOption(comptime option: []const u8) bool {
-    const r = @import("root").options;
-    if (@hasDecl(r, option)) {
-        return @field(r, option);
-    } else {
-        return false;
+    if (@hasDecl(@import("root"), "options")) {
+        const r = @import("root").options;
+        if (@hasDecl(r, option)) {
+            return @field(r, option);
+        } else {
+            return false;
+        }
     }
+    return false;
 }
 
 const EngineDelegates = @import("EngineDelegates.zig");

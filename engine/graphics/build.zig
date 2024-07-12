@@ -54,6 +54,11 @@ pub fn build(b: *std.Build) void {
     });
 
     tests.root_module.addImport("graphics", mod);
+
+    for (dependencyList) |depName| {
+        const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
+        tests.root_module.addImport(depName, dep.module(depName));
+    }
     const runArtifact = b.addRunArtifact(tests);
     test_step.dependOn(&runArtifact.step);
 }
