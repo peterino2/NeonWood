@@ -176,7 +176,7 @@ pub const PackerFS = struct {
             }
         }
 
-        std.debug.print("PackerFS - Error: FileNotFound {s}", .{path});
+        // std.debug.print("PackerFS - Error: FileNotFound {s}", .{path});
         return error.FileNotFound;
     }
 

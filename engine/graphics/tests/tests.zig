@@ -1,6 +1,7 @@
 const std = @import("std");
 const graphics = @import("graphics");
 const core = @import("core");
+const platform = @import("platform");
 
 test "simple_integration" {
     // this doesn't really do anything other than just a simple compile check

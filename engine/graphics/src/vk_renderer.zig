@@ -1144,7 +1144,7 @@ pub const NeonVkContext = struct {
 
         if (use_renderthread) {
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
-            try self.sendSharedData(frameIndex);
+            self.sendSharedData(frameIndex) catch unreachable;
             self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
         } else {
             self.draw(dt) catch unreachable;
@@ -1153,13 +1153,26 @@ pub const NeonVkContext = struct {
     }
 
     fn sendSharedData(self: *@This(), frameIndex: u32) !void {
+        var z1 = tracy.ZoneN(@src(), "sending shared data");
+        defer z1.End();
         const shared = self.renderthread.getShared(frameIndex);
         shared.lock.lock();
         defer shared.lock.unlock();
         shared.cameraData.viewproj = self.cameraRef.?.final;
         shared.cameraData.position = self.cameraRef.?.position;
-
         shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
+
+        try shared.models.ensureTotalCapacity(self.renderObjectSet.dense.len);
+        shared.models.clearRetainingCapacity();
+
+        var i: usize = 0;
+        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
+            const object = self.renderObjectSet.dense.items(.renderObject)[i];
+            const gpuData = try shared.models.addOne();
+            if (object.mesh != null) {
+                gpuData.modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+            }
+        }
     }
 
     // convert game state into some intermediate graphics data.
@@ -2602,6 +2615,11 @@ pub const NeonVkContext = struct {
         self.renderObjectsAreDirty = true;
 
         return rv;
+    }
+
+    pub fn readyToExit(self: *@This()) bool {
+        _ = self;
+        return true;
     }
 
     pub fn onExitSignal(self: *@This()) core.EngineDataEventError!void {

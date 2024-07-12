@@ -221,7 +221,6 @@ pub const NeonVkAllocator = struct {
             _ = self.liveAllocations.swapRemove(i);
         } else {
             core.engine_log("We have a big issue here, a destroy was issued for allocation {any}\n But it is not alive", .{allocation});
-            self.printEventsLog();
             self.printOutStandingAllocations();
             unreachable;
         }
@@ -329,12 +328,15 @@ pub const NeonVkAllocator = struct {
     }
 
     pub fn printOutStandingAllocations(self: *@This()) void {
-        core.graphics_log("There are {d} allocations outstanding", .{self.liveAllocations.items.len});
+        core.graphics_log(" == There are {d} allocations outstanding", .{self.liveAllocations.items.len});
 
-        self.printEventsLog();
         for (self.liveAllocations.items) |alloc| {
             core.graphics_log("live allocation@{d} tag:\'{s}\' {any}", .{ alloc.allocation, alloc.tag, alloc.object });
         }
+
+        core.graphics_logs("--- Event log below --- ");
+
+        self.printEventsLog();
         core.graphics_logs("end of report.");
         core.forceFlush();
     }

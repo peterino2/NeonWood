@@ -156,6 +156,7 @@ pub const Engine = struct {
         }
 
         if (@hasDecl(T, "onExitSignal")) {
+            try core.assert(@hasDecl(T, "readyToExit"));
             try self.exitListeners.append(self.allocator, newObjectRef); //
         }
 
@@ -220,11 +221,33 @@ pub const Engine = struct {
                 _ = job;
 
                 tracy.SetThreadName("Systems Thread");
-                while (!ctx.engine.exitSignal.load(.seq_cst)) {
+
+                var exitSignaled: bool = false;
+
+                while (true) {
+                    if (!exitSignaled and ctx.engine.exitSignal.load(.seq_cst)) {
+                        exitSignaled = true;
+                        core.engine_logs("Processing exit signals");
+
+                        for (ctx.engine.exitListeners.items) |ref| {
+                            ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
+                        }
+                    }
+
                     ctx.engine.tick() catch unreachable;
-                }
-                for (ctx.engine.exitListeners.items) |ref| {
-                    ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
+
+                    if (exitSignaled) {
+                        var readyToExit: bool = true;
+                        for (ctx.engine.exitListeners.items) |pending| {
+                            if (!pending.vtable.readyToExit_func.?(pending.ptr)) {
+                                readyToExit = false;
+                            }
+                        }
+
+                        if (readyToExit) {
+                            break;
+                        }
+                    }
                 }
 
                 ctx.engine.exitConfirmed.store(true, .seq_cst);

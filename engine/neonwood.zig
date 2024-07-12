@@ -34,7 +34,7 @@ pub fn start_everything_imgui(allocator: std.mem.Allocator, params: platform.win
 
     core.engine_log("Starting up", .{});
     core.start_module(allocator); // 1
-    try platform.start_module(std.heap.c_allocator, params); // 2
+    try platform.start_module(allocator, params); // 2
     assets.start_module(allocator); // 3
     // audio.start_module(allocator); //4
     graphics.start_module(allocator); //5
@@ -68,7 +68,7 @@ pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing
 
     core.engine_log("Starting up", .{});
     core.start_module(allocator); // 1
-    try platform.start_module(std.heap.c_allocator, params); // 2
+    try platform.start_module(allocator, params); // 2
     assets.start_module(allocator); // 3
     // audio.start_module(allocator); //4
     graphics.start_module(allocator); //5

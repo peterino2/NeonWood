@@ -50,6 +50,7 @@ pub const SharedData = struct {
     lock: std.Thread.Mutex,
     cameraData: vk_renderer_camera_gpu.NeonVkCameraDataGpu,
     sceneData: NeonVkSceneDataGpu,
+    models: std.ArrayList(NeonVkObjectDataGpu) = .{},
 };
 
 const DisplayTarget = struct {
@@ -131,21 +132,26 @@ fn deinitCommandBuffers(self: *@This()) void {
     _ = self;
 }
 
-fn deinitFramebuffers(self: *@This()) void {
-    self.displayTarget.deinit();
-    self.allocator.free(self.displayTarget.frameBuffers);
-}
-
 fn deinitSwapchain(_: *@This()) void {}
 
-fn deinitShared(_: *@This()) void {}
+fn deinitShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.models.deinit();
+    }
+}
 
 fn processExitSignal(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - destruction");
+    defer z1.End();
+
+    core.engine_logs("Process Exit Signal");
+
     self.deinitShared();
     self.destroySyncs();
     self.deinitCommandBuffers();
     self.displayTarget.deinit(self);
     self.deinitExtras();
+
     self.exitConfirmed.store(true, .seq_cst);
 }
 
@@ -262,21 +268,27 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
     }
 
-    try self.uploadObjectData(fi);
+    try self.uploadObjectData(shared, fi);
 }
 
-fn uploadObjectData(self: *@This(), fi: u32) !void {
+fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
+    var z1 = tracy.ZoneN(@src(), "sending shared data");
+    defer z1.End();
     const allocation = self.frameData[fi].objectBuffer.allocation;
     const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
     var ssbo: []NeonVkObjectDataGpu = undefined;
     ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
     ssbo.len = self.maxObjectCount;
 
+    for (shared.models.items, 0..) |model, i| {
+        ssbo[i] = model;
+    }
+
     // var i: usize = 0;
-    // while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-    //     const object = self.renderObjectSet.dense.items(.renderObject)[i];
+    // while (i < self.maxobjectcount and i < self.renderobjectset.dense.len) : (i += 1) {
+    //     const object = self.renderobjectset.dense.items(.renderobject)[i];
     //     if (object.mesh != null) {
-    //         ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+    //         ssbo[i].modelmatrix = self.renderobjectset.dense.items(.renderobject)[i].transform;
     //     }
     // }
 
@@ -573,7 +585,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
         .usage = .gpuOnly,
     };
 
-    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name);
+    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name ++ " depth Image");
 
     var imageViewCreate = vk.ImageViewCreateInfo{
         .flags = .{},
@@ -598,6 +610,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
 fn initShared(self: *@This()) !void {
     for (&self.sharedData) |*s| {
         s.lock = .{};
+        s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);
     }
 }
 
