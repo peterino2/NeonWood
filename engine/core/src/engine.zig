@@ -234,7 +234,7 @@ pub const Engine = struct {
 
         try self.mainLoop();
 
-        destroyDependents();
+        self.destroyDependents();
     }
 
     fn destroyDependents(self: *@This()) void {
