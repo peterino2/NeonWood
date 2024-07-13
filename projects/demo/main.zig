@@ -393,16 +393,11 @@ pub fn main() anyerror!void {
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
-    var allocator = tracker.allocator();
+    const allocator = tracker.allocator();
 
     engine_log("Starting up", .{});
 
     const args = try neonwood.getArgs();
-
-    if (args.useGPA) {
-        core.engine_logs("Using GPA allocator");
-        allocator = gpa.allocator();
-    }
 
     if (args.vulkanValidation) {
         core.engine_logs("Using vulkan validation");

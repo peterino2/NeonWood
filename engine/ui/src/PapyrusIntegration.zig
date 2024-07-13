@@ -286,6 +286,9 @@ fn setupMeshes(self: *@This()) !void {
     try self.quad.upload(self.gc);
 }
 
+var lastEventCount: usize = 0;
+var displayEventsPerSecond: f64 = 0;
+
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
     const cursor = platform.getInstance().inputState.mousePos;
@@ -298,9 +301,17 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 
     self.papyrusCtx.tick(deltaTime) catch unreachable;
     if (memory.MTGet()) |mt| {
-        self.papyrusCtx.pushDebugText("memory used: {d:.3}MB", .{
+        const eventsPerFrame = @as(f64, @floatFromInt(mt.eventsCount - lastEventCount));
+
+        displayEventsPerSecond = (displayEventsPerSecond + eventsPerFrame / 60.0) - displayEventsPerSecond / 60.0;
+
+        self.papyrusCtx.pushDebugText("memory used: {d:.3}MB {d} allocations ({d} events per frame)", .{
             @as(f32, @floatFromInt(mt.totalAllocSize)) / 1e6,
+            mt.allocationsCount,
+            eventsPerFrame,
         }) catch {};
+
+        lastEventCount = mt.eventsCount;
     }
 
     if (self.gc.vulkanValidation) {
