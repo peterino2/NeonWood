@@ -21,16 +21,13 @@ textSsboCount: u32 = 0,
 time: f64 = 0,
 
 textPipeData: gpd.GpuPipeData = undefined,
-
 displayDemo: bool = true,
-
 drawCommands: std.ArrayList(VkCommand),
-
 textRenderer: *TextRenderer,
-
 averageFrameTime: f64 = 0,
-
 onDebugInfoBinding: usize = 0,
+
+sharedData: [graphics.NumFrames]SharedData = undefined,
 
 const std = @import("std");
 const core = @import("core");
@@ -60,6 +57,8 @@ const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
 const Key = papyrus.Event.Key;
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
 pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
@@ -83,6 +82,10 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .drawList = papyrus.DrawList.init(allocator),
         .defaultTextureSet = undefined,
     };
+
+    if (use_renderthread) {
+        self.initShared();
+    }
 
     self.onDebugInfoBinding = try core.addEngineDelegateBinding("onFrameDebugInfoEmitted", onFrameDebugInfo, self);
     // core.engine_logs("PapyrusSystem init");
@@ -365,12 +368,6 @@ pub fn buildImagePipeline(self: *@This()) !void {
     self.pipeData = try spriteDataBuilder.build("Papyrus");
     defer spriteDataBuilder.deinit();
 
-    // const vert_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_vert.spv");
-    // defer self.allocator.free(vert_spv);
-
-    // const frag_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_frag.spv");
-    // defer self.allocator.free(frag_spv);
-
     const vert_spv = papyrus_vk_vert.spv();
     const frag_spv = papyrus_vk_frag.spv();
 
@@ -535,6 +532,27 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     }
 }
 
+pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize) void {
+    _ = self;
+    _ = cmd;
+    _ = frameIndex;
+}
+
+pub fn getShared(self: *@This(), fi: u32) *SharedData {
+    return &self.sharedData[fi];
+}
+
+pub fn sendShared(self: *@This(), frameIndex: u32) void {
+    const z1 = tracy.ZoneN(@src(), "PapryusIntegration - UploadingShared");
+    defer z1.End();
+
+    const shared = self.getShared(frameIndex);
+    shared.lock.lock();
+    defer shared.lock.unlock();
+
+    self.papyrusCtx.makeDrawList(&shared.drawCommands) catch unreachable;
+}
+
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
     _ = frameTime;
 
@@ -612,6 +630,7 @@ pub fn shutdown(self: *@This()) void {
 
     self.drawList.deinit();
     self.papyrusCtx.deinit();
+    self.deinitShared();
     core.ui_logs("finished shutting down ui");
 }
 
@@ -623,4 +642,24 @@ pub fn deinit(self: *@This()) void {
 pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
     _ = frameNumber;
     _ = self;
+}
+
+const SharedData = struct {
+    lock: std.Thread.Mutex,
+    drawCommands: papyrus.DrawList,
+};
+
+pub fn initShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.* = .{
+            .lock = .{},
+            .drawCommands = papyrus.DrawList.init(self.allocator),
+        };
+    }
+}
+
+pub fn deinitShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.drawCommands.deinit();
+    }
 }

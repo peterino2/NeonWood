@@ -168,8 +168,7 @@ fn processExitSignal(self: *@This()) void {
 }
 
 pub fn acquireNextFrame(self: *@This()) !u32 {
-    var z1 = tracy.Zone(@src());
-    z1.Name("waiting for frame");
+    var z1 = tracy.ZoneNC(@src(), "Waiting for frame", 0x111111);
     defer z1.End();
 
     while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
@@ -209,8 +208,6 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
         frameIndex: u32,
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
-            var z1 = tracy.ZoneNC(@src(), "rendering job", 0xAAAAFFFF);
-            defer z1.End();
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             // ctx.r.dynamicMeshManager.finishUpload() catch unreachable;
             // lets think about this one later.
@@ -276,16 +273,15 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     _ = deltaTime;
 
-    var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
-    defer z.End();
-
     try self.preFrameUpdate(fi);
     const cmd = try self.startFrameCommands(fi);
+    var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
     try self.beginMainRenderpass(cmd, fi);
 
     self.renderMeshes(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
+    z.End();
     try vkd.endCommandBuffer(cmd);
     try self.finishFrame(fi);
 }
@@ -332,7 +328,7 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
 }
 
 fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
-    var z1 = tracy.ZoneN(@src(), "sending shared data");
+    var z1 = tracy.ZoneN(@src(), "uploading ssbo data");
     defer z1.End();
     const allocation = self.frameData[fi].objectBuffer.allocation;
     const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
@@ -443,6 +439,7 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         .p_results = null,
     };
 
+    // todo re-implement handling out of date KHR
     var outOfDate: bool = false;
     _ = vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
         error.OutOfDateKHR => {
@@ -735,3 +732,15 @@ const NeonVkFrameData = vk_renderer_types.NeonVkFrameData;
 const NeonVkSceneDataGpu = vk_renderer_types.NeonVkSceneDataGpu;
 const NeonVkObjectDataGpu = vk_renderer_types.NeonVkObjectDataGpu;
 const NeonVkSwapchain = vk_renderer_types.NeonVkSwapchain;
+
+// todo and documentation
+//
+// This struct is the root of the feature to have a seperate rendering thread for handling all vulkan IOs
+// the way this will work is, instead of having all processing done on the main systems thread.
+// the systems thread will send over a set of data required to render each given frame.
+// this data is called sharedData.
+//
+// all plugins into the renderer will follow this arrangement as well.
+// this includes the dynamicMeshManager and anything else.
+// they will all have a similar setup to this.
+//

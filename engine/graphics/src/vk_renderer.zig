@@ -1144,12 +1144,32 @@ pub const NeonVkContext = struct {
         self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
+            // ====
+            //  TODO if this raises an error, then we have to...
+            //
+            //  1. wait until all frames are rendered
+            //  2. destroy the swapchain and images and scissors
+            //  3. recreate swapchains and images and scissors
+            //
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
+            // ====
+
+            var z2 = tracy.ZoneN(@src(), "renderer tick");
             self.sendSharedData(frameIndex) catch unreachable;
+            self.sendSharedDataPlugins(frameIndex);
             self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
+            defer z2.End();
         } else {
             self.draw(dt) catch unreachable;
             self.dynamicMeshManager.finishUpload() catch unreachable;
+        }
+    }
+
+    fn sendSharedDataPlugins(self: *@This(), frameIndex: u32) void {
+        for (self.rendererPlugins.items) |*interface| {
+            if (interface.vtable.sendShared) |sendShared| {
+                sendShared(interface.ptr, frameIndex);
+            }
         }
     }
 
@@ -1173,14 +1193,14 @@ pub const NeonVkContext = struct {
         while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
             const object = self.renderObjectSet.dense.items(.renderObject)[i];
 
-            if (object.mesh != null and object.texture != null and object.material != null) {
+            if (object.mesh != null and object.material != null) {
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
                 gpuData.modelMatrix = object.transform;
                 objectData.* = .{
                     .visibility = object.visibility,
-                    .textureSet = object.texture.?,
+                    .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
                     .pipeline = object.material.?.pipeline,
                     .pipelineLayout = object.material.?.layout,
                     .mesh = object.mesh.?.buffer.buffer,
