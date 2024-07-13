@@ -12,6 +12,7 @@ vkAllocator: *NeonVkAllocator,
 // device information and api handles
 dev: vk.Device,
 pdev: vk.PhysicalDevice,
+pdevProperties: vk.PhysicalDeviceProperties,
 caps: vk.SurfaceCapabilitiesKHR,
 cmdPool: vk.CommandPool,
 minUniformBufferAlignment: usize,
@@ -46,11 +47,21 @@ renderPass: vk.RenderPass,
 sceneParameterBuffer: NeonVkBuffer,
 maxObjectCount: u32,
 
+pub const ObjectSharedData = struct {
+    visibility: bool,
+    textureSet: vk.DescriptorSet,
+    pipeline: vk.Pipeline,
+    pipelineLayout: vk.PipelineLayout,
+    mesh: vk.Buffer,
+    vertexCount: u32,
+};
+
 pub const SharedData = struct {
     lock: std.Thread.Mutex,
     cameraData: vk_renderer_camera_gpu.NeonVkCameraDataGpu,
     sceneData: NeonVkSceneDataGpu,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
+    objectData: std.ArrayList(ObjectSharedData) = .{},
 };
 
 const DisplayTarget = struct {
@@ -137,6 +148,7 @@ fn deinitSwapchain(_: *@This()) void {}
 fn deinitShared(self: *@This()) void {
     for (&self.sharedData) |*s| {
         s.models.deinit();
+        s.objectData.deinit();
     }
 }
 
@@ -185,6 +197,8 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
         if (self.framesInFlight.load(.acquire) > 0) {
             return;
         }
+
+        try vkd.deviceWaitIdle(self.dev);
         self.processExitSignal();
         return;
     }
@@ -213,8 +227,49 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
     });
 }
 
+pub fn getFrameData(self: *@This(), index: u32) *NeonVkFrameData {
+    return &self.frameData[index];
+}
+
 pub fn getShared(self: *@This(), index: u32) *SharedData {
     return &self.sharedData[index];
+}
+
+pub fn pad_uniform_buffer_size(self: @This(), originalSize: usize) usize {
+    const alignment = @as(usize, @intCast(self.pdevProperties.limits.min_uniform_buffer_offset_alignment));
+
+    var alignedSize: usize = originalSize;
+    if (alignment > 0) {
+        alignedSize = (alignedSize + alignment - 1) & ~(alignment - 1);
+    }
+
+    return alignedSize;
+}
+
+pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    const shared = self.getShared(fi);
+
+    const offset: vk.DeviceSize = 0;
+    const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
+    const startOffset: u32 = paddedSceneSize * fi;
+
+    const frameData = self.getFrameData(fi);
+
+    for (shared.objectData.items, 0..) |object, i| {
+        const pipeline = object.pipeline;
+        const layout = object.pipelineLayout;
+        const mesh = object.mesh;
+        const textureSet = object.textureSet;
+        const vertexCount = object.vertexCount;
+
+        vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh), @ptrCast(&offset));
+
+        vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
+    }
 }
 
 // fi = frameIndex
@@ -227,6 +282,8 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     try self.preFrameUpdate(fi);
     const cmd = try self.startFrameCommands(fi);
     try self.beginMainRenderpass(cmd, fi);
+
+    self.renderMeshes(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
     try vkd.endCommandBuffer(cmd);
@@ -614,6 +671,7 @@ fn initShared(self: *@This()) !void {
     for (&self.sharedData) |*s| {
         s.lock = .{};
         s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);
+        s.objectData = std.ArrayList(ObjectSharedData).init(self.allocator);
     }
 }
 

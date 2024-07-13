@@ -563,6 +563,7 @@ pub const NeonVkContext = struct {
             .minUniformBufferAlignment = @as(usize, @intCast(self.physicalDeviceProperties.limits.min_uniform_buffer_offset_alignment)),
             .dev = self.dev,
             .pdev = self.physicalDevice,
+            .pdevProperties = self.physicalDeviceProperties,
             .extent = self.extent,
             .renderPass = self.renderPass,
             .displayTarget = .{
@@ -1165,12 +1166,26 @@ pub const NeonVkContext = struct {
         try shared.models.ensureTotalCapacity(self.renderObjectSet.dense.len);
         shared.models.clearRetainingCapacity();
 
+        try shared.objectData.ensureTotalCapacity(self.renderObjectSet.dense.len);
+        shared.objectData.clearRetainingCapacity();
+
         var i: usize = 0;
         while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
             const object = self.renderObjectSet.dense.items(.renderObject)[i];
-            const gpuData = try shared.models.addOne();
-            if (object.mesh != null) {
-                gpuData.modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+
+            if (object.mesh != null and object.texture != null and object.material != null) {
+                const gpuData = try shared.models.addOne();
+                const objectData = try shared.objectData.addOne();
+
+                gpuData.modelMatrix = object.transform;
+                objectData.* = .{
+                    .visibility = object.visibility,
+                    .textureSet = object.texture.?,
+                    .pipeline = object.material.?.pipeline,
+                    .pipelineLayout = object.material.?.layout,
+                    .mesh = object.mesh.?.buffer.buffer,
+                    .vertexCount = @intCast(object.mesh.?.vertices.items.len),
+                };
             }
         }
     }
@@ -1402,14 +1417,6 @@ pub const NeonVkContext = struct {
         //     self.lastMesh = render_object.mesh;
         //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
         // }
-
-        const final = render_object.transform;
-        var constants = NeonVkMeshPushConstant{
-            .data = .{ .x = 0, .y = 0, .z = 0, .w = 0 },
-            .render_matrix = final,
-        };
-
-        self.vkd.cmdPushConstants(cmd, layout, .{ .vertex_bit = true }, 0, @sizeOf(NeonVkMeshPushConstant), &constants);
 
         self.vkd.cmdDraw(cmd, @as(u32, @intCast(object_mesh.vertices.items.len)), 1, 0, index);
     }
