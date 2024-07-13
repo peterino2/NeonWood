@@ -406,24 +406,19 @@ pub fn preparePipeline(self: *@This()) !void {
     try self.buildImagePipeline();
 }
 
-pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
+pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.DrawList) !void {
     var z = tracy.ZoneN(@src(), "Uploading SSBOs");
     defer z.End();
 
     var imagesGpu = self.mappedBuffers[frameId].objects;
     var imagesText = self.textImageBuffers[frameId].objects;
 
-    var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
-    try self.papyrusCtx.makeDrawList(&self.drawList);
-    self.drawCommands.clearRetainingCapacity();
-    z1.End();
-
     self.textSsboCount = 0;
     self.ssboCount = 0;
 
     var textFrameContext = self.textRenderer.startRendering();
 
-    for (self.drawList.items) |drawCmd| {
+    for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
                 imagesGpu[self.ssboCount] = ImageGpu{
@@ -532,10 +527,14 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     }
 }
 
-pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize) void {
-    _ = self;
+pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: u32) void {
     _ = cmd;
-    _ = frameIndex;
+    self.drawList.clearRetainingCapacity();
+    const shared = self.getShared(frameIndex);
+
+    shared.lock.lock();
+    self.uploadSSBOData(frameIndex, &shared.drawList) catch unreachable;
+    shared.lock.unlock();
 }
 
 pub fn getShared(self: *@This(), fi: u32) *SharedData {
@@ -550,7 +549,7 @@ pub fn sendShared(self: *@This(), frameIndex: u32) void {
     shared.lock.lock();
     defer shared.lock.unlock();
 
-    self.papyrusCtx.makeDrawList(&shared.drawCommands) catch unreachable;
+    self.papyrusCtx.makeDrawList(&shared.drawList) catch unreachable;
 }
 
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
@@ -564,7 +563,12 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
         return;
     }
 
-    self.uploadSSBOData(frameIndex) catch unreachable;
+    var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
+    self.papyrusCtx.makeDrawList(&self.drawList) catch unreachable;
+    self.drawCommands.clearRetainingCapacity();
+    z1.End();
+
+    self.uploadSSBOData(frameIndex, &self.drawList) catch unreachable;
 
     var constants = PushConstant{
         .extent = .{
@@ -630,7 +634,11 @@ pub fn shutdown(self: *@This()) void {
 
     self.drawList.deinit();
     self.papyrusCtx.deinit();
-    self.deinitShared();
+
+    if (use_renderthread) {
+        self.deinitShared();
+    }
+
     core.ui_logs("finished shutting down ui");
 }
 
@@ -646,20 +654,20 @@ pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError
 
 const SharedData = struct {
     lock: std.Thread.Mutex,
-    drawCommands: papyrus.DrawList,
+    drawList: papyrus.DrawList,
 };
 
 pub fn initShared(self: *@This()) void {
     for (&self.sharedData) |*s| {
         s.* = .{
             .lock = .{},
-            .drawCommands = papyrus.DrawList.init(self.allocator),
+            .drawList = papyrus.DrawList.init(self.allocator),
         };
     }
 }
 
 pub fn deinitShared(self: *@This()) void {
     for (&self.sharedData) |*s| {
-        s.drawCommands.deinit();
+        s.drawList.deinit();
     }
 }

@@ -47,6 +47,8 @@ renderPass: vk.RenderPass,
 sceneParameterBuffer: NeonVkBuffer,
 maxObjectCount: u32,
 
+plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
+
 pub const ObjectSharedData = struct {
     visibility: bool,
     textureSet: vk.DescriptorSet,
@@ -279,11 +281,20 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     try self.beginMainRenderpass(cmd, fi);
 
     self.renderMeshes(cmd, fi);
+    self.postDrawPlugins(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
     z.End();
     try vkd.endCommandBuffer(cmd);
     try self.finishFrame(fi);
+}
+
+fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    for (self.plugins.items) |interface| {
+        if (interface.vtable.rtPostDraw) |rtPostDraw| {
+            rtPostDraw(interface.ptr, cmd, fi);
+        }
+    }
 }
 
 fn finishMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
@@ -732,6 +743,9 @@ const NeonVkFrameData = vk_renderer_types.NeonVkFrameData;
 const NeonVkSceneDataGpu = vk_renderer_types.NeonVkSceneDataGpu;
 const NeonVkObjectDataGpu = vk_renderer_types.NeonVkObjectDataGpu;
 const NeonVkSwapchain = vk_renderer_types.NeonVkSwapchain;
+
+const vk_renderer_interface = @import("vk_renderer_interface.zig");
+const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 // todo and documentation
 //

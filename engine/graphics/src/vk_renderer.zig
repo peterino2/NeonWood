@@ -583,6 +583,8 @@ pub const NeonVkContext = struct {
 
             // render resources
             .sceneParameterBuffer = self.sceneParameterBuffer,
+
+            .plugins = &self.rendererPlugins,
         };
 
         try self.renderthread.setup();
