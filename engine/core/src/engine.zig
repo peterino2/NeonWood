@@ -214,7 +214,7 @@ pub const Engine = struct {
 
     pub fn run(self: *@This()) !void {
         core.engine_logs("engine loop started");
-        const L = struct {
+        const SystemsThread = struct {
             engine: *Engine,
 
             pub fn func(ctx: @This(), job: *core.JobContext) void {
@@ -253,7 +253,8 @@ pub const Engine = struct {
                 ctx.engine.exitConfirmed.store(true, .seq_cst);
             }
         };
-        try core.dispatchJob(L{ .engine = self });
+
+        try core.dispatchJob(SystemsThread{ .engine = self });
 
         try self.mainLoop();
 

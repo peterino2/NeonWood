@@ -25,9 +25,7 @@ pub fn shutdown_module(allocator: std.mem.Allocator) void {
     gPlatformInstance.deinit();
 
     // I have a bug somewhere. need to find out where it is
-    const builtin = @import("builtin");
-    if (builtin.is_test)
-        allocator.destroy(gPlatformInstance);
+    allocator.destroy(gPlatformInstance);
 }
 
 pub const vkLoadFunc = windowing.c.glfwGetInstanceProcAddress;

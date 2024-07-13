@@ -2532,16 +2532,18 @@ pub const NeonVkContext = struct {
             core.engine_errs("unable to destroy renderpass");
         };
 
+        self.destroy_renderobjects() catch {
+            core.engine_errs("unable to destroy renderObjects");
+        };
         if (!use_renderthread) {
             self.destroy_syncs() catch {
                 core.engine_errs("unable to destroy syncs");
             };
-            self.destroy_renderobjects() catch {
-                core.engine_errs("unable to destroy renderObjects");
-            };
             self.destroy_framebuffers() catch {
                 core.engine_errs("unable to destroy framebuffers");
             };
+
+            self.commandBuffers.deinit();
         }
 
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
@@ -2573,7 +2575,6 @@ pub const NeonVkContext = struct {
         self.rendererPlugins.deinit(self.allocator);
 
         self.renderObjectsByMaterial.deinit(self.allocator);
-        self.commandBuffers.deinit();
         self.materials.deinit(self.allocator);
     }
 

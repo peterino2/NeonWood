@@ -182,6 +182,9 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
     defer z2.End();
 
     if (self.exitSignal.load(.seq_cst)) {
+        if (self.framesInFlight.load(.acquire) > 0) {
+            return;
+        }
         self.processExitSignal();
         return;
     }
