@@ -5,7 +5,7 @@ const tracy = core.tracy;
 const RingQueueU = core.RingQueueU;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
-const build_opts = @import("root").options;
+const mutex_job_queue = core.BuildOption("mutex_job_queue");
 
 pub const JobManager = struct {
     allocator: std.mem.Allocator,
@@ -45,7 +45,7 @@ pub const JobManager = struct {
         const Lambda = @TypeOf(capture);
         const ctx = try JobContext.new(self.allocator, Lambda, capture);
 
-        if (build_opts.mutex_job_queue) {
+        if (mutex_job_queue) {
             self.mutex.lock();
             try self.jobQueue.push(ctx);
             self.mutex.unlock();
@@ -77,7 +77,7 @@ pub const JobManager = struct {
     pub fn clearJobs(self: *@This()) void {
         var jobCtx: ?JobContext = null;
 
-        if (build_opts.mutex_job_queue) {
+        if (mutex_job_queue) {
             self.mutex.lock();
             jobCtx = self.jobQueue.pop();
             self.mutex.unlock();
@@ -88,7 +88,7 @@ pub const JobManager = struct {
         while (jobCtx) |*c| {
             c.deinit();
 
-            if (build_opts.mutex_job_queue) {
+            if (mutex_job_queue) {
                 self.mutex.lock();
                 jobCtx = self.jobQueue.pop();
                 self.mutex.unlock();
@@ -159,7 +159,7 @@ pub const JobWorker = struct {
             }
 
             if (self.manager) |manager| {
-                if (build_opts.mutex_job_queue) {
+                if (mutex_job_queue) {
                     self.manager.?.mutex.lock();
                     if (self.manager.?.jobQueue.count() > 0) {
                         self.currentJobContext = self.manager.?.jobQueue.pop().?;

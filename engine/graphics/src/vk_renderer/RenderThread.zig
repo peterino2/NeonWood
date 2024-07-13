@@ -3,6 +3,8 @@ const vkd = vk_api.vkd;
 const vki = vk_api.vki;
 const vkb = vk_api.vkb;
 
+exitSignal: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+exitConfirmed: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 // allocators
 allocator: std.mem.Allocator,
 vkAllocator: *NeonVkAllocator,
@@ -10,6 +12,7 @@ vkAllocator: *NeonVkAllocator,
 // device information and api handles
 dev: vk.Device,
 pdev: vk.PhysicalDevice,
+pdevProperties: vk.PhysicalDeviceProperties,
 caps: vk.SurfaceCapabilitiesKHR,
 cmdPool: vk.CommandPool,
 minUniformBufferAlignment: usize,
@@ -44,10 +47,21 @@ renderPass: vk.RenderPass,
 sceneParameterBuffer: NeonVkBuffer,
 maxObjectCount: u32,
 
+pub const ObjectSharedData = struct {
+    visibility: bool,
+    textureSet: vk.DescriptorSet,
+    pipeline: vk.Pipeline,
+    pipelineLayout: vk.PipelineLayout,
+    mesh: vk.Buffer,
+    vertexCount: u32,
+};
+
 pub const SharedData = struct {
     lock: std.Thread.Mutex,
     cameraData: vk_renderer_camera_gpu.NeonVkCameraDataGpu,
     sceneData: NeonVkSceneDataGpu,
+    models: std.ArrayList(NeonVkObjectDataGpu) = .{},
+    objectData: std.ArrayList(ObjectSharedData) = .{},
 };
 
 const DisplayTarget = struct {
@@ -63,6 +77,23 @@ const DisplayTarget = struct {
     swapchain: vk.SwapchainKHR = .null_handle,
     swapImages: []NeonVkSwapImage = undefined,
     framebuffers: []vk.Framebuffer = undefined,
+
+    pub fn deinit(self: *@This(), rt: *RenderThread) void {
+        for (self.swapImages) |*swapImage| {
+            swapImage.deinit(vkd.*, rt.dev);
+        }
+        rt.allocator.free(self.swapImages);
+
+        for (self.framebuffers) |fb| {
+            vkd.destroyFramebuffer(rt.dev, fb, null);
+        }
+        rt.allocator.free(self.framebuffers);
+
+        vkd.destroySwapchainKHR(rt.dev, self.swapchain, null);
+
+        vkd.destroyImageView(rt.dev, self.depthImageView, null);
+        self.depthImage.deinit(rt.vkAllocator);
+    }
 };
 
 // all the high level synchronization required for a frame
@@ -75,6 +106,12 @@ const FrameSyncs = struct {
     acquire: vk.Semaphore,
     renderComplete: vk.Semaphore,
     cmdFence: vk.Fence,
+
+    pub fn deinit(self: *@This(), dev: vk.Device) void {
+        vkd.destroySemaphore(dev, self.acquire, null);
+        vkd.destroySemaphore(dev, self.renderComplete, null);
+        vkd.destroyFence(dev, self.cmdFence, null);
+    }
 };
 
 pub fn setup(self: *@This()) !void {
@@ -84,6 +121,50 @@ pub fn setup(self: *@This()) !void {
     try self.initOrRecycleSwapchain();
     try self.initFramebuffers();
     try self.initShared();
+}
+
+fn deinitExtras(self: *@This()) void {
+    _ = self;
+}
+
+pub fn onExitSignal(self: *@This()) void {
+    self.exitSignal.store(true, .seq_cst);
+}
+
+fn destroySyncs(self: *@This()) void {
+    for (&self.frameSync) |*frameSync| {
+        frameSync.deinit(self.dev);
+    }
+    vkd.destroySemaphore(self.dev, self.emptyAcquireSemaphore, null);
+}
+
+fn deinitCommandBuffers(self: *@This()) void {
+    // no-op
+    _ = self;
+}
+
+fn deinitSwapchain(_: *@This()) void {}
+
+fn deinitShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.models.deinit();
+        s.objectData.deinit();
+    }
+}
+
+fn processExitSignal(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - destruction");
+    defer z1.End();
+
+    core.engine_logs("Process Exit Signal");
+
+    self.deinitShared();
+    self.destroySyncs();
+    self.deinitCommandBuffers();
+    self.displayTarget.deinit(self);
+    self.deinitExtras();
+
+    self.exitConfirmed.store(true, .seq_cst);
 }
 
 pub fn acquireNextFrame(self: *@This()) !u32 {
@@ -112,6 +193,16 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
     var z2 = tracy.ZoneN(@src(), "rendering job request");
     defer z2.End();
 
+    if (self.exitSignal.load(.seq_cst)) {
+        if (self.framesInFlight.load(.acquire) > 0) {
+            return;
+        }
+
+        try vkd.deviceWaitIdle(self.dev);
+        self.processExitSignal();
+        return;
+    }
+
     const L = struct {
         r: *RenderThread,
         dt: f64,
@@ -136,8 +227,49 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
     });
 }
 
+pub fn getFrameData(self: *@This(), index: u32) *NeonVkFrameData {
+    return &self.frameData[index];
+}
+
 pub fn getShared(self: *@This(), index: u32) *SharedData {
     return &self.sharedData[index];
+}
+
+pub fn pad_uniform_buffer_size(self: @This(), originalSize: usize) usize {
+    const alignment = @as(usize, @intCast(self.pdevProperties.limits.min_uniform_buffer_offset_alignment));
+
+    var alignedSize: usize = originalSize;
+    if (alignment > 0) {
+        alignedSize = (alignedSize + alignment - 1) & ~(alignment - 1);
+    }
+
+    return alignedSize;
+}
+
+pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    const shared = self.getShared(fi);
+
+    const offset: vk.DeviceSize = 0;
+    const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
+    const startOffset: u32 = paddedSceneSize * fi;
+
+    const frameData = self.getFrameData(fi);
+
+    for (shared.objectData.items, 0..) |object, i| {
+        const pipeline = object.pipeline;
+        const layout = object.pipelineLayout;
+        const mesh = object.mesh;
+        const textureSet = object.textureSet;
+        const vertexCount = object.vertexCount;
+
+        vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh), @ptrCast(&offset));
+
+        vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
+    }
 }
 
 // fi = frameIndex
@@ -150,6 +282,8 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     try self.preFrameUpdate(fi);
     const cmd = try self.startFrameCommands(fi);
     try self.beginMainRenderpass(cmd, fi);
+
+    self.renderMeshes(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
     try vkd.endCommandBuffer(cmd);
@@ -194,21 +328,27 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
     }
 
-    try self.uploadObjectData(fi);
+    try self.uploadObjectData(shared, fi);
 }
 
-fn uploadObjectData(self: *@This(), fi: u32) !void {
+fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
+    var z1 = tracy.ZoneN(@src(), "sending shared data");
+    defer z1.End();
     const allocation = self.frameData[fi].objectBuffer.allocation;
     const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
     var ssbo: []NeonVkObjectDataGpu = undefined;
     ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
     ssbo.len = self.maxObjectCount;
 
+    for (shared.models.items, 0..) |model, i| {
+        ssbo[i] = model;
+    }
+
     // var i: usize = 0;
-    // while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-    //     const object = self.renderObjectSet.dense.items(.renderObject)[i];
+    // while (i < self.maxobjectcount and i < self.renderobjectset.dense.len) : (i += 1) {
+    //     const object = self.renderobjectset.dense.items(.renderobject)[i];
     //     if (object.mesh != null) {
-    //         ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+    //         ssbo[i].modelmatrix = self.renderobjectset.dense.items(.renderobject)[i].transform;
     //     }
     // }
 
@@ -505,7 +645,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
         .usage = .gpuOnly,
     };
 
-    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name);
+    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name ++ " depth Image");
 
     var imageViewCreate = vk.ImageViewCreateInfo{
         .flags = .{},
@@ -530,6 +670,8 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
 fn initShared(self: *@This()) !void {
     for (&self.sharedData) |*s| {
         s.lock = .{};
+        s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);
+        s.objectData = std.ArrayList(ObjectSharedData).init(self.allocator);
     }
 }
 

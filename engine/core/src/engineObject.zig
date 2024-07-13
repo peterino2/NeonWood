@@ -48,6 +48,7 @@ pub const RttiData = struct {
     postInit_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
     processEvents: ?*const fn (*anyopaque, u64) EngineDataEventError!void = null,
     exitSignal_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
+    readyToExit_func: ?*const fn (*anyopaque) bool = null,
 
     pub fn from(comptime TargetType: type) RttiData {
         const wrappedInit = struct {
@@ -111,14 +112,24 @@ pub const RttiData = struct {
         }
 
         if (@hasDecl(TargetType, "onExitSignal")) {
+            if (!@hasDecl(TargetType, "readyToExit")) {
+                @compileError("engine object implemented onExitSignal but did not implement fn readyToExit() bool");
+            }
+
             const wrappedProcessEvents = struct {
-                pub fn func(pointer: *anyopaque) EngineDataEventError!void {
+                pub fn onExitSignal(pointer: *anyopaque) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.onExitSignal();
                 }
+
+                pub fn readyToExit(pointer: *anyopaque) bool {
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                    return ptr.readyToExit();
+                }
             };
 
-            self.exitSignal_func = wrappedProcessEvents.func;
+            self.exitSignal_func = wrappedProcessEvents.onExitSignal;
+            self.readyToExit_func = wrappedProcessEvents.readyToExit;
         }
 
         if (@hasDecl(TargetType, "deinit")) {
