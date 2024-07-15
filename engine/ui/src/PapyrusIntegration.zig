@@ -11,6 +11,7 @@ textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
 drawList: papyrus.DrawList,
+stringArena: std.heap.ArenaAllocator,
 fontTexture: *graphics.Texture = undefined,
 
 papyrusCtx: *papyrus.Context,
@@ -80,6 +81,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .drawCommands = std.ArrayList(VkCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
         .drawList = papyrus.DrawList.init(allocator),
+        .stringArena = std.heap.ArenaAllocator.init(allocator),
         .defaultTextureSet = undefined,
     };
 
@@ -560,7 +562,7 @@ pub fn sendShared(self: *@This(), frameIndex: u32) void {
     shared.lock.lock();
     defer shared.lock.unlock();
 
-    self.papyrusCtx.makeDrawList(&shared.drawList) catch unreachable;
+    self.papyrusCtx.makeDrawList(&shared.drawList, &shared.stringArena) catch unreachable;
 }
 
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
@@ -575,7 +577,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     }
 
     var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
-    self.papyrusCtx.makeDrawList(&self.drawList) catch unreachable;
+    self.papyrusCtx.makeDrawList(&self.drawList, &self.stringArena) catch unreachable;
     self.drawCommands.clearRetainingCapacity();
     z1.End();
 
@@ -632,6 +634,8 @@ pub fn shutdown(self: *@This()) void {
     }
     self.drawCommands.deinit();
 
+    self.stringArena.deinit();
+
     self.quad.deinit(self.gc);
     self.allocator.destroy(self.quad);
     self.gc.allocator.free(self.mappedBuffers);
@@ -666,6 +670,7 @@ pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError
 const SharedData = struct {
     lock: std.Thread.Mutex,
     drawList: papyrus.DrawList,
+    stringArena: std.heap.ArenaAllocator,
 };
 
 pub fn initShared(self: *@This()) void {
@@ -673,6 +678,7 @@ pub fn initShared(self: *@This()) void {
         s.* = .{
             .lock = .{},
             .drawList = papyrus.DrawList.init(self.allocator),
+            .stringArena = std.heap.ArenaAllocator.init(self.allocator),
         };
     }
 }
@@ -680,5 +686,6 @@ pub fn initShared(self: *@This()) void {
 pub fn deinitShared(self: *@This()) void {
     for (&self.sharedData) |*s| {
         s.drawList.deinit();
+        s.stringArena.deinit();
     }
 }

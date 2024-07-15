@@ -878,7 +878,9 @@ pub const Context = struct {
         };
     }
 
-    pub fn makeDrawList(self: *@This(), drawList: *DrawList) !void {
+    pub fn makeDrawList(self: *@This(), drawList: *DrawList, stringArena: *std.heap.ArenaAllocator) !void {
+        _ = stringArena.reset(.retain_capacity);
+
         // do not re allocate these, instead use a preallocated pool
         self._drawOrder.clearRetainingCapacity();
         self._layout.clearRetainingCapacity();
@@ -1059,6 +1061,15 @@ pub const Context = struct {
 
         if (self.drawDebug) {
             try self.addDebugInfo(drawList);
+        }
+
+        for (0..drawList.items.len) |i| {
+            switch (drawList.items[i].primitive) {
+                .Text => |*text| {
+                    text.text.utf8 = try core.dupeString(stringArena.allocator(), text.text.utf8);
+                },
+                .Rect => {},
+            }
         }
     }
 
