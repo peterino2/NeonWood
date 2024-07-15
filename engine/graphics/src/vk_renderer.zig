@@ -1185,8 +1185,10 @@ pub const NeonVkContext = struct {
         const shared = self.renderthread.getShared(frameIndex);
         shared.lock.lock();
         defer shared.lock.unlock();
-        shared.cameraData.viewproj = self.cameraRef.?.final;
-        shared.cameraData.position = self.cameraRef.?.position;
+        if (self.cameraRef) |camera| {
+            shared.cameraData.viewproj = camera.final;
+            shared.cameraData.position = camera.position;
+        }
         shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
 
         try shared.models.ensureTotalCapacity(self.renderObjectSet.dense.len);
