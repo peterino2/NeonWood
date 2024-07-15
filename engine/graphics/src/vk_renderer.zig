@@ -1154,6 +1154,10 @@ pub const NeonVkContext = struct {
             //  3. recreate swapchains and images and scissors
             //
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
+            var w: c_int = undefined;
+            var h: c_int = undefined;
+            platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
+            platform.getInstance().extent = .{ .x = w, .y = h };
             // ====
 
             var z2 = tracy.ZoneN(@src(), "renderer tick");

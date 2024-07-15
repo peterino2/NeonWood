@@ -2,6 +2,8 @@ const std = @import("std");
 const core = @import("core");
 const vk = @import("vulkan");
 
+const RenderThread = @import("RenderThread.zig");
+
 // aliases
 const Name = core.Name;
 const ObjectHandle = core.ObjectHandle;
@@ -22,7 +24,7 @@ pub const RendererInterface = struct {
 
     sendShared: ?*const fn (*anyopaque, u32) void,
     rtPreDraw: ?*const fn (*anyopaque, vk.CommandBuffer, u32) void,
-    rtPostDraw: ?*const fn (*anyopaque, vk.CommandBuffer, u32) void,
+    rtPostDraw: ?*const fn (*anyopaque, *RenderThread, vk.CommandBuffer, u32) void,
 
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
@@ -54,9 +56,9 @@ pub const RendererInterface = struct {
                 ptr.rtPreDraw(cmd, frameIndex);
             }
 
-            pub fn rtPostDraw(p: *anyopaque, cmd: vk.CommandBuffer, frameIndex: u32) void {
+            pub fn rtPostDraw(p: *anyopaque, rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
-                ptr.rtPostDraw(cmd, frameIndex);
+                ptr.rtPostDraw(rt, cmd, frameIndex);
             }
 
             pub fn onRendererTeardown(pointer: *anyopaque) void {

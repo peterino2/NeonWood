@@ -37,6 +37,7 @@ const memory = core.MemoryTracker;
 const assets = @import("assets");
 const graphics = @import("graphics");
 const gpd = graphics.gpu_pipe_data;
+const RenderThread = graphics.RenderThread;
 
 const platform = @import("platform");
 const papyrus = @import("papyrus");
@@ -540,9 +541,12 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.D
     }
 }
 
-pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: u32) void {
+pub fn rtPostDraw(self: *@This(), rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
     self.drawList.clearRetainingCapacity();
     const shared = self.getShared(frameIndex);
+    self.drawCommands.clearRetainingCapacity();
+
+    const rtShared = rt.getShared(frameIndex);
 
     shared.lock.lock();
     self.uploadSSBOData(frameIndex, &shared.drawList) catch unreachable;
@@ -550,30 +554,27 @@ pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: u32) void {
 
     var vertexBufferOffset: u64 = 0;
 
-    var constants = PushConstant{
+    var pushConstant = PushConstant{
         .extent = .{
-            .x = @as(f32, @floatFromInt(self.gc.extent.width)),
-            .y = @as(f32, @floatFromInt(self.gc.extent.height)),
+            .x = rtShared.extent.x,
+            .y = rtShared.extent.y,
         },
     };
 
     for (self.drawCommands.items) |command| {
         switch (command) {
             .text => |t| {
-                _ = t;
-                continue;
-                // self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
-                // if (t.small) {
-                //     var drawText = self.textRenderer.smallDisplays.items[t.index];
-                //     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
-                // } else {
-                //     var drawText = self.textRenderer.displays.items[t.index];
-                //     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
-                // }
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
+                if (t.small) {
+                    var drawText = self.textRenderer.smallDisplays.items[t.index];
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                } else {
+                    var drawText = self.textRenderer.displays.items[t.index];
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                }
             },
             .image => |img| {
-                core.engine_log("shits being drawn: {any}", .{img});
-                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
                 const index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
@@ -625,7 +626,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     self.drawCommands.clearRetainingCapacity();
     self.uploadSSBOData(frameIndex, &self.drawList) catch unreachable;
 
-    var constants = PushConstant{
+    var pushConstant = PushConstant{
         .extent = .{
             .x = @as(f32, @floatFromInt(self.gc.extent.width)),
             .y = @as(f32, @floatFromInt(self.gc.extent.height)),
@@ -635,7 +636,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     for (self.drawCommands.items) |command| {
         switch (command) {
             .text => |t| {
-                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
                     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
@@ -645,7 +646,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 }
             },
             .image => |img| {
-                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
                 const index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));

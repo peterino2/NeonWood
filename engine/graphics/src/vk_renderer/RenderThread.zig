@@ -64,6 +64,7 @@ pub const SharedData = struct {
     sceneData: NeonVkSceneDataGpu,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
     objectData: std.ArrayList(ObjectSharedData) = .{},
+    extent: core.Vector2f,
 };
 
 const DisplayTarget = struct {
@@ -292,7 +293,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
 fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     for (self.plugins.items) |interface| {
         if (interface.vtable.rtPostDraw) |rtPostDraw| {
-            rtPostDraw(interface.ptr, cmd, fi);
+            rtPostDraw(interface.ptr, self, cmd, fi);
         }
     }
 }
@@ -309,6 +310,11 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
     const shared = self.getShared(fi);
     shared.lock.lock();
     defer shared.lock.unlock();
+
+    shared.extent = .{
+        .x = @as(f32, @floatFromInt(platform.getInstance().extent.x)),
+        .y = @as(f32, @floatFromInt(platform.getInstance().extent.y)),
+    };
 
     {
         const data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[fi].cameraBuffer.allocation, u8);

@@ -155,7 +155,6 @@ pub const LoggerSys = struct {
             self.writeOutBuffer = self.flushBuffer;
             self.flushBuffer = swap;
 
-            std.debug.print("flushing\n", .{});
             const L = struct {
                 loggerSys: *LoggerSys,
 
