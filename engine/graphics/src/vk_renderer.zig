@@ -2562,7 +2562,7 @@ pub const NeonVkContext = struct {
 
         self.dynamicTextures.deinit(self.allocator);
 
-        self.vkd.deviceWaitIdle(self.dev) catch unreachable;
+        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
         self.destroy_textures() catch {
             core.engine_errs("unable to destroy textures");
@@ -2591,7 +2591,7 @@ pub const NeonVkContext = struct {
             self.commandBuffers.deinit();
         }
 
-        self.vkd.deviceWaitIdle(self.dev) catch unreachable;
+        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
         self.destroy_uploaders();
@@ -2671,7 +2671,7 @@ pub const NeonVkContext = struct {
 
     pub fn onExitSignal(self: *@This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
-        self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
+        // self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
         if (use_renderthread) {
             self.renderthread.onExitSignal();
         }
