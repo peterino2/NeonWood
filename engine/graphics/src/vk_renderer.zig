@@ -230,6 +230,7 @@ pub const NeonVkContext = struct {
 
     dev: vk.Device,
     graphicsQueue: NeonVkQueue,
+    uploaderQueue: NeonVkQueue,
     presentQueue: NeonVkQueue,
 
     allocator: std.mem.Allocator,
@@ -437,7 +438,7 @@ pub const NeonVkContext = struct {
         try self.vkd.endCommandBuffer(context.commandBuffer);
         var submit = vkinit.submitInfo(&context.commandBuffer);
         try self.vkd.queueSubmit(
-            self.graphicsQueue.handle,
+            self.uploaderQueue.handle,
             1,
             @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             context.uploadFence,
@@ -1510,6 +1511,9 @@ pub const NeonVkContext = struct {
     }
 
     fn finish_frame(self: *Self) !void {
+        if (use_renderthread) {
+            return error.BannedFunctionInRenderThreadMode;
+        }
         var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
         var submit = vk.SubmitInfo{
@@ -1541,6 +1545,7 @@ pub const NeonVkContext = struct {
         };
 
         var outOfDate: bool = false;
+        //_ = self.vkd.queuePresentKHR(self.presentQueue.handle, &presentInfo) catch |err| switch (err) {
         _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
             error.OutOfDateKHR => {
                 outOfDate = true;
@@ -2073,7 +2078,7 @@ pub const NeonVkContext = struct {
             try createQueueInfoList.append(.{
                 .flags = .{},
                 .queue_family_index = id,
-                .queue_count = 1,
+                .queue_count = 2,
                 .p_queue_priorities = &priority,
             });
         }
@@ -2110,8 +2115,13 @@ pub const NeonVkContext = struct {
         self.vkd = try DeviceDispatch.load(self.dev, self.vki.dispatch.vkGetDeviceProcAddr);
         errdefer self.vkd.destroyDevice(self.dev, null);
 
-        self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex);
-        self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex);
+        self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex, 0);
+        self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex, 0);
+        self.uploaderQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex, 1);
+
+        core.graphics_log(" graphicsQueue @0x{x}", .{self.graphicsQueue.handle});
+        core.graphics_log(" presentQueue @0x{x}", .{self.presentQueue.handle});
+        core.graphics_log(" uploaderQueue @0x{x}", .{self.uploaderQueue.handle});
 
         self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
 
@@ -2581,6 +2591,7 @@ pub const NeonVkContext = struct {
             self.commandBuffers.deinit();
         }
 
+        self.vkd.deviceWaitIdle(self.dev) catch unreachable;
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
         self.destroy_uploaders();

@@ -82,20 +82,31 @@ const DisplayTarget = struct {
     framebuffers: []vk.Framebuffer = undefined,
 
     pub fn deinit(self: *@This(), rt: *RenderThread) void {
+        var z1 = tracy.ZoneN(@src(), "RT - destroy displaytarget");
+        defer z1.End();
+
+        var z2 = tracy.ZoneN(@src(), "RT - destroy swapimages");
         for (self.swapImages) |*swapImage| {
             swapImage.deinit(vkd.*, rt.dev);
         }
+        z2.End();
         rt.allocator.free(self.swapImages);
 
+        var z3 = tracy.ZoneN(@src(), "RT - destroy framebuffers");
         for (self.framebuffers) |fb| {
             vkd.destroyFramebuffer(rt.dev, fb, null);
         }
         rt.allocator.free(self.framebuffers);
+        z3.End();
 
+        var z4 = tracy.ZoneN(@src(), "RT - destroy swapchain");
         vkd.destroySwapchainKHR(rt.dev, self.swapchain, null);
+        z4.End();
 
+        var z5 = tracy.ZoneN(@src(), "RT - destroy imageviews");
         vkd.destroyImageView(rt.dev, self.depthImageView, null);
         self.depthImage.deinit(rt.vkAllocator);
+        z5.End();
     }
 };
 
@@ -111,6 +122,8 @@ const FrameSyncs = struct {
     cmdFence: vk.Fence,
 
     pub fn deinit(self: *@This(), dev: vk.Device) void {
+        var z1 = tracy.ZoneN(@src(), "RT - framesync deinit");
+        defer z1.End();
         vkd.destroySemaphore(dev, self.acquire, null);
         vkd.destroySemaphore(dev, self.renderComplete, null);
         vkd.destroyFence(dev, self.cmdFence, null);
@@ -135,6 +148,9 @@ pub fn onExitSignal(self: *@This()) void {
 }
 
 fn destroySyncs(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - destroy syncs");
+    defer z1.End();
+
     for (&self.frameSync) |*frameSync| {
         frameSync.deinit(self.dev);
     }
@@ -142,6 +158,7 @@ fn destroySyncs(self: *@This()) void {
 }
 
 fn deinitCommandBuffers(self: *@This()) void {
+
     // no-op
     _ = self;
 }
@@ -149,6 +166,9 @@ fn deinitCommandBuffers(self: *@This()) void {
 fn deinitSwapchain(_: *@This()) void {}
 
 fn deinitShared(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - deinit shared");
+    defer z1.End();
+
     for (&self.sharedData) |*s| {
         s.models.deinit();
         s.objectData.deinit();
@@ -159,11 +179,14 @@ fn processExitSignal(self: *@This()) void {
     var z1 = tracy.ZoneN(@src(), "RT - destruction");
     defer z1.End();
 
-    core.engine_logs("Process Exit Signal");
+    core.engine_logs("RT - Process Exit Signal");
+
+    vkd.queueWaitIdle(self.graphicsQueue.handle) catch {};
 
     self.deinitShared();
     self.destroySyncs();
     self.deinitCommandBuffers();
+
     self.displayTarget.deinit(self);
     self.deinitExtras();
 
@@ -186,6 +209,7 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
         vk_constants.FrameTimeout,
     );
     try vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.frameSync[nextFrameIndex].cmdFence)));
+
     return nextFrameIndex;
 }
 

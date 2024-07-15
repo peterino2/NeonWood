@@ -13,9 +13,9 @@ pub const NeonVkQueue = struct {
     handle: vk.Queue,
     family: u32,
 
-    pub fn init(vkd: vk_constants.DeviceDispatch, dev: vk.Device, family: u32) @This() {
+    pub fn init(vkd: vk_constants.DeviceDispatch, dev: vk.Device, family: u32, index: u32) @This() {
         return .{
-            .handle = vkd.getDeviceQueue(dev, family, 0),
+            .handle = vkd.getDeviceQueue(dev, family, index),
             .family = family,
         };
     }

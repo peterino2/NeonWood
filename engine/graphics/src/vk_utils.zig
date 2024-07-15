@@ -224,7 +224,6 @@ pub fn load_and_stage_image(ctx: *NeonVkContext, pngContents: PngContents) !Load
 pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage, mipLevel: u32) !void {
     var z1 = tracy.ZoneN(@src(), "submitting copy from staging buffer");
     defer z1.End();
-    //try ctx.start_upload_context(&ctx.uploadContext);
     try ctx.uploader.startUploadContext();
     {
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
@@ -453,8 +452,12 @@ pub const NeonVkUploader = struct {
     pub fn submitUploads(self: *@This()) !void {
         try self.gc.vkd.endCommandBuffer(self.commandBuffer);
         var submit = vkinit.submitInfo(&self.commandBuffer);
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!
+        // oh yeah senpai... this is fucked.
+        // there should be a dedicated uploader queue.
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!
         try self.gc.vkd.queueSubmit(
-            self.gc.graphicsQueue.handle,
+            self.gc.uploaderQueue.handle,
             1,
             @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             self.uploadFence,
