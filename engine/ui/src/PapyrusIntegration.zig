@@ -541,13 +541,55 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.D
 }
 
 pub fn rtPostDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: u32) void {
-    _ = cmd;
     self.drawList.clearRetainingCapacity();
     const shared = self.getShared(frameIndex);
 
     shared.lock.lock();
     self.uploadSSBOData(frameIndex, &shared.drawList) catch unreachable;
     shared.lock.unlock();
+
+    var vertexBufferOffset: u64 = 0;
+
+    var constants = PushConstant{
+        .extent = .{
+            .x = @as(f32, @floatFromInt(self.gc.extent.width)),
+            .y = @as(f32, @floatFromInt(self.gc.extent.height)),
+        },
+    };
+
+    for (self.drawCommands.items) |command| {
+        switch (command) {
+            .text => |t| {
+                _ = t;
+                continue;
+                // self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                // if (t.small) {
+                //     var drawText = self.textRenderer.smallDisplays.items[t.index];
+                //     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                // } else {
+                //     var drawText = self.textRenderer.displays.items[t.index];
+                //     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                // }
+            },
+            .image => |img| {
+                core.engine_log("shits being drawn: {any}", .{img});
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                const index = img.index;
+                self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+                self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
+                self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
+                self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+
+                if (img.imageSet) |imageSet| {
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&imageSet), 0, undefined);
+                } else {
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&self.defaultTextureSet), 0, undefined);
+                }
+
+                self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
+            },
+        }
+    }
 }
 
 pub fn getShared(self: *@This(), fi: u32) *SharedData {
@@ -578,9 +620,9 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
 
     var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
     self.papyrusCtx.makeDrawList(&self.drawList, &self.stringArena) catch unreachable;
-    self.drawCommands.clearRetainingCapacity();
     z1.End();
 
+    self.drawCommands.clearRetainingCapacity();
     self.uploadSSBOData(frameIndex, &self.drawList) catch unreachable;
 
     var constants = PushConstant{
