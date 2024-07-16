@@ -230,7 +230,6 @@ pub const NeonVkContext = struct {
 
     dev: vk.Device,
     graphicsQueue: NeonVkQueue,
-    uploaderQueue: NeonVkQueue,
     presentQueue: NeonVkQueue,
 
     allocator: std.mem.Allocator,
@@ -438,7 +437,7 @@ pub const NeonVkContext = struct {
         try self.vkd.endCommandBuffer(context.commandBuffer);
         var submit = vkinit.submitInfo(&context.commandBuffer);
         try self.vkd.queueSubmit(
-            self.uploaderQueue.handle,
+            self.graphicsQueue.handle,
             1,
             @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
             context.uploadFence,
@@ -2078,7 +2077,7 @@ pub const NeonVkContext = struct {
             try createQueueInfoList.append(.{
                 .flags = .{},
                 .queue_family_index = id,
-                .queue_count = 2,
+                .queue_count = 1,
                 .p_queue_priorities = &priority,
             });
         }
@@ -2117,11 +2116,9 @@ pub const NeonVkContext = struct {
 
         self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex, 0);
         self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex, 0);
-        self.uploaderQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex, 1);
 
         core.graphics_log(" graphicsQueue @0x{x}", .{self.graphicsQueue.handle});
         core.graphics_log(" presentQueue @0x{x}", .{self.presentQueue.handle});
-        core.graphics_log(" uploaderQueue @0x{x}", .{self.uploaderQueue.handle});
 
         self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
 

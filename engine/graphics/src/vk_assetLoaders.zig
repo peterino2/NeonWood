@@ -1,5 +1,6 @@
 const std = @import("std");
 const vk = @import("vulkan");
+const graphics = @import("graphics.zig");
 
 const core = @import("core");
 const assets = @import("assets");
@@ -11,6 +12,8 @@ const materials = @import("materials.zig");
 const vk_renderer = @import("vk_renderer.zig");
 const mesh = @import("mesh.zig");
 const texture = @import("texture.zig");
+
+const use_renderthread = core.BuildOption("use_renderthread");
 
 const NeonVkContext = vk_renderer.NeonVkContext;
 const Material = materials.Material;
@@ -32,8 +35,15 @@ pub const TextureLoader = struct {
         }
     };
 
+    const RTAssetsReady = struct {
+        name: core.Name,
+        texture: *Texture,
+        textureSet: vk.DescriptorSet,
+    };
+
     gc: *NeonVkContext,
     assetsReady: core.RingQueue(StagedTextureDescription),
+    rtAssetsReady: core.RingQueue(RTAssetsReady),
     discarding: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, props: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
@@ -65,6 +75,7 @@ pub const TextureLoader = struct {
                 };
 
                 z1.End();
+
                 ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
                 _ = ctx.gc.outstandingJobsCount.fetchSub(1, .seq_cst);
             }
@@ -81,9 +92,12 @@ pub const TextureLoader = struct {
         z.End();
     }
 
-    // processing events, some should really be processing events rather than
-    pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
-        _ = frameNumber;
+    pub fn processRenderThreadEvents(ptr: *anyopaque) void {
+        const self: *@This() = @ptrCast(@alignCast(ptr));
+        self.processEventInner() catch {};
+    }
+
+    fn processEventInner(self: *@This()) core.EngineDataEventError!void {
         const gc = self.gc;
 
         if (self.assetsReady.count() > 0) {
@@ -116,12 +130,41 @@ pub const TextureLoader = struct {
                     .imageView = imageView,
                 };
 
-                const textureSet = gc.create_mesh_image_for_texture(newTexture.*, .{
-                    .useBlocky = assetReady.properties.textureUseBlockySampler,
-                }) catch unreachable;
+                const sampler = if (assetReady.properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
+                const textureSet = vk_utils.createDescriptorSetForImage(
+                    gc.dev,
+                    gc.descriptorPool,
+                    gc.singleTextureSetLayout,
+                    imageView,
+                    sampler,
+                ) catch return error.UnknownStatePanic;
 
-                gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
+                if (!use_renderthread) {
+                    gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
+                } else {
+                    self.rtAssetsReady.pushLocked(.{
+                        .name = assetReady.name,
+                        .texture = newTexture,
+                        .textureSet = textureSet,
+                    }) catch return error.UnknownStatePanic;
+                }
                 z1.End();
+            }
+        }
+    }
+
+    // processing events, some should really be processing events rather than
+    pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
+        _ = frameNumber;
+        if (!use_renderthread) {
+            try self.processEventInner();
+        } else {
+            if (self.rtAssetsReady.count() > 0) {
+                self.rtAssetsReady.lock();
+                defer self.rtAssetsReady.unlock();
+                while (self.rtAssetsReady.popFromUnlocked()) |a| {
+                    self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet) catch return error.UnknownStatePanic;
+                }
             }
         }
     }
@@ -145,13 +188,19 @@ pub const TextureLoader = struct {
             .gc = vk_renderer.gContext,
             //todo: the RttiData init function should have a handleable error
             .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 1024) catch unreachable,
+            .rtAssetsReady = core.RingQueue(RTAssetsReady).init(allocator, 1024) catch unreachable,
         };
+
+        if (use_renderthread) {
+            try self.gc.renderthread.installListener(self, processRenderThreadEvents);
+        }
 
         return self;
     }
 
     pub fn destroy(self: *@This(), allocator: std.mem.Allocator) void {
         self.assetsReady.deinit();
+        self.rtAssetsReady.deinit();
         allocator.destroy(self);
     }
 };

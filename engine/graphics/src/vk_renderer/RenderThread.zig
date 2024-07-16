@@ -49,6 +49,13 @@ maxObjectCount: u32,
 
 plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
+listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
+
+const ProcessEventListener = struct {
+    ptr: *anyopaque,
+    func: *const fn (*anyopaque) void,
+};
+
 pub const ObjectSharedData = struct {
     visibility: bool,
     textureSet: vk.DescriptorSet,
@@ -189,6 +196,7 @@ fn processExitSignal(self: *@This()) void {
 
     self.displayTarget.deinit(self);
     self.deinitExtras();
+    self.listeners.deinit(self.allocator);
 
     self.exitConfirmed.store(true, .seq_cst);
 }
@@ -329,6 +337,9 @@ fn finishMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
 }
 
 fn preFrameUpdate(self: *@This(), fi: u32) !void {
+    for (self.listeners.items) |entry| {
+        entry.func(entry.ptr);
+    }
 
     // upload camera data
     const shared = self.getShared(fi);
@@ -742,6 +753,14 @@ inline fn getImageCount(self: @This()) usize {
 
 inline fn maxFramesInFlight() u32 {
     return 1;
+}
+
+pub fn installListener(
+    self: *@This(),
+    ptr: *anyopaque,
+    func: *const fn (*anyopaque) void,
+) !void {
+    try self.listeners.append(self.allocator, .{ .ptr = ptr, .func = func });
 }
 
 const RenderThread = @This();
