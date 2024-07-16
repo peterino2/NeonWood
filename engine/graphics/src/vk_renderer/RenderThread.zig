@@ -20,6 +20,8 @@ minUniformBufferAlignment: usize,
 // current extent of the window (raw values from platform)
 extent: vk.Extent2D,
 
+dynamicMeshManager: *mesh.DynamicMeshManager,
+
 graphicsQueue: NeonVkQueue,
 presentQueue: NeonVkQueue,
 frameData: [NumFrames]NeonVkFrameData,
@@ -61,7 +63,7 @@ pub const ObjectSharedData = struct {
     textureSet: vk.DescriptorSet,
     pipeline: vk.Pipeline,
     pipelineLayout: vk.PipelineLayout,
-    mesh: vk.Buffer,
+    meshBuffer: vk.Buffer,
     vertexCount: u32,
 };
 
@@ -290,7 +292,7 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     for (shared.objectData.items, 0..) |object, i| {
         const pipeline = object.pipeline;
         const layout = object.pipelineLayout;
-        const mesh = object.mesh;
+        const meshBuffer = object.meshBuffer;
         const textureSet = object.textureSet;
         const vertexCount = object.vertexCount;
 
@@ -298,7 +300,7 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh), @ptrCast(&offset));
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
 
         vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
     }
@@ -317,9 +319,11 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     self.postDrawPlugins(cmd, fi);
 
     try self.finishMainRenderpass(cmd, fi);
+    try self.dynamicMeshManager.updateMeshes(cmd);
     z.End();
     try vkd.endCommandBuffer(cmd);
     try self.finishFrame(fi);
+    self.dynamicMeshManager.finishUpload() catch unreachable;
 }
 
 fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
@@ -795,6 +799,8 @@ const NeonVkSwapchain = vk_renderer_types.NeonVkSwapchain;
 
 const vk_renderer_interface = @import("vk_renderer_interface.zig");
 const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
+
+const mesh = @import("../mesh.zig");
 
 // todo and documentation
 //

@@ -574,6 +574,7 @@ pub const NeonVkContext = struct {
             },
             .cmdPool = self.commandPool,
 
+            .dynamicMeshManager = self.dynamicMeshManager,
             .graphicsQueue = self.graphicsQueue,
             .presentQueue = self.presentQueue,
             .frameData = self.frameData,
@@ -1211,7 +1212,7 @@ pub const NeonVkContext = struct {
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
                     .pipeline = object.material.?.pipeline,
                     .pipelineLayout = object.material.?.layout,
-                    .mesh = object.mesh.?.buffer.buffer,
+                    .meshBuffer = object.mesh.?.buffer.buffer,
                     .vertexCount = @intCast(object.mesh.?.vertices.items.len),
                 };
             }
