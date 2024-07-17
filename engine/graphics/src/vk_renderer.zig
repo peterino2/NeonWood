@@ -267,7 +267,6 @@ pub const NeonVkContext = struct {
 
     exitSignal: bool,
     firstFrame: bool,
-    shouldResize: bool,
     isMinimized: bool,
 
     renderObjectsAreDirty: bool,
@@ -1147,20 +1146,7 @@ pub const NeonVkContext = struct {
         self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
-            // ====
-            //  TODO if this raises an error, then we have to...
-            //
-            //  1. wait until all frames are rendered
-            //  2. destroy the swapchain and images and scissors
-            //  3. recreate swapchains and images and scissors
-            //
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
-            var w: c_int = undefined;
-            var h: c_int = undefined;
-            platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
-            platform.getInstance().extent = .{ .x = w, .y = h };
-            // ====
-
             var z2 = tracy.ZoneN(@src(), "renderer tick");
             self.sendSharedData(frameIndex) catch unreachable;
             self.sendSharedDataPlugins(frameIndex);
@@ -1363,7 +1349,6 @@ pub const NeonVkContext = struct {
                 self.isMinimized = false;
                 try self.vkd.deviceWaitIdle(self.dev);
                 try self.destroy_framebuffers();
-                self.shouldResize = false;
 
                 try self.init_or_recycle_swapchain();
                 try self.init_framebuffers();
@@ -1561,12 +1546,11 @@ pub const NeonVkContext = struct {
             (w > 0 and h > 0))
         {
             self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
-            platform.getInstance().extent = .{ .x = w, .y = h };
+            platform.getInstance().updateExtent(.{ .x = w, .y = h });
 
             self.isMinimized = false;
             try self.vkd.deviceWaitIdle(self.dev);
             try self.destroy_framebuffers();
-            self.shouldResize = false;
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();

@@ -33,9 +33,12 @@ framesInFlight: std.atomic.Value(u32),
 
 sharedData: [NumFrames]SharedData = undefined,
 
-actual_extent: vk.Extent2D = undefined,
+actual_extent: vk.Extent2D = undefined, // actual_extent is the base extent used for active drawing, while extent is used
+// for a specific frame
 commandBuffers: [NumFrames]vk.CommandBuffer = undefined,
 frameSync: [NumFrames]FrameSyncs = undefined,
+
+isMinimized: bool = false,
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
 // returns an index.
@@ -110,6 +113,7 @@ const DisplayTarget = struct {
 
         var z4 = tracy.ZoneN(@src(), "RT - destroy swapchain");
         vkd.destroySwapchainKHR(rt.dev, self.swapchain, null);
+        self.swapchain = .null_handle;
         z4.End();
 
         var z5 = tracy.ZoneN(@src(), "RT - destroy imageviews");
@@ -310,19 +314,27 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     _ = deltaTime;
 
-    try self.preFrameUpdate(fi);
-    const cmd = try self.startFrameCommands(fi);
-    var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
-    try self.beginMainRenderpass(cmd, fi);
+    if (!self.isMinimized) {
+        try self.preFrameUpdate(fi);
+        const cmd = try self.startFrameCommands(fi);
+        var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
+        try self.beginMainRenderpass(cmd, fi);
 
-    self.renderMeshes(cmd, fi);
-    self.postDrawPlugins(cmd, fi);
+        self.renderMeshes(cmd, fi);
+        self.postDrawPlugins(cmd, fi);
 
-    try self.finishMainRenderpass(cmd, fi);
-    try self.dynamicMeshManager.updateMeshes(cmd);
-    z.End();
-    try vkd.endCommandBuffer(cmd);
-    try self.finishFrame(fi);
+        try self.finishMainRenderpass(cmd, fi);
+        try self.dynamicMeshManager.updateMeshes(cmd);
+        z.End();
+        try vkd.endCommandBuffer(cmd);
+        try self.finishFrame(fi);
+    } else {
+        if (self.updateExtentIfDirty()) {
+            try self.resizeToNewExtents();
+
+            std.time.sleep(32 * 1000 * 1000);
+        }
+    }
     self.dynamicMeshManager.finishUpload() catch unreachable;
 }
 
@@ -351,8 +363,8 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
     defer shared.lock.unlock();
 
     shared.extent = .{
-        .x = @as(f32, @floatFromInt(platform.getInstance().extent.x)),
-        .y = @as(f32, @floatFromInt(platform.getInstance().extent.y)),
+        .x = @as(f32, @floatFromInt(platform.getInstance().extent().x)),
+        .y = @as(f32, @floatFromInt(platform.getInstance().extent().y)),
     };
 
     {
@@ -503,6 +515,38 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         },
         else => |narrow| return narrow,
     };
+
+    if (outOfDate or self.updateExtentIfDirty()) {
+        try self.resizeToNewExtents();
+    }
+}
+
+fn resizeToNewExtents(self: *@This()) !void {
+    self.isMinimized = false;
+    try vkd.deviceWaitIdle(self.dev);
+    self.displayTarget.deinit(self);
+
+    try self.initOrRecycleSwapchain();
+    try self.initFramebuffers();
+}
+
+fn updateExtentIfDirty(self: *@This()) bool {
+    var w: c_int = undefined;
+    var h: c_int = undefined;
+    platform.glfw3.glfwGetWindowSize(platform.getInstance().window, &w, &h);
+
+    if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and w > 0 and h > 0) {
+        self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
+        platform.getInstance().updateExtent(.{ .x = w, .y = h });
+
+        return true;
+    }
+
+    if (w <= 0 or h <= 0) {
+        self.isMinimized = true;
+    }
+
+    return false;
 }
 
 fn getNextSwapImage(self: *@This()) !u32 {
