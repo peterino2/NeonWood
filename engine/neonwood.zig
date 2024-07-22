@@ -39,15 +39,11 @@ pub fn start_everything_imgui(allocator: std.mem.Allocator, params: platform.win
     // audio.start_module(allocator); //4
     graphics.start_module(allocator); //5
     try ui.start_module(allocator); //6
-    if (!core.BuildOption("use_renderthread")) {
-        try vkImgui.start_module(allocator); //7 vkImgui doesn't work in the renderthread implementation yet
-    }
+    try vkImgui.start_module(allocator); //7 vkImgui doesn't work in the renderthread implementation yet
 }
 
 pub fn shutdown_everything_imgui(allocator: std.mem.Allocator) void {
-    if (!core.BuildOption("use_renderthread")) {
-        // vkImgui.shutdown_module(allocator); //7
-    }
+    vkImgui.shutdown_module(allocator); //7
     ui.shutdown_module(); //6
     graphics.shutdown_module(); //5
     // audio.shutdown_module(); //4

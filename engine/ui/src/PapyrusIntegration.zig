@@ -542,7 +542,6 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.D
 }
 
 pub fn rtPostDraw(self: *@This(), rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
-    self.drawList.clearRetainingCapacity();
     const shared = self.getShared(frameIndex);
     self.drawCommands.clearRetainingCapacity();
 

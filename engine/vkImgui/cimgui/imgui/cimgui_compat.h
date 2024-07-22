@@ -40,6 +40,11 @@ void SetupImguiColors();
 
 void setFontScale(int newWidth, int newHeight);
 
+void cimgui_vk_PrepareSharedData() ;
+void cimgui_vk_UploadSharedData(int frameIndex, ImDrawData* drawData);
+ImDrawData* cimgui_vk_GetSharedData(int frameIndex);
+void cimgui_vk_ReleaseSharedData(int frameIndex);
+
 #ifdef __cplusplus
 }
 #endif

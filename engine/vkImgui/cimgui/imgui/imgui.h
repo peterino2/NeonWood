@@ -2700,6 +2700,11 @@ struct ImDrawList
     IMGUI_API void  AddCallback(ImDrawCallback callback, void* callback_data);  // Your rendering function must check for 'UserCallback' in ImDrawCmd and call the function instead of rendering triangles.
     IMGUI_API void  AddDrawCmd();                                               // This is useful if you need to forcefully create a new draw call (to allow for dependent rendering / blending). Otherwise primitives are merged into the same draw-call as much as possible
     IMGUI_API ImDrawList* CloneOutput() const;                                  // Create a clone of the CmdBuffer/IdxBuffer/VtxBuffer.
+    
+    // NEONWOOD_CHANGE_BEGIN: @peterino2 - integrate PR 2433
+    IMGUI_API void SwapInto(ImDrawList& rhs); // Exchange draw data, faster version of clone but you need to be more careful how to use it. rhs is the target (important for copying flags)
+    // NEONWOOD_CHANGE_END: @peterino2 - integrate PR 2433
+
 
     // Advanced: Channels
     // - Use to split render into layers. By switching channels to can render out-of-order (e.g. submit FG primitives before BG primitives)
@@ -2762,6 +2767,20 @@ struct ImDrawData
     IMGUI_API void  DeIndexAllBuffers();                    // Helper to convert all buffers from indexed to non-indexed, in case you cannot render indexed. Note: this is slow and most likely a waste of resources. Always prefer indexed rendering!
     IMGUI_API void  ScaleClipRects(const ImVec2& fb_scale); // Helper to scale the ClipRect field of each ImDrawCmd. Use if your final output buffer is at a different scale than Dear ImGui expects, or if there is a difference between your window resolution and framebuffer resolution.
 };
+
+// NEONWOOD_CHANGE_BEGIN: @peterino2 - integrate PR 2433
+// Helper for multi buffer rendering
+// Works by swapping draw list data into local buffers instead of copying all the data
+struct ImDrawDataBuffered : ImDrawData
+{
+    ImVector<ImDrawList> CmdListData;
+    ImVector<ImDrawList*> CmdListPointers;
+
+    ~ImDrawDataBuffered();
+
+    IMGUI_API void  CopyDrawData(const ImDrawData* source); // efficiently backup draw data into a new container for multi buffer rendering
+};
+// NEONWOOD_CHANGE_END: @peterino2 - integrate PR 2433
 
 //-----------------------------------------------------------------------------
 // [SECTION] Font API (ImFontConfig, ImFontGlyph, ImFontAtlasFlags, ImFontAtlas, ImFontGlyphRangesBuilder, ImFont)

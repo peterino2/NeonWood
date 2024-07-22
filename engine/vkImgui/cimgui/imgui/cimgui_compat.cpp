@@ -1,3 +1,6 @@
+// compatibility implementations for integration with neonwood 
+// by peterino
+
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define CIMGUI_USE_GLFW
@@ -138,3 +141,47 @@ extern "C" void setFontScale(int newWidth, int newHeight)
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = {20 * ratio, 20 * ratio};
 }
+
+
+// ==== renderthread support ==== 
+// if renderthread is present, 
+// - maintain dpouble buffer of ImDrawData*
+
+#define NumFrames 2
+#include <mutex>
+
+ImDrawDataBuffered SharedDrawData[NumFrames];
+std::mutex SDDLock[NumFrames];
+
+extern "C" void cimgui_vk_PrepareSharedData() 
+{
+    for(int i = 0; i < NumFrames; i += 1)
+    {
+        SDDLock[i].lock();
+        SharedDrawData[i] = ImDrawDataBuffered();
+        SDDLock[i].unlock();
+    }
+}
+
+extern "C" void cimgui_vk_UploadSharedData(int frameIndex, ImDrawData* drawData)
+{
+    SDDLock[frameIndex].lock();
+    SharedDrawData[frameIndex].CopyDrawData(ImGui::GetDrawData());
+    SDDLock[frameIndex].unlock();
+}
+
+extern "C" ImDrawData* cimgui_vk_GetSharedData(int frameIndex) 
+{
+    SDDLock[frameIndex].lock();
+    return &SharedDrawData[frameIndex];
+    //return ImGui::GetDrawData();
+    
+}
+
+extern "C" void cimgui_vk_ReleaseSharedData(int frameIndex) 
+{
+    SDDLock[frameIndex].unlock();
+}
+
+// frames[updateFrame].CopyDrawData(ImGui::GetDrawData());
+// ImGui_ImplDX12_RenderDrawData(&frames[renderFrames], rc->myCommandList);
