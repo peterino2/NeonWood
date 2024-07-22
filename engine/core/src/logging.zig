@@ -6,6 +6,8 @@ const builtin = @import("builtin");
 const slow_logging = core.BuildOption("slow_logging");
 const zero_logging = core.BuildOption("zero_logging");
 
+const LogBufferSize = 1 * 1024 * 1024; // 1Mb buffer log
+
 var gLoggerSys: ?*LoggerSys = null;
 
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
@@ -153,7 +155,6 @@ pub const LoggerSys = struct {
             self.writeOutBuffer = self.flushBuffer;
             self.flushBuffer = swap;
 
-            std.debug.print("flushing\n", .{});
             const L = struct {
                 loggerSys: *LoggerSys,
 
@@ -209,7 +210,7 @@ pub const LoggerSys = struct {
         try self.writeOutBuffer.writer().print(fmt, args);
         self.lock.unlock();
 
-        if (self.writeOutBuffer.items.len > 8192) {
+        if (self.writeOutBuffer.items.len > LogBufferSize) {
             if (self.flushBuffer.items.len == 0) {
                 try self.flush();
             } else {
@@ -226,8 +227,8 @@ pub const LoggerSys = struct {
         const self = try allocator.create(@This());
         self.* = @This(){
             .allocator = allocator,
-            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 4) catch unreachable,
-            .flushBuffer = std.ArrayList(u8).initCapacity(allocator, 8192 * 4) catch unreachable,
+            .writeOutBuffer = std.ArrayList(u8).initCapacity(allocator, LogBufferSize) catch unreachable,
+            .flushBuffer = std.ArrayList(u8).initCapacity(allocator, LogBufferSize) catch unreachable,
             .logFilePath = ofile,
             .logFile = cwd.createFile(ofile, .{}) catch unreachable,
             .consoleFile = std.io.getStdOut(),

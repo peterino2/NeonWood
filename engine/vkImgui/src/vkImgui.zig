@@ -1,9 +1,12 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const graphics = @import("graphics");
+const RenderThread = graphics.RenderThread;
 const platform = @import("platform");
 const vk_renderer = graphics.vk_renderer;
 const core = @import("core");
+
+const tracy = core.tracy;
 const vk_constants = graphics.constants;
 
 pub const c = @cImport({
@@ -64,18 +67,52 @@ pub const NeonVkImGui = struct {
         _ = frameId;
     }
 
+    pub fn sendShared(self: *@This(), frameIndex: u32) void {
+        _ = self;
+
+        const z = core.tracy.ZoneN(@src(), "imgui uploading shared data");
+        defer z.End();
+
+        c.igRenderPlatformWindowsDefault(null, null);
+        c.igRender();
+        c.cimgui_vk_UploadSharedData(@intCast(frameIndex), c.igGetDrawData());
+        c.igUpdatePlatformWindows();
+    }
+
+    pub fn rtPostDraw(self: *@This(), rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+        const z = core.tracy.ZoneN(@src(), "imgui render");
+        defer z.End();
+
+        _ = rt;
+        _ = self;
+
+        c.cImGui_vk_RenderDrawData(
+            c.cimgui_vk_GetSharedData(@intCast(frameIndex)),
+            vkCast(c.VkCommandBuffer, cmd),
+            vkCast(c.VkPipeline, vk.Pipeline.null_handle),
+        );
+        c.cimgui_vk_ReleaseSharedData(@intCast(frameIndex));
+    }
+
     pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, deltaTime: f64) void {
-        _ = frameIndex;
         _ = self;
         _ = deltaTime;
 
         const z = core.tracy.ZoneN(@src(), "imgui render");
 
-        c.igRender();
-        c.cImGui_vk_RenderDrawData(c.igGetDrawData(), vkCast(c.VkCommandBuffer, cmd), vkCast(c.VkPipeline, vk.Pipeline.null_handle));
-        c.igUpdatePlatformWindows();
         c.igRenderPlatformWindowsDefault(null, null);
         c.igRender();
+
+        c.cimgui_vk_UploadSharedData(@intCast(frameIndex), c.igGetDrawData());
+
+        c.cImGui_vk_RenderDrawData(
+            c.cimgui_vk_GetSharedData(@intCast(frameIndex)),
+            vkCast(c.VkCommandBuffer, cmd),
+            vkCast(c.VkPipeline, vk.Pipeline.null_handle),
+        );
+        c.cimgui_vk_ReleaseSharedData(@intCast(frameIndex));
+
+        c.igUpdatePlatformWindows();
 
         z.End();
     }
@@ -148,7 +185,7 @@ pub const NeonVkImGui = struct {
 
         _ = c.SetupImguiColors();
 
-        c.setFontScale(@intCast(ctx.actual_extent.width), @intCast(ctx.actual_extent.height));
+        c.cimgui_vk_PrepareSharedData();
 
         try self.ctx.registerRendererPlugin(self);
     }

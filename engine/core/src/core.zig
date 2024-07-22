@@ -97,6 +97,10 @@ pub fn setupEnginePlatform(ctx: *anyopaque, poll: engine.PollFuncFn, proc: engin
     gEngine.platformProcEventsFunc = proc;
 }
 
+pub fn exitNow() void {
+    signalShutdown();
+}
+
 pub fn signalShutdown() void {
     gEngine.exit();
 }

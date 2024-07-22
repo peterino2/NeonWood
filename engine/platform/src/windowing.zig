@@ -90,7 +90,7 @@ pub const PlatformInstance = struct {
     iconPath: []const u8,
 
     window: ?*glfw3.GLFWwindow = null,
-    extent: core.Vector2c,
+    windowExtent: core.Vector2c,
     exitSignal: bool = false,
     eventQueue: core.ConcurrentQueueU(IOEvent),
     handlers: InstalledEvents,
@@ -106,6 +106,7 @@ pub const PlatformInstance = struct {
 
     // Low level controls of the current state of input,
     inputState: InputState = .{},
+    windowExtentLock: std.Thread.Mutex = .{},
 
     pub fn deinit(self: *@This()) void {
         self.workBuffer.deinit();
@@ -121,6 +122,20 @@ pub const PlatformInstance = struct {
         self.listeners.deinit();
     }
 
+    pub fn updateExtent(self: *@This(), newExtent: core.Vector2c) void {
+        self.windowExtentLock.lock();
+        defer self.windowExtentLock.unlock();
+        self.windowExtent = newExtent;
+    }
+
+    pub fn extent(self: *@This()) core.Vector2c {
+        self.windowExtentLock.lock();
+        defer self.windowExtentLock.unlock();
+        const rv = self.windowExtent;
+
+        return rv;
+    }
+
     pub fn init(
         allocator: std.mem.Allocator,
         params: PlatformParams,
@@ -129,7 +144,7 @@ pub const PlatformInstance = struct {
             .windowName = params.windowName,
             .allocator = allocator,
             .iconPath = params.icon,
-            .extent = params.extent,
+            .windowExtent = params.extent,
             .eventQueue = try core.ConcurrentQueueU(IOEvent).initCapacity(allocator, 8096),
             .handlers = InstalledEvents.init(allocator),
             .listeners = std.ArrayList(RawInputObjectRef).init(allocator),
@@ -188,8 +203,8 @@ pub const PlatformInstance = struct {
         glfw3.glfwWindowHint(glfw3.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) glfw3.GLFW_TRUE else glfw3.GLFW_FALSE);
 
         self.window = glfw3.glfwCreateWindow(
-            @as(c_int, @intCast(self.extent.x)),
-            @as(c_int, @intCast(self.extent.y)),
+            @as(c_int, @intCast(self.windowExtent.x)),
+            @as(c_int, @intCast(self.windowExtent.y)),
             self.windowName.ptr,
             null,
             null,

@@ -6,6 +6,8 @@ const materials = @import("materials.zig");
 
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
+
+pub const RenderThread = @import("vk_renderer/RenderThread.zig");
 pub const vkinit = @import("vk_init.zig");
 pub const vk_allocator = @import("vk_allocator.zig");
 pub const NeonVkAllocator = vk_allocator.NeonVkAllocator;

@@ -21,14 +21,14 @@ pub const PrimitiveRect = struct {
         br: f32 = 0,
     } = .{},
     borderWidth: f32 = 1.1,
-    imageRef: ?core.Name = null,
+    imageRef: ?core.Name = null, // safe for multithreading surprisingly
 };
 
 pub const PrimitiveText = struct {
     tl: core.Vector2f,
     size: core.Vector2f,
     renderMode: papyrus.TextRenderMode,
-    text: papyrus.LocText,
+    text: papyrus.LocText, // unsafe for multithreading
     color: papyrus.Color,
     textSize: f32,
     rendererHash: u32,

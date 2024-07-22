@@ -8,6 +8,7 @@ backingAllocator: std.mem.Allocator,
 
 allocationsCount: u32 = 0,
 totalAllocSize: usize = 0,
+eventsCount: usize = 0,
 
 pub var vtable: std.mem.Allocator.VTable = .{
     .alloc = alloc,
@@ -35,6 +36,7 @@ pub fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8
         defer self.lock.unlock();
         self.allocationsCount += 1;
         self.totalAllocSize += len;
+        self.eventsCount += 1;
     }
     return self.backingAllocator.vtable.alloc(self.backingAllocator.ptr, len, ptr_align, ret_addr);
 }
@@ -45,6 +47,7 @@ pub fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_add
         self.lock.lock();
         defer self.lock.unlock();
         self.totalAllocSize = self.totalAllocSize - buf.len + new_len;
+        self.eventsCount += 1;
     }
 
     return self.backingAllocator.vtable.resize(
@@ -64,6 +67,7 @@ pub fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
         // std.debug.print("freeing memory: 0x{x}\n", .{@intFromPtr(buf.ptr)});
         self.allocationsCount -= 1;
         self.totalAllocSize -= buf.len;
+        self.eventsCount += 1;
     }
     self.backingAllocator.vtable.free(self.backingAllocator.ptr, buf, buf_align, ret_addr);
 }

@@ -10,6 +10,9 @@ const Texture = @import("texture.zig").Texture;
 const memory = core.MemoryTracker;
 const vk_allocator = @import("vk_allocator.zig");
 
+const vk_api = @import("vk_api.zig");
+const vkd = vk_api.vkd;
+
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 
 const png = core.png;
@@ -224,7 +227,6 @@ pub fn load_and_stage_image(ctx: *NeonVkContext, pngContents: PngContents) !Load
 pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer, newImage: NeonVkImage, mipLevel: u32) !void {
     var z1 = tracy.ZoneN(@src(), "submitting copy from staging buffer");
     defer z1.End();
-    //try ctx.start_upload_context(&ctx.uploadContext);
     try ctx.uploader.startUploadContext();
     {
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
@@ -250,7 +252,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
             },
         };
 
-        ctx.vkd.cmdCopyBufferToImage(
+        vkd.cmdCopyBufferToImage(
             cmd,
             stagingBuffer.buffer,
             newImage.image,
@@ -382,12 +384,12 @@ pub const NeonVkUploader = struct {
         var fci = vk.FenceCreateInfo{
             .flags = .{ .signaled_bit = false },
         };
-        self.uploadFence = try self.gc.vkd.createFence(self.gc.dev, &fci, null);
+        self.uploadFence = try vkd.createFence(self.gc.dev, &fci, null);
 
         // create the command pool
         var cpci = vkinit.commandPoolCreateInfo(@as(u32, @intCast(self.gc.graphicsFamilyIndex)), .{ .reset_command_buffer_bit = true });
 
-        self.commandPool = try self.gc.vkd.createCommandPool(self.gc.dev, &cpci, null);
+        self.commandPool = try vkd.createCommandPool(self.gc.dev, &cpci, null);
 
         // create the command buffer
         var cbai = vk.CommandBufferAllocateInfo{
@@ -396,7 +398,7 @@ pub const NeonVkUploader = struct {
             .command_buffer_count = 1,
         };
 
-        try self.gc.vkd.allocateCommandBuffers(
+        try vkd.allocateCommandBuffers(
             self.gc.dev,
             &cbai,
             @as([*]vk.CommandBuffer, @ptrCast(&self.commandBuffer)),
@@ -408,7 +410,7 @@ pub const NeonVkUploader = struct {
     pub fn startUploadContext(self: *@This()) !void {
         self.mutex.lock();
         var cbi = vkinit.commandBufferBeginInfo(.{ .one_time_submit_bit = true });
-        try self.gc.vkd.beginCommandBuffer(self.commandBuffer, &cbi);
+        try vkd.beginCommandBuffer(self.commandBuffer, &cbi);
         self.isActive = true;
     }
 
@@ -427,7 +429,7 @@ pub const NeonVkUploader = struct {
 
         const cmd = self.commandBuffer;
 
-        self.gc.vkd.cmdCopyBuffer(
+        vkd.cmdCopyBuffer(
             cmd,
             stagingBuffer.buffer,
             targetBuffer.buffer,
@@ -437,7 +439,7 @@ pub const NeonVkUploader = struct {
     }
 
     pub fn waitForFences(self: *@This()) !void {
-        _ = try self.gc.vkd.waitForFences(
+        _ = try vkd.waitForFences(
             self.gc.dev,
             1,
             @as([*]const vk.Fence, @ptrCast(&self.uploadFence)),
@@ -445,15 +447,19 @@ pub const NeonVkUploader = struct {
             1000000000,
         );
 
-        try self.gc.vkd.resetFences(self.gc.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.uploadFence)));
+        try vkd.resetFences(self.gc.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.uploadFence)));
         self.isActive = false;
         self.mutex.unlock();
     }
 
     pub fn submitUploads(self: *@This()) !void {
-        try self.gc.vkd.endCommandBuffer(self.commandBuffer);
+        try vkd.endCommandBuffer(self.commandBuffer);
         var submit = vkinit.submitInfo(&self.commandBuffer);
-        try self.gc.vkd.queueSubmit(
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!
+        // oh yeah senpai... this is fucked.
+        // there should be a dedicated uploader queue.
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!
+        try vkd.queueSubmit(
             self.gc.graphicsQueue.handle,
             1,
             @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
@@ -467,8 +473,8 @@ pub const NeonVkUploader = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.gc.vkd.destroyCommandPool(self.gc.dev, self.commandPool, null);
-        self.gc.vkd.destroyFence(self.gc.dev, self.uploadFence, null);
+        vkd.destroyCommandPool(self.gc.dev, self.commandPool, null);
+        vkd.destroyFence(self.gc.dev, self.uploadFence, null);
     }
 };
 
@@ -479,3 +485,39 @@ pub const NeonVkUploadContext = struct {
     mutex: std.Thread.Mutex = .{},
     active: bool = false,
 };
+
+pub fn createDescriptorSetForImage(
+    dev: vk.Device,
+    descriptorPool: vk.DescriptorPool,
+    layout: vk.DescriptorSetLayout,
+    imageView: vk.ImageView,
+    sampler: vk.Sampler,
+) !vk.DescriptorSet {
+
+    // var textureSet = try self.allocator.create(vk.DescriptorSet);
+    var textureSet: vk.DescriptorSet = undefined;
+    var allocInfo = vk.DescriptorSetAllocateInfo{
+        .descriptor_pool = descriptorPool,
+        .descriptor_set_count = 1,
+        .p_set_layouts = @ptrCast(&layout),
+    };
+
+    try vkd.allocateDescriptorSets(dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(&textureSet)));
+
+    var imageBufferInfo = vk.DescriptorImageInfo{
+        .sampler = sampler,
+        .image_view = imageView,
+        .image_layout = .shader_read_only_optimal,
+    };
+
+    var writeDescriptorSet = vkinit.writeDescriptorImage(
+        .combined_image_sampler,
+        textureSet,
+        &imageBufferInfo,
+        0,
+    );
+
+    vkd.updateDescriptorSets(dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
+
+    return textureSet;
+}

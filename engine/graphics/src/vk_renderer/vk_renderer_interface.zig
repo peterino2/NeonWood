@@ -2,6 +2,8 @@ const std = @import("std");
 const core = @import("core");
 const vk = @import("vulkan");
 
+const RenderThread = @import("RenderThread.zig");
+
 // aliases
 const Name = core.Name;
 const ObjectHandle = core.ObjectHandle;
@@ -20,8 +22,14 @@ pub const RendererInterface = struct {
     postDraw: ?*const fn (*anyopaque, vk.CommandBuffer, usize, f64) void,
     onRendererTeardown: ?*const fn (*anyopaque) void,
 
+    sendShared: ?*const fn (*anyopaque, u32) void,
+    rtPreDraw: ?*const fn (*anyopaque, vk.CommandBuffer, u32) void,
+    rtPostDraw: ?*const fn (*anyopaque, *RenderThread, vk.CommandBuffer, u32) void,
+
     pub fn from(comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
+
+            // ==== legacy non-renderthread functions ====
             pub fn preDraw(pointer: *anyopaque, frameId: usize) void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.preDraw(frameId);
@@ -37,23 +45,27 @@ pub const RendererInterface = struct {
                 ptr.postDraw(cmd, frameIndex, deltaTime);
             }
 
+            // === renderthread functions ===
+            pub fn sendShared(p: *anyopaque, frameIndex: u32) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                ptr.sendShared(frameIndex);
+            }
+
+            pub fn rtPreDraw(p: *anyopaque, cmd: vk.CommandBuffer, frameIndex: u32) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                ptr.rtPreDraw(cmd, frameIndex);
+            }
+
+            pub fn rtPostDraw(p: *anyopaque, rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                ptr.rtPostDraw(rt, cmd, frameIndex);
+            }
+
             pub fn onRendererTeardown(pointer: *anyopaque) void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                 ptr.onRendererTeardown();
             }
         };
-
-        // everything is custom now so, i dont think it even needs to do anything
-        // inline for (.{}) |declName| {
-        //     if (!@hasDecl(TargetType, declName)) {
-        //         @compileError(
-        //             std.fmt.comptimePrint(
-        //                 "Tried to Generate {s} for type {s} but it's missing {s}",
-        //                 .{ @typeName(@This()), @typeName(TargetType), declName },
-        //             ),
-        //         );
-        //     }
-        // }
 
         const self = @This(){
             .typeName = MakeTypeName(TargetType),
@@ -63,6 +75,10 @@ pub const RendererInterface = struct {
             .onBindObject = if (@hasDecl(TargetType, "onBindObject")) wrappedFuncs.onBindObject else null,
             .onRendererTeardown = if (@hasDecl(TargetType, "onRendererTeardown")) wrappedFuncs.onRendererTeardown else null,
             .postDraw = if (@hasDecl(TargetType, "postDraw")) wrappedFuncs.postDraw else null,
+
+            .sendShared = if (@hasDecl(TargetType, "sendShared")) wrappedFuncs.sendShared else null,
+            .rtPreDraw = if (@hasDecl(TargetType, "rtPreDraw")) wrappedFuncs.rtPreDraw else null,
+            .rtPostDraw = if (@hasDecl(TargetType, "rtPostDraw")) wrappedFuncs.rtPostDraw else null,
         };
 
         return self;

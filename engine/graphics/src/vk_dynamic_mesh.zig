@@ -316,6 +316,10 @@ pub const DynamicMesh = struct {
         defer self.gc.vkAllocator.unmapMemory(self.stagingIndexBuffer);
 
         // copy over vertices to mapped buffer
+        // so... this right here would need to lock.. actually this would be a try-lock
+        // if we fail to lock it... that's ok. we can just try again at the end of the frame.
+        // what happens if we always fail to lock it?
+
         for (0..self.vertexCount) |i| {
             slice[i] = self.vertices[i];
         }

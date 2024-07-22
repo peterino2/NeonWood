@@ -20,6 +20,8 @@ minUniformBufferAlignment: usize,
 // current extent of the window (raw values from platform)
 extent: vk.Extent2D,
 
+dynamicMeshManager: *mesh.DynamicMeshManager,
+
 graphicsQueue: NeonVkQueue,
 presentQueue: NeonVkQueue,
 frameData: [NumFrames]NeonVkFrameData,
@@ -31,9 +33,12 @@ framesInFlight: std.atomic.Value(u32),
 
 sharedData: [NumFrames]SharedData = undefined,
 
-actual_extent: vk.Extent2D = undefined,
+actual_extent: vk.Extent2D = undefined, // actual_extent is the base extent used for active drawing, while extent is used
+// for a specific frame
 commandBuffers: [NumFrames]vk.CommandBuffer = undefined,
 frameSync: [NumFrames]FrameSyncs = undefined,
+
+isMinimized: bool = false,
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
 // returns an index.
@@ -47,12 +52,21 @@ renderPass: vk.RenderPass,
 sceneParameterBuffer: NeonVkBuffer,
 maxObjectCount: u32,
 
+plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
+
+listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
+
+const ProcessEventListener = struct {
+    ptr: *anyopaque,
+    func: *const fn (*anyopaque) void,
+};
+
 pub const ObjectSharedData = struct {
     visibility: bool,
     textureSet: vk.DescriptorSet,
     pipeline: vk.Pipeline,
     pipelineLayout: vk.PipelineLayout,
-    mesh: vk.Buffer,
+    meshBuffer: vk.Buffer,
     vertexCount: u32,
 };
 
@@ -62,6 +76,7 @@ pub const SharedData = struct {
     sceneData: NeonVkSceneDataGpu,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
     objectData: std.ArrayList(ObjectSharedData) = .{},
+    extent: core.Vector2f,
 };
 
 const DisplayTarget = struct {
@@ -79,20 +94,32 @@ const DisplayTarget = struct {
     framebuffers: []vk.Framebuffer = undefined,
 
     pub fn deinit(self: *@This(), rt: *RenderThread) void {
+        var z1 = tracy.ZoneN(@src(), "RT - destroy displaytarget");
+        defer z1.End();
+
+        var z2 = tracy.ZoneN(@src(), "RT - destroy swapimages");
         for (self.swapImages) |*swapImage| {
             swapImage.deinit(vkd.*, rt.dev);
         }
+        z2.End();
         rt.allocator.free(self.swapImages);
 
+        var z3 = tracy.ZoneN(@src(), "RT - destroy framebuffers");
         for (self.framebuffers) |fb| {
             vkd.destroyFramebuffer(rt.dev, fb, null);
         }
         rt.allocator.free(self.framebuffers);
+        z3.End();
 
+        var z4 = tracy.ZoneN(@src(), "RT - destroy swapchain");
         vkd.destroySwapchainKHR(rt.dev, self.swapchain, null);
+        self.swapchain = .null_handle;
+        z4.End();
 
+        var z5 = tracy.ZoneN(@src(), "RT - destroy imageviews");
         vkd.destroyImageView(rt.dev, self.depthImageView, null);
         self.depthImage.deinit(rt.vkAllocator);
+        z5.End();
     }
 };
 
@@ -108,6 +135,8 @@ const FrameSyncs = struct {
     cmdFence: vk.Fence,
 
     pub fn deinit(self: *@This(), dev: vk.Device) void {
+        var z1 = tracy.ZoneN(@src(), "RT - framesync deinit");
+        defer z1.End();
         vkd.destroySemaphore(dev, self.acquire, null);
         vkd.destroySemaphore(dev, self.renderComplete, null);
         vkd.destroyFence(dev, self.cmdFence, null);
@@ -132,6 +161,9 @@ pub fn onExitSignal(self: *@This()) void {
 }
 
 fn destroySyncs(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - destroy syncs");
+    defer z1.End();
+
     for (&self.frameSync) |*frameSync| {
         frameSync.deinit(self.dev);
     }
@@ -139,6 +171,7 @@ fn destroySyncs(self: *@This()) void {
 }
 
 fn deinitCommandBuffers(self: *@This()) void {
+
     // no-op
     _ = self;
 }
@@ -146,6 +179,9 @@ fn deinitCommandBuffers(self: *@This()) void {
 fn deinitSwapchain(_: *@This()) void {}
 
 fn deinitShared(self: *@This()) void {
+    var z1 = tracy.ZoneN(@src(), "RT - deinit shared");
+    defer z1.End();
+
     for (&self.sharedData) |*s| {
         s.models.deinit();
         s.objectData.deinit();
@@ -156,20 +192,23 @@ fn processExitSignal(self: *@This()) void {
     var z1 = tracy.ZoneN(@src(), "RT - destruction");
     defer z1.End();
 
-    core.engine_logs("Process Exit Signal");
+    core.engine_logs("RT - Process Exit Signal");
+
+    vkd.queueWaitIdle(self.graphicsQueue.handle) catch {};
 
     self.deinitShared();
     self.destroySyncs();
     self.deinitCommandBuffers();
+
     self.displayTarget.deinit(self);
     self.deinitExtras();
+    self.listeners.deinit(self.allocator);
 
     self.exitConfirmed.store(true, .seq_cst);
 }
 
 pub fn acquireNextFrame(self: *@This()) !u32 {
-    var z1 = tracy.Zone(@src());
-    z1.Name("waiting for frame");
+    var z1 = tracy.ZoneNC(@src(), "Waiting for frame", 0x111111);
     defer z1.End();
 
     while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
@@ -184,6 +223,7 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
         vk_constants.FrameTimeout,
     );
     try vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.frameSync[nextFrameIndex].cmdFence)));
+
     return nextFrameIndex;
 }
 
@@ -209,8 +249,6 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
         frameIndex: u32,
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
-            var z1 = tracy.ZoneNC(@src(), "rendering job", 0xAAAAFFFF);
-            defer z1.End();
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             // ctx.r.dynamicMeshManager.finishUpload() catch unreachable;
             // lets think about this one later.
@@ -258,7 +296,7 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     for (shared.objectData.items, 0..) |object, i| {
         const pipeline = object.pipeline;
         const layout = object.pipelineLayout;
-        const mesh = object.mesh;
+        const meshBuffer = object.meshBuffer;
         const textureSet = object.textureSet;
         const vertexCount = object.vertexCount;
 
@@ -266,7 +304,7 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
         vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh), @ptrCast(&offset));
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
 
         vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
     }
@@ -276,18 +314,36 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     _ = deltaTime;
 
-    var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
-    defer z.End();
+    if (!self.isMinimized) {
+        try self.preFrameUpdate(fi);
+        const cmd = try self.startFrameCommands(fi);
+        var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
+        try self.beginMainRenderpass(cmd, fi);
 
-    try self.preFrameUpdate(fi);
-    const cmd = try self.startFrameCommands(fi);
-    try self.beginMainRenderpass(cmd, fi);
+        self.renderMeshes(cmd, fi);
+        self.postDrawPlugins(cmd, fi);
 
-    self.renderMeshes(cmd, fi);
+        try self.finishMainRenderpass(cmd, fi);
+        try self.dynamicMeshManager.updateMeshes(cmd);
+        z.End();
+        try vkd.endCommandBuffer(cmd);
+        try self.finishFrame(fi);
+    } else {
+        if (self.updateExtentIfDirty()) {
+            try self.resizeToNewExtents();
 
-    try self.finishMainRenderpass(cmd, fi);
-    try vkd.endCommandBuffer(cmd);
-    try self.finishFrame(fi);
+            std.time.sleep(32 * 1000 * 1000);
+        }
+    }
+    self.dynamicMeshManager.finishUpload() catch unreachable;
+}
+
+fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    for (self.plugins.items) |interface| {
+        if (interface.vtable.rtPostDraw) |rtPostDraw| {
+            rtPostDraw(interface.ptr, self, cmd, fi);
+        }
+    }
 }
 
 fn finishMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
@@ -297,11 +353,19 @@ fn finishMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
 }
 
 fn preFrameUpdate(self: *@This(), fi: u32) !void {
+    for (self.listeners.items) |entry| {
+        entry.func(entry.ptr);
+    }
 
     // upload camera data
     const shared = self.getShared(fi);
     shared.lock.lock();
     defer shared.lock.unlock();
+
+    shared.extent = .{
+        .x = @as(f32, @floatFromInt(platform.getInstance().extent().x)),
+        .y = @as(f32, @floatFromInt(platform.getInstance().extent().y)),
+    };
 
     {
         const data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[fi].cameraBuffer.allocation, u8);
@@ -332,7 +396,7 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
 }
 
 fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
-    var z1 = tracy.ZoneN(@src(), "sending shared data");
+    var z1 = tracy.ZoneN(@src(), "uploading ssbo data");
     defer z1.End();
     const allocation = self.frameData[fi].objectBuffer.allocation;
     const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
@@ -443,6 +507,7 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         .p_results = null,
     };
 
+    // todo re-implement handling out of date KHR
     var outOfDate: bool = false;
     _ = vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
         error.OutOfDateKHR => {
@@ -450,6 +515,38 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         },
         else => |narrow| return narrow,
     };
+
+    if (outOfDate or self.updateExtentIfDirty()) {
+        try self.resizeToNewExtents();
+    }
+}
+
+fn resizeToNewExtents(self: *@This()) !void {
+    self.isMinimized = false;
+    try vkd.deviceWaitIdle(self.dev);
+    self.displayTarget.deinit(self);
+
+    try self.initOrRecycleSwapchain();
+    try self.initFramebuffers();
+}
+
+fn updateExtentIfDirty(self: *@This()) bool {
+    var w: c_int = undefined;
+    var h: c_int = undefined;
+    platform.glfw3.glfwGetWindowSize(platform.getInstance().window, &w, &h);
+
+    if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and w > 0 and h > 0) {
+        self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
+        platform.getInstance().updateExtent(.{ .x = w, .y = h });
+
+        return true;
+    }
+
+    if (w <= 0 or h <= 0) {
+        self.isMinimized = true;
+    }
+
+    return false;
 }
 
 fn getNextSwapImage(self: *@This()) !u32 {
@@ -706,6 +803,14 @@ inline fn maxFramesInFlight() u32 {
     return 1;
 }
 
+pub fn installListener(
+    self: *@This(),
+    ptr: *anyopaque,
+    func: *const fn (*anyopaque) void,
+) !void {
+    try self.listeners.append(self.allocator, .{ .ptr = ptr, .func = func });
+}
+
 const RenderThread = @This();
 const std = @import("std");
 const vk = @import("vulkan");
@@ -735,3 +840,20 @@ const NeonVkFrameData = vk_renderer_types.NeonVkFrameData;
 const NeonVkSceneDataGpu = vk_renderer_types.NeonVkSceneDataGpu;
 const NeonVkObjectDataGpu = vk_renderer_types.NeonVkObjectDataGpu;
 const NeonVkSwapchain = vk_renderer_types.NeonVkSwapchain;
+
+const vk_renderer_interface = @import("vk_renderer_interface.zig");
+const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
+
+const mesh = @import("../mesh.zig");
+
+// todo and documentation
+//
+// This struct is the root of the feature to have a seperate rendering thread for handling all vulkan IOs
+// the way this will work is, instead of having all processing done on the main systems thread.
+// the systems thread will send over a set of data required to render each given frame.
+// this data is called sharedData.
+//
+// all plugins into the renderer will follow this arrangement as well.
+// this includes the dynamicMeshManager and anything else.
+// they will all have a similar setup to this.
+//

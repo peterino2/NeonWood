@@ -9,7 +9,10 @@ pub fn build(b: *std.Build) void {
 
     //const tracy_enabled = b.option(bool, "tracy", "Enables tracy integration") orelse false;
 
-    const tracy_enabled = if (b.graph.env_map.hash_map.get("WITH_TRACY") != null) true else false;
+    const tracy_enabled: bool = true; //if (b.graph.env_map.hash_map.get("WITH_TRACY") != null) true else false;
+    // if (b.graph.env_map.hash_map.get("WITH_TRACY")) |with_tracy| {
+    //     tracy_enabled = with_tracy;
+    // }
     std.debug.print("tracy enabled {s}\n", .{if (tracy_enabled) "true" else "false"});
 
     const mod = b.addModule("tracy", .{

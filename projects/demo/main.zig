@@ -127,6 +127,14 @@ pub const GameContext = struct {
             );
         }
         self.tickPanel(deltaTime) catch unreachable;
+
+        if (fastTest) {
+            core.engine_logs("fastteston");
+        }
+
+        if (fastTest and self.time > 10.0) {
+            core.signalShutdown();
+        }
     }
 
     pub fn tickPanel(self: *@This(), deltaTime: f64) !void {
@@ -152,11 +160,6 @@ pub const GameContext = struct {
             ctx.get(unk).pos = .{ .x = mousePos.x + gSavedMouseOffset.x, .y = mousePos.y + gSavedMouseOffset.y };
             gIpsumPos = .{ .x = ctx.getRead(unk).pos.x, .y = ctx.getRead(unk).pos.y };
         }
-    }
-
-    pub fn uiTick(self: *Self, deltaTime: f64) void {
-        _ = deltaTime;
-        _ = self;
     }
 
     pub fn prepare_game(self: *Self) !void {
@@ -369,6 +372,9 @@ pub fn input_callback(window: ?*glfw3.GLFWwindow, key: c_int, scancode: c_int, a
     }
 }
 
+// if set, we exit after 10 seconds
+var fastTest: bool = false;
+
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 20,
@@ -387,19 +393,18 @@ pub fn main() anyerror!void {
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
-    var allocator = tracker.allocator();
+    const allocator = tracker.allocator();
 
     engine_log("Starting up", .{});
 
     const args = try neonwood.getArgs();
 
-    if (args.useGPA) {
-        core.engine_logs("Using GPA allocator");
-        allocator = gpa.allocator();
-    }
-
     if (args.vulkanValidation) {
         core.engine_logs("Using vulkan validation");
+    }
+
+    if (args.fastTest) {
+        fastTest = true;
     }
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);

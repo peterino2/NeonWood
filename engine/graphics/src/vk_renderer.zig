@@ -267,7 +267,6 @@ pub const NeonVkContext = struct {
 
     exitSignal: bool,
     firstFrame: bool,
-    shouldResize: bool,
     isMinimized: bool,
 
     renderObjectsAreDirty: bool,
@@ -574,6 +573,7 @@ pub const NeonVkContext = struct {
             },
             .cmdPool = self.commandPool,
 
+            .dynamicMeshManager = self.dynamicMeshManager,
             .graphicsQueue = self.graphicsQueue,
             .presentQueue = self.presentQueue,
             .frameData = self.frameData,
@@ -583,6 +583,8 @@ pub const NeonVkContext = struct {
 
             // render resources
             .sceneParameterBuffer = self.sceneParameterBuffer,
+
+            .plugins = &self.rendererPlugins,
         };
 
         try self.renderthread.setup();
@@ -1145,11 +1147,22 @@ pub const NeonVkContext = struct {
 
         if (use_renderthread) {
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
+            var z2 = tracy.ZoneN(@src(), "renderer tick");
             self.sendSharedData(frameIndex) catch unreachable;
+            self.sendSharedDataPlugins(frameIndex);
             self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
+            defer z2.End();
         } else {
             self.draw(dt) catch unreachable;
             self.dynamicMeshManager.finishUpload() catch unreachable;
+        }
+    }
+
+    fn sendSharedDataPlugins(self: *@This(), frameIndex: u32) void {
+        for (self.rendererPlugins.items) |*interface| {
+            if (interface.vtable.sendShared) |sendShared| {
+                sendShared(interface.ptr, frameIndex);
+            }
         }
     }
 
@@ -1159,8 +1172,10 @@ pub const NeonVkContext = struct {
         const shared = self.renderthread.getShared(frameIndex);
         shared.lock.lock();
         defer shared.lock.unlock();
-        shared.cameraData.viewproj = self.cameraRef.?.final;
-        shared.cameraData.position = self.cameraRef.?.position;
+        if (self.cameraRef) |camera| {
+            shared.cameraData.viewproj = camera.final;
+            shared.cameraData.position = camera.position;
+        }
         shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
 
         try shared.models.ensureTotalCapacity(self.renderObjectSet.dense.len);
@@ -1173,17 +1188,17 @@ pub const NeonVkContext = struct {
         while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
             const object = self.renderObjectSet.dense.items(.renderObject)[i];
 
-            if (object.mesh != null and object.texture != null and object.material != null) {
+            if (object.mesh != null and object.material != null) {
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
                 gpuData.modelMatrix = object.transform;
                 objectData.* = .{
                     .visibility = object.visibility,
-                    .textureSet = object.texture.?,
+                    .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
                     .pipeline = object.material.?.pipeline,
                     .pipelineLayout = object.material.?.layout,
-                    .mesh = object.mesh.?.buffer.buffer,
+                    .meshBuffer = object.mesh.?.buffer.buffer,
                     .vertexCount = @intCast(object.mesh.?.vertices.items.len),
                 };
             }
@@ -1334,7 +1349,6 @@ pub const NeonVkContext = struct {
                 self.isMinimized = false;
                 try self.vkd.deviceWaitIdle(self.dev);
                 try self.destroy_framebuffers();
-                self.shouldResize = false;
 
                 try self.init_or_recycle_swapchain();
                 try self.init_framebuffers();
@@ -1482,6 +1496,9 @@ pub const NeonVkContext = struct {
     }
 
     fn finish_frame(self: *Self) !void {
+        if (use_renderthread) {
+            return error.BannedFunctionInRenderThreadMode;
+        }
         var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
         var submit = vk.SubmitInfo{
@@ -1513,6 +1530,7 @@ pub const NeonVkContext = struct {
         };
 
         var outOfDate: bool = false;
+        //_ = self.vkd.queuePresentKHR(self.presentQueue.handle, &presentInfo) catch |err| switch (err) {
         _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
             error.OutOfDateKHR => {
                 outOfDate = true;
@@ -1528,12 +1546,11 @@ pub const NeonVkContext = struct {
             (w > 0 and h > 0))
         {
             self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
-            platform.getInstance().extent = .{ .x = w, .y = h };
+            platform.getInstance().updateExtent(.{ .x = w, .y = h });
 
             self.isMinimized = false;
             try self.vkd.deviceWaitIdle(self.dev);
             try self.destroy_framebuffers();
-            self.shouldResize = false;
 
             try self.init_or_recycle_swapchain();
             try self.init_framebuffers();
@@ -2082,8 +2099,11 @@ pub const NeonVkContext = struct {
         self.vkd = try DeviceDispatch.load(self.dev, self.vki.dispatch.vkGetDeviceProcAddr);
         errdefer self.vkd.destroyDevice(self.dev, null);
 
-        self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex);
-        self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex);
+        self.graphicsQueue = NeonVkQueue.init(self.vkd, self.dev, self.graphicsFamilyIndex, 0);
+        self.presentQueue = NeonVkQueue.init(self.vkd, self.dev, self.presentFamilyIndex, 0);
+
+        core.graphics_log(" graphicsQueue @0x{x}", .{self.graphicsQueue.handle});
+        core.graphics_log(" presentQueue @0x{x}", .{self.presentQueue.handle});
 
         self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
 
@@ -2524,7 +2544,7 @@ pub const NeonVkContext = struct {
 
         self.dynamicTextures.deinit(self.allocator);
 
-        self.vkd.deviceWaitIdle(self.dev) catch unreachable;
+        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
 
         self.destroy_textures() catch {
             core.engine_errs("unable to destroy textures");
@@ -2553,6 +2573,7 @@ pub const NeonVkContext = struct {
             self.commandBuffers.deinit();
         }
 
+        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
         self.destroy_uploaders();
@@ -2632,7 +2653,7 @@ pub const NeonVkContext = struct {
 
     pub fn onExitSignal(self: *@This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
-        self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
+        // self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
         if (use_renderthread) {
             self.renderthread.onExitSignal();
         }

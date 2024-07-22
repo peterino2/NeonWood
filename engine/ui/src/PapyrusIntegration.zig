@@ -11,6 +11,7 @@ textImageBuffers: []gpd.GpuMappingData(FontInfo) = undefined,
 indexBuffer: graphics.IndexBuffer = undefined,
 
 drawList: papyrus.DrawList,
+stringArena: std.heap.ArenaAllocator,
 fontTexture: *graphics.Texture = undefined,
 
 papyrusCtx: *papyrus.Context,
@@ -21,16 +22,13 @@ textSsboCount: u32 = 0,
 time: f64 = 0,
 
 textPipeData: gpd.GpuPipeData = undefined,
-
 displayDemo: bool = true,
-
 drawCommands: std.ArrayList(VkCommand),
-
 textRenderer: *TextRenderer,
-
 averageFrameTime: f64 = 0,
-
 onDebugInfoBinding: usize = 0,
+
+sharedData: [graphics.NumFrames]SharedData = undefined,
 
 const std = @import("std");
 const core = @import("core");
@@ -39,6 +37,7 @@ const memory = core.MemoryTracker;
 const assets = @import("assets");
 const graphics = @import("graphics");
 const gpd = graphics.gpu_pipe_data;
+const RenderThread = graphics.RenderThread;
 
 const platform = @import("platform");
 const papyrus = @import("papyrus");
@@ -59,6 +58,8 @@ const TextRenderer = text_render.TextRenderer;
 const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
 const Key = papyrus.Event.Key;
+
+const use_renderthread = core.BuildOption("use_renderthread");
 
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
@@ -81,8 +82,13 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .drawCommands = std.ArrayList(VkCommand).init(allocator),
         .textRenderer = try TextRenderer.init(allocator, graphics.getContext(), papyrusCtx),
         .drawList = papyrus.DrawList.init(allocator),
+        .stringArena = std.heap.ArenaAllocator.init(allocator),
         .defaultTextureSet = undefined,
     };
+
+    if (use_renderthread) {
+        self.initShared();
+    }
 
     self.onDebugInfoBinding = try core.addEngineDelegateBinding("onFrameDebugInfoEmitted", onFrameDebugInfo, self);
     // core.engine_logs("PapyrusSystem init");
@@ -283,6 +289,9 @@ fn setupMeshes(self: *@This()) !void {
     try self.quad.upload(self.gc);
 }
 
+var lastEventCount: usize = 0;
+var displayEventsPerSecond: f64 = 0;
+
 pub fn tick(self: *@This(), deltaTime: f64) void {
     self.time += deltaTime;
     const cursor = platform.getInstance().inputState.mousePos;
@@ -295,9 +304,17 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
 
     self.papyrusCtx.tick(deltaTime) catch unreachable;
     if (memory.MTGet()) |mt| {
-        self.papyrusCtx.pushDebugText("memory used: {d:.3}MB", .{
+        const eventsPerFrame = @as(f64, @floatFromInt(mt.eventsCount - lastEventCount));
+
+        displayEventsPerSecond = (displayEventsPerSecond + eventsPerFrame / 60.0) - displayEventsPerSecond / 60.0;
+
+        self.papyrusCtx.pushDebugText("memory used: {d:.3}MB {d} allocations ({d} events per frame)", .{
             @as(f32, @floatFromInt(mt.totalAllocSize)) / 1e6,
+            mt.allocationsCount,
+            eventsPerFrame,
         }) catch {};
+
+        lastEventCount = mt.eventsCount;
     }
 
     if (self.gc.vulkanValidation) {
@@ -365,12 +382,6 @@ pub fn buildImagePipeline(self: *@This()) !void {
     self.pipeData = try spriteDataBuilder.build("Papyrus");
     defer spriteDataBuilder.deinit();
 
-    // const vert_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_vert.spv");
-    // defer self.allocator.free(vert_spv);
-
-    // const frag_spv = try graphics.loadSpv(self.allocator, "papyrus_vk_frag.spv");
-    // defer self.allocator.free(frag_spv);
-
     const vert_spv = papyrus_vk_vert.spv();
     const frag_spv = papyrus_vk_frag.spv();
 
@@ -409,24 +420,19 @@ pub fn preparePipeline(self: *@This()) !void {
     try self.buildImagePipeline();
 }
 
-pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
+pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.DrawList) !void {
     var z = tracy.ZoneN(@src(), "Uploading SSBOs");
     defer z.End();
 
     var imagesGpu = self.mappedBuffers[frameId].objects;
     var imagesText = self.textImageBuffers[frameId].objects;
 
-    var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
-    try self.papyrusCtx.makeDrawList(&self.drawList);
-    self.drawCommands.clearRetainingCapacity();
-    z1.End();
-
     self.textSsboCount = 0;
     self.ssboCount = 0;
 
     var textFrameContext = self.textRenderer.startRendering();
 
-    for (self.drawList.items) |drawCmd| {
+    for (drawList.items) |drawCmd| {
         switch (drawCmd.primitive) {
             .Rect => |rect| {
                 imagesGpu[self.ssboCount] = ImageGpu{
@@ -535,6 +541,72 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize) !void {
     }
 }
 
+pub fn rtPostDraw(self: *@This(), rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+    const shared = self.getShared(frameIndex);
+    self.drawCommands.clearRetainingCapacity();
+
+    const rtShared = rt.getShared(frameIndex);
+
+    shared.lock.lock();
+    self.uploadSSBOData(frameIndex, &shared.drawList) catch unreachable;
+    shared.lock.unlock();
+
+    var vertexBufferOffset: u64 = 0;
+
+    var pushConstant = PushConstant{
+        .extent = .{
+            .x = rtShared.extent.x,
+            .y = rtShared.extent.y,
+        },
+    };
+
+    for (self.drawCommands.items) |command| {
+        switch (command) {
+            .text => |t| {
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
+                if (t.small) {
+                    var drawText = self.textRenderer.smallDisplays.items[t.index];
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                } else {
+                    var drawText = self.textRenderer.displays.items[t.index];
+                    drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
+                }
+            },
+            .image => |img| {
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
+                const index = img.index;
+                self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+                self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
+                self.gc.vkd.cmdBindIndexBuffer(cmd, self.indexBuffer.buffer.buffer, 0, .uint32);
+                self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+
+                if (img.imageSet) |imageSet| {
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&imageSet), 0, undefined);
+                } else {
+                    self.gc.vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, @ptrCast(&self.defaultTextureSet), 0, undefined);
+                }
+
+                self.gc.vkd.cmdDrawIndexed(cmd, @as(u32, @intCast(self.indexBuffer.indices.len)), 1, 0, 0, index);
+            },
+        }
+    }
+}
+
+pub fn getShared(self: *@This(), fi: u32) *SharedData {
+    return &self.sharedData[fi];
+}
+
+pub fn sendShared(self: *@This(), frameIndex: u32) void {
+    const z1 = tracy.ZoneN(@src(), "PapryusIntegration - UploadingShared");
+    defer z1.End();
+
+    const shared = self.getShared(frameIndex);
+    shared.lock.lock();
+    defer shared.lock.unlock();
+
+    self.papyrusCtx.makeDrawList(&shared.drawList, &shared.stringArena) catch unreachable;
+}
+
 pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameTime: f64) void {
     _ = frameTime;
 
@@ -546,9 +618,14 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
         return;
     }
 
-    self.uploadSSBOData(frameIndex) catch unreachable;
+    var z1 = tracy.ZoneN(@src(), "Papyrus Making Draw List");
+    self.papyrusCtx.makeDrawList(&self.drawList, &self.stringArena) catch unreachable;
+    z1.End();
 
-    var constants = PushConstant{
+    self.drawCommands.clearRetainingCapacity();
+    self.uploadSSBOData(frameIndex, &self.drawList) catch unreachable;
+
+    var pushConstant = PushConstant{
         .extent = .{
             .x = @as(f32, @floatFromInt(self.gc.extent.width)),
             .y = @as(f32, @floatFromInt(self.gc.extent.height)),
@@ -558,7 +635,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
     for (self.drawCommands.items) |command| {
         switch (command) {
             .text => |t| {
-                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.textMaterial.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
                 if (t.small) {
                     var drawText = self.textRenderer.smallDisplays.items[t.index];
                     drawText.draw(frameIndex, cmd, self.textMaterial, t.ssbo, self.textPipeData);
@@ -568,7 +645,7 @@ pub fn postDraw(self: *@This(), cmd: vk.CommandBuffer, frameIndex: usize, frameT
                 }
             },
             .image => |img| {
-                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &constants);
+                self.gc.vkd.cmdPushConstants(cmd, self.material.layout, .{ .vertex_bit = true, .fragment_bit = true }, 0, @sizeOf(PushConstant), &pushConstant);
                 const index = img.index;
                 self.gc.vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
                 self.gc.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&self.quad.buffer.buffer), @ptrCast(&vertexBufferOffset));
@@ -599,6 +676,8 @@ pub fn shutdown(self: *@This()) void {
     }
     self.drawCommands.deinit();
 
+    self.stringArena.deinit();
+
     self.quad.deinit(self.gc);
     self.allocator.destroy(self.quad);
     self.gc.allocator.free(self.mappedBuffers);
@@ -612,6 +691,11 @@ pub fn shutdown(self: *@This()) void {
 
     self.drawList.deinit();
     self.papyrusCtx.deinit();
+
+    if (use_renderthread) {
+        self.deinitShared();
+    }
+
     core.ui_logs("finished shutting down ui");
 }
 
@@ -623,4 +707,27 @@ pub fn deinit(self: *@This()) void {
 pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
     _ = frameNumber;
     _ = self;
+}
+
+const SharedData = struct {
+    lock: std.Thread.Mutex,
+    drawList: papyrus.DrawList,
+    stringArena: std.heap.ArenaAllocator,
+};
+
+pub fn initShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.* = .{
+            .lock = .{},
+            .drawList = papyrus.DrawList.init(self.allocator),
+            .stringArena = std.heap.ArenaAllocator.init(self.allocator),
+        };
+    }
+}
+
+pub fn deinitShared(self: *@This()) void {
+    for (&self.sharedData) |*s| {
+        s.drawList.deinit();
+        s.stringArena.deinit();
+    }
 }
