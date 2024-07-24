@@ -9,6 +9,8 @@ const core = @import("core");
 const tracy = core.tracy;
 const vk_constants = graphics.constants;
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 pub const c = @cImport({
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
     @cDefine("CIMGUI_USE_GLFW", "1"); // if this needs a reference to glfw3, cleanest thing to do is to copy the glfw3 header here. I suspect it won't need it though.
@@ -192,13 +194,18 @@ pub const NeonVkImGui = struct {
 
     pub fn onRendererTeardown(self: *Self) void {
         // c.ImGui_ImplGlfw_Shutdown();
+        if (use_renderthread)
+            c.cImGui_vk_Shutdown();
+
         _ = self;
     }
 
     pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
-        c.cImGui_vk_Shutdown();
+        if (!use_renderthread) {
+            c.cImGui_vk_Shutdown();
+        }
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
         self.allocator.destroy(self);
     }

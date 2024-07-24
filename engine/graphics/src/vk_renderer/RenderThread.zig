@@ -318,6 +318,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         try self.preFrameUpdate(fi);
         const cmd = try self.startFrameCommands(fi);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
+        const time = core.getEngineTime();
         try self.beginMainRenderpass(cmd, fi);
 
         self.renderMeshes(cmd, fi);
@@ -325,6 +326,11 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
 
         try self.finishMainRenderpass(cmd, fi);
         try self.dynamicMeshManager.updateMeshes(cmd);
+
+        const delta = core.getEngineTime() - time;
+
+        core.rollingAverage(&core.getEngine().renderThreadTime, delta, 60);
+
         z.End();
         try vkd.endCommandBuffer(cmd);
         try self.finishFrame(fi);

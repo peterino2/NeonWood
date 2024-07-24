@@ -209,7 +209,7 @@ pub const GameContext = struct {
 
         const image = try ctx.addPanel(unk);
         ctx.getPanel(image).useImage = true;
-        ctx.getPanel(image).imageReference = t_dynamicImage;
+        ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
         const imageChangeBtn = try ctx.addButton(unk, "change image");
