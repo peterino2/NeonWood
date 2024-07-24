@@ -5,6 +5,7 @@ const engineObject = @import("engineObject.zig");
 const time = @import("engineTime.zig");
 const core = @import("core.zig");
 const jobs = @import("jobs.zig");
+const math = @import("math.zig");
 
 const tracy = @import("tracy");
 const p2 = @import("p2");
@@ -43,6 +44,7 @@ pub const Engine = struct {
     eventors: ArrayListUnmanaged(EngineObjectRef),
     exitListeners: ArrayListUnmanaged(EngineObjectRef),
     preTickables: ArrayListUnmanaged(EngineObjectRef),
+    renderers: ArrayListUnmanaged(EngineObjectRef) = .{},
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     jobManager: *JobManager,
 
@@ -55,6 +57,9 @@ pub const Engine = struct {
 
     averageFrameTime: f64 = 0,
     averageFrameSampleWindow: u32 = 60, // rolling weighted average
+
+    systemsThreadTime: f64 = 0,
+    renderThreadTime: f64 = 0,
 
     platformCtx: *anyopaque = undefined,
     platformPollFunc: ?PollFuncFn = null,
@@ -102,6 +107,7 @@ pub const Engine = struct {
         self.destroyListCore.deinit(self.allocator);
         self.destroyListSimple.deinit(self.allocator);
 
+        self.renderers.deinit(self.allocator);
         core.engine_logs("destroying engine objects");
         self.engineObjects.deinit(self.allocator);
 
@@ -147,6 +153,10 @@ pub const Engine = struct {
             try self.tickables.append(self.allocator, newIndex);
         }
 
+        if (@hasDecl(T, "engineDraw")) {
+            try self.renderers.append(self.allocator, newObjectRef);
+        }
+
         if (@hasDecl(T, "preTick")) {
             try self.preTickables.append(self.allocator, newObjectRef);
         }
@@ -170,7 +180,7 @@ pub const Engine = struct {
     pub fn tick(self: *@This()) !void {
         tracy.FrameMark();
         tracy.FrameMarkStart("frame");
-        tracy.FrameMarkEnd("frame");
+        defer tracy.FrameMarkEnd("frame");
 
         const newTime = time.getEngineTime();
 
@@ -180,8 +190,7 @@ pub const Engine = struct {
         }
 
         self.deltaTime = newTime - self.lastEngineTime;
-        const sampleWindowf: f64 = @floatFromInt(self.averageFrameSampleWindow);
-        self.averageFrameTime = self.averageFrameTime - (self.averageFrameTime / sampleWindowf) + self.deltaTime / sampleWindowf;
+        math.rollingAverage(&self.averageFrameTime, self.deltaTime, @floatFromInt(self.averageFrameSampleWindow));
 
         for (self.delegates.onFrameDebugInfoEmitted.items) |l| {
             try l.func(l.ctx, self.averageFrameTime);
@@ -209,6 +218,19 @@ pub const Engine = struct {
             z.Name(objectRef.vtable.typeName.utf8());
             z.End();
         }
+
+        const systemsThreadTime = time.getEngineTime() - newTime;
+        math.rollingAverage(&self.systemsThreadTime, systemsThreadTime, @floatFromInt(self.averageFrameSampleWindow));
+
+        for (self.renderers.items) |*renderer| {
+            var z = tracy.Zone(@src());
+            z.Name(renderer.vtable.typeName.utf8());
+
+            renderer.vtable.engineDraw_func.?(renderer.ptr, self.deltaTime);
+
+            z.End();
+        }
+
         self.lastEngineTime = newTime;
     }
 

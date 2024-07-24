@@ -43,6 +43,7 @@ pub const RttiData = struct {
 
     init_func: *const fn (std.mem.Allocator) EngineDataEventError!*anyopaque,
     tick_func: ?*const fn (*anyopaque, f64) void = null,
+    engineDraw_func: ?*const fn (*anyopaque, f64) void = null,
     preTick_func: ?*const fn (*anyopaque, f64) EngineDataEventError!void = null,
     deinit_func: ?*const fn (*anyopaque) void = null,
     postInit_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
@@ -79,25 +80,36 @@ pub const RttiData = struct {
         }
 
         if (@hasDecl(TargetType, "preTick")) {
-            const wrappedTick = struct {
+            const Wrapped = struct {
                 pub fn func(pointer: *anyopaque, deltaTime: f64) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     try ptr.preTick(deltaTime);
                 }
             };
 
-            self.preTick_func = wrappedTick.func;
+            self.preTick_func = Wrapped.func;
+        }
+
+        if (@hasDecl(TargetType, "engineDraw")) {
+            const Wrapped = struct {
+                pub fn func(pointer: *anyopaque, deltaTime: f64) void {
+                    var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
+                    ptr.engineDraw(deltaTime);
+                }
+            };
+
+            self.engineDraw_func = Wrapped.func;
         }
 
         if (@hasDecl(TargetType, "tick")) {
-            const wrappedTick = struct {
+            const Wrapped = struct {
                 pub fn func(pointer: *anyopaque, deltaTime: f64) void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
                     ptr.tick(deltaTime);
                 }
             };
 
-            self.tick_func = wrappedTick.func;
+            self.tick_func = Wrapped.func;
         }
 
         if (@hasDecl(TargetType, "processEvents")) {

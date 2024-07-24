@@ -442,3 +442,7 @@ pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
         .w = vec[3],
     };
 }
+
+pub fn rollingAverage(average: *f64, newValue: f64, sampleCount: f64) void {
+    average.* = average.* - (average.* / sampleCount) + newValue / sampleCount;
+}

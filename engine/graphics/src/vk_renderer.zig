@@ -1137,7 +1137,7 @@ pub const NeonVkContext = struct {
         self.rendererTime += deltaTime;
     }
 
-    pub fn tick(self: *Self, dt: f64) void {
+    pub fn engineDraw(self: *Self, dt: f64) void {
         self.updateTime(dt);
 
         core.gScene.updateTransforms();
@@ -1156,6 +1156,11 @@ pub const NeonVkContext = struct {
             self.draw(dt) catch unreachable;
             self.dynamicMeshManager.finishUpload() catch unreachable;
         }
+    }
+
+    pub fn tick(self: *Self, dt: f64) void {
+        _ = self;
+        _ = dt;
     }
 
     fn sendSharedDataPlugins(self: *@This(), frameIndex: u32) void {

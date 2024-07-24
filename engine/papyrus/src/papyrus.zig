@@ -1075,8 +1075,9 @@ pub const Context = struct {
 
     fn addDebugInfo(self: @This(), drawList: *DrawList) !void {
         const defaultHeight = 16;
-        const offsetPerLine: f32 = defaultHeight + 2;
-        var yOffset: f32 = offsetPerLine;
+        const sizePerLine: f32 = defaultHeight + 2;
+        const yOffsetPerLine: f32 = defaultHeight + 1;
+        var yOffset: f32 = sizePerLine;
         const width = defaultHeight / 2 * 120;
 
         const fontHash = self.defaultMonoFont.atlas.rendererHash;
@@ -1088,9 +1089,9 @@ pub const Context = struct {
             .primitive = .{
                 .Rect = .{
                     .tl = .{ .x = 30 - 5, .y = yOffset - 5 },
-                    .size = .{ .x = width + 5, .y = offsetPerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
-                    .borderColor = Color.fromRGBA(0x222222ee),
-                    .backgroundColor = Color.fromRGBA2(0.0, 0.0, 0.0, 0.9),
+                    .size = .{ .x = width + 5, .y = sizePerLine * @as(f32, @floatFromInt(self.debugTextCount + 2)) },
+                    .borderColor = Color.fromRGBA(0x444444ee),
+                    .backgroundColor = Color.fromRGBA2(0.0, 0.0, 0.0, 0.94),
                 },
             },
         });
@@ -1114,7 +1115,7 @@ pub const Context = struct {
             },
         });
 
-        yOffset += offsetPerLine;
+        yOffset += yOffsetPerLine;
 
         for (self.debugText.items, 0..) |textData, i| {
             if (i >= self.debugTextCount) {
@@ -1138,7 +1139,7 @@ pub const Context = struct {
                     },
                 },
             });
-            yOffset += offsetPerLine + (offsetPerLine / 4);
+            yOffset += yOffsetPerLine + (yOffsetPerLine / 4);
         }
     }
 

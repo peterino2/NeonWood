@@ -21,6 +21,7 @@ pub const GameContext = struct {
 
     pub fn prepare_game(self: *@This()) !void {
         self.implot = c.ImPlot_CreateContext();
+        neonwood.ui.getContext().drawDebug = true;
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {

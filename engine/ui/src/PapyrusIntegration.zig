@@ -320,7 +320,14 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     if (self.gc.vulkanValidation) {
         self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;
     }
+
     self.papyrusCtx.pushDebugText("frameTime (ms): {d:.4} fps: {d:.3}", .{ self.averageFrameTime * 1000.0, 1.0 / self.averageFrameTime }) catch unreachable;
+
+    self.papyrusCtx.pushDebugText("  systems (ms): {d:.4}", .{
+        core.getEngine().systemsThreadTime * 1000.0,
+    }) catch unreachable;
+
+    self.papyrusCtx.pushDebugText("  renderthread (ms): {d:.4}", .{core.getEngine().renderThreadTime * 1000.0}) catch unreachable;
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {
