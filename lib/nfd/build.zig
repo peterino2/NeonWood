@@ -42,6 +42,11 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("gobject-2.0", .{});
     }
 
+    const p2dep = b.dependency("p2", .{ .target = target, .optimize = optimize });
+
+    const p2mod = p2dep.module("p2");
+    mod.addImport("p2", p2mod);
+
     const test_step = b.step("test-nfd", "");
     const tests = b.addTest(.{
         .target = target,
