@@ -10,11 +10,19 @@ pub const NFDCallbackError = error{
 };
 
 const NFDCallbackFn = *const fn (
-    *anyopaque,
-) NFDCallbackError!void;
+    ?*anyopaque,
+    ?[]const u8,
+) void;
 
 pub const NFDRuntimeOptions = struct {
     singleThreaded: bool = false,
+};
+
+pub const AsyncOpenFileDialogArgs = struct {
+    filterList: []const u8 = "",
+    defaultPath: []const u8 = "",
+    callback: NFDCallbackFn,
+    callbackContext: ?*anyopaque = null,
 };
 
 // There are a couple of incredibly annoying things about NFD.
@@ -33,6 +41,8 @@ pub const NFDRuntime = struct {
         openDialog: struct {
             filterList: []const u8,
             defaultPath: []const u8,
+            callback: ?NFDCallbackFn = null,
+            callbackContext: ?*anyopaque = null,
         },
         openDialogMultiple: struct {
             filterList: []const u8,
@@ -83,6 +93,26 @@ pub const NFDRuntime = struct {
         return self.outPath;
     }
 
+    pub fn asyncOpenFileDialog(self: *@This(), args: AsyncOpenFileDialogArgs) !void {
+        self.lock.lock();
+        defer self.lock.unlock();
+
+        switch (self.runtimeState) {
+            .none => {
+                self.runtimeState = .{ .openDialog = .{
+                    .filterList = args.filterList,
+                    .defaultPath = args.defaultPath,
+                    .callback = args.callback,
+                    .callbackContext = args.callbackContext,
+                } };
+            },
+            .openDialog, .openDialogMultiple, .saveDialog, .openFolder => {
+                // return dialog already opened error. nfd would returl NFD_ERROR here
+                return error.DialogAlreadyOpen;
+            },
+        }
+    }
+
     fn blockUntilComplete(self: *@This()) void {
         std.time.sleep(1000 * 1000);
 
@@ -108,6 +138,13 @@ pub const NFDRuntime = struct {
                     self.outPath = null;
                 } else if (res == c.NFD_ERROR) {
                     return error.InvalidFileDialog;
+                }
+                if (args.callback) |callback| {
+                    if (self.outPath != null) {
+                        callback(args.callbackContext, std.mem.span(self.outPath));
+                    } else {
+                        callback(args.callbackContext, null);
+                    }
                 }
                 self.runtimeState = .{ .none = false };
             },

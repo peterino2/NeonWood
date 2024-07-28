@@ -1,7 +1,7 @@
 .{
     .name = "nfd",
     .version = "0.0.0",
-    .dependencies = .{},
+    .dependencies = .{ .p2 = .{ .path = "../p2" } },
     .paths = .{
         "",
     },

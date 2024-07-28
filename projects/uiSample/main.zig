@@ -246,10 +246,17 @@ const BurnStyle = ui.papyrus.BurnStyle;
 fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {
     _ = node;
     if (eventType == .onPressed) {
-        const selected_path = core.openFolderDialog("") catch unreachable;
-        if (selected_path != null) {
-            core.ui_log("selected path: {s}", .{selected_path});
-        }
+        core.asyncOpenFile(.{
+            .callback = openFileCallback,
+        }) catch return {};
+    }
+}
+
+fn openFileCallback(_: ?*anyopaque, file: ?[]const u8) void {
+    if (file) |f| {
+        core.engine_log("selected file: {s}", .{f});
+    } else {
+        core.engine_log("no file selection", .{});
     }
 }
 
