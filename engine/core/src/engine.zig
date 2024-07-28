@@ -206,6 +206,8 @@ pub const Engine = struct {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch @panic("process event error");
         }
 
+        self.nfdRuntime.processCallbacks();
+
         for (self.preTickables.items) |*objectRef| {
             objectRef.vtable.preTick_func.?(objectRef.ptr, self.deltaTime) catch @panic("pretick event error");
         }

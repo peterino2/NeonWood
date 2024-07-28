@@ -3,6 +3,7 @@ pub const c = @cImport({
 });
 
 const std = @import("std");
+const p2 = @import("p2");
 
 pub const NFDCallbackError = error{
     InvalidPath,
@@ -25,6 +26,14 @@ pub const AsyncOpenFileDialogArgs = struct {
     callbackContext: ?*anyopaque = null,
 };
 
+// if we need thread-safe callback events on a specific thread thats not the main thread, then we will need the callbacks itself to be
+// handled on the caller's thread
+pub const AsyncNfdCallbackEvent = struct {
+    path: ?[]const u8,
+    context: ?*anyopaque,
+    func: NFDCallbackFn,
+};
+
 // There are a couple of incredibly annoying things about NFD.
 // this is only for running things in multiple threads.
 pub const NFDRuntime = struct {
@@ -34,7 +43,12 @@ pub const NFDRuntime = struct {
 
     outPath: [*c]u8 = null,
     nfdPathSet: c.nfdpathset_t = undefined,
+
+    callbackEvents: p2.ConcurrentQueueU(AsyncNfdCallbackEvent),
+
     opts: NFDRuntimeOptions = .{},
+
+    pathsArena: std.heap.ArenaAllocator,
 
     runtimeState: union(enum(u8)) {
         none: bool,
@@ -60,7 +74,12 @@ pub const NFDRuntime = struct {
     pub fn create(allocator: std.mem.Allocator, options: NFDRuntimeOptions) !*@This() {
         const self = try allocator.create(@This());
 
-        self.* = .{ .allocator = allocator, .opts = options };
+        self.* = .{
+            .allocator = allocator,
+            .callbackEvents = try p2.ConcurrentQueueU(AsyncNfdCallbackEvent).initCapacity(allocator, 256),
+            .opts = options,
+            .pathsArena = std.heap.ArenaAllocator.init(allocator),
+        };
 
         return self;
     }
@@ -139,11 +158,20 @@ pub const NFDRuntime = struct {
                 } else if (res == c.NFD_ERROR) {
                     return error.InvalidFileDialog;
                 }
+
                 if (args.callback) |callback| {
                     if (self.outPath != null) {
-                        callback(args.callbackContext, std.mem.span(self.outPath));
+                        try self.callbackEvents.push(.{
+                            .path = try p2.dupeString(self.pathsArena.allocator(), std.mem.span(self.outPath)),
+                            .context = args.callbackContext,
+                            .func = callback,
+                        });
                     } else {
-                        callback(args.callbackContext, null);
+                        try self.callbackEvents.push(.{
+                            .path = null,
+                            .context = args.callbackContext,
+                            .func = callback,
+                        });
                     }
                 }
                 self.runtimeState = .{ .none = false };
@@ -166,7 +194,15 @@ pub const NFDRuntime = struct {
         }
     }
 
+    pub fn processCallbacks(self: *@This()) void {
+        while (self.callbackEvents.pop()) |event| {
+            event.func(event.context, event.path);
+        }
+    }
+
     pub fn destroy(self: *@This()) void {
+        self.callbackEvents.deinit(self.allocator);
+        self.pathsArena.deinit();
         self.allocator.destroy(self);
     }
 };
