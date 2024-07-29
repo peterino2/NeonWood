@@ -65,6 +65,8 @@ pub const Engine = struct {
     platformPollFunc: ?PollFuncFn = null,
     platformProcEventsFunc: ?ProcEventsFn = null,
 
+    engineStartTime: f64 = 0,
+
     nfdRuntime: *nfd.NFDRuntime,
 
     delegates: EngineDelegates,
@@ -186,6 +188,7 @@ pub const Engine = struct {
 
         if (self.first) {
             self.first = false;
+            self.engineStartTime = newTime;
             self.lastEngineTime = newTime;
         }
 

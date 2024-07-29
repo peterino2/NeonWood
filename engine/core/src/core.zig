@@ -134,4 +134,9 @@ pub fn addEngineDelegateBinding(comptime event: []const u8, func: anytype, ctx: 
     return handle;
 }
 
+const getEngineTime = @import("engineTime.zig").getEngineTime;
+
+pub fn getEngineUptime() f64 {
+    return getEngineTime() - gEngine.engineStartTime;
+}
 // pub fn removeBinding todo...

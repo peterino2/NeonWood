@@ -1096,26 +1096,25 @@ pub const Context = struct {
             },
         });
 
-        try drawList.append(.{
-            .node = .{},
-            .primitive = .{
-                .Text = .{
-                    .text = LocText.fromUtf8("Papyrus Debug:"),
-                    .tl = .{ .x = 30, .y = yOffset },
-                    .size = .{ .x = width, .y = 30 },
-                    .renderMode = .NoControl,
-                    //.color = BurnStyle.Highlight3,
-                    .color = Color.Yellow,
-                    .textSize = defaultHeight,
-                    .rendererHash = fontHash,
-                    .flags = .{
-                        .setSourceGeometry = false,
-                    },
-                },
-            },
-        });
-
-        yOffset += yOffsetPerLine;
+        // try drawList.append(.{
+        //     .node = .{},
+        //     .primitive = .{
+        //         .Text = .{
+        //             .text = LocText.fromUtf8("Papyrus Debug:"),
+        //             .tl = .{ .x = 30, .y = yOffset },
+        //             .size = .{ .x = width, .y = 30 },
+        //             .renderMode = .NoControl,
+        //             //.color = BurnStyle.Highlight3,
+        //             .color = Color.Yellow,
+        //             .textSize = defaultHeight,
+        //             .rendererHash = fontHash,
+        //             .flags = .{
+        //                 .setSourceGeometry = false,
+        //             },
+        //         },
+        //     },
+        // });
+        // yOffset += yOffsetPerLine;
 
         for (self.debugText.items, 0..) |textData, i| {
             if (i >= self.debugTextCount) {

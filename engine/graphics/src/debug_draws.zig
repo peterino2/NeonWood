@@ -69,7 +69,7 @@ pub const DebugPrimitive = struct {
     duration: f32 = 0.0,
 
     pub fn resolve(self: @This()) core.Transform {
-        comptime core.assert(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize);
+        // comptime core.asserts(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize, "");
 
         switch (self.primitive) {
             .line => |inner| {
@@ -118,9 +118,9 @@ pub const DebugDrawSubsystem = struct {
     materialName: core.Name = core.MakeName("mat_debugsys"),
 
     const Primitives = [_]assets.AssetImportReference{
-        assets.MakeImportRef("Mesh", "m_primitive_sphere", "content/meshes/primitive_sphere.obj"),
-        assets.MakeImportRef("Mesh", "m_primitive_box", "content/meshes/primitive_box.obj"),
-        assets.MakeImportRef("Mesh", "m_primitive_line", "content/meshes/primitive_line.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_sphere", "meshes/primitive_sphere.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_box", "meshes/primitive_box.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_line", "meshes/primitive_line.obj"),
     };
 
     pub fn prepareSubsystem(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -219,6 +219,11 @@ pub const DebugDrawSubsystem = struct {
         _ = frameIndex;
     }
 
+    pub fn sendShared(self: *@This(), frameIndex: u32) void {
+        _ = self;
+        _ = frameIndex;
+    }
+
     pub fn postDraw(
         self: *@This(),
         cmd: vk.CommandBuffer,
@@ -283,9 +288,11 @@ pub const DebugDrawSubsystem = struct {
         self.gc.allocator.free(self.mappedBuffers);
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
+        core.graphics_logs("shutting down debug draw system");
     }
 
     pub fn deinit(self: *@This()) void {
+        self.shutdown();
         self.allocator.destroy(self);
     }
 };
@@ -293,14 +300,12 @@ pub const DebugDrawSubsystem = struct {
 var gDebugDrawSys: *DebugDrawSubsystem = undefined;
 
 pub fn init_debug_draw_subsystem() !void {
-    gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = false });
-    try gDebugDrawSys.prepareSubsystem(graphics.getContext());
-    try graphics.registerRendererPlugin(gDebugDrawSys);
+    // gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = false });
+    // try gDebugDrawSys.prepareSubsystem(graphics.getContext());
+    // try graphics.registerRendererPlugin(gDebugDrawSys);
 }
 
-pub fn shutdown() void {
-    gDebugDrawSys.shutdown();
-}
+pub fn shutdown() void {}
 
 pub const DebugDrawParams = struct {
     color: core.Vectorf = .{ .x = 0, .y = 1.0, .z = 0 },

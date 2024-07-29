@@ -2652,7 +2652,9 @@ pub const NeonVkContext = struct {
     }
 
     pub fn readyToExit(self: *@This()) bool {
-        _ = self;
+        while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {
+            self.renderthread.spinProcessExitSignal();
+        }
         return true;
     }
 

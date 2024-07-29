@@ -81,13 +81,12 @@ pub fn start_module(allocator: std.mem.Allocator) void {
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
-    // debug_draw.init_debug_draw_subsystem() catch unreachable;
+    debug_draw.init_debug_draw_subsystem() catch unreachable;
     memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module() void {
     engine_logs("graphics module shutting down...");
-    // debug_draw.shutdown();
     vk_renderer.gContext.shutdown();
 }
 

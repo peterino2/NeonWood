@@ -152,7 +152,7 @@ pub const JobWorker = struct {
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture, &ctx);
                 ctx.deinit();
-                self.currentJobContext = null;
+                // self.currentJobContext = null;
                 self.busy.store(false, .seq_cst);
             } else {
                 std.Thread.Futex.wait(&self.futex, self.current);
