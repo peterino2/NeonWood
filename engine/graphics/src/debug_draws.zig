@@ -111,7 +111,7 @@ const DebugSharedData = struct {
     }
 };
 
-const objectCount = 4096;
+const objectCount = 2048;
 
 // Debug draw system also an example of how to do plugins in this engine
 pub const DebugDrawSubsystem = struct {
@@ -241,11 +241,14 @@ pub const DebugDrawSubsystem = struct {
     }
 
     pub fn sendShared(self: *@This(), frameIndex: u32) void {
+        var zone = tracy.ZoneN(@src(), "debug draw- uploading shared");
+        defer zone.End();
+        self.sharedData[frameIndex].lock.lock();
+        defer self.sharedData[frameIndex].lock.unlock();
+
         var offset: usize = 0;
         const count = self.debugDraws.count();
 
-        self.sharedData[frameIndex].lock.lock();
-        defer self.sharedData[frameIndex].lock.unlock();
         self.sharedData[frameIndex].drawsThisFrame.clearRetainingCapacity();
 
         while (offset < count) {
@@ -263,22 +266,25 @@ pub const DebugDrawSubsystem = struct {
 
     pub fn rtPostDraw(self: *@This(), rt: *graphics.RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
         _ = rt;
+        var zone = tracy.ZoneN(@src(), "Debug draw renderer");
+        defer zone.End();
         const shared: *DebugSharedData = &self.sharedData[frameIndex];
 
         shared.lock.lock();
         defer shared.lock.unlock();
 
+        var z1 = tracy.ZoneN(@src(), "Debug draw - ssbo upload");
+        // core.engine_log("count: {d}", .{shared.drawsThisFrame.items.len});
         for (shared.drawsThisFrame.items, 0..) |primitive, i| {
-            const transform = primitive.resolve();
-            const color = primitive.color;
-
             const object = &self.mappedBuffers[frameIndex].objects[i];
-            object.*.color = color;
-            object.*.model = transform;
+            object.*.color = primitive.color;
+            object.*.model = primitive.resolve();
         }
+        z1.End();
 
         var vkd = self.gc.vkd;
 
+        var z2 = tracy.ZoneN(@src(), "Debug draw - pipeline bind");
         vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
         var bindOffset: usize = 0;
 
@@ -290,6 +296,9 @@ pub const DebugDrawSubsystem = struct {
 
         vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
 
+        z2.End();
+
+        var z3 = tracy.ZoneN(@src(), "Debug draw - render");
         while (offset < count) : (offset += 1) {
             const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
             vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
@@ -310,6 +319,7 @@ pub const DebugDrawSubsystem = struct {
             vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
             vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
         }
+        z3.End();
     }
 
     pub fn postDraw(

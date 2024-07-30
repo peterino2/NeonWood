@@ -11,6 +11,8 @@ const tracy = @import("tracy");
 const p2 = @import("p2");
 const nfd = @import("nfd");
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 const Atomic = std.atomic.Value;
 const EngineDataEventError = engineObject.EngineDataEventError;
 
@@ -224,8 +226,7 @@ pub const Engine = struct {
             z.End();
         }
 
-        const systemsThreadTime = time.getEngineTime() - newTime;
-        math.rollingAverage(&self.systemsThreadTime, systemsThreadTime, @floatFromInt(self.averageFrameSampleWindow));
+        const systemsThreadTime: f64 = time.getEngineTime() - newTime;
 
         for (self.renderers.items) |*renderer| {
             var z = tracy.Zone(@src());
@@ -236,6 +237,7 @@ pub const Engine = struct {
             z.End();
         }
 
+        math.rollingAverage(&self.systemsThreadTime, systemsThreadTime, @floatFromInt(self.averageFrameSampleWindow));
         self.lastEngineTime = newTime;
     }
 
