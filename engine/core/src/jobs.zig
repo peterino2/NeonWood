@@ -53,10 +53,23 @@ pub const JobManager = struct {
             try self.jobQueueConcurrent.push(ctx);
         }
 
-        for (self.workers) |worker| {
-            if (!worker.isBusy()) {
-                worker.wake();
-                break;
+        self.bump();
+    }
+
+    pub fn bump(self: *@This()) void {
+        var shouldBump: bool = false;
+
+        if (mutex_job_queue) {
+            shouldBump = self.jobQueue.count() > 0;
+        } else {
+            shouldBump = self.jobQueueConcurrent.count() > 0;
+        }
+
+        if (shouldBump) {
+            for (self.workers) |worker| {
+                if (!worker.isBusy()) {
+                    worker.wake();
+                }
             }
         }
     }
@@ -133,12 +146,6 @@ pub const JobWorker = struct {
         return self.busy.load(.acquire);
     }
 
-    pub fn assignContext(self: *@This(), context: JobContext) !void {
-        self.busy.store(true, .seq_cst);
-        self.currentJobContext = context;
-        self.wake();
-    }
-
     pub fn workerThreadFunc(self: *@This()) void {
         const printed = std.fmt.allocPrintZ(self.allocator, "WorkerThread_{d}", .{self.workerId}) catch unreachable;
         tracy.InitThread();
@@ -146,14 +153,17 @@ pub const JobWorker = struct {
 
         self.allocator.free(printed);
 
+        var wakeGrabCount: u32 = 1;
+
         while (!self.shouldDie.load(.acquire)) {
             if (self.currentJobContext != null) {
+                wakeGrabCount = 0;
                 self.busy.store(true, .seq_cst);
                 var ctx = self.currentJobContext.?;
                 ctx.func(ctx.capture, &ctx);
-                ctx.deinit();
-                // self.currentJobContext = null;
                 self.busy.store(false, .seq_cst);
+                ctx.deinit();
+                self.currentJobContext = null;
             } else {
                 std.Thread.Futex.wait(&self.futex, self.current);
             }
@@ -167,6 +177,14 @@ pub const JobWorker = struct {
                     self.manager.?.mutex.unlock();
                 } else {
                     self.currentJobContext = manager.jobQueueConcurrent.pop();
+                    //while (wakeGrabCount > 0) : (wakeGrabCount -= 1) {
+                    //    self.currentJobContext = manager.jobQueueConcurrent.pop();
+                    //    if (self.currentJobContext != null) {
+                    //        break;
+                    //    }
+                    //    std.time.sleep(1000 * 1000);
+                    //}
+                    wakeGrabCount = 1;
                 }
             }
         }

@@ -337,7 +337,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         if (self.updateExtentIfDirty()) {
             try self.resizeToNewExtents();
 
-            std.time.sleep(32 * 1000 * 1000);
+            std.time.sleep(300 * 1000 * 1000);
         }
     }
     self.dynamicMeshManager.finishUpload() catch unreachable;
