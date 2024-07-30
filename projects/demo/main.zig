@@ -112,20 +112,22 @@ pub const GameContext = struct {
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        //var i: f32 = 0;
-        // while (i < 10000) : (i += 1) {
-        //     graphics.debugLine(
-        //         .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
-        //         .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
-        //         .{},
-        //     );
+        graphics.debugSphere(.{ .x = 0, .y = 0, .z = 0 }, 2.0, .{});
 
-        //     graphics.debugLine(
-        //         .{ .x = -1000 + i * 10, .y = 0, .z = -1000 },
-        //         .{ .x = -1000 + i * 10, .y = 0, .z = 1000 },
-        //         .{},
-        //     );
-        // }
+        var i: f32 = 0;
+        while (i < 10000) : (i += 1) {
+            graphics.debugLine(
+                .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
+                .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
+                .{},
+            );
+
+            graphics.debugLine(
+                .{ .x = -1000 + i * 10, .y = 0, .z = -1000 },
+                .{ .x = -1000 + i * 10, .y = 0, .z = 1000 },
+                .{},
+            );
+        }
         self.tickPanel(deltaTime) catch unreachable;
 
         if (fastTest) {

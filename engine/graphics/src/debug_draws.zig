@@ -9,6 +9,8 @@ const debug_frag = @import("debug_frag");
 const tracy = core.tracy;
 const gpd = graphics.gpu_pipe_data;
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 pub const DebugLine = struct {
     start: core.Vectorf,
     end: core.Vectorf,
@@ -98,6 +100,17 @@ const DebugPrimitiveGpu = struct {
     pad: [TargetSize - UnpaddedSize]u8 = std.mem.zeroes([TargetSize - UnpaddedSize]u8),
 };
 
+const DebugDrawSharedInstance = struct {};
+
+const DebugSharedData = struct {
+    drawsThisFrame: std.ArrayListUnmanaged(DebugPrimitive) = .{},
+    lock: std.Thread.Mutex = .{},
+
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+        self.drawsThisFrame.deinit(allocator);
+    }
+};
+
 const objectCount = 4096;
 
 // Debug draw system also an example of how to do plugins in this engine
@@ -116,6 +129,10 @@ pub const DebugDrawSubsystem = struct {
     mappedBuffers: []gpd.GpuMappingData(DebugPrimitiveGpu) = undefined,
     material: *graphics.Material = undefined,
     materialName: core.Name = core.MakeName("mat_debugsys"),
+
+    deltaTime: f64 = 0,
+
+    sharedData: [graphics.NumFrames]DebugSharedData = .{ .{}, .{} },
 
     const Primitives = [_]assets.AssetImportReference{
         assets.MakeImportRef("Mesh", "m_primitive_sphere", "meshes/primitive_sphere.obj"),
@@ -219,9 +236,80 @@ pub const DebugDrawSubsystem = struct {
         _ = frameIndex;
     }
 
+    pub fn tick(self: *@This(), dt: f64) void {
+        self.deltaTime = dt;
+    }
+
     pub fn sendShared(self: *@This(), frameIndex: u32) void {
-        _ = self;
-        _ = frameIndex;
+        var offset: usize = 0;
+        const count = self.debugDraws.count();
+
+        self.sharedData[frameIndex].lock.lock();
+        defer self.sharedData[frameIndex].lock.unlock();
+        self.sharedData[frameIndex].drawsThisFrame.clearRetainingCapacity();
+
+        while (offset < count) {
+            var primitive: DebugPrimitive = self.debugDraws.pop().?;
+            self.sharedData[frameIndex].drawsThisFrame.append(self.allocator, primitive) catch unreachable;
+
+            primitive.duration -= @as(f32, @floatCast(self.deltaTime));
+            offset += 1;
+            if (primitive.duration >= 0) {
+                // push this primitive so that it goes to the next frame
+                self.debugDraws.push(primitive) catch continue;
+            }
+        }
+    }
+
+    pub fn rtPostDraw(self: *@This(), rt: *graphics.RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+        _ = rt;
+        const shared: *DebugSharedData = &self.sharedData[frameIndex];
+
+        shared.lock.lock();
+        defer shared.lock.unlock();
+
+        for (shared.drawsThisFrame.items, 0..) |primitive, i| {
+            const transform = primitive.resolve();
+            const color = primitive.color;
+
+            const object = &self.mappedBuffers[frameIndex].objects[i];
+            object.*.color = color;
+            object.*.model = transform;
+        }
+
+        var vkd = self.gc.vkd;
+
+        vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+        var bindOffset: usize = 0;
+
+        var offset: usize = 0;
+        const count: usize = shared.drawsThisFrame.items.len;
+
+        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.NeonVkSceneDataGpu))));
+        var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
+
+        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
+
+        while (offset < count) : (offset += 1) {
+            const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
+            vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+
+            var mesh: *graphics.Mesh = undefined;
+            switch (primitive.primitive) {
+                .box => {
+                    mesh = self.meshes[2];
+                },
+                .sphere => {
+                    mesh = self.meshes[1];
+                },
+                .line => {
+                    mesh = self.meshes[0];
+                },
+            }
+
+            vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
+            vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
+        }
     }
 
     pub fn postDraw(
@@ -288,6 +376,9 @@ pub const DebugDrawSubsystem = struct {
         self.gc.allocator.free(self.mappedBuffers);
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
+        for (&self.sharedData) |*shared| {
+            shared.deinit(self.allocator);
+        }
         core.graphics_logs("shutting down debug draw system");
     }
 
@@ -300,9 +391,9 @@ pub const DebugDrawSubsystem = struct {
 var gDebugDrawSys: *DebugDrawSubsystem = undefined;
 
 pub fn init_debug_draw_subsystem() !void {
-    // gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = false });
-    // try gDebugDrawSys.prepareSubsystem(graphics.getContext());
-    // try graphics.registerRendererPlugin(gDebugDrawSys);
+    gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = true });
+    try gDebugDrawSys.prepareSubsystem(graphics.getContext());
+    try graphics.registerRendererPlugin(gDebugDrawSys);
 }
 
 pub fn shutdown() void {}
