@@ -21,7 +21,6 @@ pub const GameContext = struct {
 
     pub fn prepare_game(self: *@This()) !void {
         self.implot = c.ImPlot_CreateContext();
-        neonwood.ui.getContext().drawDebug = true;
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
@@ -39,5 +38,10 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    try neonwood.initializeAndRunStandardProgram(GameContext, .{ .programName = "imgui sample" });
+    try neonwood.initializeAndRunStandardProgram(GameContext, .{
+        .enabledModules = .{
+            .ui = false,
+            .papyrus = false,
+        },
+    });
 }

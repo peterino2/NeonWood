@@ -81,7 +81,7 @@ pub fn run_everything(comptime GameContext: type) !void {
     }
 }
 
-pub fn initializeAndRunStandardProgram(comptime GameContext: type) !void {
+pub fn initializeAndRunStandardProgram(comptime GameContext: type, comptime spec: anytype) !void {
     const args = try getArgs();
 
     var backingAllocator: std.mem.Allocator = std.heap.c_allocator;
@@ -113,8 +113,8 @@ pub fn initializeAndRunStandardProgram(comptime GameContext: type) !void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try start_everything(allocator, args);
-    defer start_everything(allocator);
+    try start_everything(spec, allocator, args);
+    defer shutdown_everything(allocator);
 
     try run_everything(GameContext);
 }

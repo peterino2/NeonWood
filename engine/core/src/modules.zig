@@ -14,7 +14,6 @@ pub fn isModuleEnabled(comptime module: ModuleDescription, comptime buildDescrip
     if (!@hasField(@TypeOf(buildDescription), "enabledModules")) {
         return module.enabledByDefault;
     } else if (@hasField(@TypeOf(buildDescription.enabledModules), module.name)) {
-        std.debug.print("using override\n", .{});
         return @field(buildDescription.enabledModules, module.name);
     } else {
         return module.enabledByDefault;

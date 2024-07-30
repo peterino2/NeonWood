@@ -328,7 +328,13 @@ pub fn main() anyerror!void {
     const allocator = tracker.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
-    try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
+    platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });
+    try nw.start_everything(.{
+        .enabledModules = .{
+            .vkImgui = false,
+        },
+    }, allocator, args);
     defer nw.shutdown_everything(allocator);
+
     try nw.run_everything(GameContext);
 }
