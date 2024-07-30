@@ -56,15 +56,20 @@ pub fn fs() *PackerFS {
     return gPackerFS;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) void {
-    _ = algorithm.createNameRegistry(allocator) catch unreachable;
-    gPackerFS = PackerFS.init(allocator, .{}) catch @panic("unable to initialize packerfs");
-    gEngine = allocator.create(Engine) catch unreachable;
-    gEngine.* = Engine.init(allocator) catch unreachable;
+pub const Module = ModuleDescription{
+    .name = "core",
+    .enabledByDefault = true,
+};
 
-    gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
+pub fn start_module(allocator: std.mem.Allocator) !void {
+    _ = try algorithm.createNameRegistry(allocator);
+    gPackerFS = try PackerFS.init(allocator, .{});
+    gEngine = try allocator.create(Engine);
+    gEngine.* = try Engine.init(allocator);
 
-    logging.setupLogging(gEngine) catch unreachable;
+    gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
+
+    try logging.setupLogging(gEngine);
 
     logs("core module starting up... ");
     return;
@@ -140,3 +145,7 @@ pub fn getEngineUptime() f64 {
     return getEngineTime() - gEngine.engineStartTime;
 }
 // pub fn removeBinding todo...
+
+pub const modules = @import("modules.zig");
+pub const isModuleEnabled = modules.isModuleEnabled;
+pub const ModuleDescription = modules.ModuleDescription;

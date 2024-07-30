@@ -20,7 +20,12 @@ pub const AsyncAssetJobContext = asset_jobs.AsyncAssetJobContext;
 
 pub var gAssetSys: *AssetReferenceSys = undefined;
 
-pub fn start_module(allocator: std.mem.Allocator) void {
+pub const Module = core.ModuleDescription{
+    .name = "assets",
+    .enabledByDefault = true,
+};
+
+pub fn start_module(allocator: std.mem.Allocator) !void {
     gAssetSys = allocator.create(AssetReferenceSys) catch @panic("unable to initialize asset reference");
     gAssetSys.* = AssetReferenceSys.init(allocator);
 

@@ -411,7 +411,9 @@ pub fn main() anyerror!void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try neonwood.start_everything_imgui(allocator, .{ .windowName = "NeonWood: ui" }, args);
+    platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });
+
+    try neonwood.start_everything(@import("spec.zig").spec, allocator, args);
     defer neonwood.shutdown_everything(allocator);
 
     _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);

@@ -2669,13 +2669,6 @@ pub const NeonVkContext = struct {
     }
 };
 
-pub var gWindowName: []const u8 = "NeonWood Sample Application";
-
-// must be called before graphics.start_module();
-pub fn setWindowName(newWindowName: []const u8) void {
-    gWindowName = newWindowName;
-}
-
 pub var gContext: *NeonVkContext = undefined;
 pub var gGraphicsStartupSettings: struct {
     maxObjectCount: u32 = MAX_OBJECTS,

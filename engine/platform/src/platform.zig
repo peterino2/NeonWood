@@ -8,11 +8,22 @@ pub usingnamespace @import("windowing.zig");
 pub const windowing = @import("windowing.zig");
 pub const glfw_defs = @import("glfw_defs.zig");
 
+pub const Module: core.ModuleDescription = .{
+    .name = "platform",
+    .enabledByDefault = true,
+};
+
 var gPlatformInstance: *windowing.PlatformInstance = undefined;
 
-pub fn start_module(allocator: std.mem.Allocator, params: windowing.PlatformParams) !void {
+var gStartupParams: windowing.PlatformParams = .{};
+
+pub fn setWindowSettings(params: windowing.PlatformParams) void {
+    gStartupParams = params;
+}
+
+pub fn start_module(allocator: std.mem.Allocator) !void {
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
-    gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, params);
+    gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, gStartupParams);
     try gPlatformInstance.setup();
 }
 

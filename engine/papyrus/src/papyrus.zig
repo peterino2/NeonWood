@@ -1209,3 +1209,8 @@ pub fn initialize(allocator: std.mem.Allocator) !*Context {
 pub fn deinitialize() void {
     gContext.deinit();
 }
+
+pub const Module = core.ModuleDescription{
+    .name = "papyrus",
+    .enabledByDefault = true,
+};

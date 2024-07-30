@@ -118,7 +118,6 @@ const DisplayTarget = struct {
 
         var z5 = tracy.ZoneN(@src(), "RT - destroy imageviews");
         vkd.destroyImageView(rt.dev, self.depthImageView, null);
-        core.graphics_logs("destryoing depth image");
         self.depthImage.deinit(rt.vkAllocator);
         z5.End();
     }
@@ -746,8 +745,6 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
         },
         .usage = .gpuOnly,
     };
-
-    core.graphics_logs("depth image created!!!!!");
 
     self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name ++ " depth Image - rt");
 

@@ -13,7 +13,7 @@ pub const sound_logs = soundEngine.sound_logs;
 pub var gSoundEngine: *NeonSoundEngine = undefined;
 pub var gSoundLoader: *soundEngine.SoundLoader = undefined;
 
-pub fn start_module(allocator: std.mem.Allocator) void {
+pub fn start_module(allocator: std.mem.Allocator) !void {
     gSoundEngine = core.gEngine.createObject(NeonSoundEngine, .{ .can_tick = true }) catch unreachable;
     gSoundLoader = allocator.create(soundEngine.SoundLoader) catch unreachable;
     gSoundLoader.* = soundEngine.SoundLoader.init(gSoundEngine);
@@ -25,6 +25,12 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     memory.MTPrintStatsDelta();
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     gSoundEngine.shutdown();
 }
+
+pub const Module = core.ModuleDescription{
+    .name = "audio",
+    .enabledByDefault = false,
+};

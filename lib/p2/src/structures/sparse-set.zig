@@ -4,7 +4,7 @@ const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // can be index by an 18 bit value, and 262144 of anything ought to be enough... right?
-pub const DefaultSparseSize = 262144;
+pub const DefaultSparseSize = 262144 * 4;
 
 pub fn SparseSet(comptime T: type) type {
     return SparseSetAdvanced(T, DefaultSparseSize);

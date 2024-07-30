@@ -12,6 +12,11 @@ pub const PapyrusSystem = @import("PapyrusIntegration.zig");
 
 var gPapyrus: *PapyrusSystem = undefined;
 
+pub const Module: core.ModuleDescription = .{
+    .name = "ui",
+    .enabledByDefault = true,
+};
+
 pub fn getSystem() *PapyrusSystem {
     return gPapyrus;
 }
@@ -28,6 +33,7 @@ pub fn start_module(allocator: std.mem.Allocator) !void {
     memory.MTPrintStatsDelta();
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     // gPapyrus.shutdown();
 }

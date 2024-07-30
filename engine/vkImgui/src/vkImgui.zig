@@ -22,6 +22,11 @@ pub const c = @cImport({
 
 const NeonVkContext = vk_renderer.NeonVkContext;
 
+pub const Module: core.ModuleDescription = .{
+    .name = "vkImgui",
+    .enabledByDefault = true,
+};
+
 // new imgui integration
 //
 // arather than call imgui newframe only during the draw step.

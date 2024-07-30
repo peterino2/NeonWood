@@ -44,7 +44,6 @@ pub const PixelPos = vk_renderer.PixelPos;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
-pub const setWindowName = vk_renderer.setWindowName;
 pub const NumFrames = constants.NUM_FRAMES;
 
 const engine_logs = core.engine_logs;
@@ -69,7 +68,7 @@ pub fn registerRendererPlugin(value: anytype) !void {
     try gc.rendererPlugins.append(gc.allocator, ref);
 }
 
-pub fn start_module(allocator: std.mem.Allocator) void {
+pub fn start_module(allocator: std.mem.Allocator) !void {
     engine_logs("graphics module starting up...");
 
     const context: *NeonVkContext = core.gEngine.createObject(
@@ -85,7 +84,8 @@ pub fn start_module(allocator: std.mem.Allocator) void {
     memory.MTPrintStatsDelta();
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     engine_logs("graphics module shutting down...");
     vk_renderer.gContext.shutdown();
 }
@@ -137,3 +137,8 @@ pub fn start_gles(allocator: std.mem.Allocator) void {
 pub fn shutdown_gles(allocator: std.mem.Allocator) void {
     gles_renderer.shutdown(allocator);
 }
+
+pub const Module = core.ModuleDescription{
+    .name = "graphics",
+    .enabledByDefault = true,
+};

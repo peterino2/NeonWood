@@ -1,11 +1,13 @@
+pub const core = @import("core");
+pub const platform = @import("platform");
 pub const assets = @import("assets");
 pub const audio = @import("audio");
-pub const core = @import("core");
 pub const graphics = @import("graphics");
-pub const platform = @import("platform");
+pub const vkImgui = @import("vkImgui");
 pub const papyrus = @import("papyrus");
 pub const ui = @import("ui");
-pub const vkImgui = @import("vkImgui");
+
+const modulelist = @import("modulelist.zig").list;
 
 const std = @import("std");
 
@@ -22,7 +24,36 @@ pub fn getArgs() !NwArgs {
     return a;
 }
 
-pub fn start_everything_imgui(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams, maybeArgs: ?NwArgs) !void {
+// entry function for a neonwood program
+// when this function is called it will use the settings specified by the program spec
+// to conditionally start up feature modules within the engine
+
+var shutdownList: std.ArrayListUnmanaged(*const fn (std.mem.Allocator) void) = .{};
+
+pub fn start_modules(comptime programSpec: anytype, allocator: std.mem.Allocator) !void {
+    const NeonWood = @This();
+
+    inline for (modulelist) |feature| {
+        if (@hasDecl(NeonWood, feature)) {
+            const Struct = @field(NeonWood, feature);
+            if (comptime core.isModuleEnabled(Struct.Module, programSpec)) {
+                try Struct.start_module(allocator);
+                try shutdownList.append(allocator, Struct.shutdown_module);
+                core.engine_logs("module started >>>> " ++ feature ++ " <<<<");
+            }
+        }
+    }
+}
+
+pub fn shutdown_modules(allocator: std.mem.Allocator) void {
+    var i: isize = @intCast(shutdownList.items.len - 1);
+    while (i >= 0) : (i -= 1) {
+        shutdownList.items[@intCast(i)](allocator);
+    }
+    shutdownList.deinit(allocator);
+}
+
+pub fn start_everything(comptime spec: anytype, allocator: std.mem.Allocator, maybeArgs: ?NwArgs) !void {
     if (maybeArgs) |args| {
         if (args.renderThread)
             graphics.setStartupSettings("useSeperateRenderThread", true);
@@ -30,54 +61,11 @@ pub fn start_everything_imgui(allocator: std.mem.Allocator, params: platform.win
             graphics.setStartupSettings("vulkanValidation", true);
     }
 
-    graphics.setWindowName(params.windowName);
-
-    core.engine_log("Starting up", .{});
-    core.start_module(allocator); // 1
-    try platform.start_module(allocator, params); // 2
-    assets.start_module(allocator); // 3
-    // audio.start_module(allocator); //4
-    graphics.start_module(allocator); //5
-    try ui.start_module(allocator); //6
-    try vkImgui.start_module(allocator); //7 vkImgui doesn't work in the renderthread implementation yet
-}
-
-pub fn shutdown_everything_imgui(allocator: std.mem.Allocator) void {
-    vkImgui.shutdown_module(allocator); //7
-    ui.shutdown_module(); //6
-    graphics.shutdown_module(); //5
-    // audio.shutdown_module(); //4
-    assets.shutdown_module(allocator); //3
-    platform.shutdown_module(allocator); //2
-    core.shutdown_module(allocator); // 1
-}
-
-pub fn start_everything(allocator: std.mem.Allocator, params: platform.windowing.PlatformParams, maybeArgs: ?NwArgs) !void {
-    if (maybeArgs) |args| {
-        if (args.renderThread)
-            graphics.setStartupSettings("useSeperateRenderThread", true);
-        if (args.vulkanValidation)
-            graphics.setStartupSettings("vulkanValidation", true);
-    }
-
-    graphics.setWindowName(params.windowName);
-
-    core.engine_log("Starting up", .{});
-    core.start_module(allocator); // 1
-    try platform.start_module(allocator, params); // 2
-    assets.start_module(allocator); // 3
-    // audio.start_module(allocator); //4
-    graphics.start_module(allocator); //5
-    try ui.start_module(allocator); //6
+    try start_modules(spec, allocator);
 }
 
 pub fn shutdown_everything(allocator: std.mem.Allocator) void {
-    ui.shutdown_module(); //6
-    graphics.shutdown_module(); //5
-    // audio.shutdown_module(); //4
-    assets.shutdown_module(allocator); //3
-    platform.shutdown_module(allocator); //2
-    core.shutdown_module(allocator); // 1
+    shutdown_modules(allocator);
 }
 
 pub fn run_everything(comptime GameContext: type) !void {
@@ -93,11 +81,7 @@ pub fn run_everything(comptime GameContext: type) !void {
     }
 }
 
-const StandardProgramOptions = struct {
-    programName: []const u8,
-};
-
-pub fn initializeAndRunStandardProgram(comptime GameContext: type, opts: StandardProgramOptions) !void {
+pub fn initializeAndRunStandardProgram(comptime GameContext: type) !void {
     const args = try getArgs();
 
     var backingAllocator: std.mem.Allocator = std.heap.c_allocator;
@@ -129,8 +113,8 @@ pub fn initializeAndRunStandardProgram(comptime GameContext: type, opts: Standar
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try start_everything_imgui(allocator, .{ .windowName = opts.programName }, args);
-    defer shutdown_everything_imgui(allocator);
+    try start_everything(allocator, args);
+    defer start_everything(allocator);
 
     try run_everything(GameContext);
 }

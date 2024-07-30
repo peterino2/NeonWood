@@ -322,8 +322,6 @@ pub const TextRenderer = struct {
             .small_limit = 512,
         };
 
-        std.debug.print("text renderer initialized", .{});
-
         self.allocator = self.arena.allocator();
 
         var new = try self.allocator.create(FontAtlasVk);
