@@ -4,7 +4,7 @@ const ArrayList = std.ArrayList;
 const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // can be index by an 18 bit value, and 262144 of anything ought to be enough... right?
-pub const DefaultSparseSize = 262144 * 4;
+pub const DefaultSparseSize = 262144;
 
 pub fn SparseSet(comptime T: type) type {
     return SparseSetAdvanced(T, DefaultSparseSize);
@@ -23,12 +23,15 @@ pub const SetHandle = packed struct {
     }
 };
 
-// a replacement for SparseSet, that's more cache efficent. ( and in many cases results in
-// memory savings as well)
-
 pub fn SparseMultiSet(comptime T: type) type {
     return SparseMultiSetAdvanced(T, DefaultSparseSize);
 }
+
+pub const ContainerListener = struct {
+    ptr: *anyopaque,
+    onHandleRemoved: *const fn (*anyopaque, u32, SetHandle) void,
+    onHandleAdded: *const fn (*anyopaque, u32, SetHandle) void,
+};
 
 // works by converting a datastructure into an AOS type.
 pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
@@ -37,8 +40,10 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         allocator: std.mem.Allocator,
         denseIndices: ArrayListUnmanaged(SetHandle),
-        dense: SetType, // this is an unmanaged collection
+        dense: SetType,
         sparse: []SetHandle,
+        containerID: u32 = 0,
+        containerListener: ?ContainerListener = null,
 
         pub const Field = SetType.Field;
         pub const Slice = SetType.Slice;
@@ -118,6 +123,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         // the idea behind a sparse array is that the sethandle is
         // highly stable.
+        // if this container is registered as part of an ECS, this is unsafe to call directly
         pub fn createObject(self: *@This(), initValue: T) !SetHandle {
             var newSparseIndex = newRandomIndex();
 
@@ -149,6 +155,10 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             try self.denseIndices.append(self.allocator, setHandle);
             try self.dense.append(self.allocator, initValue);
             std.debug.assert(self.sparse[newSparseIndex].index < self.dense.len);
+
+            if (self.containerListener) |l| {
+                l.onHandleAdded(l.ptr, @intCast(self.containerID), setHandle);
+            }
 
             return setHandle;
         }
@@ -185,6 +195,10 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             _ = self.denseIndices.swapRemove(denseIndex);
             self.sparse[@as(usize, @intCast(handle.index))].alive = false;
 
+            if (self.containerListener) |l| {
+                l.onHandleRemoved(l.ptr, self.containerID, handle);
+            }
+
             return true;
         }
 
@@ -198,6 +212,29 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
             return rand.int(IndexType) % @as(IndexType, @intCast(SparseSize));
         }
+
+        // ecs interface
+
+        pub const EcsContainerInterfaceVTable = EcsContainerInterface.Implement(@This());
+
+        pub fn handleExists(self: @This(), handle: SetHandle) bool {
+            return self.sparseToDense(handle) != null;
+        }
+
+        pub fn getContainerID(self: @This()) u32 {
+            return self.containerID;
+        }
+
+        pub fn onRegister(self: *@This(), id: u32, listener: ContainerListener) void {
+            self.containerID = id;
+            self.containerListener = listener;
+        }
+
+        pub fn evictFromRegistry(self: *@This()) void {
+            self.containerListener = null;
+        }
+
+        pub const ContainerTypeName = "SparseMultiSet";
     };
 }
 
@@ -212,6 +249,9 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             sparseIndex: IndexType,
         }),
         sparse: []SetHandle,
+
+        containerID: u32 = 0,
+        containerListener: ?ContainerListener = null,
 
         pub fn handleFromSparseIndex(self: @This(), sparseIndex: IndexType) SetHandle {
             var handle: SetHandle = self.sparse[@as(usize, @intCast(sparseIndex))];
@@ -282,6 +322,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
             _ = self.dense.swapRemove(denseIndex);
             self.sparse[@as(usize, @intCast(handle.index))].alive = false;
+
+            if (self.containerListener) |l| {
+                l.onHandleRemoved(l.ptr, self.containerID, handle);
+            }
         }
 
         var prng = std.rand.DefaultPrng.init(0x1234);
@@ -378,6 +422,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 .handle = setHandle,
             };
 
+            if (self.containerListener) |l| {
+                l.onHandleAdded(l.ptr, self.containerID, setHandle);
+            }
+
             return rv;
         }
 
@@ -398,5 +446,74 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             self.allocator.free(self.sparse);
             self.dense.deinit(self.allocator);
         }
+
+        pub const EcsContainerInterfaceVTable = EcsContainerInterface.Implement(@This());
+
+        pub fn handleExists(self: @This(), handle: SetHandle) bool {
+            return self.sparseToDense(handle) != null;
+        }
+
+        pub fn getContainerID(self: @This()) u32 {
+            return self.containerID;
+        }
+
+        pub fn onRegister(self: *@This(), id: u32, listener: ContainerListener) void {
+            self.containerID = id;
+            self.containerListener = listener;
+        }
+
+        // might never need to call this one...
+        pub fn evictFromRegistry(self: *@This()) void {
+            self.containerListener = null;
+        }
+
+        pub const ContainerTypeName = "SparseSet";
     };
 }
+
+const interface = @import("interface.zig");
+
+pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterfaceVTable", struct {
+    containerTypeName: []const u8,
+    handleExists: *const fn (*const anyopaque, SetHandle) bool,
+    getContainerID: *const fn (*const anyopaque) u32,
+    onRegister: *const fn (*anyopaque, u32, ContainerListener) void,
+    evictFromRegistry: *const fn (*anyopaque) void,
+
+    pub const Reference = struct {
+        vtable: *const @This(),
+        ptr: *anyopaque,
+    };
+
+    pub fn Implement(comptime TargetType: type) @This() {
+        const Wrap = struct {
+            pub fn handleExists(p: *const anyopaque, handle: SetHandle) bool {
+                var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
+                return ptr.handleExists(handle);
+            }
+
+            pub fn getContainerID(p: *const anyopaque) u32 {
+                var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
+                return ptr.getContainerID();
+            }
+
+            pub fn onRegister(p: *anyopaque, id: u32, listener: ContainerListener) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                return ptr.onRegister(id, listener);
+            }
+
+            pub fn evictFromRegistry(p: *anyopaque) void {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                return ptr.evictFromRegistry();
+            }
+        };
+
+        return .{
+            .containerTypeName = TargetType.ContainerTypeName,
+            .handleExists = Wrap.handleExists,
+            .getContainerID = Wrap.getContainerID,
+            .onRegister = Wrap.onRegister,
+            .evictFromRegistry = Wrap.evictFromRegistry,
+        };
+    }
+});

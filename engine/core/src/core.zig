@@ -52,6 +52,9 @@ var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
 
+pub const ecs = @import("ecs.zig");
+pub usingnamespace ecs;
+
 pub fn fs() *PackerFS {
     return gPackerFS;
 }
@@ -61,24 +64,27 @@ pub const Module = ModuleDescription{
     .enabledByDefault = true,
 };
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     _ = try algorithm.createNameRegistry(allocator);
     gPackerFS = try PackerFS.init(allocator, .{});
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
-
     gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
 
     try logging.setupLogging(gEngine);
+
+    try ecs.setup(allocator);
 
     logs("core module starting up... ");
     return;
 }
 
-pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    _ = allocator;
+pub fn shutdown_module(_: std.mem.Allocator) void {
     logs("core module shutting down...");
     logging.shutdownLogging();
+    ecs.shutdown();
 
     algorithm.destroyNameRegistry();
     gEngine.deinit();

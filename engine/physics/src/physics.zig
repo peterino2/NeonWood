@@ -8,7 +8,9 @@ pub const Module: core.ModuleDescription = .{
     .enabledByDefault = false,
 };
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     _ = allocator;
 }
 

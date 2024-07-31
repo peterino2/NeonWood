@@ -21,7 +21,9 @@ pub fn setWindowSettings(params: windowing.PlatformParams) void {
     gStartupParams = params;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, gStartupParams);
     try gPlatformInstance.setup();

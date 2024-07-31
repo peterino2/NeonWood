@@ -25,7 +25,9 @@ pub const Module = core.ModuleDescription{
     .enabledByDefault = true,
 };
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime spec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = spec;
     gAssetSys = allocator.create(AssetReferenceSys) catch @panic("unable to initialize asset reference");
     gAssetSys.* = AssetReferenceSys.init(allocator);
 

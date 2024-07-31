@@ -4,8 +4,9 @@ pub const assets = @import("assets");
 pub const audio = @import("audio");
 pub const graphics = @import("graphics");
 pub const vkImgui = @import("vkImgui");
-pub const papyrus = @import("papyrus");
 pub const ui = @import("ui");
+
+pub const papyrus = @import("papyrus");
 
 const modulelist = @import("modulelist.zig").list;
 
@@ -30,14 +31,14 @@ pub fn getArgs() !NwArgs {
 
 var shutdownList: std.ArrayListUnmanaged(*const fn (std.mem.Allocator) void) = .{};
 
-pub fn start_modules(comptime programSpec: anytype, allocator: std.mem.Allocator) !void {
+pub fn start_modules(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     const NeonWood = @This();
 
     inline for (modulelist) |feature| {
         if (@hasDecl(NeonWood, feature)) {
             const Struct = @field(NeonWood, feature);
             if (comptime core.isModuleEnabled(Struct.Module, programSpec)) {
-                try Struct.start_module(allocator);
+                try Struct.start_module(programSpec, args, allocator);
                 try shutdownList.append(allocator, Struct.shutdown_module);
                 core.engine_logs("module started >>>> " ++ feature ++ " <<<<");
             }
@@ -61,7 +62,7 @@ pub fn start_everything(comptime spec: anytype, allocator: std.mem.Allocator, ma
             graphics.setStartupSettings("vulkanValidation", true);
     }
 
-    try start_modules(spec, allocator);
+    try start_modules(spec, maybeArgs, allocator);
 }
 
 pub fn shutdown_everything(allocator: std.mem.Allocator) void {

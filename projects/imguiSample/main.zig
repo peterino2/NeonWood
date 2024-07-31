@@ -6,7 +6,7 @@ const vkImgui = neonwood.vkImgui;
 const c = vkImgui.c;
 
 pub const GameContext = struct {
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     allocator: std.mem.Allocator,
     showDemoWindow: bool = true,
@@ -39,6 +39,7 @@ pub const GameContext = struct {
 
 pub fn main() anyerror!void {
     try neonwood.initializeAndRunStandardProgram(GameContext, .{
+        .name = "imguiSample",
         .enabledModules = .{
             .ui = false,
             .papyrus = false,

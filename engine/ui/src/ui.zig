@@ -25,7 +25,9 @@ pub fn getContext() *papyrus.Context {
     return gPapyrus.papyrusCtx;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     _ = allocator;
     gPapyrus = try core.gEngine.createObject(PapyrusSystem, .{ .can_tick = true });
     try gPapyrus.setup(graphics.getContext());

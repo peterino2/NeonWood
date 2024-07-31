@@ -6,7 +6,7 @@ const engineObject = @import("engineObject.zig");
 
 pub const InputSubsystem = struct {
     const Self = @This();
-    pub var NeonObjectTable: engineObject.RttiData = engineObject.RttiData.from(Self);
+    pub var NeonObjectTable: engineObject.EngineObjectVTable = engineObject.EngineObjectVTable.from(Self);
 
     allocator: std.mem.Allocator,
 

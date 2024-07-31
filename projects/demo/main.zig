@@ -37,7 +37,7 @@ const AssetReferences = [_]assets.AssetImportReference{
 // basic engine onboarding
 pub const GameContext = struct {
     const Self = @This();
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(Self);
 
     camera: graphics.Camera,
     allocator: std.mem.Allocator,
@@ -112,7 +112,7 @@ pub const GameContext = struct {
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        graphics.debugSphere(.{ .x = 0, .y = 0, .z = 0 }, 2.0, .{});
+        graphics.debugSphere(.{ .x = 0, .y = 0, .z = 0 }, 1.0, .{});
 
         var i: f32 = 0;
         while (i < 10000) : (i += 1) {
@@ -175,6 +175,28 @@ pub const GameContext = struct {
             .material_name = core.MakeName("t_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
+
+        const objHandle2 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_sphere"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(0, 0, 0),
+        });
+
+        _ = objHandle2;
+
+        const objHandle3 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_sphere"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(5, 0, 0),
+        });
+        _ = objHandle3;
+
+        const objHandle4 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_line"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(5, 0, 0),
+        });
+        _ = objHandle4;
 
         var ctx = ui.getContext();
 

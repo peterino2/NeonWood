@@ -118,7 +118,7 @@ pub const DebugDrawSubsystem = struct {
 
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     // Member functions
     allocator: std.mem.Allocator,
@@ -188,7 +188,7 @@ pub const DebugDrawSubsystem = struct {
         try pipelineBuilder.add_layout(self.pipeData.descriptorSetLayout);
         try pipelineBuilder.add_depth_stencil();
         pipelineBuilder.set_polygon_mode(.line);
-        pipelineBuilder.set_topology(.line_list);
+        pipelineBuilder.set_topology(.triangle_list);
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 
         const materialName = self.materialName;

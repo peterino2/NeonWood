@@ -119,7 +119,7 @@ pub const SceneObjectInitParams = union(enum) {
 const SceneSet = core.SparseMultiSet(SceneObject);
 
 pub const SceneSystem = struct {
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     allocator: std.mem.Allocator,
     objects: SceneSet,

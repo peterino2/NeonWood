@@ -22,7 +22,7 @@ const Texture = texture.Texture;
 
 pub const TextureLoader = struct {
     pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     const StagedTextureDescription = struct {
         name: core.Name,
@@ -186,7 +186,7 @@ pub const TextureLoader = struct {
         const self = try allocator.create(@This());
         self.* = .{
             .gc = vk_renderer.gContext,
-            //todo: the RttiData init function should have a handleable error
+            //todo: the EngineObjectVTable init function should have a handleable error
             .assetsReady = core.RingQueue(StagedTextureDescription).init(allocator, 1024) catch unreachable,
             .rtAssetsReady = core.RingQueue(RTAssetsReady).init(allocator, 1024) catch unreachable,
         };
@@ -207,7 +207,7 @@ pub const TextureLoader = struct {
 
 pub const MeshLoader = struct {
     pub var LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
     gc: *NeonVkContext,
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {

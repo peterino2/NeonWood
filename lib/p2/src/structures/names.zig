@@ -129,8 +129,8 @@ pub fn MakeName(string: []const u8) Name {
 }
 
 pub const Name = struct {
-    index: ?u32 = 0,
-    string: []const u8 = "Invalid",
+    index: ?u32 = 0, // do not directly access
+    string: []const u8 = "Invalid", // do not directly access
 
     pub fn MakeComptime(string: []const u8) @This() {
         return .{ .index = null, .string = string };

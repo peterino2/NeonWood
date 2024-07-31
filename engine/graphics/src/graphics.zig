@@ -4,6 +4,7 @@ const memory = core.MemoryTracker;
 pub const vk_renderer = @import("vk_renderer.zig");
 const materials = @import("materials.zig");
 
+pub const graphics_ecs = @import("graphics_ecs.zig");
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
 
@@ -68,7 +69,9 @@ pub fn registerRendererPlugin(value: anytype) !void {
     try gc.rendererPlugins.append(gc.allocator, ref);
 }
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     engine_logs("graphics module starting up...");
 
     const context: *NeonVkContext = core.gEngine.createObject(
@@ -77,6 +80,7 @@ pub fn start_module(allocator: std.mem.Allocator) !void {
     ) catch unreachable;
 
     vk_renderer.gContext = context;
+    try graphics_ecs.registerEcs();
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
 

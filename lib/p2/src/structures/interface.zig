@@ -16,7 +16,7 @@ pub fn Reference(comptime Interface: type) type {
     };
 }
 
-pub fn refFromPtr(comptime Interface: type, ptr: anytype) Reference(Interface) {
+pub inline fn refFromPtr(comptime Interface: type, ptr: anytype) Reference(Interface) {
     return .{
         .ptr = @ptrCast(ptr),
         .vtable = @field(@TypeOf(ptr.*), Interface.VTableDeclName),
