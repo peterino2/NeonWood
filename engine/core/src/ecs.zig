@@ -64,6 +64,8 @@ pub const EcsRegistry = struct {
             self.containerNames.items[containerID].utf8(),
             containerID,
         });
+
+        self.baseSet.get(handle).?.containersCount -= 1;
     }
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
@@ -73,6 +75,12 @@ pub const EcsRegistry = struct {
             self.containerNames.items[containerID].utf8(),
             containerID,
         });
+
+        if (self.baseSet.get(handle)) |obj| {
+            obj.containersCount += 1;
+        } else {
+            _ = self.baseSet.createWithHandle(handle, .{ .containersCount = 1 }) catch unreachable;
+        }
     }
 
     pub fn destroy(self: *@This()) void {

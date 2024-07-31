@@ -241,6 +241,8 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 // A quick little sparse set implementation, this feeds the core of the
 // ECS. A sparse set provides Constant time random access to a range of objects through stable handles
 // While providing dense memory locality for iterating.
+//
+// should probably never use this one outside of the base-set for checking entity existence.
 pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -265,7 +267,6 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 .dense = .{},
                 .sparse = allocator.alloc(SetHandle, SparseSize) catch unreachable,
             };
-            std.debug.print("sparseLen: {d}\n", .{self.sparse.len});
 
             for (self.sparse, 0..) |_, i| {
                 self.sparse[i] = .{ .generation = 0, .index = 0x0, .alive = false };
@@ -381,7 +382,6 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         // Will fail if the handle already exists.
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !ConstructResult {
-            std.debug.print("creating set with handle: {any}\n", .{handle});
             var currentDenseHandle = self.sparse[handle.index];
             if (currentDenseHandle.alive) {
                 return error.ObjectAlreadyExists;
@@ -389,10 +389,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             currentDenseHandle.generation = handle.generation;
             currentDenseHandle.alive = true;
 
-            return try self.createAndGetInteral(currentDenseHandle, handle.index, initValue, false);
+            return try self.createAndGetInternal(currentDenseHandle, handle.index, initValue, false);
         }
 
-        fn createAndGetInteral(self: *@This(), denseHandle: SetHandle, sparseIndex: IndexType, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
+        fn createAndGetInternal(self: *@This(), denseHandle: SetHandle, sparseIndex: IndexType, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
             const newDenseIndex = self.dense.items.len;
             try self.dense.append(self.allocator, .{
                 .value = initValue,
@@ -471,6 +471,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
     };
 }
 
+// slowih look-up, fast-ish iteration time,
+// very little memory overhead, stable pointers
+// good all-around choice if you have a small
+// number of these objects around, and the object itself is quite big.
 pub fn SparseMap(comptime T: type) type {
     return struct {
         backingAllocator: std.mem.Allocator,
