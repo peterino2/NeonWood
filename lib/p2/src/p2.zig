@@ -29,6 +29,7 @@ pub const RingQueue = ring_queue.RingQueue;
 pub const sparse_set = @import("structures/sparse-set.zig");
 
 pub const SparseSet = sparse_set.SparseSet;
+pub const SparseMap = sparse_set.SparseMap;
 pub const SparseMultiSet = sparse_set.SparseMultiSet;
 pub const SparseSetAdvanced = sparse_set.SparseSetAdvanced;
 pub const SparseMultiSetAdvanced = sparse_set.SparseMultiSetAdvanced;

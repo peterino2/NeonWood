@@ -471,6 +471,93 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
     };
 }
 
+pub fn SparseMap(comptime T: type) type {
+    return struct {
+        backingAllocator: std.mem.Allocator,
+        arena: std.heap.ArenaAllocator,
+
+        map: std.AutoHashMapUnmanaged(SetHandle, *T) = .{},
+        listEntriesByHandle: std.AutoHashMapUnmanaged(SetHandle, u32) = .{},
+        list: std.ArrayListUnmanaged(*T) = .{},
+        containerID: u32 = 0,
+        containerListener: ?ContainerListener = null,
+
+        pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
+            const self = try backingAllocator.create(@This());
+
+            self.* = .{
+                .arena = std.heap.ArenaAllocator.init(backingAllocator),
+                .backingAllocator = backingAllocator,
+            };
+
+            return self;
+        }
+
+        pub fn destroyObject(self: *@This(), handle: SetHandle) void {
+            std.debug.assert(!self.map.contains(handle));
+            const alloc = self.allocator();
+            const index = self.listEntriesByHandle.get(handle).?;
+            self.map.get(handle).?.destroy(alloc);
+
+            _ = self.map.remove(alloc, handle);
+            _ = self.listEntriesByHandle.remove(alloc, handle);
+            _ = self.list.swapRemove(index);
+        }
+
+        pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !*T {
+            std.debug.assert(!self.map.contains(handle));
+            const alloc = self.allocator();
+
+            const new = try alloc.create(T);
+            new.* = initValue;
+
+            try self.map.put(alloc, handle, new);
+            try self.list.append(alloc, new);
+            try self.listEntriesByHandle.put(alloc, handle, @intCast(self.list.items.len));
+
+            if (self.containerListener) |l| {
+                l.onHandleAdded(l.ptr, self.containerID, handle);
+            }
+
+            return new;
+        }
+
+        pub fn allocator(self: *@This()) std.mem.Allocator {
+            return self.arena.allocator();
+        }
+
+        pub fn destroy(self: *@This()) void {
+            self.arena.deinit();
+            self.backingAllocator.destroy(self);
+        }
+
+        // == interface below ==
+
+        pub const EcsContainerInterfaceVTable = EcsContainerInterface.Implement(@This());
+
+        pub fn handleExists(self: @This(), handle: SetHandle) bool {
+            return self.map.contains(handle);
+        }
+
+        pub fn getContainerID(self: @This()) u32 {
+            return self.containerID;
+        }
+
+        pub fn onRegister(self: *@This(), id: u32, listener: ContainerListener) void {
+            self.containerID = id;
+            self.containerListener = listener;
+        }
+
+        // might never need to call this one...
+        pub fn evictFromRegistry(self: *@This()) void {
+            self.containerListener = null;
+        }
+
+        pub const ContainerTypeName = "SparseMap";
+    };
+}
+
+// this is quickly becoming the ecs containers file
 const interface = @import("interface.zig");
 
 pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterfaceVTable", struct {

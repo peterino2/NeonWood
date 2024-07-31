@@ -80,7 +80,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     ) catch unreachable;
 
     vk_renderer.gContext = context;
-    try graphics_ecs.registerEcs();
+    try graphics_ecs.registerEcs(allocator);
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
@@ -91,6 +91,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
     engine_logs("graphics module shutting down...");
+    graphics_ecs.shutdownEcs();
     vk_renderer.gContext.shutdown();
 }
 

@@ -1,29 +1,24 @@
-// list of system interfaces...
-// hmm...
-//
-// what if the actual system interfaces are implemented at the target sites...
-//
-// and there was a hook within each sparse multi-set and
-// sparse set
-//
-
-const std = @import("std");
-const p2 = @import("p2");
-const core = @import("core.zig");
-
-pub const EcsContainerInterface = p2.EcsContainerInterface;
-pub const EcsContainerRef = p2.Reference(EcsContainerInterface);
-pub fn makeEcsContainerRef(ptr: anytype) EcsContainerRef {
-    return p2.refFromPtr(EcsContainerInterface, ptr);
-}
-
 var gEcsRegistry: *EcsRegistry = undefined;
 
-pub const EcsEntry = struct {
-    containersCount: u32 = 0,
-};
+pub fn createEntity() !core.ObjectHandle {
+    return try gEcsRegistry.baseSet.createObject(.{});
+}
 
-pub const BaseSet = p2.SparseSet(EcsEntry);
+pub fn setup(allocator: std.mem.Allocator) !void {
+    gEcsRegistry = try EcsRegistry.create(allocator);
+}
+
+pub fn shutdown() void {
+    gEcsRegistry.destroy();
+}
+
+pub fn getRegistry() *EcsRegistry {
+    return gEcsRegistry;
+}
+
+pub fn registerEcsContainer(ref: EcsContainerRef, name: core.Name) !void {
+    try gEcsRegistry.registerContainer(ref, name);
+}
 
 // only thing this is meant to do is to provide a central place to construct and destroy objects
 pub const EcsRegistry = struct {
@@ -84,6 +79,7 @@ pub const EcsRegistry = struct {
         for (self.containers.items) |ref| {
             ref.vtable.evictFromRegistry(ref.ptr);
         }
+        self.baseSet.deinit();
         self.containers.deinit(self.allocator);
         self.containerNames.deinit(self.allocator);
         self.containersByName.deinit(self.allocator);
@@ -91,18 +87,18 @@ pub const EcsRegistry = struct {
     }
 };
 
-pub fn setup(allocator: std.mem.Allocator) !void {
-    gEcsRegistry = try EcsRegistry.create(allocator);
+const std = @import("std");
+const p2 = @import("p2");
+const core = @import("core.zig");
+
+pub const EcsContainerInterface = p2.EcsContainerInterface;
+pub const EcsContainerRef = p2.Reference(EcsContainerInterface);
+pub fn makeEcsContainerRef(ptr: anytype) EcsContainerRef {
+    return p2.refFromPtr(EcsContainerInterface, ptr);
 }
 
-pub fn shutdown() void {
-    gEcsRegistry.destroy();
-}
+pub const EcsEntry = struct {
+    containersCount: u32 = 0,
+};
 
-pub fn getRegistry() *EcsRegistry {
-    return gEcsRegistry;
-}
-
-pub fn registerEcsContainer(ref: EcsContainerRef, name: core.Name) !void {
-    try gEcsRegistry.registerContainer(ref, name);
-}
+pub const BaseSet = p2.SparseSet(EcsEntry);
