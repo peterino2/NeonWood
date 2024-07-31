@@ -164,7 +164,6 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         }
 
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !SetHandle {
-            // std.debug.print("creating set with handle: {any}\n", .{handle});
             const currentDenseHandle = self.sparse[handle.index];
             if (currentDenseHandle.alive) {
                 return error.ObjectAlreadyExists;
@@ -281,6 +280,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         pub fn getDense(self: *@This(), offset: usize) *T {
             return &self.dense.items[offset].value;
+        }
+
+        pub fn count(self: @This()) usize {
+            return self.dense.items.len;
         }
 
         pub fn sparseToDense(self: @This(), handle: SetHandle) ?usize {
@@ -498,14 +501,19 @@ pub fn SparseMap(comptime T: type) type {
         }
 
         pub fn destroyObject(self: *@This(), handle: SetHandle) void {
-            std.debug.assert(!self.map.contains(handle));
+            std.debug.assert(self.map.contains(handle));
             const alloc = self.allocator();
             const index = self.listEntriesByHandle.get(handle).?;
-            self.map.get(handle).?.destroy(alloc);
 
-            _ = self.map.remove(alloc, handle);
-            _ = self.listEntriesByHandle.remove(alloc, handle);
+            alloc.destroy(self.map.get(handle).?);
+
+            _ = self.map.remove(handle);
+            _ = self.listEntriesByHandle.remove(handle);
             _ = self.list.swapRemove(index);
+
+            if (self.containerListener) |l| {
+                l.onHandleRemoved(l.ptr, self.containerID, handle);
+            }
         }
 
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !*T {
@@ -517,7 +525,7 @@ pub fn SparseMap(comptime T: type) type {
 
             try self.map.put(alloc, handle, new);
             try self.list.append(alloc, new);
-            try self.listEntriesByHandle.put(alloc, handle, @intCast(self.list.items.len));
+            try self.listEntriesByHandle.put(alloc, handle, @intCast(self.list.items.len - 1));
 
             if (self.containerListener) |l| {
                 l.onHandleAdded(l.ptr, self.containerID, handle);

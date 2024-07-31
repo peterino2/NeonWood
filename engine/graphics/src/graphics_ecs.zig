@@ -21,14 +21,11 @@ pub fn registerEcs(allocator: std.mem.Allocator) !void {
     gEcs.allocator = allocator;
     gEcs.cameras = try CameraContainer.create(allocator);
 
+    try core.registerEcsContainer(core.makeEcsContainerRef(gEcs.cameras), core.MakeName("Cameras"));
+
     const setHandle = try core.createEntity();
-
     _ = try gEcs.cameras.createWithHandle(setHandle, graphics.Camera.init());
-
-    try core.registerEcsContainer(
-        core.makeEcsContainerRef(gEcs.cameras),
-        core.MakeName("RenderObjects"),
-    );
+    gEcs.cameras.destroyObject(setHandle);
 }
 
 pub fn shutdownEcs() void {

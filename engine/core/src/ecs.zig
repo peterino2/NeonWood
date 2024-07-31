@@ -38,8 +38,6 @@ pub const EcsRegistry = struct {
             .baseSet = BaseSet.init(allocator),
         };
 
-        try self.registerContainer(makeEcsContainerRef(&self.baseSet), core.MakeName("BaseObject"));
-
         return self;
     }
 
@@ -59,18 +57,22 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleRemoved(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("object removed id={d} from container={s}({d})", .{
+        core.engine_log("ECS:: object removed id={d} from container={s}({d})", .{
             handle.index,
             self.containerNames.items[containerID].utf8(),
             containerID,
         });
 
-        self.baseSet.get(handle).?.containersCount -= 1;
+        if (self.baseSet.get(handle).?.containersCount > 0) {
+            self.baseSet.get(handle).?.containersCount -= 1;
+        } else {
+            self.baseSet.destroyObject(handle);
+        }
     }
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("object added id={d} from container={s}({d})", .{
+        core.engine_log("ECS:: object added id={d} from container={s}({d})", .{
             handle.index,
             self.containerNames.items[containerID].utf8(),
             containerID,
