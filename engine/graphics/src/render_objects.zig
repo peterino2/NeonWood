@@ -142,7 +142,8 @@ fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
 // forward = +Z (index finger)
 // left = +X (middle finger)
 // up = +Y (thumb)
-//
+
+const ecs = core.ecs;
 
 pub const Camera = struct {
     fov: f32 = 70.0,
@@ -165,6 +166,8 @@ pub const Camera = struct {
         200000,
     ),
     final: Mat = zm.identity(),
+
+    pub const EcsComponentDefinition = ecs.DefineComponent(@This(), .set); // set, map, multiset, maplist
 
     pub fn isDirty(self: *Camera) bool {
         if (self.fov_cache != self.fov)
