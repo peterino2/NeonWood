@@ -16,11 +16,13 @@ const GraphicsEcs = struct {
 var gEcs: GraphicsEcs = undefined;
 
 pub fn registerEcs(allocator: std.mem.Allocator) !void {
-    const container = core.makeEcsContainerRef(&graphics.getContext().renderObjectSet);
-    try core.registerEcsContainer(container, core.MakeName("RenderObjects"));
+    _ = allocator;
+    // const container = core.makeEcsContainerRef(&graphics.getContext().renderObjectSet);
+    //
+    // try core.registerEcsContainer(container, core.MakeName("RenderObjects"));
 
-    gEcs.allocator = allocator;
-    gEcs.cameras = try CameraContainer.create(allocator);
+    // gEcs.allocator = allocator;
+    // gEcs.cameras = try CameraContainer.create(allocator);
 
     // try core.registerEcsContainer(core.makeEcsContainerRef(gEcs.cameras), core.MakeName("Cameras"));
     // const setHandle = try core.createEntity();

@@ -71,7 +71,9 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
 
 pub fn run_everything(comptime GameContext: type) !void {
     var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
-    try gameContext.prepare_game();
+    if (@hasDecl(GameContext, "prepare_game")) {
+        try gameContext.prepare_game();
+    }
 
     try core.gEngine.run();
 

@@ -24,4 +24,10 @@ pub fn build(b: *std.Build) void {
         .desc = "ui sample program for imgui",
         .root_source_file = b.path("imguiSample/main.zig"),
     });
+
+    _ = nwbuild.addProgram(.{
+        .name = "headless",
+        .desc = "a headless program only runnning the core systems",
+        .root_source_file = b.path("headless/main.zig"),
+    });
 }

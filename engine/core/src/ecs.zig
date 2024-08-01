@@ -1,16 +1,15 @@
 var gEcsRegistry: *EcsRegistry = undefined;
 
-pub fn createEntity() !core.ObjectHandle {
-    return try gEcsRegistry.baseSet.createObject(.{});
+pub fn createEntity() !Entity {
+    return .{ .handle = try gEcsRegistry.baseSet.createObject(.{}) };
 }
 
 pub fn setup(allocator: std.mem.Allocator) !void {
-    gEcsRegistry = try EcsRegistry.create(allocator);
+    _ = allocator;
+    gEcsRegistry = try core.createObject(EcsRegistry, .{});
 }
 
-pub fn shutdown() void {
-    gEcsRegistry.destroy();
-}
+pub fn shutdown() void {}
 
 pub fn getRegistry() *EcsRegistry {
     return gEcsRegistry;
@@ -22,7 +21,6 @@ pub fn registerEcsContainer(ref: EcsContainerRef, name: core.Name) !void {
 
 // only thing this is meant to do is to provide a central place to construct and destroy objects
 pub const EcsRegistry = struct {
-    //
     allocator: std.mem.Allocator,
     baseSet: BaseSet,
 
@@ -30,7 +28,9 @@ pub const EcsRegistry = struct {
     containerNames: std.ArrayListUnmanaged(core.Name) = .{},
     containersByName: std.AutoHashMapUnmanaged(u32, u32) = .{},
 
-    pub fn create(allocator: std.mem.Allocator) !*@This() {
+    pub const NeonObjectTable = core.EngineObjectVTable.from(@This());
+
+    pub fn init(allocator: std.mem.Allocator) !*@This() {
         const self = try allocator.create(@This());
 
         self.* = .{
@@ -85,6 +85,10 @@ pub const EcsRegistry = struct {
         }
     }
 
+    pub fn deinit(self: *@This()) void {
+        self.destroy();
+    }
+
     pub fn destroy(self: *@This()) void {
         for (self.containers.items) |ref| {
             ref.vtable.evictFromRegistry(ref.ptr);
@@ -96,6 +100,45 @@ pub const EcsRegistry = struct {
         self.allocator.destroy(self);
     }
 };
+
+pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !void {
+    const ContainerType = @TypeOf(Component.BaseContainer.*);
+    Component.BaseContainer = try ContainerType.create(allocator);
+    // Component.EcsComponentInterfaceVTable.container = core.makeEcsContainerRef(Component.BaseContainer);
+    try registerEcsContainer(core.makeEcsContainerRef(Component.BaseContainer), core.MakeName(@typeName(Component)));
+}
+
+pub fn undefineComponent(comptime Component: type) void {
+    Component.BaseContainer.destroy();
+}
+
+pub const Entity = packed struct {
+    handle: core.ObjectHandle,
+
+    pub fn addComponent(self: @This(), comptime Component: type, initValue: Component) ?*Component {
+        return Component.BaseContainer.createWithHandle(self.handle, initValue) catch return null;
+    }
+
+    pub fn get(self: @This(), comptime Component: type) ?*Component {
+        return Component.BaseContainer.get(self.handle);
+    }
+
+    pub fn removeComponent(self: @This(), comptime Component: type) void {
+        Component.BaseContainer.remove(self.handle);
+    }
+};
+
+pub const EcsComponentInterface = p2.MakeInterface("EcsComponentInterfaceVTable", struct {
+    container: ?EcsContainerRef = null,
+
+    pub fn Implement(comptime T: type) @This() {
+        _ = T;
+        const Impl = struct {};
+        _ = Impl;
+
+        return .{};
+    }
+});
 
 const std = @import("std");
 const p2 = @import("p2");
