@@ -6,7 +6,7 @@ pub fn createEntity() !Entity {
 
 pub fn setup(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    gEcsRegistry = try core.createObject(EcsRegistry, .{ .can_tick = false });
+    gEcsRegistry = try core.createObject(EcsRegistry, .{ .can_tick = true });
 }
 
 pub fn shutdown() void {}
@@ -78,10 +78,11 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleRemoved(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object removed id={d} from container={s}({d})", .{
+        core.engine_log("ECS:: object removed id={d} from container={s}({d}) 0x{x}", .{
             handle.index,
             self.containerNames.items[containerID].utf8(),
             containerID,
+            @intFromPtr(self.containers.items[containerID].ptr),
         });
 
         self.baseSet.get(handle).?.containersCount -= 1;
@@ -89,10 +90,11 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object added id={d} from container={s}({d})", .{
+        core.engine_log("ECS:: object added id={d} from container={s}({d}) 0x{x}", .{
             handle.index,
             self.containerNames.items[containerID].utf8(),
             containerID,
+            @intFromPtr(self.containers.items[containerID].ptr),
         });
 
         if (self.baseSet.get(handle)) |obj| {
@@ -103,6 +105,8 @@ pub const EcsRegistry = struct {
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
+        if (core.getEngine().isShuttingDown())
+            return;
         for (self.tickableSystems.items) |ref| {
             ref.vtable.tick.?(ref.ptr, deltaTime);
         }
@@ -132,7 +136,9 @@ pub const EcsRegistry = struct {
 pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !void {
     const ContainerType = @TypeOf(Component.BaseContainer.*);
     Component.BaseContainer = try ContainerType.create(allocator);
+
     // Component.EcsComponentInterfaceVTable.container = core.makeEcsContainerRef(Component.BaseContainer);
+    core.engine_log("Component container created " ++ @typeName(Component) ++ "  @{x}", .{@intFromPtr(Component.BaseContainer)});
     try registerEcsContainer(core.makeEcsContainerRef(Component.BaseContainer), core.MakeName(@typeName(Component)));
 }
 

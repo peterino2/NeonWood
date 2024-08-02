@@ -219,11 +219,11 @@ pub const Engine = struct {
 
         var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;
         while (index >= 0) : (index -= 1) {
-            var z = tracy.Zone(@src());
+            // var z = tracy.Zone(@src());
             const objectRef = self.engineObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
-            z.Name(objectRef.vtable.typeName.utf8());
-            z.End();
+            // z.Name(objectRef.vtable.typeName.utf8());
+            // z.End();
         }
 
         const systemsThreadTime: f64 = time.getEngineTime() - newTime;
@@ -254,6 +254,8 @@ pub const Engine = struct {
                 var exitSignaled: bool = false;
 
                 while (true) {
+                    ctx.engine.tick() catch unreachable;
+
                     if (!exitSignaled and ctx.engine.exitSignal.load(.seq_cst)) {
                         exitSignaled = true;
                         core.engine_logs("Processing exit signals");
@@ -262,8 +264,6 @@ pub const Engine = struct {
                             ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
                         }
                     }
-
-                    ctx.engine.tick() catch unreachable;
 
                     if (exitSignaled) {
                         var readyToExit: bool = true;

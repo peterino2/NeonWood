@@ -13,6 +13,8 @@ pub const GameContext = struct {
     entity: core.Entity = undefined,
     entity2: core.Entity = undefined,
 
+    ticksBeforeExit: i32 = 5,
+
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         const self = try allocator.create(@This());
         self.* = .{
@@ -37,7 +39,12 @@ pub const GameContext = struct {
         core.exitNow();
     }
 
-    pub fn tick(_: *@This(), _: f64) void {}
+    pub fn tick(self: *@This(), _: f64) void {
+        self.ticksBeforeExit -= 1;
+        if (self.ticksBeforeExit < 0) {
+            core.exitNow();
+        }
+    }
 
     pub fn deinit(self: *@This()) void {
         self.allocator.destroy(self);
