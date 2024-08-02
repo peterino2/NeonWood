@@ -308,6 +308,7 @@ pub const Engine = struct {
                 try pollFunc(self.platformCtx);
                 defer z.End();
             }
+            self.jobManager.bump();
             std.time.sleep(1000 * 1000); // 1ms delay between polling functions, effectively limits input to 1khz.
             // (there is a noticable power consumption draw on laptops and battery based systems if this is unlimited)
             try self.nfdRuntime.processMessages();

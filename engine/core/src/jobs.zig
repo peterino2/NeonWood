@@ -69,6 +69,7 @@ pub const JobManager = struct {
             for (self.workers) |worker| {
                 if (!worker.isBusy()) {
                     worker.wake();
+                    break;
                 }
             }
         }

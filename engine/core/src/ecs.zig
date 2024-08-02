@@ -6,7 +6,7 @@ pub fn createEntity() !Entity {
 
 pub fn setup(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    gEcsRegistry = try core.createObject(EcsRegistry, .{});
+    gEcsRegistry = try core.createObject(EcsRegistry, .{ .can_tick = false });
 }
 
 pub fn shutdown() void {}
@@ -19,10 +19,31 @@ pub fn registerEcsContainer(ref: EcsContainerRef, name: core.Name) !void {
     try gEcsRegistry.registerContainer(ref, name);
 }
 
+pub fn deregisterEcsContainer(ref: EcsContainerRef) void {
+    _ = ref;
+    @panic("not yet implemented");
+}
+
+pub fn createSystem(comptime System: type, allocator: std.mem.Allocator) !*System {
+    const system = try System.create(allocator);
+    const ref = p2.refFromPtr(EcsSystemInterface, system);
+    core.engine_log("ptr = {any}", .{ref.vtable.tick});
+
+    try gEcsRegistry.systems.append(gEcsRegistry.allocator, ref);
+    if (ref.vtable.tick != null) {
+        try gEcsRegistry.tickableSystems.append(gEcsRegistry.allocator, ref);
+    }
+
+    return system;
+}
+
 // only thing this is meant to do is to provide a central place to construct and destroy objects
 pub const EcsRegistry = struct {
     allocator: std.mem.Allocator,
     baseSet: BaseSet,
+
+    systems: std.ArrayListUnmanaged(EcsSystemRef) = .{},
+    tickableSystems: std.ArrayListUnmanaged(EcsSystemRef) = .{},
 
     containers: std.ArrayListUnmanaged(EcsContainerRef) = .{},
     containerNames: std.ArrayListUnmanaged(core.Name) = .{},
@@ -81,6 +102,12 @@ pub const EcsRegistry = struct {
         }
     }
 
+    pub fn tick(self: *@This(), deltaTime: f64) void {
+        for (self.tickableSystems.items) |ref| {
+            ref.vtable.tick.?(ref.ptr, deltaTime);
+        }
+    }
+
     pub fn deinit(self: *@This()) void {
         self.destroy();
     }
@@ -89,6 +116,11 @@ pub const EcsRegistry = struct {
         for (self.containers.items) |ref| {
             ref.vtable.evictFromRegistry(ref.ptr);
         }
+        for (self.systems.items) |ref| {
+            ref.vtable.destroy(ref.ptr);
+        }
+        self.systems.deinit(self.allocator);
+        self.tickableSystems.deinit(self.allocator);
         self.baseSet.deinit();
         self.containers.deinit(self.allocator);
         self.containerNames.deinit(self.allocator);
@@ -151,3 +183,34 @@ pub const EcsEntry = struct {
 };
 
 pub const BaseSet = p2.SparseSet(EcsEntry);
+
+pub const EcsSystemRef = p2.Reference(EcsSystemInterface);
+pub const EcsSystemInterface = p2.MakeInterface("EcsSystemVTable", struct {
+    create: *const fn (std.mem.Allocator) core.EngineDataEventError!*anyopaque,
+    destroy: *const fn (*anyopaque) void,
+    tick: ?*const fn (*anyopaque, f64) void = null,
+
+    pub fn Implement(comptime TargetType: type) @This() {
+        const Wrap = struct {
+            pub fn create(allocator: std.mem.Allocator) core.EngineDataEventError!*anyopaque {
+                const new = try TargetType.create(allocator);
+                return new;
+            }
+
+            pub fn destroy(p: *anyopaque) void {
+                const ptr: *TargetType = @ptrCast(@alignCast(p));
+                ptr.destroy();
+            }
+
+            pub fn tick(p: *anyopaque, dt: f64) void {
+                const ptr: *TargetType = @ptrCast(@alignCast(p));
+                ptr.tick(dt);
+            }
+        };
+        return .{
+            .destroy = Wrap.destroy,
+            .create = Wrap.create,
+            .tick = if (@hasDecl(TargetType, "tick")) Wrap.tick else null,
+        };
+    }
+});

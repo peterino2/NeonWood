@@ -2,8 +2,10 @@ const std = @import("std");
 
 const neonwood = @import("NeonWood");
 const core = neonwood.core;
+const ecs = core.ecs;
 
 const SampleComponent = @import("SampleComponent.zig");
+const SampleSystem = SampleComponent.SampleSystem;
 
 pub const GameContext = struct {
     allocator: std.mem.Allocator,
@@ -16,7 +18,14 @@ pub const GameContext = struct {
         self.* = .{
             .allocator = allocator,
         };
+        return self;
+    }
+
+    pub fn prepare_game(self: *@This()) !void {
         core.defineComponent(SampleComponent, self.allocator) catch unreachable;
+        core.engine_log("SampleComponentBaseContainer @{x}", .{@intFromPtr(SampleComponent.BaseContainer)});
+
+        _ = try ecs.createSystem(SampleSystem, self.allocator);
 
         self.entity = core.createEntity() catch unreachable;
         _ = self.entity.addComponent(SampleComponent, .{});
@@ -25,12 +34,10 @@ pub const GameContext = struct {
         _ = self.entity2.addComponent(SampleComponent, .{ .name = "entity2" });
 
         core.undefineComponent(SampleComponent); // todo remove
-        return self;
-    }
-
-    pub fn tick(_: *@This(), _: f64) void {
         core.exitNow();
     }
+
+    pub fn tick(_: *@This(), _: f64) void {}
 
     pub fn deinit(self: *@This()) void {
         self.allocator.destroy(self);

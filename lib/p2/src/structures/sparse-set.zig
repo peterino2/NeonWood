@@ -486,6 +486,7 @@ pub fn SparseMap(comptime T: type) type {
         map: std.AutoHashMapUnmanaged(SetHandle, *T) = .{},
         listEntriesByHandle: std.AutoHashMapUnmanaged(SetHandle, u32) = .{},
         list: std.ArrayListUnmanaged(*T) = .{},
+        handles: std.ArrayListUnmanaged(SetHandle) = .{},
         containerID: u32 = 0,
         containerListener: ?ContainerListener = null,
 
@@ -510,6 +511,7 @@ pub fn SparseMap(comptime T: type) type {
             _ = self.map.remove(handle);
             _ = self.listEntriesByHandle.remove(handle);
             _ = self.list.swapRemove(index);
+            _ = self.handles.swapRemove(index);
 
             if (self.containerListener) |l| {
                 l.onHandleRemoved(l.ptr, self.containerID, handle);
@@ -525,6 +527,7 @@ pub fn SparseMap(comptime T: type) type {
 
             try self.map.put(alloc, handle, new);
             try self.list.append(alloc, new);
+            try self.handles.append(alloc, handle);
             try self.listEntriesByHandle.put(alloc, handle, @intCast(self.list.items.len - 1));
 
             if (self.containerListener) |l| {

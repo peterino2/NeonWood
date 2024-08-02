@@ -31,7 +31,7 @@ pub fn registerEcs(allocator: std.mem.Allocator) !void {
 }
 
 pub fn shutdownEcs() void {
-    gEcs.cameras.destroy();
+    // gEcs.cameras.destroy();
 }
 
 test "samplecode" {
