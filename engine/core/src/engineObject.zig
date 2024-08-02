@@ -37,7 +37,7 @@ pub const EngineDataEventError = error{
 };
 
 pub const EngineObjectVTable = struct {
-    typeName: Name,
+    typeName: []const u8,
     typeSize: usize,
     typeAlign: usize,
 
@@ -62,7 +62,7 @@ pub const EngineObjectVTable = struct {
         };
 
         var self = EngineObjectVTable{
-            .typeName = MakeTypeName(TargetType),
+            .typeName = @typeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .init_func = wrappedInit.func,

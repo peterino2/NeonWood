@@ -219,18 +219,18 @@ pub const Engine = struct {
 
         var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;
         while (index >= 0) : (index -= 1) {
-            // var z = tracy.Zone(@src());
+            var z = tracy.Zone(@src());
             const objectRef = self.engineObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
-            // z.Name(objectRef.vtable.typeName.utf8());
-            // z.End();
+            z.Name(objectRef.vtable.typeName);
+            z.End();
         }
 
         const systemsThreadTime: f64 = time.getEngineTime() - newTime;
 
         for (self.renderers.items) |*renderer| {
             var z = tracy.Zone(@src());
-            z.Name(renderer.vtable.typeName.utf8());
+            z.Name(renderer.vtable.typeName);
 
             renderer.vtable.engineDraw_func.?(renderer.ptr, self.deltaTime);
 
