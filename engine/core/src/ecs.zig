@@ -63,11 +63,7 @@ pub const EcsRegistry = struct {
             containerID,
         });
 
-        if (self.baseSet.get(handle).?.containersCount > 0) {
-            self.baseSet.get(handle).?.containersCount -= 1;
-        } else {
-            self.baseSet.destroyObject(handle);
-        }
+        self.baseSet.get(handle).?.containersCount -= 1;
     }
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
