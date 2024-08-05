@@ -1,6 +1,5 @@
 name: []const u8 = "unnamed_entity",
 
-const SampleComponent = @This();
 pub const SampleSystem = struct {
     allocator: std.mem.Allocator,
 
@@ -19,13 +18,13 @@ pub const SampleSystem = struct {
     pub fn tick(self: *@This(), dt: f64) void {
         _ = self;
         _ = dt;
-        core.engine_log("SampleComponentBaseContainer @{x}", .{@intFromPtr(SampleComponent.BaseContainer)});
-        for (SampleComponent.BaseContainer.list.items, 0..) |component, i| {
+        core.engine_log("SampleComponentBaseContainer @{x}", .{@intFromPtr(BaseContainer)});
+        for (BaseContainer.list.items, 0..) |component, i| {
             core.engine_log("SampleSystem working on specific SystemComponent {s} index: {d} handle: {d}, {d}", .{
                 component.name,
                 i,
-                SampleComponent.BaseContainer.handles.items[i].generation,
-                SampleComponent.BaseContainer.handles.items[i].index,
+                BaseContainer.handles.items[i].generation,
+                BaseContainer.handles.items[i].index,
             });
         }
     }

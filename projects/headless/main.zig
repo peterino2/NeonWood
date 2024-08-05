@@ -3,6 +3,7 @@ const std = @import("std");
 const neonwood = @import("NeonWood");
 const core = neonwood.core;
 const ecs = core.ecs;
+const MemoryTracker = core.MemoryTracker;
 
 const SampleComponent = @import("SampleComponent.zig");
 const SampleSystem = SampleComponent.SampleSystem;
@@ -34,6 +35,8 @@ pub const GameContext = struct {
 
         self.entity2 = core.createEntity() catch unreachable;
         _ = self.entity2.addComponent(SampleComponent, .{ .name = "entity2" });
+
+        MemoryTracker.PrintStatsWithTag("Peak memory usage:");
 
         core.undefineComponent(SampleComponent); // todo remove
         core.exitNow();

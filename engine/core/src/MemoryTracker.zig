@@ -10,6 +10,9 @@ allocationsCount: u32 = 0,
 totalAllocSize: usize = 0,
 eventsCount: usize = 0,
 
+peakAllocations: u32 = 0,
+peakAllocSize: usize = 0,
+
 pub var vtable: std.mem.Allocator.VTable = .{
     .alloc = alloc,
     .free = free,
@@ -37,6 +40,14 @@ pub fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8
         self.allocationsCount += 1;
         self.totalAllocSize += len;
         self.eventsCount += 1;
+
+        if (self.totalAllocSize > self.peakAllocSize) {
+            self.peakAllocSize = self.totalAllocSize;
+        }
+
+        if (self.allocationsCount > self.peakAllocations) {
+            self.peakAllocations = self.allocationsCount;
+        }
     }
     return self.backingAllocator.vtable.alloc(self.backingAllocator.ptr, len, ptr_align, ret_addr);
 }
@@ -82,15 +93,15 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn addUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
-    _ = self;
-    _ = allocatedSize;
-    // self.totalAllocSize += allocatedSize;
+    // _ = self;
+    // _ = allocatedSize;
+    self.totalAllocSize += allocatedSize;
 }
 
 pub fn removeUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
-    _ = self;
-    _ = allocatedSize;
-    // self.totalAllocSize -= allocatedSize;
+    // _ = self;
+    // _ = allocatedSize;
+    self.totalAllocSize -= allocatedSize;
 }
 
 var gMemTracker: ?*@This() = null;
@@ -131,9 +142,10 @@ pub fn MTRemoveAllocation(allocatedSize: usize) void {
 
 pub fn MTPrintStatsDelta() void {
     if (gMemTracker) |mt| {
-        _ = mt;
-        // todo;
-        // core.engine_log("allocated size: {d}", .{mt.totalAllocSize});
+        core.engine_log("allocated size: {d} ({d} MiB)", .{
+            mt.totalAllocSize,
+            @as(f64, @floatFromInt(mt.totalAllocSize)) / 1024 / 1024,
+        });
     }
 }
 
