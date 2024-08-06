@@ -36,7 +36,7 @@ pub const GameContext = struct {
         self.entity2 = core.createEntity() catch unreachable;
         _ = self.entity2.addComponent(SampleComponent, .{ .name = "entity2" });
 
-        MemoryTracker.PrintStatsWithTag("Peak memory usage:");
+        MemoryTracker.PrintStatsWithTag("prepare game end:");
 
         core.undefineComponent(SampleComponent); // todo remove
         core.exitNow();

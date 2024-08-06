@@ -93,14 +93,10 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn addUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
-    // _ = self;
-    // _ = allocatedSize;
     self.totalAllocSize += allocatedSize;
 }
 
 pub fn removeUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
-    // _ = self;
-    // _ = allocatedSize;
     self.totalAllocSize -= allocatedSize;
 }
 
@@ -145,6 +141,11 @@ pub fn MTPrintStatsDelta() void {
         core.engine_log("allocated size: {d} ({d} MiB)", .{
             mt.totalAllocSize,
             @as(f64, @floatFromInt(mt.totalAllocSize)) / 1024 / 1024,
+        });
+        core.engine_log("peak allocated size size: {d} ({d} MiB) ({d} peak allocations)", .{
+            mt.peakAllocSize,
+            @as(f64, @floatFromInt(mt.peakAllocSize)) / 1024 / 1024,
+            mt.peakAllocations,
         });
     }
 }
