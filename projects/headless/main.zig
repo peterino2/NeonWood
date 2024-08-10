@@ -8,6 +8,8 @@ const MemoryTracker = core.MemoryTracker;
 const SampleComponent = @import("SampleComponent.zig");
 const SampleSystem = SampleComponent.SampleSystem;
 
+const script = core.scripting;
+
 pub const GameContext = struct {
     allocator: std.mem.Allocator,
 
@@ -25,6 +27,10 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *@This()) !void {
+        _ = self;
+    }
+
+    pub fn prepare_game2(self: *@This()) !void {
         core.defineComponent(SampleComponent, self.allocator) catch unreachable;
         core.engine_log("SampleComponentBaseContainer @{x}", .{@intFromPtr(SampleComponent.BaseContainer)});
 

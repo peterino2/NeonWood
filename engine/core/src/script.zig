@@ -1,0 +1,54 @@
+// scripting integration using lua
+
+const lua = @import("lua");
+const core = @import("core.zig");
+const startup_script = @embedFile("lua/startup.lua");
+
+const c = lua.c;
+
+var gLuaState: lua.LuaState = undefined;
+
+const luaRegLibs: []const c.luaL_Reg = &.{
+    .{ .name = "print", .func = printWrapper },
+    .{ .name = null, .func = null },
+};
+
+fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
+    const state: lua.LuaState = .{ .l = l };
+    const argc = state.getTop();
+
+    if (core.getLogger() == null) {
+        core.printRaw("> ", .{});
+    }
+
+    if (argc >= 1) {
+        core.printRaw("[SCRIPT   ]: ", .{});
+    }
+
+    var i: i32 = 1;
+    while (i <= argc) : (i += 1) {
+        if (state.isString(i)) {
+            core.printRaw("{s}", .{state.toString(i)});
+        }
+    }
+
+    core.printRaw("\n", .{});
+    state.pop(argc);
+
+    return 0;
+}
+
+pub fn start_lua() !void {
+    gLuaState = try lua.LuaState.init(.{});
+
+    _ = gLuaState.getGlobal("_G");
+    c.luaL_setfuncs(gLuaState.l, luaRegLibs.ptr, 0);
+    gLuaState.pop(1);
+
+    try gLuaState.loadString(startup_script);
+    try gLuaState.pcall();
+}
+
+pub fn shutdown_lua() void {
+    gLuaState.deinit();
+}

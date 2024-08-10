@@ -7,6 +7,7 @@ const dependencyList = [_][]const u8{
     "tracy",
     "zmath",
     "packer",
+    "lua",
 };
 
 pub fn build(b: *std.Build) void {

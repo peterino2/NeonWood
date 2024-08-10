@@ -38,8 +38,6 @@ pub const MemoryTracker = @import("MemoryTracker.zig");
 const logging = @import("logging.zig");
 const c = @This();
 
-//pub const build_options = @import("root").build_options;
-
 const logs = logging.engine_logs;
 const log = logging.engine_log;
 
@@ -55,6 +53,8 @@ pub var gScene: *SceneSystem = undefined;
 pub const ecs = @import("ecs.zig");
 pub usingnamespace ecs;
 
+pub const script = @import("script.zig");
+
 pub fn fs() *PackerFS {
     return gPackerFS;
 }
@@ -68,6 +68,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     _ = args;
     _ = programSpec;
     _ = try algorithm.createNameRegistry(allocator);
+    try script.start_lua();
     gPackerFS = try PackerFS.init(allocator, .{});
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
@@ -89,6 +90,7 @@ pub fn shutdown_module(_: std.mem.Allocator) void {
     algorithm.destroyNameRegistry();
     gEngine.deinit();
     gPackerFS.destroy();
+    script.shutdown_lua();
     return;
 }
 

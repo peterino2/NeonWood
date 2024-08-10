@@ -49,7 +49,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    mod.addCSourceFile(.{ .file = b.path("src/limited_io.c") });
+
     mod.addIncludePath(b.path("lua/src/"));
+    mod.addIncludePath(b.path("src/"));
 
     const run_step = b.step("run-lua", "");
     const tests = b.addExecutable(.{

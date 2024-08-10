@@ -10,6 +10,22 @@ const LogBufferSize = 1 * 1024 * 1024; // 1Mb buffer log
 
 var gLoggerSys: ?*LoggerSys = null;
 
+pub fn printRaw(comptime fmt: []const u8, args: anytype) void {
+    if (zero_logging) {
+        return;
+    }
+
+    if (slow_logging) {
+        std.debug.print(args);
+    } else {
+        if (gLoggerSys) |loggerSys| {
+            loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);
+        } else {
+            std.debug.print(fmt, args);
+        }
+    }
+}
+
 pub fn printInner(comptime fmt: []const u8, args: anytype) void {
     if (zero_logging) {
         return;
@@ -28,6 +44,7 @@ pub fn printInner(comptime fmt: []const u8, args: anytype) void {
 
 pub fn game_log(comptime fmt: []const u8, args: anytype) void {
     printInner("[GAME     ]: " ++ fmt ++ "\n", args);
+    printInner("[SCRIPT   ]: " ++ fmt ++ "\n", args);
 }
 
 pub fn game_logs(comptime fmt: []const u8) void {
@@ -279,4 +296,8 @@ pub fn setupLogging(engine: *core.Engine) !void {
 
 pub fn shutdownLogging() void {
     gLoggerSys = null;
+}
+
+pub fn getLogger() ?*LoggerSys {
+    return gLoggerSys;
 }
