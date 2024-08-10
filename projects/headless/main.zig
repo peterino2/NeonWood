@@ -8,7 +8,7 @@ const MemoryTracker = core.MemoryTracker;
 const SampleComponent = @import("SampleComponent.zig");
 const SampleSystem = SampleComponent.SampleSystem;
 
-const script = core.scripting;
+const script = core.script;
 
 pub const GameContext = struct {
     allocator: std.mem.Allocator,
@@ -27,7 +27,10 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *@This()) !void {
-        _ = self;
+        try core.defineComponent(SampleComponent, self.allocator);
+        defer core.undefineComponent(SampleComponent);
+        try core.fs().addContentPath("headless");
+        try script.runScriptFile("scripts/sample.lua");
     }
 
     pub fn prepare_game2(self: *@This()) !void {

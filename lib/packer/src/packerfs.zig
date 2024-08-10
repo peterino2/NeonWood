@@ -108,7 +108,7 @@ pub const PackerFS = struct {
             .settings = settings,
         };
 
-        try self.contentPaths.append(self.allocator, try p2.dupeString(allocator, "content"));
+        try self.addContentPath("content");
 
         return self;
     }
@@ -171,7 +171,6 @@ pub const PackerFS = struct {
 
         for (self.contentPaths.items) |contentPath| {
             if (try self.loadFileDirect(contentPath, path)) |mapping| {
-                // std.debug.print("direct load - 0x{x}\n", .{@intFromPtr(mapping.bytes.ptr)});
                 return mapping;
             }
         }
@@ -200,7 +199,14 @@ pub const PackerFS = struct {
         const fullPath = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ basePath, path });
         defer self.allocator.free(fullPath);
 
-        const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(fullPath, 8, self.allocator) catch return null);
+        const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(fullPath, 8, self.allocator) catch |err| switch (err) {
+            error.FileNotFound => {
+                return null;
+            },
+            else => |narrow| {
+                return narrow;
+            },
+        });
 
         const pakMountIndex = self.pakMountings.items.len;
         try self.pakMountings.append(self.allocator, .{
@@ -240,7 +246,17 @@ pub const PackerFS = struct {
 
         if (!pakMountingRef.isFileMounted()) {
             // std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
-            pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
+            const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch |err| switch (err) {
+                error.FileNotFound => {
+                    return null;
+                },
+                else => |narrow| {
+                    return narrow;
+                },
+            });
+
+            //pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
+            pakMountingRef.*.bytes = fileBytes;
         }
 
         const offset = header.fileOffset + pakMountingRef.contentOffset;
@@ -282,5 +298,9 @@ pub const PackerFS = struct {
         self.contentPaths.deinit(self.allocator);
         self.lock.unlock();
         self.allocator.destroy(self);
+    }
+
+    pub fn addContentPath(self: *@This(), path: []const u8) !void {
+        try self.contentPaths.append(self.allocator, try p2.dupeString(self.allocator, path));
     }
 };

@@ -1,5 +1,6 @@
 // scripting integration using lua
 
+const std = @import("std");
 const lua = @import("lua");
 const core = @import("core.zig");
 const startup_script = @embedFile("lua/startup.lua");
@@ -13,6 +14,7 @@ const luaRegLibs: []const c.luaL_Reg = &.{
     .{ .name = null, .func = null },
 };
 
+// binds the default print() function in lua to print to the console
 fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
     const state: lua.LuaState = .{ .l = l };
     const argc = state.getTop();
@@ -38,6 +40,8 @@ fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
     return 0;
 }
 
+// initialization of the lua scripting interface.
+// this interface is only threadsafe to operate on from the main systems thread (at this time).
 pub fn start_lua() !void {
     gLuaState = try lua.LuaState.init(.{});
 
@@ -51,4 +55,11 @@ pub fn start_lua() !void {
 
 pub fn shutdown_lua() void {
     gLuaState.deinit();
+}
+
+pub fn runScriptFile(scriptPath: []const u8) !void {
+    const scriptFile = try core.fs().loadFile(scriptPath);
+    defer core.fs().unmap(scriptFile);
+    try gLuaState.loadString(scriptFile.bytes);
+    try gLuaState.pcall();
 }
