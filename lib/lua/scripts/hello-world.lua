@@ -36,6 +36,8 @@ print("magnitude =", v2:magnitude())
 
 v4 = v2 + v;
 print(v4)
+v4.x = 12;
+print(v4.x, v4)
 -- vector.set(v, 3, 12.0)
 -- print(vector.string(v))
 -- print(vector.size(v))

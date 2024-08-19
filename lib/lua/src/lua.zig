@@ -1,5 +1,6 @@
 pub const c = @import("c.zig").c;
 const std = @import("std");
+pub const pod = @import("pod.zig");
 
 pub const LuaStateSettings = struct {
     defaultSetup: bool = true,
@@ -167,6 +168,10 @@ pub const LuaState = struct {
 
     pub fn pushZigFunction(self: @This(), func: anytype) !void {
         try self.pushFunction(FuncWrapper(func).wrapper);
+    }
+
+    pub fn pushString(self: @This(), str: []const u8) !void {
+        _ = c.lua_pushlstring(self.l, str.ptr, str.len);
     }
 
     pub fn toString(self: @This(), index: i32) []const u8 {

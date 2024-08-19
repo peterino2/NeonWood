@@ -1,5 +1,6 @@
 const std = @import("std");
 const lua = @import("lua");
+const pod = lua.pod;
 const c = lua.c;
 
 const CLuaState = ?*c.lua_State;
@@ -19,24 +20,26 @@ fn addFunc(a: f64, b: f64) f64 {
 var formatBuffer: [4096]u8 = undefined;
 
 const Vector = extern struct {
-    x: f64,
-    y: f64,
-    z: f64,
+    x: f64 = 0,
+    y: f64 = 0,
+    z: f64 = 0,
+
+    // pub const MetaTable = lua.MetaTable(@This(), .{
+    //     .op_add = add,
+    //     .op_sub = sub,
+    // });
 
     pub const MetatableName = "Vector";
 
     pub fn lua_new(state: lua.LuaState) i32 {
         const argc = state.getTop();
         const newVector: *Vector = state.newUserdata(Vector) catch return 0;
+        newVector.* = .{};
 
         state.getMetatableByName(MetatableName) catch return 0;
         state.setMetatable(-2) catch {
             return 0;
         };
-
-        newVector.x = 0;
-        newVector.y = 0;
-        newVector.z = 0;
 
         if (argc == 0) {
             return 1;
@@ -91,8 +94,17 @@ const Vector = extern struct {
 
                 if (std.mem.eql(u8, argument, "magnitude")) {
                     state.pushFunction(@This().lua_magnitude) catch return 0;
-                    return 1;
                 }
+                if (std.mem.eql(u8, argument, "x")) {
+                    state.pushNumber(v.x);
+                }
+                if (std.mem.eql(u8, argument, "y")) {
+                    state.pushNumber(v.y);
+                }
+                if (std.mem.eql(u8, argument, "z")) {
+                    state.pushNumber(v.z);
+                }
+                return 1;
             }
         }
         return 1;
@@ -100,16 +112,30 @@ const Vector = extern struct {
 
     pub fn lua_set(state: lua.LuaState) i32 {
         if (state.toUserdata(Vector, 1)) |v| {
-            const index = state.checkInteger(2);
+            // check that we had 3rd arg
             const setValue = state.toNumber(3);
-            state.argCheck(index <= 3, 2, "index out of bounds") catch return 0;
+            if (state.isNumber(2)) {
+                const index = state.checkInteger(2);
+                state.argCheck(index <= 3, 2, "index out of bounds") catch return 0;
 
-            if (index == 1) {
-                v.x = setValue;
-            } else if (index == 2) {
-                v.y = setValue;
-            } else if (index == 3) {
-                v.z = setValue;
+                if (index == 1) {
+                    v.x = setValue;
+                } else if (index == 2) {
+                    v.y = setValue;
+                } else if (index == 3) {
+                    v.z = setValue;
+                }
+            } else if (state.isString(2)) {
+                const argument = state.toString(2);
+                if (std.mem.eql(u8, argument, "x")) {
+                    v.x = setValue;
+                }
+                if (std.mem.eql(u8, argument, "y")) {
+                    v.y = setValue;
+                }
+                if (std.mem.eql(u8, argument, "z")) {
+                    v.z = setValue;
+                }
             }
         }
         return 0;
@@ -143,16 +169,12 @@ const Vector = extern struct {
         };
     }
 
-    pub fn lua_add(state: lua.LuaState) i32 {
-        const argc = state.getTop();
-        state.argCheck(argc == 2, 1, "expected two arguments for add functio ") catch return 0;
-
-        const left = state.toUserdata(Vector, 1) orelse return 0;
-        const right = state.toUserdata(Vector, 2) orelse return 0;
-        const rv = state.newZigUserdata(Vector) catch return 0;
-        rv.* = left.add(right.*);
-
-        return 1;
+    pub fn sub(self: Vector, rhs: Vector) Vector {
+        return .{
+            .x = self.x - rhs.x,
+            .y = self.y - rhs.y,
+            .z = self.z - rhs.z,
+        };
     }
 
     pub fn magnitude(self: @This()) f64 {
@@ -171,17 +193,20 @@ const Vector = extern struct {
 };
 
 const vector_methods: lua.LibSpec = &.{
-    .{ .name = "__tostring", .func = Vector.lua_toString },
+    //.{ .name = "__tostring", .func = Vector.lua_toString },
+    .{ .name = "__tostring", .func = pod.ToStringFunc(Vector) },
     .{ .name = "__newindex", .func = lua.CWrap(Vector.lua_set) },
     .{ .name = "__index", .func = lua.CWrap(Vector.lua_get) },
-    .{ .name = "__add", .func = lua.CWrap(Vector.lua_add) },
+    .{ .name = "__add", .func = pod.AddFunc(Vector, Vector.add) },
+    .{ .name = "__sub", .func = pod.AddFunc(Vector, Vector.sub) },
     .{ .name = "__len", .func = lua.CWrap(Vector.lua_size) },
     .{ .name = "magnitude", .func = lua.CWrap(Vector.lua_magnitude) },
     .{ .name = null, .func = null },
 };
 
 const vector_functions: lua.LibSpec = &.{
-    .{ .name = "new", .func = lua.CWrap(Vector.lua_new) },
+    //.{ .name = "new", .func = lua.CWrap(Vector.lua_new) },
+    .{ .name = "new", .func = pod.NewFunc(Vector) },
     .{ .name = "mag", .func = lua.CWrap(Vector.lua_magnitude) },
     .{ .name = null, .func = null },
 };
@@ -189,6 +214,8 @@ const vector_functions: lua.LibSpec = &.{
 pub fn main() !void {
     var luaState = try lua.LuaState.init(.{ .defaultSetup = false });
     defer luaState.deinit();
+
+    try pod.setupFormatBuffer(std.heap.page_allocator);
 
     try luaState.pushFunction(helloFromZig);
     try luaState.setGlobal("helloZig");
