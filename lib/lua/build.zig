@@ -59,7 +59,7 @@ pub fn build(b: *std.Build) void {
         .name = "run-lua",
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("test/test.zig"),
+        .root_source_file = b.path("test/test-lua.zig"),
         .link_libc = true,
     });
 

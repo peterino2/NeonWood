@@ -30,6 +30,9 @@ fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
     var i: i32 = 1;
     while (i <= argc) : (i += 1) {
         if (state.isString(i)) {
+            if (i > 1) {
+                core.printRaw(" ", .{});
+            }
             core.printRaw("{s}", .{state.toString(i)});
         }
     }
@@ -45,9 +48,12 @@ fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
 pub fn start_lua() !void {
     gLuaState = try lua.LuaState.init(.{});
 
+    // overload and hook into global functions
     _ = gLuaState.getGlobal("_G");
     c.luaL_setfuncs(gLuaState.l, luaRegLibs.ptr, 0);
     gLuaState.pop(1);
+
+    // load scripting interface library
 
     try gLuaState.loadString(startup_script);
     try gLuaState.pcall();

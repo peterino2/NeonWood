@@ -157,7 +157,7 @@ pub const Name = struct {
     pub fn utf8(self: *const @This()) []const u8 {
         // so nasty... and const-violating. but the ergonomics is so good...
         if (self.index == null) {
-            // fuck it..  i'll pay the cost of duplicating even comptime strings
+            // screw it..  i'll pay the cost of duplicating even comptime strings
             const index = getRegistry().InstallNameInner(self.string, true);
             const mutableThis = @as(*@This(), @ptrCast(@constCast(self)));
             mutableThis.*.index = index;

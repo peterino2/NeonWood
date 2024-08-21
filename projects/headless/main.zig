@@ -76,4 +76,3 @@ pub fn main() anyerror!void {
             .vkImgui = false,
         },
     });
-}
