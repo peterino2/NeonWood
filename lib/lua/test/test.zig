@@ -14,6 +14,12 @@ fn addFunc(a: f64, b: f64) f64 {
     return a + b;
 }
 
+const Vector = extern struct {
+    x: f32,
+    y: f32,
+    z: f32,
+};
+
 pub fn main() !void {
     var luaState = try lua.LuaState.init(.{ .defaultSetup = false });
     defer luaState.deinit();
