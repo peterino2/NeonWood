@@ -1,10 +1,17 @@
 const std = @import("std");
-const BumpAllocator = @import("../allocators/bump-allocator.zig");
-const BitBlockAllocator = @import("../allocators/bitblock-allocator.zig");
 
 // register a global backing allocator
 
 var gStringContext: *StringContext = undefined;
+
+pub const StringHandle = packed struct {
+    index: u24,
+    bucketId: u8,
+
+    pub fn utf8(self: @This()) []u8 {
+        return gStringContext.getUtf8(self);
+    }
+};
 
 // testing functions for stringAllocation
 pub fn destroyStringAllocation(self: StringAllocation, allocator: std.mem.Allocator) void {
@@ -12,8 +19,8 @@ pub fn destroyStringAllocation(self: StringAllocation, allocator: std.mem.Alloca
 }
 
 pub fn newStringAllocation(allocator: std.mem.Allocator, stringLength: usize) !StringAllocation {
-    const slice = try allocator.alignedAlloc(u8, 2, stringLength + 2);
-    const slenPtr = @as(*u16, @ptrCast(@alignCast(slice.ptr)));
+    const slice = try allocator.alignedAlloc(u8, 2, stringLength + StringAllocation.MetaLen);
+    const slenPtr = @as(*u24, @ptrCast(@alignCast(slice.ptr)));
     slenPtr.* = @intCast(stringLength);
 
     return .{ .ptr = slice.ptr };
@@ -23,13 +30,35 @@ pub fn newStringAllocation(allocator: std.mem.Allocator, stringLength: usize) !S
 const StringAllocation = struct {
     ptr: *align(2) anyopaque,
 
-    pub const MetaLen = 2;
+    pub const MetaLen = 4;
     // offsets:
-    // 0x0 - 0x1        : length (u16)
-    // 0x2 - length + 2 : string
+    // 0x0 -] 0x2         : length (u24)
+    // 0x3 -] 0x4         : reference count (u8)
+    // 0x4 -  length + 4  : string
 
     pub fn len(self: @This()) usize {
-        return @intCast(@as(*u16, @ptrCast(self.ptr)).*);
+        return @intCast(@as(*u24, @ptrCast(@alignCast(self.ptr))).*);
+    }
+
+    pub fn initRc(self: @This()) void {
+        const x: [*]u8 = @ptrCast(self.ptr);
+        x[3] = 1;
+    }
+
+    pub fn rcAdd(self: @This()) void {
+        const x: [*]u8 = @ptrCast(self.ptr); //+= 1;
+        x[3] += 1;
+    }
+
+    // returns true if the reference count hits 0
+    pub fn rcSub(self: @This()) bool {
+        const rc: [*]u8 = @ptrCast(self.ptr); //+= 1;
+        rc[3] -= 1;
+
+        if (rc[3] == 0) {
+            return true;
+        }
+        return false;
     }
 
     pub fn bytes(self: @This()) []u8 {
@@ -43,19 +72,13 @@ const StringAllocation = struct {
     pub fn deallocBytes(self: @This()) []align(2) u8 {
         var rv: []align(2) u8 = undefined;
         rv.ptr = @ptrCast(self.ptr);
-        rv.len = self.len() + 2;
+        rv.len = self.len() + StringAllocation.MetaLen;
         return rv;
     }
 
     pub fn fromPtr(ptr: *anyopaque) @This() {
-        return .{ .ptr = ptr };
+        return .{ .ptr = @ptrCast(@alignCast(ptr)) };
     }
-};
-
-pub const StringHandle = packed struct {
-    handle: u24,
-    _rsvd: u4 = undefined,
-    instance: u4,
 };
 
 const Page = struct {
@@ -70,7 +93,7 @@ const Bucket = struct {
     slotsPerPage: u32,
     next: u32 = 0,
     pages: std.ArrayListUnmanaged(Page) = .{},
-    freeEntries: std.ArrayListUnmanaged(u24) = .{},
+    freeSlots: std.ArrayListUnmanaged(u32) = .{},
 
     pub const BucketAllocation = struct {
         bytes: []u8,
@@ -96,6 +119,10 @@ const Bucket = struct {
         return index % self.slotsPerPage;
     }
 
+    fn getBytesFromIndex(self: @This(), index: u32) []u8 {
+        return self.indexToSlot(self.i2p(index), self.ibp(index));
+    }
+
     fn addPage(self: *@This(), allocator: std.mem.Allocator) !void {
         const page: Page = .{
             .bytes = try allocator.alignedAlloc(u8, 8, self.pageSize),
@@ -110,8 +137,12 @@ const Bucket = struct {
         return slice;
     }
 
+    pub fn destroySlot(self: *@This(), allocator: std.mem.Allocator, index: u32) void {
+        self.freeSlots.append(allocator, index) catch unreachable;
+    }
+
     pub fn assignOrRecycleSlot(self: *@This(), allocator: std.mem.Allocator) !BucketAllocation {
-        if (self.freeEntries.items.len < 1) {
+        if (self.freeSlots.items.len < 1) {
             const pageIndex = self.i2p(self.next);
 
             if (pageIndex >= self.pages.items.len) {
@@ -123,11 +154,13 @@ const Bucket = struct {
                 .index = @intCast(self.next),
             };
 
+            std.debug.print("next is getting bumped : {d}", .{self.next});
+
             self.next += 1;
 
             return rv;
         } else {
-            const index = self.freeEntries.pop();
+            const index = self.freeSlots.pop();
 
             const rv: BucketAllocation = .{
                 .bytes = self.indexToSlot(self.i2p(index), self.ibp(index)),
@@ -161,11 +194,11 @@ pub const StringContext = struct {
         // default bucket setup
         // zig fmt: off
         try self.buckets.appendSlice(backingAllocator, &.{
-            Bucket.init( 0x0, 16,   4096),
-            Bucket.init( 0x1, 32,   4096),
-            Bucket.init( 0x2, 64,   4096),
-            Bucket.init( 0x3, 128,  4096),
-            Bucket.init( 0x4, 512,  4096 * 16),
+            Bucket.init( 0x0, 16, 4096 * 1),
+            Bucket.init( 0x1, 32, 4096 * 1),
+            Bucket.init( 0x2, 64, 4096 * 1),
+            Bucket.init( 0x3, 128, 4096 * 1),
+            Bucket.init( 0x4, 512, 4096 * 16),
             Bucket.init( 0x5, 4096, 4096 * 16),
         });
         // zig fmt: on
@@ -177,33 +210,35 @@ pub const StringContext = struct {
         return self.arena.allocator();
     }
 
+    // inner function
     pub fn strNew(self: *@This(), length: usize) !struct {
         handle: StringHandle,
         bytes: []u8,
     } {
 
         // 1. select which bucket to allocate from
-        const bucket = self.getBucket(@intCast(length));
+        const bucket = self.getBucketByLen(@intCast(length));
 
         // 2. grab or recycle an allocation from that bucket
         const allocation = try bucket.assignOrRecycleSlot(self.getAllocator());
 
         // 3. write in the string length.
-        @as(*u16, @ptrCast(@alignCast(allocation.bytes.ptr))).* = @intCast(length);
+        @as(*u24, @ptrCast(@alignCast(allocation.bytes.ptr))).* = @intCast(length);
+        StringAllocation.fromPtr(allocation.bytes.ptr).initRc();
 
         return .{
-            .handle = .{ .instance = @intCast(bucket.id), .handle = allocation.index },
+            .handle = .{ .bucketId = @intCast(bucket.id), .index = allocation.index },
             .bytes = allocation.bytes,
         };
     }
 
-    inline fn getBucket(self: *@This(), stringLength: u32) *Bucket {
+    inline fn getBucketByLen(self: *@This(), stringLength: u32) *Bucket {
         const actualLength = stringLength + StringAllocation.MetaLen;
 
         // theres probably a few bitwise operations that can do this lookup really
         // quickly.. too tired to think of them right now
         for (self.buckets.items) |*bucket| {
-            if (bucket.allocSize > actualLength) {
+            if (bucket.allocSize >= actualLength) {
                 return bucket;
             }
         }
@@ -211,15 +246,27 @@ pub const StringContext = struct {
         @panic("Unable to find a bucket to allocate string of length.");
     }
 
-    pub fn strDestroy(self: *@This(), handle: StringHandle) void {
-        _ = self;
-        _ = handle;
+    inline fn getBucketFromHandle(self: @This(), handle: StringHandle) *Bucket {
+        return &self.buckets.items[@intCast(handle.bucketId)];
     }
 
-    pub fn strEql(self: *@This(), left: StringHandle, right: StringHandle) bool {
-        _ = self;
-        _ = left;
-        _ = right;
+    pub fn getUtf8(self: @This(), handle: StringHandle) []u8 {
+        return self.handleToAllocation(handle).bytes();
+    }
+
+    pub fn handleToAllocation(self: *@This(), handle: StringHandle) StringAllocation {
+        const bucket = self.getBucketFromHandle(handle);
+        const allocation = StringAllocation.fromPtr(bucket.getBytesFromIndex(handle.index).ptr);
+
+        return allocation;
+    }
+
+    pub fn strDestroy(self: *@This(), handle: StringHandle) void {
+        const allocation = self.handleToAllocation(handle);
+        if (allocation.rcSub()) {
+            const bucket = self.getBucketFromHandle(handle);
+            bucket.destroySlot(self.getAllocator(), @intCast(handle.index));
+        }
     }
 
     pub fn destroy(self: *@This()) void {
@@ -242,8 +289,11 @@ test "string context" {
     defer shutdown();
 
     const ctx = gStringContext;
-    const newString = try ctx.strNew(14);
-    _ = newString;
+    const testSizes: []const u32 = &.{ 14, 15, 16, 12, 32, 10, 1, 2, 3, 4, 440, 450, 3200 };
+    for (testSizes) |testSize| {
+        const results = try ctx.strNew(testSize);
+        std.debug.print("test {d} = {d}, {d}\n", .{ testSize, results.handle.bucketId, results.handle.index });
+    }
 
     const s = try newStringAllocation(std.testing.allocator, 32);
     defer destroyStringAllocation(s, std.testing.allocator);
