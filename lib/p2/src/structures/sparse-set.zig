@@ -442,7 +442,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 denseHandle = self.sparse[@as(usize, @intCast(newSparseIndex))];
             }
 
-            return try self.createAndGetInteral(denseHandle, newSparseIndex, initValue, true);
+            return try self.createAndGetInternal(denseHandle, newSparseIndex, initValue, true);
         }
 
         pub fn deinit(self: *@This()) void {

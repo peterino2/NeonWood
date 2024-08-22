@@ -1,78 +1,117 @@
 const std = @import("std");
 
-// register a global backing allocator
+// todo:
+//
+// - take() - done
+// - clone() - done
+// - resize()
+//
+// actually useful functions
+// - append()
+// - add()
+// - trim()
+// - substring()
+// - split()
+// - fmt()
 
 var gStringContext: *StringContext = undefined;
 
-pub const StringHandle = packed struct {
+pub const String = struct {
     index: u24,
     bucketId: u8,
+    bytes: ?[]u8 = null,
 
-    pub fn utf8(self: @This()) []u8 {
-        return gStringContext.getUtf8(self);
+    // potentially slower, use utf8() whenever possible to cache the results
+    pub fn getUtf8(self: @This()) []u8 {
+        if (self.bytes) |bytes| {
+            return bytes;
+        } else {
+            return gStringContext.getUtf8(self);
+        }
+    }
+
+    // gets the utf8 value from this handle and caches the result if possible
+    pub fn utf8(self: *@This()) []u8 {
+        if (self.bytes) |bytes| {
+            return bytes;
+        } else {
+            self.bytes = gStringContext.getUtf8(self.*);
+            return self.bytes.?;
+        }
+    }
+
+    // creates a new string from []const u8
+    pub fn new(str: []const u8) !@This() {
+        return try gStringContext.newFromUtf8(str);
+    }
+
+    // deep copy of a string
+    pub fn clone(self: @This()) !@This() {
+        return try gStringContext.newFromUtf8(self.utf8());
+    }
+
+    // increases the reference count for this string by one and makes a copy of the handle
+    pub fn pin(self: @This()) @This() {
+        gStringContext.rcAdd(self);
+        return self;
+    }
+
+    pub fn drop(self: @This()) void {
+        gStringContext.strDestroy(self);
     }
 };
 
-// testing functions for stringAllocation
-pub fn destroyStringAllocation(self: StringAllocation, allocator: std.mem.Allocator) void {
-    allocator.free(self.deallocBytes());
-}
-
-pub fn newStringAllocation(allocator: std.mem.Allocator, stringLength: usize) !StringAllocation {
-    const slice = try allocator.alignedAlloc(u8, 2, stringLength + StringAllocation.MetaLen);
-    const slenPtr = @as(*u24, @ptrCast(@alignCast(slice.ptr)));
-    slenPtr.* = @intCast(stringLength);
-
-    return .{ .ptr = slice.ptr };
-}
 // testing functions for string allocation
-
 const StringAllocation = struct {
     ptr: *align(2) anyopaque,
 
-    pub const MetaLen = 4;
+    pub const HeaderLen = 4;
+
     // offsets:
-    // 0x0 -] 0x2         : length (u24)
-    // 0x3 -] 0x4         : reference count (u8)
-    // 0x4 -  length + 4  : string
+    // 0x0 -> 0x3         : length (u24)
+    // 0x3 -> 0x4         : reference count (u8)
+    // 0x4 -> length + 4  : string
 
     pub fn len(self: @This()) usize {
-        return @intCast(@as(*u24, @ptrCast(@alignCast(self.ptr))).*);
+        const read = @as(*u24, @ptrCast(@alignCast(self.ptr))).*;
+        return @intCast(read);
     }
 
     pub fn initRc(self: @This()) void {
-        const x: [*]u8 = @ptrCast(self.ptr);
-        x[3] = 1;
+        const x: [*]std.atomic.Value(u8) = @ptrCast(self.ptr);
+        x[3] = std.atomic.Value(u8).init(1);
     }
 
     pub fn rcAdd(self: @This()) void {
-        const x: [*]u8 = @ptrCast(self.ptr); //+= 1;
-        x[3] += 1;
+        const x: [*]std.atomic.Value(u8) = @ptrCast(self.ptr); //+= 1;
+        _ = x[3].fetchAdd(1, .monotonic);
     }
 
     // returns true if the reference count hits 0
     pub fn rcSub(self: @This()) bool {
-        const rc: [*]u8 = @ptrCast(self.ptr); //+= 1;
-        rc[3] -= 1;
+        const rc: [*]std.atomic.Value(u8) = @ptrCast(self.ptr); //+= 1;
 
-        if (rc[3] == 0) {
+        if (rc[3].fetchSub(1, .release) == 1) {
+            rc[3].fence(.acquire);
             return true;
         }
+
         return false;
     }
 
+    pub fn setLen(self: @This(), length: usize) void {
+        @as(*u24, @ptrCast(@alignCast(self.ptr))).* = @intCast(length);
+    }
+
     pub fn bytes(self: @This()) []u8 {
-        var rv: []u8 = undefined;
-        rv.ptr = @ptrCast(self.ptr + 0x2);
-        rv.len = self.len();
-        return rv;
+        return @as([*]u8, @ptrCast(self.ptr))[HeaderLen .. HeaderLen + self.len()];
     }
 
     // returns a bytes list for use with a memory allocator
     pub fn deallocBytes(self: @This()) []align(2) u8 {
         var rv: []align(2) u8 = undefined;
         rv.ptr = @ptrCast(self.ptr);
-        rv.len = self.len() + StringAllocation.MetaLen;
+        rv.len = self.len() + StringAllocation.HeaderLen;
         return rv;
     }
 
@@ -94,6 +133,8 @@ const Bucket = struct {
     next: u32 = 0,
     pages: std.ArrayListUnmanaged(Page) = .{},
     freeSlots: std.ArrayListUnmanaged(u32) = .{},
+
+    lock: std.Thread.Mutex = .{},
 
     pub const BucketAllocation = struct {
         bytes: []u8,
@@ -138,10 +179,14 @@ const Bucket = struct {
     }
 
     pub fn destroySlot(self: *@This(), allocator: std.mem.Allocator, index: u32) void {
+        self.lock.lock();
+        defer self.lock.unlock();
         self.freeSlots.append(allocator, index) catch unreachable;
     }
 
     pub fn assignOrRecycleSlot(self: *@This(), allocator: std.mem.Allocator) !BucketAllocation {
+        self.lock.lock();
+        defer self.lock.unlock();
         if (self.freeSlots.items.len < 1) {
             const pageIndex = self.i2p(self.next);
 
@@ -153,8 +198,6 @@ const Bucket = struct {
                 .bytes = self.indexToSlot(pageIndex, self.ibp(self.next)),
                 .index = @intCast(self.next),
             };
-
-            std.debug.print("next is getting bumped : {d}", .{self.next});
 
             self.next += 1;
 
@@ -176,12 +219,6 @@ pub const StringContext = struct {
     backingAllocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator, // for now, just do an arenaAllocator
     buckets: std.ArrayListUnmanaged(Bucket) = .{},
-
-    // todo,
-    // if I REALLY want to juice the living frick out of this perf.
-    // I would use the following allocation strategies
-    // - temporal allocation hints, (short lived allocations go into a fast frame bump allocator)
-    // - granular bit-bucket allocations, (lots of strings are very short)
 
     pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
         const self = try backingAllocator.create(@This());
@@ -210,9 +247,16 @@ pub const StringContext = struct {
         return self.arena.allocator();
     }
 
+    pub fn newFromUtf8(self: *@This(), str: []const u8) !String {
+        const results = try self.strNew(str.len);
+
+        std.mem.copyForwards(u8, results.bytes, str);
+        return results.handle;
+    }
+
     // inner function
     pub fn strNew(self: *@This(), length: usize) !struct {
-        handle: StringHandle,
+        handle: String,
         bytes: []u8,
     } {
 
@@ -223,17 +267,18 @@ pub const StringContext = struct {
         const allocation = try bucket.assignOrRecycleSlot(self.getAllocator());
 
         // 3. write in the string length.
-        @as(*u24, @ptrCast(@alignCast(allocation.bytes.ptr))).* = @intCast(length);
-        StringAllocation.fromPtr(allocation.bytes.ptr).initRc();
+        const strAllocation = StringAllocation.fromPtr(allocation.bytes.ptr);
+        strAllocation.initRc();
+        strAllocation.setLen(length);
 
         return .{
             .handle = .{ .bucketId = @intCast(bucket.id), .index = allocation.index },
-            .bytes = allocation.bytes,
+            .bytes = strAllocation.bytes(),
         };
     }
 
     inline fn getBucketByLen(self: *@This(), stringLength: u32) *Bucket {
-        const actualLength = stringLength + StringAllocation.MetaLen;
+        const actualLength = stringLength + StringAllocation.HeaderLen;
 
         // theres probably a few bitwise operations that can do this lookup really
         // quickly.. too tired to think of them right now
@@ -246,22 +291,28 @@ pub const StringContext = struct {
         @panic("Unable to find a bucket to allocate string of length.");
     }
 
-    inline fn getBucketFromHandle(self: @This(), handle: StringHandle) *Bucket {
+    inline fn getBucketFromHandle(self: @This(), handle: String) *Bucket {
         return &self.buckets.items[@intCast(handle.bucketId)];
     }
 
-    pub fn getUtf8(self: @This(), handle: StringHandle) []u8 {
-        return self.handleToAllocation(handle).bytes();
+    pub fn getUtf8(self: @This(), handle: String) []u8 {
+        const x = self.handleToAllocation(handle);
+        return x.bytes();
     }
 
-    pub fn handleToAllocation(self: *@This(), handle: StringHandle) StringAllocation {
+    pub fn rcAdd(self: *@This(), handle: String) void {
+        const allocation = self.handleToAllocation(handle);
+        allocation.rcAdd();
+    }
+
+    pub fn handleToAllocation(self: @This(), handle: String) StringAllocation {
         const bucket = self.getBucketFromHandle(handle);
         const allocation = StringAllocation.fromPtr(bucket.getBytesFromIndex(handle.index).ptr);
 
         return allocation;
     }
 
-    pub fn strDestroy(self: *@This(), handle: StringHandle) void {
+    pub fn strDestroy(self: *@This(), handle: String) void {
         const allocation = self.handleToAllocation(handle);
         if (allocation.rcSub()) {
             const bucket = self.getBucketFromHandle(handle);
@@ -295,6 +346,45 @@ test "string context" {
         std.debug.print("test {d} = {d}, {d}\n", .{ testSize, results.handle.bucketId, results.handle.index });
     }
 
-    const s = try newStringAllocation(std.testing.allocator, 32);
-    defer destroyStringAllocation(s, std.testing.allocator);
+    const L = struct {
+        pub fn wrap(x: String) void {
+            std.debug.print("{d},{d}\n", .{ x.bucketId, x.index });
+        }
+    };
+
+    var s = try String.new("lmao2nova");
+    L.wrap(s);
+
+    const x = s.utf8();
+    std.debug.print("{x}\n", .{x.len});
+
+    // doing 1Billion accesses
+
+    {
+        const now = std.time.nanoTimestamp();
+        for (0..1_000_000_000) |i| {
+            _ = i;
+            _ = s.utf8();
+        }
+        const end = std.time.nanoTimestamp();
+        const duration = end - now;
+        std.debug.print("time spent {d}ms\n", .{@as(f64, @floatFromInt(duration)) / 1000_000});
+    }
+
+    {
+        const now = std.time.nanoTimestamp();
+        // 1 million string creations/destructions
+        for (0..1_000_000) |i| {
+            _ = i;
+            const y = try String.new("wutang forever\n");
+            defer y.drop();
+        }
+        const end = std.time.nanoTimestamp();
+        const duration = end - now;
+        std.debug.print("time spent {d}ms\n", .{@as(f64, @floatFromInt(duration)) / 1000_000});
+    }
+
+    // allocate 1 million strings
+    const s2 = s.pin();
+    defer s2.drop();
 }

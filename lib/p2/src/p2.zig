@@ -46,6 +46,8 @@ pub const concurrent_queue = @import("structures/concurrent-queue.zig");
 pub const ConcurrentQueueU = concurrent_queue.ConcurrentQueueU;
 pub const ConcurrentQueueUnmanagedAdvanced = concurrent_queue.ConcurrentQueueUnmanagedAdvanced;
 
+pub const string_pool = @import("structures/string-pool.zig");
+
 pub const names = @import("structures/names.zig");
 
 pub const NameInvalid = names.NameInvalid;
@@ -62,6 +64,7 @@ comptime {
     std.testing.refAllDecls(stack_structures);
     std.testing.refAllDecls(index_pool);
     std.testing.refAllDecls(concurrent_queue);
+    std.testing.refAllDecls(string_pool);
 }
 
 // ---- aliases ----
