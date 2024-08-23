@@ -289,6 +289,11 @@ pub const LuaState = struct {
         return (typeIndex == c.LUA_TNIL);
     }
 
+    pub fn isUserdata(self: @This(), index: i32) bool {
+        const typeIndex = c.lua_type(self.l, index);
+        return (typeIndex == c.LUA_TUSERDATA);
+    }
+
     pub fn isTable(self: @This(), index: i32) bool {
         return c.lua_type(self.l, index) == c.LUA_TTABLE;
     }

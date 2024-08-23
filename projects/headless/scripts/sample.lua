@@ -1,5 +1,6 @@
 print("hello from sample.lua")
 
 entity = Entity.new()
--- component = AddComponent(entity, SampleComponent)
+print(SampleComponent)
+-- component = entity.addComponent(SampleComponent)
 -- component.setName(name)

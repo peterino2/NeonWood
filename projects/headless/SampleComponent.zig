@@ -35,6 +35,9 @@ pub const SampleSystem = struct {
 };
 
 pub var BaseContainer: *core.SparseMap(@This()) = undefined;
+
+pub const ComponentName = "SampleComponent";
+
 const std = @import("std");
 const core = @import("NeonWood").core;
 const ecs = core.ecs;

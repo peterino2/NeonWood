@@ -36,13 +36,29 @@ pub fn NewFunc(comptime T: type) lua.LuaCFunc {
             newValue.* = .{};
 
             if (argc == 0) {
-                return 0;
+                return 1;
             }
 
             if (argc == 1 and state.isTable(-2)) {
                 inline for (std.meta.fields(T)) |field| {
                     if (state.getFieldAsNumber(-2, field.name)) |value| {
-                        @field(newValue.*, field.name) = value;
+                        switch (field.type) {
+                            f32 => {
+                                @field(newValue.*, field.name) = @as(f32, @floatCast(value));
+                            },
+                            f64 => {
+                                @field(newValue.*, field.name) = value;
+                            },
+                            i32, i64, u32, u64 => {
+                                @field(newValue.*, field.name) = @intFromFloat(value);
+                            },
+                            []const u8 => {
+                                @panic("[] const u8 field not implemented yet");
+                            },
+                            else => {
+                                @panic("unknown type not implemented");
+                            },
+                        }
                     }
                 }
             } else {
@@ -175,12 +191,10 @@ pub fn GetFunc(comptime T: type, comptime args: struct {
                     const argument = state.toString(2);
 
                     // check the funcTable
-                    if (@hasDecl(T, "ScriptFunctions")) {
-                        inline for (T.ScriptFunctions) |fname| {
-                            if (std.mem.eql(u8, argument, fname)) {
-                                state.pushCFunction(lua.WrapZigFunc(@field(T, fname))) catch return 0;
-                                break;
-                            }
+                    inline for (T.PodDataTable.funcs) |fname| {
+                        if (std.mem.eql(u8, argument, fname)) {
+                            state.pushCFunction(lua.WrapZigFunc(@field(T, fname))) catch return 0;
+                            break;
                         }
                     }
 
@@ -268,7 +282,9 @@ pub const DataTable = struct {
     name: []const u8,
     funcs: []const []const u8 = &.{},
     luaFuncs: []const []const u8 = &.{},
-    newFuncOverride: ?lua.LuaCFunc,
+    newFuncOverride: ?lua.LuaCFunc = null,
+    toStringOverride: ?lua.LuaCFunc = null,
+    banInstantiation: bool = false,
     operators: struct {
         // i've decided I shall not support operator overloading.
         add: ?[]const u8 = null,
@@ -277,15 +293,19 @@ pub const DataTable = struct {
     } = .{},
 };
 
-const PodMetatable = struct {
+const PodLib = struct {
     methods: lua.LibSpec,
     functions: lua.LibSpec,
 };
 
-pub fn MakeMetatable(comptime T: type) PodMetatable {
+pub fn MakeMetatable(comptime T: type) PodLib {
     const methods = blk: {
         comptime var m: lua.LibSpec = &.{};
-        m = m ++ .{.{ .name = "__tostring", .func = comptime ToStringFunc(T) }};
+        if (T.PodDataTable.toStringOverride != null) {
+            m = m ++ .{.{ .name = "__tostring", .func = comptime T.PodDataTable.toStringOverride.? }};
+        } else {
+            m = m ++ .{.{ .name = "__tostring", .func = comptime ToStringFunc(T) }};
+        }
         m = m ++ .{.{ .name = "__newindex", .func = comptime SetFunc(T, .{ .allowIndices = true }) }};
         m = m ++ .{.{ .name = "__index", .func = comptime GetFunc(T, .{ .allowIndices = true }) }};
 
@@ -312,10 +332,12 @@ pub fn MakeMetatable(comptime T: type) PodMetatable {
 
     const functions = blk: {
         comptime var m: lua.LibSpec = &.{};
-        if (T.PodDataTable.newFuncOverride != null) {
-            m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime T.PodDataTable.newFuncOverride.? }};
-        } else {
-            m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime NewFunc(T) }};
+        if (!T.PodDataTable.banInstantiation) {
+            if (T.PodDataTable.newFuncOverride != null) {
+                m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime T.PodDataTable.newFuncOverride.? }};
+            } else {
+                m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime NewFunc(T) }};
+            }
         }
         break :blk m ++ .{.{ .name = null, .func = null }};
     };

@@ -145,7 +145,10 @@ pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !
     Component.BaseContainer = try ContainerType.create(allocator);
 
     core.engine_log("Component container created " ++ @typeName(Component) ++ "  @{x}", .{@intFromPtr(Component.BaseContainer)});
-    try registerEcsContainer(makeEcsContainerRef(Component.BaseContainer), core.MakeName(@typeName(Component)));
+    const container = makeEcsContainerRef(Component.BaseContainer);
+    try registerEcsContainer(container, core.MakeName(@typeName(Component)));
+
+    try script.addComponentRegistration(@ptrCast(Component.ComponentName), container);
 }
 
 pub fn undefineComponent(comptime Component: type) void {
@@ -228,6 +231,7 @@ pub const EcsSystemInterface = p2.MakeInterface("EcsSystemVTable", struct {
     }
 });
 
+const script = @import("script.zig");
 const std = @import("std");
 const p2 = @import("p2");
 const core = @import("core.zig");
