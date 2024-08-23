@@ -20,6 +20,10 @@ pub fn CWrap(comptime Func: anytype) LuaCFunc {
     return Wrap.inner;
 }
 
+pub fn WrapZigFunc(comptime baseFunc: anytype) LuaCFunc {
+    return CWrap(FuncWrapper(baseFunc).wrapper);
+}
+
 pub fn FuncWrapper(comptime baseFunc: anytype) type {
     return struct {
         pub fn wrapper(state: LuaState) i32 {
@@ -38,14 +42,25 @@ pub fn FuncWrapper(comptime baseFunc: anytype) type {
                         args[index] = @intFromFloat(state.toNumber(index + 1));
                     },
                     else => {
-                        @panic("not implemented");
+                        args[index] = state.toUserdata(field.type, index + 1).?.*;
                     },
                 }
             }
             state.pop(@intCast(args.len));
 
             const rv = @call(.always_inline, baseFunc, args);
-            state.pushNumber(rv);
+            switch (@TypeOf(rv)) {
+                i32, u32, i64, u64 => {
+                    state.pushNumber(@floatFromInt(rv));
+                },
+                f32, f64 => {
+                    state.pushNumber(@floatCast(rv));
+                },
+                else => {
+                    const ud = state.newZigUserdata(@TypeOf(rv)) catch @panic("not implemented");
+                    ud.* = rv;
+                },
+            }
 
             return 1;
         }
@@ -74,14 +89,10 @@ pub const LuaState = struct {
 
         if (settings.defaultSetup) {
             self.stopGC();
-            // TODO: get rid of the IO library instead load in my own version of the io library.
-            // math and some other stuff too we'll need to figure out.
             self.openLibs();
             self.useGenerationalGC();
         } else {
             self.stopGC();
-            // TODO: get rid of the IO library instead load in my own version of the io library.
-            // math and some other stuff too we'll need to figure out.
             self.openLimited();
             self.useGenerationalGC();
         }
@@ -294,31 +305,14 @@ pub const LuaState = struct {
 
     pub fn newZigUserdata(self: @This(), comptime T: type) !*T {
         const rv = try self.newUserdata(T);
-        try self.getMetatableByName(T.MetatableName);
+        if (@hasDecl(T, "MetatableName")) {
+            try self.getMetatableByName(T.MetatableName);
+        } else if (@hasDecl(T, "PodDataTable")) {
+            try self.getMetatableByName(@ptrCast(T.PodDataTable.name));
+        } else {
+            @panic("todo");
+        }
         try self.setMetatable(-2);
         return rv;
     }
-
-    // pub fn isType(self: @This(), comptime T: type, index: i32) bool {
-    //     const typeIndex = c.lua_type(self.l, index);
-    //     switch (T) {
-    //         .i32 => {
-    //             if (typeIndex == c.LUA_TINTEGER)
-    //                 return true;
-    //         },
-    //         .f64 => {
-    //             if (typeIndex == c.LUA_TNUMBER)
-    //                 return true;
-    //         },
-    //         .bool => {
-    //             if (typeIndex == c.LUA_TBOOLEAN)
-    //                 return true;
-    //         },
-    //         .Pointer => {
-    //             if (typeIndex == c.LUA_TSTRING)
-    //                 return true;
-    //         },
-    //     }
-    //     return false;
-    // }
 };

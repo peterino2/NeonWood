@@ -76,7 +76,7 @@ pub fn NewFunc(comptime T: type) lua.LuaCFunc {
     return lua.CWrap(S.inner);
 }
 
-pub fn AddFunc(comptime T: type, comptime Func: anytype) lua.LuaCFunc {
+pub fn Operator2Arg(comptime T: type, comptime Func: anytype) lua.LuaCFunc {
     const S = struct {
         pub fn inner(state: lua.LuaState) i32 {
             const argc = state.getTop();
@@ -91,7 +91,9 @@ pub fn AddFunc(comptime T: type, comptime Func: anytype) lua.LuaCFunc {
         }
     };
 
-    return lua.CWrap(S.inner);
+    _ = S;
+
+    return lua.WrapZigFunc(Func);
 }
 
 var Buffer: std.ArrayList(u8) = undefined;
@@ -107,7 +109,7 @@ pub fn ToStringFunc(comptime T: type) lua.LuaCFunc {
                 Buffer.clearRetainingCapacity();
 
                 var writer = Buffer.writer();
-                writer.print("{s}{{", .{T.MetatableName}) catch return 0;
+                writer.print("{s}{{", .{T.PodDataTable.name}) catch return 0;
 
                 inline for (std.meta.fields(T), 0..) |field, i| {
                     if (i == 0) {
@@ -120,7 +122,7 @@ pub fn ToStringFunc(comptime T: type) lua.LuaCFunc {
                             writer.print("{d}", .{@field(value, field.name)}) catch return 0;
                         },
                         else => {
-                            writer.print("<unknown type {s}>", .{field.typeName}) catch return 0;
+                            writer.print("<unknown type {s}>", .{@typeName(field.type)}) catch return 0;
                         },
                     }
                 }
@@ -138,11 +140,192 @@ pub fn ToStringFunc(comptime T: type) lua.LuaCFunc {
     return lua.CWrap(S.inner);
 }
 
-//pub fn IndexFunc() lua.LuaCFunc {}
-//pub fn NewIndexFunc() lua.LuaCFunc {}
+pub const FuncEntry = struct {
+    name: []const u8,
+    func: lua.LuaCFunc,
+};
 
-//math operator
-//pub fn AddFunc() lua.LuaCFunc {}
-//pub fn SubtractFunc() lua.LuaCFunc {}
-//pub fn DivideFunc() lua.LuaCFunc {}
-//pub fn MultiplyFunc() lua.LuaCFunc {}
+pub fn GetFunc(comptime T: type, comptime args: struct {
+    allowIndices: bool,
+}) lua.LuaCFunc {
+    const S = struct {
+        pub fn inner(state: lua.LuaState) i32 {
+            if (state.toUserdata(T, 1)) |v| {
+                if (args.allowIndices and state.isNumber(2)) {
+                    const index = state.checkInteger(2);
+                    state.argCheck(index <= 3, 2, "index out of bounds") catch return 0;
+
+                    inline for (std.meta.fields(T), 1..) |field, i| {
+                        if (i == index) {
+                            switch (field.type) {
+                                i32, u32, i64, u64 => {
+                                    state.pushNumber(@floatFromInt(@field(v, field.name)));
+                                },
+                                f32, f64 => {
+                                    state.pushNumber(@floatCast(@field(v, field.name)));
+                                },
+                                else => {
+                                    @panic("unsupported type");
+                                },
+                            }
+                            break;
+                        }
+                    }
+                } else if (state.isString(2)) {
+                    const argument = state.toString(2);
+
+                    // check the funcTable
+                    if (@hasDecl(T, "ScriptFunctions")) {
+                        inline for (T.ScriptFunctions) |fname| {
+                            if (std.mem.eql(u8, argument, fname)) {
+                                state.pushCFunction(lua.WrapZigFunc(@field(T, fname))) catch return 0;
+                                break;
+                            }
+                        }
+                    }
+
+                    inline for (std.meta.fields(T)) |field| {
+                        if (std.mem.eql(u8, argument, field.name)) {
+                            switch (field.type) {
+                                i32, u32, i64, u64 => {
+                                    state.pushNumber(@floatFromInt(@field(v, field.name)));
+                                },
+                                f32, f64 => {
+                                    state.pushNumber(@floatCast(@field(v, field.name)));
+                                },
+                                else => {
+                                    @panic("unsupported type");
+                                },
+                            }
+                            break;
+                        }
+                    }
+                }
+            } else {
+                @panic("called the Get function for the wrong type");
+            }
+
+            return 1;
+        }
+    };
+
+    return lua.CWrap(S.inner);
+}
+
+pub fn SetFunc(comptime T: type, comptime args: struct { allowIndices: bool }) lua.LuaCFunc {
+    const S = struct {
+        pub fn inner(state: lua.LuaState) i32 {
+            if (state.toUserdata(T, 1)) |v| {
+                if (args.allowIndices and state.isNumber(2)) {
+                    const index = state.toNumber(2);
+                    inline for (std.meta.fields(T), 1..) |field, i| {
+                        if (index == i) {
+                            switch (field.type) {
+                                i32, u32, i64, u64 => {
+                                    @field(v, field.name) = @intFromFloat(state.toNumber(3));
+                                },
+                                f32, f64 => {
+                                    @field(v, field.name) = @floatCast(state.toNumber(3));
+                                },
+                                else => {
+                                    @panic("unsupported type");
+                                },
+                            }
+                            break;
+                        }
+                    }
+                } else if (state.isString(2)) {
+                    const argument = state.toString(2);
+                    inline for (std.meta.fields(T)) |field| {
+                        if (std.mem.eql(u8, argument, field.name)) {
+                            switch (field.type) {
+                                i32, u32, i64, u64 => {
+                                    @field(v, field.name) = @intFromFloat(state.toNumber(3));
+                                },
+                                f32, f64 => {
+                                    @field(v, field.name) = @floatCast(state.toNumber(3));
+                                },
+                                else => {
+                                    @panic("unsupported type");
+                                },
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            return 0;
+        }
+    };
+    return lua.CWrap(S.inner);
+}
+
+pub fn funcEntry(comptime name: []const u8, comptime func: anytype) lua.WrapZigFunc {
+    return .{ .name = name, .func = lua.WrapZigFunc(func) };
+}
+
+pub const DataTable = struct {
+    name: []const u8,
+    funcs: []const []const u8 = &.{},
+    luaFuncs: []const []const u8 = &.{},
+    newFuncOverride: ?lua.LuaCFunc,
+    operators: struct {
+        // i've decided I shall not support operator overloading.
+        add: ?[]const u8 = null,
+        sub: ?[]const u8 = null,
+        mul: ?[]const u8 = null,
+    } = .{},
+};
+
+const PodMetatable = struct {
+    methods: lua.LibSpec,
+    functions: lua.LibSpec,
+};
+
+pub fn MakeMetatable(comptime T: type) PodMetatable {
+    const methods = blk: {
+        comptime var m: lua.LibSpec = &.{};
+        m = m ++ .{.{ .name = "__tostring", .func = comptime ToStringFunc(T) }};
+        m = m ++ .{.{ .name = "__newindex", .func = comptime SetFunc(T, .{ .allowIndices = true }) }};
+        m = m ++ .{.{ .name = "__index", .func = comptime GetFunc(T, .{ .allowIndices = true }) }};
+
+        if (T.PodDataTable.operators.add) |f| {
+            m = m ++ .{.{ .name = "__add", .func = comptime Operator2Arg(T, @field(T, f)) }};
+        }
+        if (T.PodDataTable.operators.sub) |f| {
+            m = m ++ .{.{ .name = "__sub", .func = comptime Operator2Arg(T, @field(T, f)) }};
+        }
+        if (T.PodDataTable.operators.mul) |f| {
+            m = m ++ .{.{ .name = "__mul", .func = comptime Operator2Arg(T, @field(T, f)) }};
+        }
+
+        inline for (T.PodDataTable.funcs) |f| {
+            m = m ++ .{.{ .name = @as([*c]const u8, @ptrCast(f)), .func = comptime lua.WrapZigFunc(@field(T, f)) }};
+        }
+
+        inline for (T.PodDataTable.luaFuncs) |f| {
+            m = m ++ .{.{ .name = @as([*c]const u8, @ptrCast(f)), .func = @field(T, f) }};
+        }
+
+        break :blk m ++ .{.{ .name = null, .func = null }};
+    };
+
+    const functions = blk: {
+        comptime var m: lua.LibSpec = &.{};
+        if (T.PodDataTable.newFuncOverride != null) {
+            m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime T.PodDataTable.newFuncOverride.? }};
+        } else {
+            m = m ++ .{lua.c.luaL_Reg{ .name = "new", .func = comptime NewFunc(T) }};
+        }
+        break :blk m ++ .{.{ .name = null, .func = null }};
+    };
+    return .{ .methods = methods, .functions = functions };
+}
+
+pub fn registerPodType(luaState: *lua.LuaState, comptime T: type) !void {
+    const Metatable = MakeMetatable(T);
+    try luaState.newMetatable(@ptrCast(T.PodDataTable.name));
+    try luaState.setFuncs(Metatable.methods, 0);
+    try luaState.newLib(Metatable.functions);
+    try luaState.setGlobal(T.PodDataTable.name);
+}

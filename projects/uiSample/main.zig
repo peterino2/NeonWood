@@ -82,8 +82,6 @@ pub const GameContext = struct {
         self.fpsText = std.fmt.allocPrint(self.allocator, "fps: {d:.2}", .{1.0 / dt}) catch unreachable;
 
         var ctx = ui.getContext();
-
-        // holy crap that's bad i need a better way to automate this.
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
     }
 

@@ -4,6 +4,13 @@ pub fn createEntity() !Entity {
     return .{ .handle = try gEcsRegistry.baseSet.createObject(.{}) };
 }
 
+pub fn CreateEntity_Lua(state: lua.LuaState) i32 {
+    const ud = state.newUserdata(Entity) catch return 0;
+    ud.* = createEntity() catch return 0;
+    core.engine_log("Entity created: {d}", .{ud.handle.index});
+    return 1;
+}
+
 pub fn setup(allocator: std.mem.Allocator) !void {
     _ = allocator;
     gEcsRegistry = try core.createObject(EcsRegistry, .{ .can_tick = true });
@@ -137,9 +144,8 @@ pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !
     const ContainerType = @TypeOf(Component.BaseContainer.*);
     Component.BaseContainer = try ContainerType.create(allocator);
 
-    // Component.EcsComponentInterfaceVTable.container = core.makeEcsContainerRef(Component.BaseContainer);
     core.engine_log("Component container created " ++ @typeName(Component) ++ "  @{x}", .{@intFromPtr(Component.BaseContainer)});
-    try registerEcsContainer(core.makeEcsContainerRef(Component.BaseContainer), core.MakeName(@typeName(Component)));
+    try registerEcsContainer(makeEcsContainerRef(Component.BaseContainer), core.MakeName(@typeName(Component)));
 }
 
 pub fn undefineComponent(comptime Component: type) void {
@@ -148,6 +154,11 @@ pub fn undefineComponent(comptime Component: type) void {
 
 pub const Entity = packed struct {
     handle: core.ObjectHandle,
+
+    pub const PodDataTable: pod.DataTable = .{
+        .name = "Entity",
+        .newFuncOverride = lua.CWrap(CreateEntity_Lua),
+    };
 
     pub fn addComponent(self: @This(), comptime Component: type, initValue: Component) ?*Component {
         return Component.BaseContainer.createWithHandle(self.handle, initValue) catch return null;
@@ -173,10 +184,6 @@ pub const EcsComponentInterface = p2.MakeInterface("EcsComponentInterfaceVTable"
         return .{};
     }
 });
-
-const std = @import("std");
-const p2 = @import("p2");
-const core = @import("core.zig");
 
 pub const EcsContainerInterface = p2.EcsContainerInterface;
 pub const EcsContainerRef = p2.Reference(EcsContainerInterface);
@@ -220,3 +227,9 @@ pub const EcsSystemInterface = p2.MakeInterface("EcsSystemVTable", struct {
         };
     }
 });
+
+const std = @import("std");
+const p2 = @import("p2");
+const core = @import("core.zig");
+const lua = @import("lua");
+const pod = lua.pod;

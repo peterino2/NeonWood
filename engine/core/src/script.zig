@@ -4,6 +4,8 @@ const std = @import("std");
 const lua = @import("lua");
 const core = @import("core.zig");
 const startup_script = @embedFile("lua/startup.lua");
+const ecs = @import("ecs.zig");
+const ComponentRegistration = @import("script/ComponentRegistration.zig");
 
 const c = lua.c;
 
@@ -53,7 +55,8 @@ pub fn start_lua() !void {
     c.luaL_setfuncs(gLuaState.l, luaRegLibs.ptr, 0);
     gLuaState.pop(1);
 
-    // load scripting interface library
+    try lua.pod.registerPodType(&gLuaState, ecs.Entity);
+    try lua.pod.registerPodType(&gLuaState, ecs.Entity);
 
     try gLuaState.loadString(startup_script);
     try gLuaState.pcall();
