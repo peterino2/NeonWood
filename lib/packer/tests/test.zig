@@ -90,10 +90,9 @@ test "packerfs_test" {
     std.debug.print("mapping len {d} lost_empire len {d}\n", .{ lost_empire_mapping.bytes.len, lost_empire.len });
 
     const writer = std.io.getStdErr().writer();
-    const options = p2.xxd.XxdOptions{};
-    try p2.xxdWrite(writer, lost_empire_mapping.bytes[0..0x40], options);
+    try p2.xxdWrite(writer, lost_empire_mapping.bytes[0..0x40], .{});
     std.debug.print("\n", .{});
-    try p2.xxdWrite(writer, lost_empire[0..0x40], options);
+    try p2.xxdWrite(writer, lost_empire[0..0x40], .{});
 
     try std.testing.expect(std.mem.eql(u8, lost_empire_mapping.bytes, lost_empire));
 
@@ -106,5 +105,5 @@ test "packerfs_test" {
     const lost_empire4 = try fs.loadFile("lost_empire3.obj");
     defer fs.unmap(lost_empire4);
 
-    try p2.xxdWrite(writer, lost_empire2.bytes[0..0x40], options);
+    try p2.xxdWrite(writer, lost_empire2.bytes[0..0x40], .{});
 }

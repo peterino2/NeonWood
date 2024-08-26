@@ -5,8 +5,9 @@ const core = neonwood.core;
 const ecs = core.ecs;
 const MemoryTracker = core.MemoryTracker;
 
-const SampleComponent = @import("SampleComponent.zig");
-const SampleSystem = SampleComponent.SampleSystem;
+const sample = @import("components/sample.zig");
+const SampleComponent = sample.SampleComponent;
+const SampleSystem = sample.SampleSystem;
 
 const script = core.script;
 
@@ -40,10 +41,11 @@ pub const GameContext = struct {
         _ = try ecs.createSystem(SampleSystem, self.allocator);
 
         self.entity = core.createEntity() catch unreachable;
-        _ = self.entity.addComponent(SampleComponent, .{});
+        _ = self.entity.addComponent(SampleComponent);
 
         self.entity2 = core.createEntity() catch unreachable;
-        _ = self.entity2.addComponent(SampleComponent, .{ .name = "entity2" });
+        const component = self.entity2.addComponent(SampleComponent);
+        component.name = "lmao2nova";
 
         MemoryTracker.PrintStatsWithTag("prepare game end:");
 

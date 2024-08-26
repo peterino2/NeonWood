@@ -78,6 +78,8 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
     try ecs.setup(allocator);
 
+    try algorithm.string_pool.setup(allocator);
+
     logs("core module starting up... ");
     return;
 }
@@ -91,6 +93,7 @@ pub fn shutdown_module(_: std.mem.Allocator) void {
     gEngine.deinit();
     gPackerFS.destroy();
     script.shutdown_lua();
+    algorithm.string_pool.shutdown();
     return;
 }
 

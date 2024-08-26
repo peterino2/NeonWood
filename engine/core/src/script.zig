@@ -75,6 +75,10 @@ pub fn shutdown_lua() void {
     gLuaState.deinit();
 }
 
+pub fn getState() lua.LuaState {
+    return gLuaState;
+}
+
 pub fn runScriptFile(scriptPath: []const u8) !void {
     const scriptFile = try core.fs().loadFile(scriptPath);
     defer core.fs().unmap(scriptFile);

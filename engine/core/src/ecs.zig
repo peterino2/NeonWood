@@ -149,22 +149,26 @@ pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !
     try registerEcsContainer(container, core.MakeName(@typeName(Component)));
 
     try script.addComponentRegistration(@ptrCast(Component.ComponentName), container);
+
+    const ReferenceType = ComponentRef.ComponentReferenceType(Component);
+    try ReferenceType.registerType(script.getState());
 }
 
 pub fn undefineComponent(comptime Component: type) void {
     Component.BaseContainer.destroy();
 }
 
-pub const Entity = packed struct {
+pub const Entity = struct {
     handle: core.ObjectHandle,
 
     pub const PodDataTable: pod.DataTable = .{
         .name = "Entity",
+        .luaFuncs = &.{"luaCAddComponent"},
         .newFuncOverride = lua.CWrap(CreateEntity_Lua),
     };
 
-    pub fn addComponent(self: @This(), comptime Component: type, initValue: Component) ?*Component {
-        return Component.BaseContainer.createWithHandle(self.handle, initValue) catch return null;
+    pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
+        return Component.BaseContainer.createWithHandle(self.handle, .{}) catch return null;
     }
 
     pub fn get(self: @This(), comptime Component: type) ?*Component {
@@ -173,6 +177,22 @@ pub const Entity = packed struct {
 
     pub fn removeComponent(self: @This(), comptime Component: type) void {
         Component.BaseContainer.remove(self.handle);
+    }
+
+    pub const luaCAddComponent = lua.CWrap(luaAddComponent);
+    pub fn luaAddComponent(state: lua.LuaState) i32 {
+        const argc = state.getTop();
+
+        if (argc != 2) {
+            core.engine_logs("Add Component Error");
+            return 0;
+        }
+
+        if (state.toUserdata(@This(), 1)) |self| {
+            _ = self;
+        }
+
+        return 1;
     }
 };
 
@@ -231,6 +251,7 @@ pub const EcsSystemInterface = p2.MakeInterface("EcsSystemVTable", struct {
     }
 });
 
+const ComponentRef = @import("script/ComponentRef.zig");
 const script = @import("script.zig");
 const std = @import("std");
 const p2 = @import("p2");

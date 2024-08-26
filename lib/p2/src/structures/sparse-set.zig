@@ -44,6 +44,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         sparse: []SetHandle,
         containerID: u32 = 0,
         containerListener: ?ContainerListener = null,
+        opCount: u32 = 0,
 
         pub const Field = SetType.Field;
         pub const Slice = SetType.Slice;
@@ -155,6 +156,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             try self.denseIndices.append(self.allocator, setHandle);
             try self.dense.append(self.allocator, initValue);
             std.debug.assert(self.sparse[newSparseIndex].index < self.dense.len);
+            self.opCount +%= 1;
 
             if (self.containerListener) |l| {
                 l.onHandleAdded(l.ptr, @intCast(self.containerID), setHandle);
@@ -193,6 +195,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             _ = self.dense.swapRemove(denseIndex);
             _ = self.denseIndices.swapRemove(denseIndex);
             self.sparse[@as(usize, @intCast(handle.index))].alive = false;
+            self.opCount +%= 1;
 
             if (self.containerListener) |l| {
                 l.onHandleRemoved(l.ptr, self.containerID, handle);
@@ -231,6 +234,10 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         pub fn evictFromRegistry(self: *@This()) void {
             self.containerListener = null;
+        }
+
+        pub fn getStateCount(self: @This()) u32 {
+            return self.opCount;
         }
 
         pub const ContainerTypeName = "SparseMultiSet";
@@ -489,6 +496,7 @@ pub fn SparseMap(comptime T: type) type {
         handles: std.ArrayListUnmanaged(SetHandle) = .{},
         containerID: u32 = 0,
         containerListener: ?ContainerListener = null,
+        opCount: u32 = 0,
 
         pub fn create(backingAllocator: std.mem.Allocator) !*@This() {
             const self = try backingAllocator.create(@This());
@@ -513,6 +521,8 @@ pub fn SparseMap(comptime T: type) type {
             _ = self.list.swapRemove(index);
             _ = self.handles.swapRemove(index);
 
+            self.opCount +%= 1;
+
             if (self.containerListener) |l| {
                 l.onHandleRemoved(l.ptr, self.containerID, handle);
             }
@@ -533,6 +543,8 @@ pub fn SparseMap(comptime T: type) type {
             if (self.containerListener) |l| {
                 l.onHandleAdded(l.ptr, self.containerID, handle);
             }
+
+            self.opCount +%= 1;
 
             return new;
         }
@@ -568,11 +580,16 @@ pub fn SparseMap(comptime T: type) type {
             self.containerListener = null;
         }
 
+        pub fn getStateCount(self: @This()) u32 {
+            return self.opCount;
+        }
+
         pub const ContainerTypeName = "SparseMap";
     };
 }
 
 // this is quickly becoming the ecs containers file
+// todo.. move EcsContainerInterface into somewhere else.
 const interface = @import("interface.zig");
 
 pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterfaceVTable", struct {
@@ -581,6 +598,7 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
     getContainerID: *const fn (*const anyopaque) u32,
     onRegister: *const fn (*anyopaque, u32, ContainerListener) void,
     evictFromRegistry: *const fn (*anyopaque) void,
+    getStateCount: *const fn (*anyopaque) u32, // returns an internal number representing the state of the container
 
     pub const Reference = struct {
         vtable: *const @This(),
@@ -592,6 +610,11 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
             pub fn handleExists(p: *const anyopaque, handle: SetHandle) bool {
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
                 return ptr.handleExists(handle);
+            }
+
+            pub fn getStateCount(p: *const anyopaque) u32 {
+                var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
+                return ptr.getStateCount();
             }
 
             pub fn getContainerID(p: *const anyopaque) u32 {
@@ -616,6 +639,7 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
             .getContainerID = Wrap.getContainerID,
             .onRegister = Wrap.onRegister,
             .evictFromRegistry = Wrap.evictFromRegistry,
+            .getStateCount = Wrap.getStateCount,
         };
     }
 });

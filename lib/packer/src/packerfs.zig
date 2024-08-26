@@ -155,6 +155,26 @@ pub const PackerFS = struct {
         return @intCast(self.fileHeaders.items.len);
     }
 
+    pub fn fileExists(self: *@This(), path: []const u8) bool {
+        if (self.fileHandlesByName.get(Name.Make(path).handle())) |handle| {
+            _ = handle;
+            return true;
+        }
+
+        if (!self.settings.allowContentFolderAccess) {
+            return false;
+        }
+
+        for (self.contentPaths.items) |contentPath| {
+            if (self.loadFileDirect(contentPath, path) catch return false) |mapping| {
+                self.unmap(mapping);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     pub fn loadFile(self: *@This(), path: []const u8) !PackerBytesMapping {
         self.lock.lock();
         defer self.lock.unlock();
