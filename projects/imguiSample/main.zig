@@ -13,14 +13,22 @@ pub const GameContext = struct {
 
     implot: [*c]c.ImPlotContext = null,
 
+    first: bool = true,
+
     pub fn tick(self: *@This(), deltaTime: f64) void {
         _ = deltaTime;
         c.igShowDemoWindow(&self.showDemoWindow);
         c.ImPlot_ShowDemoWindow(&self.showDemoWindow);
+        if (self.first) {
+            self.first = false;
+            core.MemoryTracker.MTPrintStatsDelta();
+        }
     }
 
     pub fn prepare_game(self: *@This()) !void {
         self.implot = c.ImPlot_CreateContext();
+
+        core.MemoryTracker.MTPrintStatsDelta();
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {

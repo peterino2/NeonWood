@@ -120,6 +120,12 @@ pub const RenderObject = struct {
         self.rotation = zm.matToQuat(self.transform);
         self.scale = core.matToScalef(self.transform);
     }
+
+    pub fn applyScalars(self: *RenderObject) void {
+        var newTransform = core.zm.translationV(self.position.toZm());
+        newTransform = core.zm.mul(newTransform, core.zm.matFromQuat(self.rotation));
+        self.transform = newTransform;
+    }
 };
 
 fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {

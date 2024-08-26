@@ -26,11 +26,21 @@ pub fn ComponentReferenceType(comptime T: type) type {
 
         pub fn luaIndex(state: lua.LuaState) i32 {
             _ = state;
+
+            return 0;
         }
 
         pub fn registerType(state: lua.LuaState) !void {
-            _ = state;
             core.engine_log("creating lua metatable {s}", .{MetatableName});
+
+            const methods = blk: {
+                comptime var m: lua.LibSpec = &.{};
+                m = m ++ .{.{ .name = "__index", .func = lua.CWrap(luaIndex) }};
+                break :blk m ++ .{.{ .name = null, .func = null }};
+            };
+
+            try state.newMetatable(@ptrCast(MetatableName));
+            try state.setFuncs(methods, 0);
         }
     };
 }

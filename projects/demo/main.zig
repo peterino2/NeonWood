@@ -43,6 +43,7 @@ pub const GameContext = struct {
     allocator: std.mem.Allocator,
     showDemo: bool = true,
     debugOpen: bool = true,
+    sphere: core.ObjectHandle = undefined,
     gc: *graphics.NeonVkContext = undefined,
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
@@ -109,10 +110,18 @@ pub const GameContext = struct {
         var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
 
         self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@as(f32, @floatCast(deltaTime))));
+
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        graphics.debugSphere(.{ .x = 0, .y = 0, .z = 0 }, 1.0, .{});
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(self.time));
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.applyScalars();
+
+        graphics.debugSphere(
+            self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position,
+            1.0,
+            .{},
+        );
 
         var i: f32 = 0;
         while (i < 0) : (i += 1) {
@@ -182,7 +191,7 @@ pub const GameContext = struct {
             .init_transform = core.zm.translation(0, 0, 0),
         });
 
-        _ = objHandle2;
+        self.sphere = objHandle2;
 
         const objHandle3 = try self.gc.add_renderobject(.{
             .mesh_name = core.MakeName("m_primitive_sphere"),
