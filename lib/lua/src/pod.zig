@@ -1,5 +1,6 @@
 const std = @import("std");
 const lua = @import("lua.zig");
+const p2 = @import("p2");
 
 // function implementators for types which consist of only
 // primitive types
@@ -161,6 +162,10 @@ pub const FuncEntry = struct {
     func: lua.LuaCFunc,
 };
 
+// BIG todo: get and set are incredibly slow. need to replace with a look-up table.
+//
+// string hashmap of bindings would be ideal
+
 pub fn GetFunc(comptime T: type, comptime args: struct {
     allowIndices: bool,
 }) lua.LuaCFunc {
@@ -190,12 +195,9 @@ pub fn GetFunc(comptime T: type, comptime args: struct {
                 } else if (state.isString(2)) {
                     const argument = state.toString(2);
 
-                    // check the funcTable
-                    inline for (T.PodDataTable.funcs) |fname| {
-                        if (std.mem.eql(u8, argument, fname)) {
-                            state.pushCFunction(lua.WrapZigFunc(@field(T, fname))) catch return 0;
-                            break;
-                        }
+                    // check metatable
+                    if (state.getMetafield(1, @ptrCast(argument))) {
+                        return 1;
                     }
 
                     inline for (std.meta.fields(T)) |field| {
@@ -211,7 +213,16 @@ pub fn GetFunc(comptime T: type, comptime args: struct {
                                     @panic("unsupported type");
                                 },
                             }
-                            break;
+                            return 1;
+                        }
+                    }
+
+                    // check the custom funcTable
+                    // tbh.. I should never use this...
+                    inline for (T.PodDataTable.funcs) |fname| {
+                        if (std.mem.eql(u8, argument, fname)) {
+                            state.pushCFunction(lua.WrapZigFunc(@field(T, fname))) catch return 0;
+                            return 1;
                         }
                     }
                 }
@@ -278,6 +289,11 @@ pub fn funcEntry(comptime name: []const u8, comptime func: anytype) lua.WrapZigF
     return .{ .name = name, .func = lua.WrapZigFunc(func) };
 }
 
+pub const DirectFunc = struct {
+    name: []const u8,
+    func: []const u8,
+};
+
 pub const DataTable = struct {
     name: []const u8,
     funcs: []const []const u8 = &.{},
@@ -286,11 +302,12 @@ pub const DataTable = struct {
     toStringOverride: ?lua.LuaCFunc = null,
     banInstantiation: bool = false,
     operators: struct {
-        // i've decided I shall not support operator overloading.
+        // i've decided I shall not support operator overloading for now
         add: ?[]const u8 = null,
         sub: ?[]const u8 = null,
         mul: ?[]const u8 = null,
     } = .{},
+    luaDirectFuncs: []const DirectFunc = &.{},
 };
 
 const PodLib = struct {
@@ -327,6 +344,10 @@ pub fn MakeMetatable(comptime T: type) PodLib {
             m = m ++ .{.{ .name = @as([*c]const u8, @ptrCast(f)), .func = @field(T, f) }};
         }
 
+        inline for (T.PodDataTable.luaDirectFuncs) |f| {
+            m = m ++ .{.{ .name = @as([*c]const u8, @ptrCast(f.name)), .func = comptime lua.CWrap(@field(T, f.func)) }};
+        }
+
         break :blk m ++ .{.{ .name = null, .func = null }};
     };
 
@@ -346,6 +367,8 @@ pub fn MakeMetatable(comptime T: type) PodLib {
 
 pub fn registerPodType(luaState: *lua.LuaState, comptime T: type) !void {
     const Metatable = MakeMetatable(T);
+
+    // walk through and generate index registry for all methods and fields.
     try luaState.newMetatable(@ptrCast(T.PodDataTable.name));
     try luaState.setFuncs(Metatable.methods, 0);
     try luaState.newLib(Metatable.functions);

@@ -138,11 +138,11 @@ pub fn MTRemoveAllocation(allocatedSize: usize) void {
 
 pub fn MTPrintStatsDelta() void {
     if (gMemTracker) |mt| {
-        core.engine_log("allocated size: {d} ({d} MiB)", .{
+        core.engine_log("allocated size: {d} ({d:.3} MiB)", .{
             mt.totalAllocSize,
             @as(f64, @floatFromInt(mt.totalAllocSize)) / 1024 / 1024,
         });
-        core.engine_log("peak allocated size size: {d} ({d} MiB) ({d} peak allocations)", .{
+        core.engine_log("peak allocated size size: {d} ({d:.3} MiB) ({d} peak allocations)", .{
             mt.peakAllocSize,
             @as(f64, @floatFromInt(mt.peakAllocSize)) / 1024 / 1024,
             mt.peakAllocations,

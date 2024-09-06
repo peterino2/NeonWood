@@ -402,6 +402,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return try self.createAndGetInternal(currentDenseHandle, handle.index, initValue, false);
         }
 
+        pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *T {
+            return (try self.createWithHandle(handle, .{})).ptr;
+        }
+
         fn createAndGetInternal(self: *@This(), denseHandle: SetHandle, sparseIndex: IndexType, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
             const newDenseIndex = self.dense.items.len;
             try self.dense.append(self.allocator, .{
@@ -481,7 +485,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
     };
 }
 
-// slowih look-up, fast-ish iteration time,
+// slowish look-up, fast-ish iteration time,
 // very little memory overhead, stable pointers
 // good all-around choice if you have a small
 // number of these objects around, and the object itself is quite big.
@@ -507,6 +511,10 @@ pub fn SparseMap(comptime T: type) type {
             };
 
             return self;
+        }
+
+        pub fn indexToHandle(self: @This(), index: usize) SetHandle {
+            return self.handles.items[index];
         }
 
         pub fn destroyObject(self: *@This(), handle: SetHandle) void {
@@ -549,6 +557,10 @@ pub fn SparseMap(comptime T: type) type {
             return new;
         }
 
+        pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *T {
+            return self.createWithHandle(handle, .{}) catch @panic("Unable to create");
+        }
+
         pub fn allocator(self: *@This()) std.mem.Allocator {
             return self.arena.allocator();
         }
@@ -561,6 +573,10 @@ pub fn SparseMap(comptime T: type) type {
         // == interface below ==
 
         pub const EcsContainerInterfaceVTable = EcsContainerInterface.Implement(@This());
+
+        pub fn get(self: @This(), handle: SetHandle) *anyopaque {
+            return self.map.get(handle).?;
+        }
 
         pub fn handleExists(self: @This(), handle: SetHandle) bool {
             return self.map.contains(handle);
@@ -595,6 +611,8 @@ const interface = @import("interface.zig");
 pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterfaceVTable", struct {
     containerTypeName: []const u8,
     handleExists: *const fn (*const anyopaque, SetHandle) bool,
+    get: *const fn (*const anyopaque, SetHandle) *anyopaque,
+    createWithHandle: *const fn (*anyopaque, SetHandle) *anyopaque,
     getContainerID: *const fn (*const anyopaque) u32,
     onRegister: *const fn (*anyopaque, u32, ContainerListener) void,
     evictFromRegistry: *const fn (*anyopaque) void,
@@ -610,6 +628,17 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
             pub fn handleExists(p: *const anyopaque, handle: SetHandle) bool {
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
                 return ptr.handleExists(handle);
+            }
+
+            // gets a function. assuming it exists
+            pub fn get(p: *const anyopaque, handle: SetHandle) *anyopaque {
+                var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
+                return ptr.get(handle);
+            }
+
+            pub fn createWithHandle(p: *anyopaque, handle: SetHandle) *anyopaque {
+                var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
+                return ptr.createWithHandleECS(handle);
             }
 
             pub fn getStateCount(p: *const anyopaque) u32 {
@@ -636,6 +665,8 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
         return .{
             .containerTypeName = TargetType.ContainerTypeName,
             .handleExists = Wrap.handleExists,
+            .get = Wrap.get,
+            .createWithHandle = Wrap.createWithHandle,
             .getContainerID = Wrap.getContainerID,
             .onRegister = Wrap.onRegister,
             .evictFromRegistry = Wrap.evictFromRegistry,

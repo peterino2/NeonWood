@@ -1,13 +1,124 @@
 var gEcsRegistry: *EcsRegistry = undefined;
 
+// wew lad. this is definitely an exploratory implementation I think.
+//
+// todo: cruft
+//  - componentregistration.zig should contain all the code having to do with lua registration
+//  - entities should be under ecs/Entities.zig
+//
+// ECS: Entities, Containers, Systems
+//
+//  So this is going to be a bit different thatn flecs or other more mainstream systems. You should think of
+//  this ecs system as more of a way to implement systems which can talk to each other on a level playing ground.
+//
+//  My world view of how game systems should talk to each other is more like small processes, and the game state
+//  should be a collection of tiny databases that each contain discrete bits of information that piece together
+//  to produce a coherent vision of the world.
+//
+//  Everything that should be tracked through ECS should be something that is gameplay significant.
+//  To this end, ecs has a maximum entity count of 1 million unique entities.
+//
+//  This should be decent enough to pretty much implement 99% of features in th ecs features.
+//
+//  However features which require a large amount of entities is likely a bad idea and not something that
+//  should be done in ecs.
+//
+//  Eg. you wouldn't do a particle system in ecs and have each transform be a unique entry in the transforms
+//  sparse set.
+//
+//  But you could conceivably do projectiles.
+//
+//  Overall though you need to ask yourself. If something needs to be an entity or not. entities exist to
+//  recieve messages. Not nessecarily even send messages.
+//
+// The base implementation ideas are mostly solid but the level of cruft involed in scripting and ecs is a bit
+// nasty at this time bear with me.
+//
+// Ok one mental model I think I can with entities is that each entity can be thought of as an independent object
+// that contains no state.
+//
+// When it needs to actually do something, it gets added to a container and one or more systems now have a way
+// to address the entity.
+//
+// systems that would be present for a character in a first person shooter for example
+//
+//  --- game systems --- ones that the game would write and implement
+//
+//  ( one or none of these three )
+//  player: recieves input messages from local input, forwards it to controller
+//  netplayer: recieves input messages from the network driver, forwards it to controller
+//  botplayer: generates control messages which drive bots and gameplay AI. forwards it to an controller
+//      - could use a behaviour tree under the hood
+//  arms: takes input actions and runs scripts to implement things that would be in front of the camera.
+//      - arms, weapons, etc...
+//  controller: converts raw player input to movement input for the character movement and other subsystems
+//      - eg. converts input axis to a vector movement
+//      - converts 'mouse_click_1' to a weapon fire call on the weapon component
+//      - also converts actions from the botplayer component which may send special components
+//  character: stores general gameplay relevant information about a given character.
+//      - gameplay stuff, updates values on the character_movement etc.. controls states, such as ragdolling
+//  character_movement: reconciles physics component data and movement coming in from controls
+//
+//  --- engine systems --- ones that would come with the engine
+//  camera: Can be set as active. has a global state which tracks which camera is active
+//  physics: integration with the physics engine.
+//  animationGraph: animation graph drives skeletons inside the rendering_component
+//  renderScene: contains a list of subobjects which describe the visual-only scene for this character
+//      - renderScene will be the most complex one, lighter weight variants will include
+//      - staticMesh
+//  transform: final position of the character
+//  netAddress: acts as an endpoint to recieve network messages to this specific entity
+//
+//  --- another thought experiment ----
+//  systems present in a mazing tower defense that is networked.
+//
+//  game:
+//      mobs:
+//          mr/mazing:
+//              I think just this one system can handle the whole damn thing for enemies
+//              has a reference to the pathfinder entity. Which finds the best path for each enemy type to reach the
+//              main tower.
+//          mr/attributes:
+//              lightweight attributes which includes a buff/debuff system internally
+//          mr/pathfinder (singleton:):
+//              system which calls the pathfinding system to generate path segments for each of the segments of the map.
+//              can be queried based on position to tell the entity where to go next. includes an internal set of waypoints
+//
+//  engine: systems that come with the engine
+//      p3/: peter's gameplay implementation toolbox.
+//          p3/grid_pathfinding: A* based pathfinding system, can create multiple grids and stitch them together.
+//
+// this is the kind of workflows I want to enable with ecs.
+//
+// - creating entities and associating that entity with any arbitrary number of systems
+// - entities
+//
+// entities are globally unique ID handles. when you create an entity. you do so by basically asking
+// the core system what set handle is free. this also adds that entity to the central registry
+// which tracks stuff like if the object is completely free'd or not
+//
+// components which are a part of an entity are nothing more than an entry in another data structure called a container
+// Any data structure can be used but the main data structures that are available for this purpose are all in
+// p2/sparse-set.zig
+//
+//      A few notes about this:
+//      Any data structure can be used as container storage it just needs a wrapper and implement
+//      the EcsContainerInterface found in sparse-set.zig
+//
+// current containers are:
+//
+//      SparseMap (general purpose default, good enough for pretty much everything)
+//      SparseSet (only used for systsems where every entry gets iterated over every single frame)
+//      SparseMultiSet (AOS version of sparseSet Really specialized, only used for core engine systems)
+
 pub fn createEntity() !Entity {
     return .{ .handle = try gEcsRegistry.baseSet.createObject(.{}) };
 }
 
 pub fn CreateEntity_Lua(state: lua.LuaState) i32 {
-    const ud = state.newUserdata(Entity) catch return 0;
+    const ud = state.newZigUserdata(Entity) catch return 0;
     ud.* = createEntity() catch return 0;
-    core.engine_log("Entity created: {d}", .{ud.handle.index});
+    core.engine_log("Entity created: 0x{x}", .{ud.handle.index});
     return 1;
 }
 
@@ -148,9 +259,10 @@ pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !
     const container = makeEcsContainerRef(Component.BaseContainer);
     try registerEcsContainer(container, core.MakeName(@typeName(Component)));
 
-    try script.addComponentRegistration(@ptrCast(Component.ComponentName), container);
-
     const ReferenceType = ComponentRef.ComponentReferenceType(Component);
+
+    try script.addComponentRegistration(@ptrCast(Component.ComponentName), container, ReferenceType.luaNew);
+
     try ReferenceType.registerType(script.getState());
 }
 
@@ -163,8 +275,10 @@ pub const Entity = struct {
 
     pub const PodDataTable: pod.DataTable = .{
         .name = "Entity",
-        .luaFuncs = &.{"luaCAddComponent"},
         .newFuncOverride = lua.CWrap(CreateEntity_Lua),
+        .luaDirectFuncs = &.{
+            .{ .name = "addComponent", .func = "luaAddComponent" },
+        },
     };
 
     pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
@@ -179,17 +293,26 @@ pub const Entity = struct {
         Component.BaseContainer.remove(self.handle);
     }
 
-    pub const luaCAddComponent = lua.CWrap(luaAddComponent);
     pub fn luaAddComponent(state: lua.LuaState) i32 {
         const argc = state.getTop();
 
         if (argc != 2) {
-            core.engine_logs("Add Component Error");
+            core.engine_log("Add Component Error, expected 2 arguments got {d}", .{argc});
             return 0;
         }
 
         if (state.toUserdata(@This(), 1)) |self| {
-            _ = self;
+            if (state.toUserdata(ComponentRegistration, 2)) |componentRegistration| {
+                core.engine_log("component Registration: name: {s}", .{componentRegistration.name});
+
+                // create the zig version of the component
+                const comp = componentRegistration.createComponent(self.handle);
+
+                // call luaNew on ComponentReferenceType
+                // create the lua binding for the component
+                // this pushes one onto the stack
+                componentRegistration.luaNew(state, self.handle, comp);
+            }
         }
 
         return 1;
@@ -212,6 +335,10 @@ pub const EcsContainerInterface = p2.EcsContainerInterface;
 pub const EcsContainerRef = p2.Reference(EcsContainerInterface);
 pub fn makeEcsContainerRef(ptr: anytype) EcsContainerRef {
     return p2.refFromPtr(EcsContainerInterface, ptr);
+}
+
+pub fn getTypeContainer(comptime T: type) EcsContainerRef {
+    return makeEcsContainerRef(T.BaseContainer);
 }
 
 pub const EcsEntry = struct {
@@ -251,6 +378,7 @@ pub const EcsSystemInterface = p2.MakeInterface("EcsSystemVTable", struct {
     }
 });
 
+const ComponentRegistration = @import("script/ComponentRegistration.zig");
 const ComponentRef = @import("script/ComponentRef.zig");
 const script = @import("script.zig");
 const std = @import("std");

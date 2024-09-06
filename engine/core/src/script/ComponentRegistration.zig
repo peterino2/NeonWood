@@ -1,5 +1,6 @@
 ref: ecs.EcsContainerRef = undefined,
 name: []const u8 = undefined,
+luaNew: *const fn (state: lua.LuaState, core.ObjectHandle, ?*anyopaque) void = undefined,
 
 pub const PodDataTable: pod.DataTable = .{
     .name = "ComponentRegistration",
@@ -7,6 +8,7 @@ pub const PodDataTable: pod.DataTable = .{
     .toStringOverride = lua.CWrap(toString),
 };
 
+// I should really move all the registration to this file.
 pub fn toString(state: lua.LuaState) i32 {
     var workBuffer: [256]u8 = undefined;
     const ud = state.toUserdata(@This(), 1).?;
@@ -16,7 +18,13 @@ pub fn toString(state: lua.LuaState) i32 {
     return 1;
 }
 
+pub fn createComponent(self: @This(), handle: core.ObjectHandle) ?*anyopaque {
+    const ref = self.ref;
+    return ref.vtable.createWithHandle(ref.ptr, handle);
+}
+
 const lua = @import("lua");
 const ecs = @import("../ecs.zig");
 const std = @import("std");
+const core = @import("../core.zig");
 const pod = lua.pod;

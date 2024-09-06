@@ -13,6 +13,7 @@ pub const LibSpec = []const c.luaL_Reg;
 pub fn CWrap(comptime Func: anytype) LuaCFunc {
     const Wrap = struct {
         pub fn inner(l: ?*c.lua_State) callconv(.C) i32 {
+            //return @call(.always_inline, Func, .{.{ .l = l }});
             return Func(.{ .l = l });
         }
     };
@@ -185,6 +186,13 @@ pub const LuaState = struct {
         _ = c.lua_pushlstring(self.l, str.ptr, str.len);
     }
 
+    pub fn toStringL(self: @This(), index: i32) []const u8 {
+        const cstr = c.luaL_tolstring(self.l, index, null);
+        const len = std.mem.len(cstr);
+
+        return cstr[0..len];
+    }
+
     pub fn toString(self: @This(), index: i32) []const u8 {
         const cstr = c.lua_tolstring(self.l, index, null);
         const len = std.mem.len(cstr);
@@ -256,6 +264,13 @@ pub const LuaState = struct {
         if (c.lua_getmetatable(self.l, index) == 0) {
             return error.BadMetatable;
         }
+    }
+
+    pub fn getMetafield(self: @This(), index: i32, name: [:0]const u8) bool {
+        if (c.luaL_getmetafield(self.l, index, name) == c.LUA_TNIL) {
+            return false;
+        }
+        return true;
     }
 
     pub fn getMetatableByName(self: @This(), name: [:0]const u8) !void {

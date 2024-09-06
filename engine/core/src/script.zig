@@ -37,7 +37,9 @@ fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
             }
             core.printRaw("{s}", .{state.toString(i)});
         } else if (state.isUserdata(i)) {
-            core.printRaw("userdata: [todo]", .{});
+            const s = state.toStringL(i);
+            state.pop(1);
+            core.printRaw("{s}", .{s});
         }
     }
 
@@ -64,10 +66,11 @@ pub fn start_lua() !void {
     try gLuaState.pcall();
 }
 
-pub fn addComponentRegistration(globalName: []const u8, container: ecs.EcsContainerRef) !void {
+pub fn addComponentRegistration(globalName: []const u8, container: ecs.EcsContainerRef, luaNew: anytype) !void {
     const reg = try gLuaState.newZigUserdata(ComponentRegistration);
     reg.ref = container;
     reg.name = globalName;
+    reg.luaNew = luaNew;
     try gLuaState.setGlobal(globalName);
 }
 
