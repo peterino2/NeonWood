@@ -123,11 +123,13 @@ pub fn CreateEntity_Lua(state: lua.LuaState) i32 {
 }
 
 pub fn setup(allocator: std.mem.Allocator) !void {
-    _ = allocator;
+    try ComponentRef.setupFormatBuffer(allocator);
     gEcsRegistry = try core.createObject(EcsRegistry, .{ .can_tick = true });
 }
 
-pub fn shutdown() void {}
+pub fn shutdown() void {
+    ComponentRef.shutdownFormatBuffer();
+}
 
 pub fn getRegistry() *EcsRegistry {
     return gEcsRegistry;

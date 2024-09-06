@@ -7,6 +7,7 @@ pub const SampleComponent = struct {
 
     pub var BaseContainer: *core.SparseMap(@This()) = undefined;
     pub const ComponentName = "SampleComponent";
+    pub const ScriptExports: []const []const u8 = &.{"setName"};
 };
 
 pub const SampleSystem = struct {

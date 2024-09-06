@@ -57,6 +57,9 @@ pub fn FuncWrapper(comptime baseFunc: anytype) type {
                 f32, f64 => {
                     state.pushNumber(@floatCast(rv));
                 },
+                void => {
+                    return 0;
+                },
                 else => {
                     const ud = state.newZigUserdata(@TypeOf(rv)) catch @panic("not implemented");
                     ud.* = rv;
