@@ -21,8 +21,11 @@ geoCount: u32 = 0,
 // i'd rather keep the allocations alive.
 geoPool: std.ArrayListUnmanaged(GeometryLine) = .{},
 
+mutex: std.Thread.Mutex = .{},
+
 const std = @import("std");
 const core = @import("core");
+// ... ok I'm like 80% sure this layout is absolutely cooked.
 const GeometryLine = std.ArrayListUnmanaged(GeometryEntry);
 const GeometryCache = std.ArrayListUnmanaged(GeometryLineEntry);
 
@@ -107,7 +110,9 @@ pub const HitResults = struct {
     },
 };
 
-pub fn testHit(self: @This(), mouseHit: core.Vector2f) ?HitResults {
+pub fn testHit(self: *@This(), mouseHit: core.Vector2f) ?HitResults {
+    self.lock();
+    defer self.unlock();
     const converted = mouseHit; //mouseHit.sub(self.position);
     if (self.geo.items.len < 1) {
         // core.engine_logs("didnt hit due no geometry");
@@ -233,14 +238,39 @@ pub fn destroy(self: *@This()) void {
     self.backingAllocator.destroy(self);
 }
 
+fn getLineLen(self: @This(), line: u32) u32 {
+    if (self.geo.items[line].lineGeo.items.len > 1 << (32)) {
+        std.debug.print("hoo fuck bud what the fuck 0x{x}\n", .{self.geo.items[line].lineGeo.items.len});
+    }
+    return @intCast(self.geo.items[line].lineGeo.items.len);
+}
+
+fn getLineLenMinusOne(self: @This(), line: u32) u32 {
+    return if (self.getLineLen(line) > 0) self.getLineLen(line) - 1 else 0;
+}
+
 pub fn getGeometryAtIndex(
-    self: @This(),
+    self: *@This(),
     index: u32,
 ) ?HitResults {
+    self.lock();
+    defer self.unlock();
+
     var i: u32 = index;
     var lineId: u32 = 0;
-    while (lineId < self.geo.items.len and i > self.geo.items[lineId].lineGeo.items.len - 1) {
-        i -= @intCast(self.geo.items[lineId].lineGeo.items.len - 1);
+
+    if (self.geo.items.len == 0) {
+        return null;
+    }
+
+    while (lineId < self.geo.items.len and i > self.getLineLenMinusOne(lineId)) {
+        if (self.getLineLen(lineId) == 0) {
+            return null;
+        }
+        if (self.getLineLenMinusOne(lineId) > i) {
+            break;
+        }
+        i -= @intCast(self.getLineLenMinusOne(lineId));
         lineId += 1;
     }
 
@@ -248,7 +278,7 @@ pub fn getGeometryAtIndex(
         return null;
     }
 
-    if (i == self.geo.items[lineId].lineGeo.items.len - 1) {
+    if (i == self.getLineLenMinusOne(lineId)) {
         if (lineId + 1 < self.geo.items.len) {
             lineId += 1;
             i = 0;
@@ -276,7 +306,17 @@ pub fn getGeometryAtIndex(
     };
 }
 
-pub fn getCurrentEndGeo(self: *const @This()) HitResults {
+pub fn lock(self: *@This()) void {
+    self.mutex.lock();
+}
+
+pub fn unlock(self: *@This()) void {
+    self.mutex.unlock();
+}
+
+pub fn getCurrentEndGeo(self: *@This()) HitResults {
+    self.lock();
+    defer self.unlock();
     const endGeo = self.getCurrentLineEndGeo();
     const pos: core.Vector2f = .{
         .x = endGeo.x,

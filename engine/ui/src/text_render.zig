@@ -182,6 +182,10 @@ pub const DisplayText = struct {
     pub fn updateMesh(self: *@This(), buildHitboxes: bool) !void {
         _ = buildHitboxes;
         self.mesh.clearVertices();
+        // ! not threadsafe...
+        // this might be really bad for stalls.
+        self.renderedGeo.lock();
+        defer self.renderedGeo.unlock();
         try self.renderedGeo.resetAllLines();
 
         const atlas = self.atlas.atlas;

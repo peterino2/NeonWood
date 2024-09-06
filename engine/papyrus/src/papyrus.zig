@@ -506,6 +506,9 @@ pub const Context = struct {
                 var panel = &(self.nodes.get(handle).?.nodeType.Panel);
                 panel.font = self.fonts.get(name.handle()).?.atlas;
             },
+            .TextEntry => {
+                self.getTextEntry(handle).font = self.fonts.get(name.handle()) orelse self.defaultFont;
+            },
             else => {},
         }
     }

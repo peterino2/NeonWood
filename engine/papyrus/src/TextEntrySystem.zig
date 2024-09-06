@@ -3,7 +3,7 @@
 backingAllocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 ctx: *papyrus.Context,
-trg: ?*const TextRenderGeometry = null,
+trg: ?*TextRenderGeometry = null,
 cursorResults: ?TextRenderGeometry.HitResults = null,
 selected: ?*papyrus.NodeProperty_TextEntry = null,
 firstFrame: bool = false,

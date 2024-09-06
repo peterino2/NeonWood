@@ -176,9 +176,10 @@ pub const GameContext = struct {
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
             const unk2Text = try ctx.addText(unk2, "click me!");
+            ctx.setFont(unk2Text, "bitmap");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.getText(unk2Text).textSize = 16;
         }
 
         for (0..1) |i| {
@@ -221,7 +222,8 @@ pub const GameContext = struct {
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         ctx.get(te).size = .{ .x = 600, .y = 200 };
-        ctx.getTextEntry(te).font = ctx.defaultMonoFont;
+        // ctx.getTextEntry(te).font = ctx.defaultMonoFont;
+        ctx.setFont(te, "monospace");
 
         const te2 = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         try ctx.removeFromParent(te2);
