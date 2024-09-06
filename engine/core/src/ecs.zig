@@ -210,7 +210,7 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object added id={d} from container={s}({d}) 0x{x}", .{
+        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
             handle.index,
             self.containerNames.items[containerID].utf8(),
             containerID,
@@ -261,11 +261,7 @@ pub fn defineComponent(comptime Component: type, allocator: std.mem.Allocator) !
     const container = makeEcsContainerRef(Component.BaseContainer);
     try registerEcsContainer(container, core.MakeName(@typeName(Component)));
 
-    const ReferenceType = ComponentRef.ComponentReferenceType(Component);
-
-    try script.addComponentRegistration(@ptrCast(Component.ComponentName), container, ReferenceType.luaNew);
-
-    try ReferenceType.registerType(script.getState());
+    try script.registerComponent(Component, container);
 }
 
 pub fn undefineComponent(comptime Component: type) void {

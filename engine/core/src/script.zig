@@ -5,6 +5,7 @@ const lua = @import("lua");
 const core = @import("core.zig");
 const startup_script = @embedFile("lua/startup.lua");
 const ecs = @import("ecs.zig");
+const ComponentRef = @import("script/ComponentRef.zig");
 const ComponentRegistration = @import("script/ComponentRegistration.zig");
 
 const c = lua.c;
@@ -66,12 +67,18 @@ pub fn start_lua() !void {
     try gLuaState.pcall();
 }
 
-pub fn addComponentRegistration(globalName: []const u8, container: ecs.EcsContainerRef, luaNew: anytype) !void {
+pub fn createLuaComponentDefinitions(globalName: []const u8, container: ecs.EcsContainerRef, luaNew: anytype) !void {
     const reg = try gLuaState.newZigUserdata(ComponentRegistration);
     reg.ref = container;
     reg.name = globalName;
     reg.luaNew = luaNew;
     try gLuaState.setGlobal(globalName);
+}
+
+pub fn registerComponent(comptime Component: type, container: ecs.EcsContainerRef) !void {
+    const ReferenceType = ComponentRef.ComponentReferenceType(Component);
+    try createLuaComponentDefinitions(@ptrCast(Component.ComponentName), container, ReferenceType.luaNew);
+    try ReferenceType.registerType(getState());
 }
 
 pub fn shutdown_lua() void {

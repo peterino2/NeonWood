@@ -632,16 +632,19 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
 
             // gets a function. assuming it exists
             pub fn get(p: *const anyopaque, handle: SetHandle) *anyopaque {
+                // std.debug.print("get {p}\n", .{p});
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
                 return ptr.get(handle);
             }
 
             pub fn createWithHandle(p: *anyopaque, handle: SetHandle) *anyopaque {
+                // std.debug.print("creat with handle {p}\n", .{p});
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
                 return ptr.createWithHandleECS(handle);
             }
 
             pub fn getStateCount(p: *const anyopaque) u32 {
+                // std.debug.print("getstatecount {p}\n", .{p});
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
                 return ptr.getStateCount();
             }

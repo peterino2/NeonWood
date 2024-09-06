@@ -2,6 +2,8 @@ pub const SampleComponent = struct {
     name: []const u8 = "unnamed_entity",
 
     pub fn setName(self: *@This(), name: []const u8) void {
+        // std.debug.print("calling set name {x}\n", .{@intFromPtr(self)});
+        // _ = name;
         self.name = name;
     }
 

@@ -1,9 +1,24 @@
-// lwdt can't have meta tables so this doesn't quite work as well.
-// meanwhile... impedance mismatch of doing a full decode
-// anytime we want to rmw values can be quite bad...
+// lwdt can't have meta tables so I'm going to create component references
 //
-// solution: a self-resolvable fatpointer that can resolve differences
+// the way this works is
+// - entities are created as POD types
+// - entities can get components added to them via entity:addComponent
+// - this returns a ComponentReference
+// - you can also get components from an entity via enity:get()
+// - this also returns a ComponentReference
+//
+// - ComponentReferences allow you to modify data on a component or call functions on them
+//
+//
+// How the registration works
+//
+// - define component
+//  - ecs.zig defineComponent
+//      - ComponentRef.zig - ReferenceType
+//      - addComponentRegistration - script.zig
+//      - ComponentRef - ReferenceType.registerType
 
+// this represents the lua side of the object
 pub fn ComponentReferenceType(comptime T: type) type {
     return struct {
         ptr: *T = undefined,
@@ -28,22 +43,35 @@ pub fn ComponentReferenceType(comptime T: type) type {
                 .stateCount = 0,
             };
 
+            // std.debug.print("luaNew ComponentReferenceType: {x}\n", .{@intFromPtr(ud)});
+            // std.debug.print("luaNew ContainerRef: {x}\n", .{@intFromPtr(containerRef.ptr)});
+
             if (ptr) |p| {
                 ud.ptr = @ptrCast(@alignCast(p));
                 ud.stateCount = containerRef.vtable.getStateCount(containerRef.ptr);
             }
         }
 
-        pub fn get(self: *@This()) *T {
+        pub fn resolve(self: *@This()) void {
             const ref = self.containerRef;
+            // std.debug.print("self: {x}\n", .{@intFromPtr(self)});
+            // std.debug.print("ptr: {x}\n", .{@intFromPtr(ref.ptr)});
             if (ref.vtable.getStateCount(ref.ptr) != self.stateCount) {
-                self.ptr = self.containerRef.vtable.get(self.handle);
+                self.ptr = @ptrCast(@alignCast(ref.vtable.get(ref.ptr, self.handle)));
             }
+        }
+
+        pub fn get(self: *@This()) *T {
+            self.resolve();
             return self.ptr;
         }
 
         pub fn luaToString(state: lua.LuaState) i32 {
-            if (state.toUserdata(T, 1)) |value| {
+            // oh god... this isn't good
+            // I think i've been treating this component ref as the user type
+            // huge failure of type resolution
+            if (state.toUserdata(@This(), 1)) |self| {
+                self.resolve();
                 Buffer.clearRetainingCapacity();
 
                 var writer = Buffer.writer();
@@ -57,10 +85,10 @@ pub fn ComponentReferenceType(comptime T: type) type {
                     }
                     switch (field.type) {
                         f32, i32, u32, f64, i64, u64 => {
-                            writer.print("{d}", .{@field(value, field.name)}) catch return 0;
+                            writer.print("{d}", .{@field(self.ptr, field.name)}) catch return 0;
                         },
                         []const u8 => {
-                            writer.print("\"{s}\"", .{@field(value, field.name)}) catch return 0;
+                            writer.print("\"{s}\"", .{@field(self.ptr, field.name)}) catch return 0;
                         },
                         else => {
                             writer.print("<unknown type {s}>", .{@typeName(field.type)}) catch return 0;
@@ -78,11 +106,12 @@ pub fn ComponentReferenceType(comptime T: type) type {
         }
 
         pub fn luaIndex(state: lua.LuaState) i32 {
-            if (state.toUserdata(T, 1)) |v| {
-                _ = v;
+            if (state.toUserdata(@This(), 1)) |self| {
                 if (state.isString(2)) {
+                    _ = self;
                     const argument = state.toString(2);
-                    core.engine_log(@typeName(T) ++ " got indexed.", .{});
+                    // core.engine_log(@typeName(@This()) ++ " got indexed. 0x{x}", .{self.handle.index});
+
                     // check metatable
                     if (state.getMetafield(1, @ptrCast(argument))) {
                         return 1;
@@ -103,7 +132,6 @@ pub fn ComponentReferenceType(comptime T: type) type {
                     m = m ++ .{.{ .name = @as([*c]const u8, @ptrCast(name)), .func = ComponentFuncWrapper(@field(T, name), T) }};
                 }
 
-                // todo: generate function here like FuncWrapper
                 break :blk m ++ .{.{ .name = null, .func = null }};
             };
 
@@ -146,11 +174,14 @@ pub fn FuncWrapper(comptime baseFunc: anytype, comptime baseType: type) type {
                     []const u8 => {
                         args[index] = state.toString(index + 1);
                     },
+                    // I'll be honest how the hell does this work?
+                    //
+                    // the pointer being passed in here isn't the actual resulting type...
+                    // it's the reference type
                     *baseType => {
-                        args[index] = state.toUserdata(baseType, index + 1).?;
-                    },
-                    baseType => {
-                        args[index] = state.toUserdata(baseType, index + 1).?.*;
+                        const ref = state.toUserdata(ComponentReferenceType(baseType), index + 1).?;
+                        ref.resolve();
+                        args[index] = ref.ptr;
                     },
                     else => {
                         args[index] = state.toUserdata(field.type, index + 1).?.*;
