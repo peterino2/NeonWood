@@ -9,16 +9,25 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
     _ = nwbuild.addProgram(.{
         .name = "demo",
         .desc = "simple 3d world flythrough demo",
         .root_source_file = b.path("demo/main.zig"),
     });
+
+    _ = nwbuild.addProgram(.{
+        .name = "empty",
+        .desc = "simple 3d world flythrough demo implemented through lua",
+        .root_source_file = b.path("empty/main.zig"),
+    });
+
     _ = nwbuild.addProgram(.{
         .name = "uiSample",
         .desc = "ui sample program for papyrus",
         .root_source_file = b.path("uiSample/main.zig"),
     });
+
     _ = nwbuild.addProgram(.{
         .name = "imguiSample",
         .desc = "ui sample program for imgui",

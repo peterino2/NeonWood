@@ -149,7 +149,6 @@ pub const GameContext = struct {
         for (0..1) |i| {
             _ = i;
             const unk2 = try ctx.addPanel(unk);
-            ctx.setFont(unk2, "bitmap");
             ctx.get(unk2).justify = .Left;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
@@ -158,10 +157,10 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me\n(default font)");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.getText(unk2Text).textSize = 20;
         }
 
         for (0..1) |i| {
@@ -175,10 +174,10 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me!\n(monospace font)");
             ctx.setFont(unk2Text, "bitmap");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
-            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
+            ctx.get(unk2Text).size = .{ .x = 250, .y = 75 };
             ctx.getText(unk2Text).textSize = 16;
         }
 
@@ -188,7 +187,7 @@ pub const GameContext = struct {
             ctx.get(unk2).justify = .Right;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
-            ctx.get(unk2).style.backgroundColor = BurnStyle.Diminished;
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
             ctx.getPanel(unk2).rounding = .{
                 .tl = 10.0,
                 .tr = 10.0,
@@ -199,7 +198,7 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me!(bitmap font)");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
             ctx.setFont(unk2Text, "bitmap");

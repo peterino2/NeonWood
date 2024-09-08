@@ -1158,7 +1158,12 @@ pub const Context = struct {
         }
 
         const node = self.getRead(root);
-        std.debug.print("> {d}: {s}\n", .{ root.index, node.text.getRead() });
+        const text = node.text.getRead();
+        if (text.len > 256) {
+            std.debug.print("> {d}: {s}...\n", .{ root.index, text[0..128] });
+        } else {
+            std.debug.print("> {d}: {s}\n", .{ root.index, text });
+        }
 
         var next = node.child;
         while (next.index != 0) {

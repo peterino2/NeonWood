@@ -74,13 +74,17 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     _ = programSpec;
     engine_logs("graphics module starting up...");
 
+    memory.MTPrintStatsDelta();
     const context: *NeonVkContext = core.gEngine.createObject(
         NeonVkContext,
         .{ .can_tick = true, .isCore = true },
     ) catch unreachable;
+    memory.MTPrintStatsDelta();
+    engine_logs("NeonVkContext grew");
 
     vk_renderer.gContext = context;
     try graphics_ecs.registerEcs(allocator);
+    memory.MTPrintStatsDelta();
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
     memory.MTPrintStatsDelta();
@@ -88,6 +92,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     if (core.fs().fileExists("meshes/primitive_sphere.obj")) {
         debug_draw.init_debug_draw_subsystem() catch unreachable;
     }
+    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
