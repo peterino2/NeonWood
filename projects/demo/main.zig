@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
+const memory = core.MemoryTracker;
 
 const core = neonwood.core;
 const platform = neonwood.platform;
@@ -88,6 +89,7 @@ pub const GameContext = struct {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
                 self.assetReady = true;
+                memory.MTPrintStatsDelta();
             }
         }
 
@@ -174,6 +176,9 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *Self) !void {
+        try core.fs().addContentPath("demo");
+        try core.script.runScriptFile("scripts/prepare.lua");
+
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
@@ -419,7 +424,6 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const memory = core.MemoryTracker;
 
     //memory.MTSetup(std.heap.c_allocator);
     memory.MTSetup(gpa.allocator());

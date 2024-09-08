@@ -8,6 +8,8 @@ const ecs = @import("ecs.zig");
 const ComponentRef = @import("script/ComponentRef.zig");
 const ComponentRegistration = @import("script/ComponentRegistration.zig");
 
+const script_bindings = @import("script_bindings.zig");
+
 const c = lua.c;
 
 var gLuaState: lua.LuaState = undefined;
@@ -52,8 +54,9 @@ fn printWrapper(l: ?*lua.c.lua_State) callconv(.C) i32 {
 
 // initialization of the lua scripting interface.
 // this interface is only threadsafe to operate on from the main systems thread (at this time).
-pub fn start_lua() !void {
+pub fn start_lua(allocator: std.mem.Allocator) !void {
     gLuaState = try lua.LuaState.init(.{});
+    try lua.pod.setupFormatBuffer(allocator);
 
     // overload and hook into global functions
     _ = gLuaState.getGlobal("_G");
@@ -62,6 +65,8 @@ pub fn start_lua() !void {
 
     try lua.pod.registerPodType(&gLuaState, ecs.Entity);
     try lua.pod.registerPodType(&gLuaState, ComponentRegistration);
+
+    try script_bindings.registerTypes();
 
     try gLuaState.loadString(startup_script);
     try gLuaState.pcall();
@@ -82,11 +87,12 @@ pub fn registerComponent(comptime Component: type, container: ecs.EcsContainerRe
 }
 
 pub fn shutdown_lua() void {
+    lua.pod.shutdownFormatBuffer();
     gLuaState.deinit();
 }
 
-pub fn getState() lua.LuaState {
-    return gLuaState;
+pub fn getState() *lua.LuaState {
+    return &gLuaState;
 }
 
 pub fn runScriptFile(scriptPath: []const u8) !void {

@@ -60,6 +60,12 @@ pub fn FuncWrapper(comptime baseFunc: anytype) type {
                 void => {
                     return 0;
                 },
+                bool => {
+                    state.pushBool(rv);
+                },
+                []const u8 => {
+                    @panic("not implemented");
+                },
                 else => {
                     const ud = state.newZigUserdata(@TypeOf(rv)) catch @panic("not implemented");
                     ud.* = rv;
@@ -175,6 +181,10 @@ pub const LuaState = struct {
 
     pub fn pop(self: @This(), count: i32) void {
         c.lua_pop(self.l, count);
+    }
+
+    pub fn pushBool(self: @This(), value: bool) void {
+        c.lua_pushboolean(self.l, @as(c_int, @intFromBool(value)));
     }
 
     pub fn pushNumber(self: @This(), number: f64) void {

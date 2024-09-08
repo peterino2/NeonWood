@@ -1,4 +1,6 @@
 // memory tracker
+//
+// todo.. rename this to memory.zig
 
 const std = @import("std");
 const core = @import("core.zig");

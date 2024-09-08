@@ -119,6 +119,10 @@ pub fn setupFormatBuffer(allocator: std.mem.Allocator) !void {
     Buffer = std.ArrayList(u8).init(allocator);
 }
 
+pub fn shutdownFormatBuffer() void {
+    Buffer.deinit();
+}
+
 pub fn ToStringFunc(comptime T: type) lua.LuaCFunc {
     const S = struct {
         pub fn inner(state: lua.LuaState) i32 {
@@ -306,6 +310,7 @@ pub const DataTable = struct {
         add: ?[]const u8 = null,
         sub: ?[]const u8 = null,
         mul: ?[]const u8 = null,
+        eq: ?[]const u8 = null,
     } = .{},
     luaDirectFuncs: []const DirectFunc = &.{},
 };
@@ -334,6 +339,9 @@ pub fn MakeMetatable(comptime T: type) PodLib {
         }
         if (T.PodDataTable.operators.mul) |f| {
             m = m ++ .{.{ .name = "__mul", .func = comptime Operator2Arg(T, @field(T, f)) }};
+        }
+        if (T.PodDataTable.operators.eq) |f| {
+            m = m ++ .{.{ .name = "__eq", .func = comptime Operator2Arg(T, @field(T, f)) }};
         }
 
         inline for (T.PodDataTable.funcs) |f| {

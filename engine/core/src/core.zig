@@ -68,7 +68,9 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     _ = args;
     _ = programSpec;
     _ = try algorithm.createNameRegistry(allocator);
-    try script.start_lua();
+    // LUA BEGIN -- what if i want to make the scripting integration optional?
+    try script.start_lua(allocator);
+    // LUA END
     gPackerFS = try PackerFS.init(allocator, .{});
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
@@ -92,7 +94,9 @@ pub fn shutdown_module(_: std.mem.Allocator) void {
     algorithm.destroyNameRegistry();
     gEngine.deinit();
     gPackerFS.destroy();
+    // LUA BEGIN
     script.shutdown_lua();
+    // LUA END
     algorithm.string_pool.shutdown();
     return;
 }

@@ -24,8 +24,8 @@ const Vector = extern struct {
     y: f64 = 0,
     z: f64 = 0,
 
+    // .name = "Vector",
     pub const PodDataTable: pod.DataTable = .{
-        .name = "Vector",
         .funcs = &.{"magnitude"},
         .operators = .{
             .add = "add",
