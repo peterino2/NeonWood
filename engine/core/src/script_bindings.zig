@@ -7,6 +7,7 @@ pub fn registerTypes() !void {
     // lua.pod.registerPodType(state, core.Vectorf, "Vectorf");
     try lua.pod.registerPodType(state, core.Vector2);
     try lua.pod.registerPodType(state, core.Vector2f);
+    // try lua.pod.registerPodType(state, core.Transform);
 
     //lua.pod.registerPodType(state, core.Vector4, "Vector4");
 }

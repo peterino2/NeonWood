@@ -17,13 +17,20 @@
 --
 -- ok that works
 
-function create()
+local function create()
     local ball = Entity.new()
-    local transform = ball:addComponent(Transform)
-    transform:setPosition(0,0,0)
+    print("creating sine ball")
+    local scene = ball:addComponent(Scene)
+    scene:setPosition(0,0,0)
     Systems.registerTick(ball, tick)
+    return ball
 end
 
-function tick(ball, deltaTime)
+local function tick(ball, deltaTime)
     print("tick")
 end
+
+SineBall = {
+    create = create;
+}
+

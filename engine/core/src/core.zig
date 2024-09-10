@@ -74,11 +74,12 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     gPackerFS = try PackerFS.init(allocator, .{});
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
-    gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
 
     try logging.setupLogging(gEngine);
 
     try ecs.setup(allocator);
+
+    gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
 
     try algorithm.string_pool.setup(allocator);
 
@@ -159,7 +160,6 @@ const getEngineTime = @import("engineTime.zig").getEngineTime;
 pub fn getEngineUptime() f64 {
     return getEngineTime() - gEngine.engineStartTime;
 }
-// pub fn removeBinding todo...
 
 pub const modules = @import("modules.zig");
 pub const isModuleEnabled = modules.isModuleEnabled;

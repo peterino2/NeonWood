@@ -138,7 +138,7 @@ pub fn ComponentReferenceType(comptime T: type) type {
             return methods;
         }
 
-        pub fn registerType(state: lua.LuaState) !void {
+        pub fn registerType(state: *lua.LuaState) !void {
             core.engine_log("creating lua metatable {s}", .{MetatableName});
 
             const methods = comptime makeTypeTable();

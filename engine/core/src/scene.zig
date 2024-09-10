@@ -41,9 +41,9 @@ pub const SceneObjectRepr = struct {
 };
 
 pub const SceneObject = struct {
-    posRot: SceneObjectPosRot, // positionRotation
-    _repr: SceneObjectRepr,
-    settings: SceneObjectSettings,
+    _repr: SceneObjectRepr, // not public
+    posRot: SceneObjectPosRot, // position and rotation
+    settings: SceneObjectSettings, //
     children: ArrayListUnmanaged(core.ObjectHandle),
 
     // --- these.. are all useless lmao
@@ -59,6 +59,7 @@ pub const SceneObject = struct {
         return self._repr.parent;
     }
 
+    // may be out of date by a frame or two unless you call Update() specifically
     pub fn getTransform(self: @This()) core.Transform {
         return self._repr.transform;
     }
@@ -246,3 +247,29 @@ pub const SceneSystem = struct {
         self.allocator.destroy(self);
     }
 };
+
+// LUA_BEGIN
+
+// because scene objects are a special sparse-multiset type,
+// they do not have a fixed representation in the sparse set.
+// as a result this type requires a special implementation to operate properly.
+
+pub const Scene = struct {
+    denseIndex: u32,
+
+    pub var BaseContainer: *core.SparseMap(@This()) = undefined;
+
+    pub fn setPosition(self: @This()) void {
+        _ = self;
+    }
+
+    pub fn setRotation(self: @This()) void {
+        _ = self;
+    }
+
+    pub fn setParent(self: @This()) void {
+        _ = self;
+    }
+};
+
+// LUA_END

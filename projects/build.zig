@@ -39,4 +39,10 @@ pub fn build(b: *std.Build) void {
         .desc = "a headless program only runnning the core systems",
         .root_source_file = b.path("headless/main.zig"),
     });
+
+    _ = nwbuild.addProgram(.{
+        .name = "demo_lua",
+        .desc = "demo project with lua scripting",
+        .root_source_file = b.path("demo_lua/main.zig"),
+    });
 }

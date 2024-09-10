@@ -106,4 +106,11 @@ test "packerfs_test" {
     defer fs.unmap(lost_empire4);
 
     try p2.xxdWrite(writer, lost_empire2.bytes[0..0x40], .{});
+
+    var subpaths = try fs.listAllSubpaths(std.testing.allocator, "lost_");
+    defer subpaths.deinit();
+
+    for (subpaths.data.items) |x| {
+        std.debug.print(".[x ] = {s}\n", .{x});
+    }
 }

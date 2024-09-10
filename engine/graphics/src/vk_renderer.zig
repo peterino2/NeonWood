@@ -41,8 +41,6 @@ const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
 
-const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
-
 const SparseSet = core.SparseSet;
 const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
@@ -304,7 +302,6 @@ pub const NeonVkContext = struct {
     rendererPlugins: ArrayListUnmanaged(RendererInterfaceRef),
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
-    sceneManager: NeonVkSceneManager,
     dynamicMeshManager: *mesh.DynamicMeshManager,
     dynamicTextures: std.ArrayListUnmanaged(*DynamicTexture),
     shouldShowDebug: bool,
@@ -406,7 +403,6 @@ pub const NeonVkContext = struct {
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
-        self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.requiredExtensions = .{};
         self.dynamicTextures = .{};
 
@@ -1143,7 +1139,7 @@ pub const NeonVkContext = struct {
         core.gScene.updateTransforms();
 
         // unreachable instead of panic so releasefast
-        self.sceneManager.update(self) catch unreachable;
+        // self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
@@ -1472,7 +1468,6 @@ pub const NeonVkContext = struct {
         defer z.End();
         const cmd = self.commandBuffers.items[self.nextFrameIndex];
         var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
-        try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
         z1.End();
 

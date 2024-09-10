@@ -323,4 +323,64 @@ pub const PackerFS = struct {
     pub fn addContentPath(self: *@This(), path: []const u8) !void {
         try self.contentPaths.append(self.allocator, try p2.dupeString(self.allocator, path));
     }
+
+    pub const PathListResults = struct {
+        allocator: std.mem.Allocator,
+        data: std.ArrayListUnmanaged([]const u8) = .{},
+        sources: std.ArrayListUnmanaged([]const u8) = .{},
+
+        pub fn deinit(self: *@This()) void {
+            for (self.data.items, 0..) |item, i| {
+                self.allocator.free(item);
+                self.allocator.free(self.sources.items[i]);
+            }
+            self.data.deinit(self.allocator);
+            self.sources.deinit(self.allocator);
+        }
+    };
+
+    pub fn listAllSubpaths(self: @This(), allocator: std.mem.Allocator, subpath: []const u8) !PathListResults {
+        var dupeMap: std.StringHashMapUnmanaged(bool) = .{};
+        defer dupeMap.deinit(allocator);
+
+        var rv = std.ArrayListUnmanaged([]const u8){};
+        var sourcePath = std.ArrayListUnmanaged([]const u8){};
+        // std.debug.print("listing all subpaths under {s}:\n", .{subpath});
+
+        // list all files discovered from pak files that match the subpath
+        for (self.fileHeaders.items) |f| {
+            if (std.mem.startsWith(u8, f.getFileName(), subpath)) {
+                // std.debug.print(" [packed] p = {s}\n", .{f.getFileName()});
+
+                // Is this my excuse now to implement a string bump allocator?
+                try rv.append(allocator, try p2.dupeString(allocator, f.getFileName()));
+                try sourcePath.append(allocator, try p2.dupeString(allocator, "PACKED_ARCHIVE"));
+                try dupeMap.put(allocator, try p2.dupeString(allocator, f.getFileName()), true);
+            }
+        }
+
+        // std.debug.print("content paths {s}: \n", .{subpath});
+        for (self.contentPaths.items) |contentPath| {
+            const apath = try std.fs.cwd().openDir(contentPath, .{ .iterate = true });
+            var walker = try apath.walk(allocator);
+            defer walker.deinit();
+            while (try walker.next()) |p| {
+                if (p.kind == .file and !dupeMap.contains(p.path) and std.mem.startsWith(u8, p.path, subpath)) {
+                    // std.debug.print(" p = {s}\n", .{p.path});
+                    try rv.append(allocator, try p2.dupeString(allocator, p.path));
+                    try sourcePath.append(allocator, try p2.dupeString(allocator, contentPath));
+                    try dupeMap.put(allocator, try p2.dupeString(allocator, p.path), true);
+                }
+            }
+        }
+
+        {
+            var i = dupeMap.iterator();
+            while (i.next()) |n| {
+                allocator.free(n.key_ptr.*);
+            }
+        }
+
+        return .{ .allocator = allocator, .data = rv, .sources = sourcePath };
+    }
 };
