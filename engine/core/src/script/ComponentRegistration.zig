@@ -20,7 +20,10 @@ pub fn toString(state: lua.LuaState) i32 {
 
 pub fn createComponent(self: @This(), handle: core.ObjectHandle) ?*anyopaque {
     const ref = self.ref;
-    return ref.vtable.createWithHandle(ref.ptr, handle);
+    const rv = ref.vtable.createWithHandle(ref.ptr, handle);
+    // std.debug.print("createComponent: {p}\n", .{rv});
+
+    return rv;
 }
 
 const lua = @import("lua");

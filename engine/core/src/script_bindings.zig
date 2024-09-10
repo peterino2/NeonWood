@@ -3,8 +3,8 @@ pub fn registerTypes() !void {
     // transform POD type
 
     const state = script.getState();
-    // lua.pod.registerPodType(state, core.Vector, "Vector");
-    // lua.pod.registerPodType(state, core.Vectorf, "Vectorf");
+    try lua.pod.registerPodType(state, core.Vector);
+    try lua.pod.registerPodType(state, core.Vectorf);
     try lua.pod.registerPodType(state, core.Vector2);
     try lua.pod.registerPodType(state, core.Vector2f);
     // try lua.pod.registerPodType(state, core.Transform);

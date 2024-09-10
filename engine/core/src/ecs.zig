@@ -301,7 +301,7 @@ pub const Entity = struct {
 
         if (state.toUserdata(@This(), 1)) |self| {
             if (state.toUserdata(ComponentRegistration, 2)) |componentRegistration| {
-                core.engine_log("component Registration: name: {s}", .{componentRegistration.name});
+                // core.engine_log("component Registration: name: {s}", .{componentRegistration.name});
 
                 // create the zig version of the component
                 const comp = componentRegistration.createComponent(self.handle);
@@ -384,3 +384,4 @@ const p2 = @import("p2");
 const core = @import("core.zig");
 const lua = @import("lua");
 const pod = lua.pod;
+const scene = @import("scene.zig");

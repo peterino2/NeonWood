@@ -20,8 +20,8 @@
 local function create()
     local ball = Entity.new()
     print("creating sine ball")
-    local scene = ball:addComponent(Scene)
-    scene:setPosition(0,0,0)
+    local scene = ball:addComponent(Scene, "/")
+    scene:setPosition(0, 0, 0)
     Systems.registerTick(ball, tick)
     return ball
 end

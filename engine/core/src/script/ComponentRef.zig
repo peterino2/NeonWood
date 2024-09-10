@@ -45,10 +45,17 @@ pub fn ComponentReferenceType(comptime T: type) type {
 
             // std.debug.print("luaNew ComponentReferenceType: {x}\n", .{@intFromPtr(ud)});
             // std.debug.print("luaNew ContainerRef: {x}\n", .{@intFromPtr(containerRef.ptr)});
+            // std.debug.print("luaNew " ++ @typeName(T) ++ " ud.ptr = {x}\n", .{@intFromPtr(ptr)});
 
             if (ptr) |p| {
                 ud.ptr = @ptrCast(@alignCast(p));
                 ud.stateCount = containerRef.vtable.getStateCount(containerRef.ptr);
+            }
+
+            if (@hasDecl(@TypeOf(T.BaseContainer.*), "IsMultiset")) {
+                // ... there are several things that need to be reworked here...
+                ud.ptr = @ptrCast(@alignCast(@as(*anyopaque, @ptrCast(&ud.handle))));
+                // std.debug.print("luaNew " ++ @typeName(T) ++ " v = {any}\n", .{ud.ptr.getPosition()});
             }
         }
 
@@ -56,6 +63,9 @@ pub fn ComponentReferenceType(comptime T: type) type {
             const ref = self.containerRef;
             // std.debug.print("self: {x}\n", .{@intFromPtr(self)});
             // std.debug.print("ptr: {x}\n", .{@intFromPtr(ref.ptr)});
+            if (@hasDecl(@TypeOf(T.BaseContainer.*), "IsMultiset")) {
+                //
+            }
             if (ref.vtable.getStateCount(ref.ptr) != self.stateCount) {
                 self.ptr = @ptrCast(@alignCast(ref.vtable.get(ref.ptr, self.handle)));
             }
@@ -183,6 +193,11 @@ pub fn FuncWrapper(comptime baseFunc: anytype, comptime baseType: type) type {
                         ref.resolve();
                         args[index] = ref.ptr;
                     },
+                    baseType => {
+                        const ref = state.toUserdata(ComponentReferenceType(baseType), index + 1).?;
+                        ref.resolve();
+                        args[index] = ref.ptr.*;
+                    },
                     else => {
                         args[index] = state.toUserdata(field.type, index + 1).?.*;
                     },
@@ -226,3 +241,4 @@ const core = @import("../core.zig");
 const ecs = @import("../ecs.zig");
 const lua = @import("lua");
 const pod = lua.pod;
+const scene = @import("../scene.zig");

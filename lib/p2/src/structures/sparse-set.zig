@@ -49,6 +49,8 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         pub const Field = SetType.Field;
         pub const Slice = SetType.Slice;
 
+        pub const IsMultiset = true;
+
         pub fn init(allocator: std.mem.Allocator) @This() {
             var self = @This(){
                 .allocator = allocator,
@@ -62,6 +64,19 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             }
 
             return self;
+        }
+
+        pub fn create(allocator: std.mem.Allocator) !*@This() {
+            const self = try allocator.create(@This());
+            self.* = init(allocator);
+
+            return self;
+        }
+
+        pub fn destroy(self: *@This()) void {
+            const allocator = self.allocator;
+            self.deinit();
+            allocator.destroy(self);
         }
 
         pub fn denseItems(self: *@This(), comptime field: Field) []FieldType(field) {
@@ -165,6 +180,10 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return setHandle;
         }
 
+        pub fn denseToSparse(self: @This(), dense: u32) SetHandle {
+            return self.denseIndices.items[dense];
+        }
+
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !SetHandle {
             const currentDenseHandle = self.sparse[handle.index];
             if (currentDenseHandle.alive) {
@@ -238,6 +257,28 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         pub fn getStateCount(self: @This()) u32 {
             return self.opCount;
+        }
+
+        // replaces get.
+        // really nasty trick here. I'm relying on absolutely fucked aliasing
+        // for sparse-multiset
+        // which is not a type which can be represented in lua directly.
+        // rather the resulting component type should be a THIN component
+        // which only contains the handle.
+        //
+        // Zig MAY break this in the future. in which case I'll have to
+        // treat the sparse sets in this handle as C ABI with a fixed bit layout
+        pub fn getHandleRef(self: @This(), handle: SetHandle) *SetHandle {
+            if (self.handleExists(handle)) {
+                // std.debug.print("get: {p}\n", .{@as(*anyopaque, @ptrCast(&self.sparse[handle.index]))});
+                return &self.sparse[handle.index];
+            }
+            @panic("uh oh ");
+        }
+
+        pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *SetHandle {
+            _ = self.createWithHandle(handle, .{}) catch @panic("unable to create with handle");
+            return self.getHandleRef(handle);
         }
 
         pub const ContainerTypeName = "SparseMultiSet";
@@ -634,6 +675,9 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
             pub fn get(p: *const anyopaque, handle: SetHandle) *anyopaque {
                 // std.debug.print("get {p}\n", .{p});
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
+                if (@hasDecl(TargetType, "getHandleRef")) {
+                    return ptr.getHandleRef(handle);
+                }
                 return ptr.get(handle);
             }
 
