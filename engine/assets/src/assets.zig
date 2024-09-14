@@ -31,7 +31,6 @@ pub fn start_module(comptime spec: anytype, args: anytype, allocator: std.mem.Al
     gAssetSys = allocator.create(AssetReferenceSys) catch @panic("unable to initialize asset reference");
     gAssetSys.* = AssetReferenceSys.init(allocator);
 
-    core.engine_logs("sound start_module");
     memory.MTPrintStatsDelta();
 }
 
