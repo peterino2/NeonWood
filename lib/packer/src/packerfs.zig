@@ -108,7 +108,7 @@ pub const PackerFS = struct {
             .settings = settings,
         };
 
-        try self.contentPaths.append(self.allocator, try p2.dupeString(allocator, "content"));
+        try self.addContentPath("content");
 
         return self;
     }
@@ -155,6 +155,26 @@ pub const PackerFS = struct {
         return @intCast(self.fileHeaders.items.len);
     }
 
+    pub fn fileExists(self: *@This(), path: []const u8) bool {
+        if (self.fileHandlesByName.get(Name.Make(path).handle())) |handle| {
+            _ = handle;
+            return true;
+        }
+
+        if (!self.settings.allowContentFolderAccess) {
+            return false;
+        }
+
+        for (self.contentPaths.items) |contentPath| {
+            if (self.loadFileDirect(contentPath, path) catch return false) |mapping| {
+                self.unmap(mapping);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     pub fn loadFile(self: *@This(), path: []const u8) !PackerBytesMapping {
         self.lock.lock();
         defer self.lock.unlock();
@@ -171,7 +191,6 @@ pub const PackerFS = struct {
 
         for (self.contentPaths.items) |contentPath| {
             if (try self.loadFileDirect(contentPath, path)) |mapping| {
-                // std.debug.print("direct load - 0x{x}\n", .{@intFromPtr(mapping.bytes.ptr)});
                 return mapping;
             }
         }
@@ -200,7 +219,14 @@ pub const PackerFS = struct {
         const fullPath = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ basePath, path });
         defer self.allocator.free(fullPath);
 
-        const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(fullPath, 8, self.allocator) catch return null);
+        const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(fullPath, 8, self.allocator) catch |err| switch (err) {
+            error.FileNotFound => {
+                return null;
+            },
+            else => |narrow| {
+                return narrow;
+            },
+        });
 
         const pakMountIndex = self.pakMountings.items.len;
         try self.pakMountings.append(self.allocator, .{
@@ -240,7 +266,17 @@ pub const PackerFS = struct {
 
         if (!pakMountingRef.isFileMounted()) {
             // std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
-            pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
+            const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch |err| switch (err) {
+                error.FileNotFound => {
+                    return null;
+                },
+                else => |narrow| {
+                    return narrow;
+                },
+            });
+
+            //pakMountingRef.*.bytes = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch return null);
+            pakMountingRef.*.bytes = fileBytes;
         }
 
         const offset = header.fileOffset + pakMountingRef.contentOffset;
@@ -282,5 +318,69 @@ pub const PackerFS = struct {
         self.contentPaths.deinit(self.allocator);
         self.lock.unlock();
         self.allocator.destroy(self);
+    }
+
+    pub fn addContentPath(self: *@This(), path: []const u8) !void {
+        try self.contentPaths.append(self.allocator, try p2.dupeString(self.allocator, path));
+    }
+
+    pub const PathListResults = struct {
+        allocator: std.mem.Allocator,
+        data: std.ArrayListUnmanaged([]const u8) = .{},
+        sources: std.ArrayListUnmanaged([]const u8) = .{},
+
+        pub fn deinit(self: *@This()) void {
+            for (self.data.items, 0..) |item, i| {
+                self.allocator.free(item);
+                self.allocator.free(self.sources.items[i]);
+            }
+            self.data.deinit(self.allocator);
+            self.sources.deinit(self.allocator);
+        }
+    };
+
+    pub fn listAllSubpaths(self: @This(), allocator: std.mem.Allocator, subpath: []const u8) !PathListResults {
+        var dupeMap: std.StringHashMapUnmanaged(bool) = .{};
+        defer dupeMap.deinit(allocator);
+
+        var rv = std.ArrayListUnmanaged([]const u8){};
+        var sourcePath = std.ArrayListUnmanaged([]const u8){};
+        // std.debug.print("listing all subpaths under {s}:\n", .{subpath});
+
+        // list all files discovered from pak files that match the subpath
+        for (self.fileHeaders.items) |f| {
+            if (std.mem.startsWith(u8, f.getFileName(), subpath)) {
+                // std.debug.print(" [packed] p = {s}\n", .{f.getFileName()});
+
+                // Is this my excuse now to implement a string bump allocator?
+                try rv.append(allocator, try p2.dupeString(allocator, f.getFileName()));
+                try sourcePath.append(allocator, try p2.dupeString(allocator, "PACKED_ARCHIVE"));
+                try dupeMap.put(allocator, try p2.dupeString(allocator, f.getFileName()), true);
+            }
+        }
+
+        // std.debug.print("content paths {s}: \n", .{subpath});
+        for (self.contentPaths.items) |contentPath| {
+            const apath = try std.fs.cwd().openDir(contentPath, .{ .iterate = true });
+            var walker = try apath.walk(allocator);
+            defer walker.deinit();
+            while (try walker.next()) |p| {
+                if (p.kind == .file and !dupeMap.contains(p.path) and std.mem.startsWith(u8, p.path, subpath)) {
+                    // std.debug.print(" p = {s}\n", .{p.path});
+                    try rv.append(allocator, try p2.dupeString(allocator, p.path));
+                    try sourcePath.append(allocator, try p2.dupeString(allocator, contentPath));
+                    try dupeMap.put(allocator, try p2.dupeString(allocator, p.path), true);
+                }
+            }
+        }
+
+        {
+            var i = dupeMap.iterator();
+            while (i.next()) |n| {
+                allocator.free(n.key_ptr.*);
+            }
+        }
+
+        return .{ .allocator = allocator, .data = rv, .sources = sourcePath };
     }
 };

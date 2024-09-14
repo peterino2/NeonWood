@@ -11,6 +11,8 @@ const tracy = @import("tracy");
 const p2 = @import("p2");
 const nfd = @import("nfd");
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 const Atomic = std.atomic.Value;
 const EngineDataEventError = engineObject.EngineDataEventError;
 
@@ -64,6 +66,8 @@ pub const Engine = struct {
     platformCtx: *anyopaque = undefined,
     platformPollFunc: ?PollFuncFn = null,
     platformProcEventsFunc: ?ProcEventsFn = null,
+
+    engineStartTime: f64 = 0,
 
     nfdRuntime: *nfd.NFDRuntime,
 
@@ -186,6 +190,7 @@ pub const Engine = struct {
 
         if (self.first) {
             self.first = false;
+            self.engineStartTime = newTime;
             self.lastEngineTime = newTime;
         }
 
@@ -217,22 +222,22 @@ pub const Engine = struct {
             var z = tracy.Zone(@src());
             const objectRef = self.engineObjects.items[self.tickables.items[@as(usize, @intCast(index))]];
             objectRef.vtable.tick_func.?(objectRef.ptr, self.deltaTime);
-            z.Name(objectRef.vtable.typeName.utf8());
+            z.Name(objectRef.vtable.typeName);
             z.End();
         }
 
-        const systemsThreadTime = time.getEngineTime() - newTime;
-        math.rollingAverage(&self.systemsThreadTime, systemsThreadTime, @floatFromInt(self.averageFrameSampleWindow));
+        const systemsThreadTime: f64 = time.getEngineTime() - newTime;
 
         for (self.renderers.items) |*renderer| {
             var z = tracy.Zone(@src());
-            z.Name(renderer.vtable.typeName.utf8());
+            z.Name(renderer.vtable.typeName);
 
             renderer.vtable.engineDraw_func.?(renderer.ptr, self.deltaTime);
 
             z.End();
         }
 
+        math.rollingAverage(&self.systemsThreadTime, systemsThreadTime, @floatFromInt(self.averageFrameSampleWindow));
         self.lastEngineTime = newTime;
     }
 
@@ -249,6 +254,8 @@ pub const Engine = struct {
                 var exitSignaled: bool = false;
 
                 while (true) {
+                    ctx.engine.tick() catch unreachable;
+
                     if (!exitSignaled and ctx.engine.exitSignal.load(.seq_cst)) {
                         exitSignaled = true;
                         core.engine_logs("Processing exit signals");
@@ -257,8 +264,6 @@ pub const Engine = struct {
                             ref.vtable.exitSignal_func.?(ref.ptr) catch unreachable;
                         }
                     }
-
-                    ctx.engine.tick() catch unreachable;
 
                     if (exitSignaled) {
                         var readyToExit: bool = true;
@@ -303,6 +308,7 @@ pub const Engine = struct {
                 try pollFunc(self.platformCtx);
                 defer z.End();
             }
+            self.jobManager.bump();
             std.time.sleep(1000 * 1000); // 1ms delay between polling functions, effectively limits input to 1khz.
             // (there is a noticable power consumption draw on laptops and battery based systems if this is unlimited)
             try self.nfdRuntime.processMessages();

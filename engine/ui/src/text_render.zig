@@ -182,6 +182,10 @@ pub const DisplayText = struct {
     pub fn updateMesh(self: *@This(), buildHitboxes: bool) !void {
         _ = buildHitboxes;
         self.mesh.clearVertices();
+        // ! not threadsafe...
+        // this might be really bad for stalls.
+        self.renderedGeo.lock();
+        defer self.renderedGeo.unlock();
         try self.renderedGeo.resetAllLines();
 
         const atlas = self.atlas.atlas;
@@ -321,8 +325,6 @@ pub const TextRenderer = struct {
             .papyrusCtx = papyrusCtx,
             .small_limit = 512,
         };
-
-        std.debug.print("text renderer initialized", .{});
 
         self.allocator = self.arena.allocator();
 

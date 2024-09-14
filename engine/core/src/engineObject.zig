@@ -36,8 +36,8 @@ pub const EngineDataEventError = error{
     OutOfMemory,
 };
 
-pub const RttiData = struct {
-    typeName: Name,
+pub const EngineObjectVTable = struct {
+    typeName: []const u8,
     typeSize: usize,
     typeAlign: usize,
 
@@ -51,7 +51,7 @@ pub const RttiData = struct {
     exitSignal_func: ?*const fn (*anyopaque) EngineDataEventError!void = null,
     readyToExit_func: ?*const fn (*anyopaque) bool = null,
 
-    pub fn from(comptime TargetType: type) RttiData {
+    pub fn from(comptime TargetType: type) EngineObjectVTable {
         const wrappedInit = struct {
             const funcFind: @TypeOf(@field(TargetType, "init")) = @field(TargetType, "init");
 
@@ -61,8 +61,8 @@ pub const RttiData = struct {
             }
         };
 
-        var self = RttiData{
-            .typeName = MakeTypeName(TargetType),
+        var self = EngineObjectVTable{
+            .typeName = @typeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .init_func = wrappedInit.func,
@@ -159,4 +159,4 @@ pub const RttiData = struct {
     }
 };
 
-pub const EngineObjectRef = InterfaceRef(RttiData);
+pub const EngineObjectRef = InterfaceRef(EngineObjectVTable);

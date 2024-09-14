@@ -8,6 +8,7 @@
         .tracy = .{ .path = "../../lib/tracy" },
         .zmath = .{ .path = "../../lib/zmath" },
         .packer = .{ .path = "../../lib/packer" },
+        .lua = .{ .path = "../../lib/lua" },
     },
     .paths = .{
         "",

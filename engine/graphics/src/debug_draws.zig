@@ -9,6 +9,8 @@ const debug_frag = @import("debug_frag");
 const tracy = core.tracy;
 const gpd = graphics.gpu_pipe_data;
 
+const use_renderthread = core.BuildOption("use_renderthread");
+
 pub const DebugLine = struct {
     start: core.Vectorf,
     end: core.Vectorf,
@@ -69,7 +71,7 @@ pub const DebugPrimitive = struct {
     duration: f32 = 0.0,
 
     pub fn resolve(self: @This()) core.Transform {
-        comptime core.assert(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize);
+        // comptime core.asserts(@sizeOf(DebugPrimitiveGpu) == DebugPrimitiveGpu.TargetSize, "");
 
         switch (self.primitive) {
             .line => |inner| {
@@ -98,14 +100,25 @@ const DebugPrimitiveGpu = struct {
     pad: [TargetSize - UnpaddedSize]u8 = std.mem.zeroes([TargetSize - UnpaddedSize]u8),
 };
 
-const objectCount = 4096;
+const DebugDrawSharedInstance = struct {};
+
+const DebugSharedData = struct {
+    drawsThisFrame: std.ArrayListUnmanaged(DebugPrimitive) = .{},
+    lock: std.Thread.Mutex = .{},
+
+    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+        self.drawsThisFrame.deinit(allocator);
+    }
+};
+
+const objectCount = 2048;
 
 // Debug draw system also an example of how to do plugins in this engine
 pub const DebugDrawSubsystem = struct {
 
     // Interfaces and tables
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     // Member functions
     allocator: std.mem.Allocator,
@@ -117,10 +130,14 @@ pub const DebugDrawSubsystem = struct {
     material: *graphics.Material = undefined,
     materialName: core.Name = core.MakeName("mat_debugsys"),
 
+    deltaTime: f64 = 0,
+
+    sharedData: [graphics.NumFrames]DebugSharedData = .{ .{}, .{} },
+
     const Primitives = [_]assets.AssetImportReference{
-        assets.MakeImportRef("Mesh", "m_primitive_sphere", "content/meshes/primitive_sphere.obj"),
-        assets.MakeImportRef("Mesh", "m_primitive_box", "content/meshes/primitive_box.obj"),
-        assets.MakeImportRef("Mesh", "m_primitive_line", "content/meshes/primitive_line.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_sphere", "meshes/primitive_sphere.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_box", "meshes/primitive_box.obj"),
+        assets.MakeImportRef("Mesh", "m_primitive_line", "meshes/primitive_line.obj"),
     };
 
     pub fn prepareSubsystem(self: *@This(), gc: *graphics.NeonVkContext) !void {
@@ -171,7 +188,7 @@ pub const DebugDrawSubsystem = struct {
         try pipelineBuilder.add_layout(self.pipeData.descriptorSetLayout);
         try pipelineBuilder.add_depth_stencil();
         pipelineBuilder.set_polygon_mode(.line);
-        pipelineBuilder.set_topology(.line_list);
+        pipelineBuilder.set_topology(.triangle_list);
         try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
 
         const materialName = self.materialName;
@@ -217,6 +234,92 @@ pub const DebugDrawSubsystem = struct {
         _ = cmd;
         _ = drawIndex;
         _ = frameIndex;
+    }
+
+    pub fn tick(self: *@This(), dt: f64) void {
+        self.deltaTime = dt;
+    }
+
+    pub fn sendShared(self: *@This(), frameIndex: u32) void {
+        var zone = tracy.ZoneN(@src(), "debug draw- uploading shared");
+        defer zone.End();
+        self.sharedData[frameIndex].lock.lock();
+        defer self.sharedData[frameIndex].lock.unlock();
+
+        var offset: usize = 0;
+        const count = self.debugDraws.count();
+
+        self.sharedData[frameIndex].drawsThisFrame.clearRetainingCapacity();
+
+        while (offset < count) {
+            var primitive: DebugPrimitive = self.debugDraws.pop().?;
+            self.sharedData[frameIndex].drawsThisFrame.append(self.allocator, primitive) catch unreachable;
+
+            primitive.duration -= @as(f32, @floatCast(self.deltaTime));
+            offset += 1;
+            if (primitive.duration >= 0) {
+                // push this primitive so that it goes to the next frame
+                self.debugDraws.push(primitive) catch continue;
+            }
+        }
+    }
+
+    pub fn rtPostDraw(self: *@This(), rt: *graphics.RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+        _ = rt;
+        var zone = tracy.ZoneN(@src(), "Debug draw renderer");
+        defer zone.End();
+        const shared: *DebugSharedData = &self.sharedData[frameIndex];
+
+        shared.lock.lock();
+        defer shared.lock.unlock();
+
+        var z1 = tracy.ZoneN(@src(), "Debug draw - ssbo upload");
+        // core.engine_log("count: {d}", .{shared.drawsThisFrame.items.len});
+        for (shared.drawsThisFrame.items, 0..) |primitive, i| {
+            const object = &self.mappedBuffers[frameIndex].objects[i];
+            object.*.color = primitive.color;
+            object.*.model = primitive.resolve();
+        }
+        z1.End();
+
+        var vkd = self.gc.vkd;
+
+        var z2 = tracy.ZoneN(@src(), "Debug draw - pipeline bind");
+        vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
+        var bindOffset: usize = 0;
+
+        var offset: usize = 0;
+        const count: usize = shared.drawsThisFrame.items.len;
+
+        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.NeonVkSceneDataGpu))));
+        var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
+
+        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
+
+        z2.End();
+
+        var z3 = tracy.ZoneN(@src(), "Debug draw - render");
+        while (offset < count) : (offset += 1) {
+            const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
+            vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+
+            var mesh: *graphics.Mesh = undefined;
+            switch (primitive.primitive) {
+                .box => {
+                    mesh = self.meshes[2];
+                },
+                .sphere => {
+                    mesh = self.meshes[1];
+                },
+                .line => {
+                    mesh = self.meshes[0];
+                },
+            }
+
+            vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
+            vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
+        }
+        z3.End();
     }
 
     pub fn postDraw(
@@ -283,9 +386,14 @@ pub const DebugDrawSubsystem = struct {
         self.gc.allocator.free(self.mappedBuffers);
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
+        for (&self.sharedData) |*shared| {
+            shared.deinit(self.allocator);
+        }
+        core.graphics_logs("shutting down debug draw system");
     }
 
     pub fn deinit(self: *@This()) void {
+        self.shutdown();
         self.allocator.destroy(self);
     }
 };
@@ -293,14 +401,12 @@ pub const DebugDrawSubsystem = struct {
 var gDebugDrawSys: *DebugDrawSubsystem = undefined;
 
 pub fn init_debug_draw_subsystem() !void {
-    gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = false });
+    gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = true });
     try gDebugDrawSys.prepareSubsystem(graphics.getContext());
     try graphics.registerRendererPlugin(gDebugDrawSys);
 }
 
-pub fn shutdown() void {
-    gDebugDrawSys.shutdown();
-}
+pub fn shutdown() void {}
 
 pub const DebugDrawParams = struct {
     color: core.Vectorf = .{ .x = 0, .y = 1.0, .z = 0 },

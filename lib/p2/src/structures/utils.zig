@@ -17,9 +17,11 @@ pub fn createFileWithPath(filePath: []const u8) !std.fs.File {
 pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator: std.mem.Allocator) ![]u8 {
     var file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
-    const filesize = (try file.stat()).size;
-    const buffer: []u8 = try allocator.alignedAlloc(u8, alignment, filesize);
-    try file.reader().readNoEof(buffer);
+    const filesize = (try file.stat()).size + 1; // add null byte
+    const buffer: []align(alignment) u8 = try allocator.alignedAlloc(u8, alignment, filesize);
+    errdefer allocator.free(buffer);
+    try file.reader().readNoEof(buffer[0 .. buffer.len - 1]);
+    buffer[buffer.len - 1] = 0;
     return buffer;
 }
 

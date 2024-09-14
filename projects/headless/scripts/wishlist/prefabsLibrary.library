@@ -1,0 +1,1 @@
+StaticMeshActor{name="landscape_empire", static=true, mesh="m_empire", texture="t_texture"}

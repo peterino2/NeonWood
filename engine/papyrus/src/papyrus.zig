@@ -506,6 +506,9 @@ pub const Context = struct {
                 var panel = &(self.nodes.get(handle).?.nodeType.Panel);
                 panel.font = self.fonts.get(name.handle()).?.atlas;
             },
+            .TextEntry => {
+                self.getTextEntry(handle).font = self.fonts.get(name.handle()) orelse self.defaultFont;
+            },
             else => {},
         }
     }
@@ -1096,26 +1099,25 @@ pub const Context = struct {
             },
         });
 
-        try drawList.append(.{
-            .node = .{},
-            .primitive = .{
-                .Text = .{
-                    .text = LocText.fromUtf8("Papyrus Debug:"),
-                    .tl = .{ .x = 30, .y = yOffset },
-                    .size = .{ .x = width, .y = 30 },
-                    .renderMode = .NoControl,
-                    //.color = BurnStyle.Highlight3,
-                    .color = Color.Yellow,
-                    .textSize = defaultHeight,
-                    .rendererHash = fontHash,
-                    .flags = .{
-                        .setSourceGeometry = false,
-                    },
-                },
-            },
-        });
-
-        yOffset += yOffsetPerLine;
+        // try drawList.append(.{
+        //     .node = .{},
+        //     .primitive = .{
+        //         .Text = .{
+        //             .text = LocText.fromUtf8("Papyrus Debug:"),
+        //             .tl = .{ .x = 30, .y = yOffset },
+        //             .size = .{ .x = width, .y = 30 },
+        //             .renderMode = .NoControl,
+        //             //.color = BurnStyle.Highlight3,
+        //             .color = Color.Yellow,
+        //             .textSize = defaultHeight,
+        //             .rendererHash = fontHash,
+        //             .flags = .{
+        //                 .setSourceGeometry = false,
+        //             },
+        //         },
+        //     },
+        // });
+        // yOffset += yOffsetPerLine;
 
         for (self.debugText.items, 0..) |textData, i| {
             if (i >= self.debugTextCount) {
@@ -1156,7 +1158,12 @@ pub const Context = struct {
         }
 
         const node = self.getRead(root);
-        std.debug.print("> {d}: {s}\n", .{ root.index, node.text.getRead() });
+        const text = node.text.getRead();
+        if (text.len > 256) {
+            std.debug.print("> {d}: {s}...\n", .{ root.index, text[0..128] });
+        } else {
+            std.debug.print("> {d}: {s}\n", .{ root.index, text });
+        }
 
         var next = node.child;
         while (next.index != 0) {
@@ -1210,3 +1217,8 @@ pub fn initialize(allocator: std.mem.Allocator) !*Context {
 pub fn deinitialize() void {
     gContext.deinit();
 }
+
+pub const Module = core.ModuleDescription{
+    .name = "papyrus",
+    .enabledByDefault = true,
+};

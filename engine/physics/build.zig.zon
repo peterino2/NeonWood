@@ -1,0 +1,11 @@
+.{
+    .name = "papyrus",
+    .version = "0.0.0",
+    .dependencies = .{
+        .core = .{ .path = "../core" },
+        .zphysics = .{ .path = "../../lib/zphysics" },
+    },
+    .paths = .{
+        "",
+    },
+}

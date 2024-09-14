@@ -27,7 +27,7 @@ const AssetReferences = [_]assets.AssetImportReference{
 // basic engine onboarding
 const GameContext = struct {
     const Self = @This();
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(Self);
     pub const InterfaceUiTable = core.InterfaceUiData.from(Self);
 
     allocator: std.mem.Allocator,
@@ -35,7 +35,7 @@ const GameContext = struct {
     debugOpen: bool = true,
 
     pub fn init(allocator: std.mem.Allocator) Self {
-        var self = Self{
+        const self = Self{
             .allocator = allocator,
         };
 
@@ -44,7 +44,7 @@ const GameContext = struct {
         return self;
     }
 
-    pub fn uiTick(self: *Self, deltaTime: f64) void {
+    pub fn tick(self: *Self, deltaTime: f64) void {
         _ = deltaTime;
 
         if (self.showDemo) {
@@ -55,7 +55,7 @@ const GameContext = struct {
             if (!c.igBegin("Debug Menu", &(self.debugOpen), 0)) {
                 c.igEnd();
             } else {
-                c.igText("hello motherfucker");
+                c.igText("hello boss");
 
                 if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
                     core.engine_logs("I have been pressed!");
@@ -73,7 +73,7 @@ const GameContext = struct {
         c.igText("Press ESC to close\nPress SPACE to open the demo window");
         c.igEnd();
 
-        var drawList = c.igGetBackgroundDrawList_Nil();
+        const drawList = c.igGetBackgroundDrawList_Nil();
         c.ImDrawList_AddQuad(
             drawList,
             .{ .x = 100, .y = 100 },

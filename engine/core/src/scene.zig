@@ -5,6 +5,7 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const tracy = core.tracy;
 
 pub const Transform = core.Mat;
+const SceneSet = core.SparseMultiSet(SceneObject);
 
 pub const SceneAttachMode = enum {
     none, // default, parent attachment is irrelevant and not used
@@ -41,35 +42,10 @@ pub const SceneObjectRepr = struct {
 };
 
 pub const SceneObject = struct {
-    posRot: SceneObjectPosRot, // positionRotation
-    _repr: SceneObjectRepr,
-    settings: SceneObjectSettings,
-    children: ArrayListUnmanaged(core.ObjectHandle),
-
-    // --- these.. are all useless lmao
-    pub fn getPosition(self: @This()) core.Vectorf {
-        return self.posRot.position;
-    }
-
-    pub fn getRotation(self: @This()) core.Rotation {
-        return self.posRot.rotation;
-    }
-
-    pub fn getParent(self: @This()) ?core.ObjectHandle {
-        return self._repr.parent;
-    }
-
-    pub fn getTransform(self: @This()) core.Transform {
-        return self._repr.transform;
-    }
-
-    pub fn update(self: *@This()) void {
-        self._repr.transform = core.zm.mul(
-            core.zm.translationV(self.getPosition().toZm()),
-            core.zm.matFromQuat(self.getRotation().quat),
-        );
-    }
-    // ----
+    _repr: SceneObjectRepr = .{}, // not public
+    posRot: SceneObjectPosRot = .{}, // position and rotation
+    settings: SceneObjectSettings = .{}, //
+    children: ArrayListUnmanaged(core.ObjectHandle) = .{},
 
     pub fn init(params: SceneObjectInitParams) @This() {
         // Hmm thinking in the future we could have scene objects be f64s then crunch them down to f32s when we are submiting to gpu
@@ -88,10 +64,18 @@ pub const SceneObject = struct {
                 self.posRot.position = core.Vectorf.fromZm(core.zm.mul(params.transform, core.Vectorf.zero().toZm()));
                 self.posRot.rotation = .{ .quat = core.zm.matToQuat(params.transform) };
             },
-            .position => {},
-            .rotation => {},
-            .positionRotAngles => {},
-            .positionRot => {},
+            .position => {
+                @panic("todo: implement position only initialization");
+            },
+            .rotation => {
+                @panic("todo: implement rotation only initialization");
+            },
+            .positionRotAngles => {
+                @panic("todo: implement position + rotation initialization (angles) ");
+            },
+            .positionRot => {
+                @panic("todo: implement position + rotation initialization");
+            },
         }
 
         if (shouldUpdate) {
@@ -99,6 +83,76 @@ pub const SceneObject = struct {
         }
 
         return self;
+    }
+};
+
+pub const Scene = struct {
+    handle: core.ObjectHandle,
+
+    pub var BaseContainer: *SceneSet = undefined;
+    pub const ComponentName = "Scene";
+
+    pub const ScriptExports: []const []const u8 = &.{
+        "setPosition",
+        "setRotation",
+        "setScale",
+        "setScaleV",
+        "getPosition",
+        "getRotation",
+        "getParent",
+        // "getTransform", not implemented yet
+        // "setMobility", gonna need special setup for this one
+    };
+
+    pub fn setPosition(self: @This(), position: core.Vectorf) void {
+        // core.engine_log("setPositon called p=0x{p}", .{@as(*const anyopaque, @ptrCast(&self.handle))});
+        BaseContainer.get(self.handle, .posRot).?.*.position = position;
+    }
+
+    pub fn setRotation(self: @This(), rotation: core.Rotation) void {
+        BaseContainer.get(self.handle, .posRot).?.*.rotation = rotation;
+    }
+
+    pub fn setScale(self: @This(), x: f32, y: f32, z: f32) void {
+        BaseContainer.get(self.handle, .posRot).?.*.scale = .{ .x = x, .y = y, .z = z };
+    }
+
+    pub fn setScaleV(self: @This(), scale: core.Vectorf) void {
+        BaseContainer.get(self.handle, .posRot).?.*.scale = scale;
+    }
+
+    pub fn getPosition(self: @This()) core.Vectorf {
+        // core.engine_logs("getPosition called");
+        return BaseContainer.get(self.handle, .posRot).?.position;
+    }
+
+    pub fn getRotation(self: @This()) core.Rotation {
+        return BaseContainer.get(self.handle, .posRot).?.rotation;
+    }
+
+    pub fn getParent(self: @This()) core.Entity {
+        return core.Entity{ .handle = BaseContainer.get(self.handle, ._repr).?.parent orelse .{} };
+    }
+
+    pub fn getTransform(self: @This()) core.Transform {
+        return BaseContainer.get(self.handle, ._repr).?.transform;
+    }
+
+    pub fn setMobility(self: @This(), mobility: SceneMobilityMode) !void {
+        const settings = Scene.BaseContainer.get(self.handle, .settings).?;
+        if (settings.sceneMode == .static) {
+            if (mobility == .moveable) {
+                try core.gScene.dynamicObjects.append(core.gScene.allocator, self.handle);
+            }
+        }
+
+        if (settings.sceneMode == .moveable) {
+            if (mobility == .static) {
+                @panic("todo unable to change scene mobility back to static");
+            }
+        }
+
+        settings.*.sceneMode = mobility;
     }
 };
 
@@ -116,68 +170,14 @@ pub const SceneObjectInitParams = union(enum) {
     },
 };
 
-const SceneSet = core.SparseMultiSet(SceneObject);
-
 pub const SceneSystem = struct {
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     allocator: std.mem.Allocator,
-    objects: SceneSet,
     dynamicObjects: ArrayListUnmanaged(core.ObjectHandle) = .{},
 
     pub const Field = SceneSet.Field;
     pub const FieldType = SceneSet.FieldType;
-
-    // ----- creating and updating objects -----
-
-    // scene objects are the primary object type
-    pub fn createSceneObject(self: *@This(), params: SceneObjectInitParams) !core.ObjectHandle {
-        const newHandle = try self.objects.createObject(SceneObject.init(params));
-        return newHandle;
-    }
-
-    pub fn createSceneObjectWithHandle(
-        self: *@This(),
-        objectHandle: core.ObjectHandle,
-        params: SceneObjectInitParams,
-    ) !core.ObjectHandle {
-        const newHandle = try self.objects.createWithHandle(objectHandle, SceneObject.init(params));
-        return newHandle;
-    }
-
-    pub fn setPosition(self: *@This(), handle: core.ObjectHandle, position: core.Vectorf) void {
-        self.objects.get(handle, .posRot).?.*.position = position;
-    }
-
-    pub fn setRotation(self: *@This(), handle: core.ObjectHandle, rotation: core.Rotation) void {
-        self.objects.get(handle, .posRot).?.*.rotation = rotation;
-    }
-
-    pub fn setScale(self: *@This(), handle: core.ObjectHandle, x: f32, y: f32, z: f32) void {
-        self.objects.get(handle, .posRot).?.*.scale = .{ .x = x, .y = y, .z = z };
-    }
-
-    pub fn setScaleV(self: *@This(), handle: core.ObjectHandle, scale: core.Vectorf) void {
-        self.objects.get(handle, .posRot).?.*.scale = scale;
-    }
-
-    pub fn getPosition(self: *@This(), handle: core.ObjectHandle) core.Vectorf {
-        return self.objects.get(handle, .posRot).?.position;
-    }
-
-    pub fn getRotation(self: *@This(), handle: core.ObjectHandle) core.Rotation {
-        return self.objects.get(handle, .posRot).?.rotation;
-    }
-
-    pub fn getParent(self: *@This(), handle: core.ObjectHandle) ?core.ObjectHandle {
-        return self.objects.get(handle, ._repr).?.parent;
-    }
-
-    pub fn getTransform(self: *@This(), handle: core.ObjectHandle) core.Transform {
-        return self.objects.get(handle, ._repr).?.transform;
-    }
-
-    // ----- subsystem update procedures
 
     // internal update transform function
     fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void {
@@ -193,10 +193,14 @@ pub const SceneSystem = struct {
     }
 
     pub fn updateTransforms(self: *@This()) void {
-        for (self.objects.denseItems(._repr), 0..) |*repr, i| {
-            const settings = self.objects.readDense(i, .settings);
+        // todo. calculate a running load factor for the number of movable objects
+        // vs static objects
+        // if we have a small amount of movable vs static AND if we have > 1000 objects,
+        // then iterate over dynamicObjects array instead
+        for (Scene.BaseContainer.denseItems(._repr), 0..) |*repr, i| {
+            const settings = Scene.BaseContainer.readDense(i, .settings);
             if (settings.sceneMode == .moveable) {
-                const posRot = self.objects.readDense(i, .posRot);
+                const posRot = Scene.BaseContainer.readDense(i, .posRot);
                 self.updateTransform(repr, posRot.*);
             }
         }
@@ -207,42 +211,36 @@ pub const SceneSystem = struct {
         const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .objects = SceneSet.init(allocator),
         };
+        try core.defineComponent(Scene, allocator);
         return self;
     }
 
-    pub fn setMobility(self: *@This(), objectHandle: core.ObjectHandle, mobility: SceneMobilityMode) !void {
-        const settings = self.objects.get(objectHandle, .settings).?;
-        if (mobility == .moveable) {
-            if (settings.sceneMode == .static) {
-                try self.dynamicObjects.append(self.allocator, objectHandle);
-            }
-        }
-
-        if (mobility == .static) {
-            if (settings.sceneMode == .moveable) {
-                core.engine_errs("TODO: Changing sceneMode from moveable back to static is not supported yet.");
-                unreachable;
-            }
-        }
-
-        settings.*.sceneMode = mobility;
-    }
-
-    pub fn get(self: *@This(), handle: core.ObjectHandle, comptime field: Field) ?*FieldType(field) {
-        return self.objects.get(handle, field);
-    }
-
     pub fn tick(self: *@This(), deltaTime: f64) void {
-        _ = self;
         var z = tracy.ZoneNC(@src(), "Scene System Tick", 0xAABBDD);
         defer z.End();
+        self.updateTransforms();
         _ = deltaTime;
     }
 
     pub fn deinit(self: *@This()) void {
-        self.objects.deinit();
+        core.undefineComponent(Scene);
         self.allocator.destroy(self);
     }
 };
+
+// LUA_BEGIN
+
+// because scene objects are a special sparse-multiset type,
+// they do not have a fixed representation in the sparse set.
+// as a result this type requires a special implementation to operate properly.
+// multi-set systems should only ever modify values via functions
+
+// we really need a way to deal with multi-set handles.
+// idea - in the component registration. if the container type is a sparse multiset
+// then the pointer type shall be a pointer to the set handle.
+// and the component acquisition shall do absolutely nothing but grab the sparse index of the set handle
+//
+// custom component registration i think should be created
+
+// LUA_END

@@ -41,8 +41,6 @@ const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;
 const RingQueue = core.RingQueue;
 
-const NeonVkSceneManager = @import("vk_sceneobject.zig").NeonVkSceneManager;
-
 const SparseSet = core.SparseSet;
 const MAX_OBJECTS = vk_constants.MAX_OBJECTS;
 
@@ -197,7 +195,7 @@ pub const NeonVkPhysicalDeviceInfo = struct {
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(Self);
 
     pub const maxMode = 3;
 
@@ -304,7 +302,6 @@ pub const NeonVkContext = struct {
     rendererPlugins: ArrayListUnmanaged(RendererInterfaceRef),
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
-    sceneManager: NeonVkSceneManager,
     dynamicMeshManager: *mesh.DynamicMeshManager,
     dynamicTextures: std.ArrayListUnmanaged(*DynamicTexture),
     shouldShowDebug: bool,
@@ -406,7 +403,6 @@ pub const NeonVkContext = struct {
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         self.renderObjectSet = RenderObjectSet.init(self.allocator);
-        self.sceneManager = NeonVkSceneManager.init(self.allocator);
         self.requiredExtensions = .{};
         self.dynamicTextures = .{};
 
@@ -1143,7 +1139,7 @@ pub const NeonVkContext = struct {
         core.gScene.updateTransforms();
 
         // unreachable instead of panic so releasefast
-        self.sceneManager.update(self) catch unreachable;
+        // self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
             const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
@@ -1472,7 +1468,6 @@ pub const NeonVkContext = struct {
         defer z.End();
         const cmd = self.commandBuffers.items[self.nextFrameIndex];
         var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
-        try self.upload_scene_global_data(deltaTime);
         try self.upload_object_data();
         z1.End();
 
@@ -2652,7 +2647,11 @@ pub const NeonVkContext = struct {
     }
 
     pub fn readyToExit(self: *@This()) bool {
-        _ = self;
+        if (use_renderthread) {
+            while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {
+                self.renderthread.spinProcessExitSignal();
+            }
+        }
         return true;
     }
 
@@ -2664,13 +2663,6 @@ pub const NeonVkContext = struct {
         }
     }
 };
-
-pub var gWindowName: []const u8 = "NeonWood Sample Application";
-
-// must be called before graphics.start_module();
-pub fn setWindowName(newWindowName: []const u8) void {
-    gWindowName = newWindowName;
-}
 
 pub var gContext: *NeonVkContext = undefined;
 pub var gGraphicsStartupSettings: struct {

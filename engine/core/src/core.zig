@@ -38,8 +38,6 @@ pub const MemoryTracker = @import("MemoryTracker.zig");
 const logging = @import("logging.zig");
 const c = @This();
 
-//pub const build_options = @import("root").build_options;
-
 const logs = logging.engine_logs;
 const log = logging.engine_log;
 
@@ -52,32 +50,55 @@ var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
 
+pub const ecs = @import("ecs.zig");
+pub usingnamespace ecs;
+
+pub const script = @import("script.zig");
+
 pub fn fs() *PackerFS {
     return gPackerFS;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) void {
-    _ = algorithm.createNameRegistry(allocator) catch unreachable;
-    gPackerFS = PackerFS.init(allocator, .{}) catch @panic("unable to initialize packerfs");
-    gEngine = allocator.create(Engine) catch unreachable;
-    gEngine.* = Engine.init(allocator) catch unreachable;
+pub const Module = ModuleDescription{
+    .name = "core",
+    .enabledByDefault = true,
+};
 
-    gScene = gEngine.createObject(scene.SceneSystem, .{ .can_tick = true }) catch unreachable;
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
+    _ = try algorithm.createNameRegistry(allocator);
+    // LUA BEGIN -- what if i want to make the scripting integration optional?
+    try script.start_lua(allocator);
+    // LUA END
+    gPackerFS = try PackerFS.init(allocator, .{});
+    gEngine = try allocator.create(Engine);
+    gEngine.* = try Engine.init(allocator);
 
-    logging.setupLogging(gEngine) catch unreachable;
+    try logging.setupLogging(gEngine);
+
+    try ecs.setup(allocator);
+
+    gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
+
+    try algorithm.string_pool.setup(allocator);
 
     logs("core module starting up... ");
     return;
 }
 
-pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    _ = allocator;
+pub fn shutdown_module(_: std.mem.Allocator) void {
     logs("core module shutting down...");
     logging.shutdownLogging();
+    ecs.shutdown();
 
     algorithm.destroyNameRegistry();
     gEngine.deinit();
     gPackerFS.destroy();
+    // LUA BEGIN
+    script.shutdown_lua();
+    // LUA END
+    algorithm.string_pool.shutdown();
     return;
 }
 
@@ -134,4 +155,12 @@ pub fn addEngineDelegateBinding(comptime event: []const u8, func: anytype, ctx: 
     return handle;
 }
 
-// pub fn removeBinding todo...
+const getEngineTime = @import("engineTime.zig").getEngineTime;
+
+pub fn getEngineUptime() f64 {
+    return getEngineTime() - gEngine.engineStartTime;
+}
+
+pub const modules = @import("modules.zig");
+pub const isModuleEnabled = modules.isModuleEnabled;
+pub const ModuleDescription = modules.ModuleDescription;

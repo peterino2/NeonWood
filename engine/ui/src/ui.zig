@@ -12,6 +12,11 @@ pub const PapyrusSystem = @import("PapyrusIntegration.zig");
 
 var gPapyrus: *PapyrusSystem = undefined;
 
+pub const Module: core.ModuleDescription = .{
+    .name = "ui",
+    .enabledByDefault = true,
+};
+
 pub fn getSystem() *PapyrusSystem {
     return gPapyrus;
 }
@@ -20,7 +25,9 @@ pub fn getContext() *papyrus.Context {
     return gPapyrus.papyrusCtx;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     _ = allocator;
     gPapyrus = try core.gEngine.createObject(PapyrusSystem, .{ .can_tick = true });
     try gPapyrus.setup(graphics.getContext());
@@ -28,6 +35,7 @@ pub fn start_module(allocator: std.mem.Allocator) !void {
     memory.MTPrintStatsDelta();
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     // gPapyrus.shutdown();
 }

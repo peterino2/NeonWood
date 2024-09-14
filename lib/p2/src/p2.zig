@@ -29,10 +29,12 @@ pub const RingQueue = ring_queue.RingQueue;
 pub const sparse_set = @import("structures/sparse-set.zig");
 
 pub const SparseSet = sparse_set.SparseSet;
+pub const SparseMap = sparse_set.SparseMap;
 pub const SparseMultiSet = sparse_set.SparseMultiSet;
 pub const SparseSetAdvanced = sparse_set.SparseSetAdvanced;
 pub const SparseMultiSetAdvanced = sparse_set.SparseMultiSetAdvanced;
 pub const SetHandle = sparse_set.SetHandle;
+pub const EcsContainerInterface = sparse_set.EcsContainerInterface;
 
 pub const stack_structures = @import("structures/stack-structures.zig");
 
@@ -43,6 +45,8 @@ pub const IndexPool = index_pool.IndexPool;
 pub const concurrent_queue = @import("structures/concurrent-queue.zig");
 pub const ConcurrentQueueU = concurrent_queue.ConcurrentQueueU;
 pub const ConcurrentQueueUnmanagedAdvanced = concurrent_queue.ConcurrentQueueUnmanagedAdvanced;
+
+pub const string_pool = @import("structures/string-pool.zig");
 
 pub const names = @import("structures/names.zig");
 
@@ -60,6 +64,7 @@ comptime {
     std.testing.refAllDecls(stack_structures);
     std.testing.refAllDecls(index_pool);
     std.testing.refAllDecls(concurrent_queue);
+    std.testing.refAllDecls(string_pool);
 }
 
 // ---- aliases ----

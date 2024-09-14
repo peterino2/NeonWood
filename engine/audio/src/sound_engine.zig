@@ -64,7 +64,7 @@ fn ma_res(value: anytype) !void {
 }
 // On init, SoundEngine will spawn a
 pub const NeonSoundEngine = struct {
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     engine: *ma.ma_engine,
     sounds: AutoHashMapUnmanaged(u32, *ma.ma_sound),

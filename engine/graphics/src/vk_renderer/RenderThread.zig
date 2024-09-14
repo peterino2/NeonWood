@@ -211,7 +211,9 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
     var z1 = tracy.ZoneNC(@src(), "Waiting for frame", 0x111111);
     defer z1.End();
 
-    while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
+    while (self.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
+
+    //while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
 
     const nextFrameIndex = try self.getNextSwapImage();
 
@@ -227,21 +229,18 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
     return nextFrameIndex;
 }
 
+pub fn spinProcessExitSignal(self: *@This()) void {
+    while (self.framesInFlight.load(.acquire) > 0) {}
+    vkd.deviceWaitIdle(self.dev) catch {};
+    self.processExitSignal();
+    return;
+}
+
 // can be called from any thread.
 // queues up a render job for the next frame
 pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void {
     var z2 = tracy.ZoneN(@src(), "rendering job request");
     defer z2.End();
-
-    if (self.exitSignal.load(.seq_cst)) {
-        if (self.framesInFlight.load(.acquire) > 0) {
-            return;
-        }
-
-        try vkd.deviceWaitIdle(self.dev);
-        self.processExitSignal();
-        return;
-    }
 
     const L = struct {
         r: *RenderThread,
@@ -252,11 +251,10 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             // ctx.r.dynamicMeshManager.finishUpload() catch unreachable;
             // lets think about this one later.
-            _ = ctx.r.framesInFlight.fetchSub(1, .seq_cst);
+            //_ = ctx.r.framesInFlight.fetchSub(1, .seq_cst);
+            while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
         }
     };
-
-    _ = self.framesInFlight.fetchAdd(1, .seq_cst);
 
     try core.dispatchJob(L{
         .r = self,
@@ -338,7 +336,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         if (self.updateExtentIfDirty()) {
             try self.resizeToNewExtents();
 
-            std.time.sleep(32 * 1000 * 1000);
+            std.time.sleep(300 * 1000 * 1000);
         }
     }
     self.dynamicMeshManager.finishUpload() catch unreachable;
@@ -748,7 +746,7 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
         .usage = .gpuOnly,
     };
 
-    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name ++ " depth Image");
+    self.displayTarget.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name ++ " depth Image - rt");
 
     var imageViewCreate = vk.ImageViewCreateInfo{
         .flags = .{},

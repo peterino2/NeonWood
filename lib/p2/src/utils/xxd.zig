@@ -46,7 +46,6 @@ pub fn xxdWrite(
 
         if (options.showAddress) {
             if (wordInGroup == 0 and wordOffset == 0 and groupInLine == 0) {
-                // print out the current address
                 try writer.print("{x:6.0}: ", .{index});
             }
         }

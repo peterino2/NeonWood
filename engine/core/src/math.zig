@@ -3,6 +3,12 @@ const misc = @import("misc.zig");
 const zm = @import("zmath");
 const math = std.math;
 
+// LUA BEGIN feel like I should mark up the parts of the engine that need to be
+// sliced out should i ever decide I'm sick of lua
+const lua = @import("lua");
+const pod = lua.pod;
+// LUA END
+
 pub const Rayf = RayType(f32);
 
 pub fn matToScalef(mat: anytype) Vectorf {
@@ -52,10 +58,28 @@ pub fn fabs(x: anytype) @TypeOf(x) {
     return x;
 }
 
-pub fn Vector2Type(comptime T: type) type {
+pub fn Vector2Type(comptime T: type, comptime typeName: []const u8) type {
     return extern struct {
         x: T = 0,
         y: T = 0,
+
+        // LUA BEGIN
+        pub const PodDataTable: pod.DataTable = .{
+            .name = typeName,
+            .funcs = &.{
+                "fmul",
+                "dot",
+                "length",
+                "normalize",
+            },
+            .operators = .{
+                .add = "add",
+                .sub = "sub",
+                .mul = "vmul",
+                .eq = "equals",
+            },
+        };
+        // LUA END
 
         pub const Ones = @This(){ .x = 1, .y = 1 };
         pub const Zeroes = @This(){ .x = 0, .y = 0 };
@@ -100,7 +124,7 @@ pub fn Vector2Type(comptime T: type) type {
         }
 
         pub inline fn equals(self: @This(), other: @This()) bool {
-            return self.x == other.x and self.y == other.y and self.z == other.z;
+            return self.x == other.x and self.y == other.y;
         }
 
         pub inline fn length(self: @This()) T {
@@ -181,7 +205,7 @@ pub fn Vector2Type(comptime T: type) type {
     };
 }
 
-pub fn Vector3Type(comptime T: type) type {
+pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
     return extern struct {
         x: T = 0,
         y: T = 0,
@@ -189,6 +213,24 @@ pub fn Vector3Type(comptime T: type) type {
 
         pub const Ones = @This(){ .x = 1, .y = 1, .z = 1 };
         pub const Zeroes = @This(){ .x = 0, .y = 0, .z = 0 };
+
+        // LUA BEGIN
+        pub const PodDataTable: pod.DataTable = .{
+            .name = typeName,
+            .funcs = &.{
+                "fmul",
+                "dot",
+                "length",
+                "normalize",
+            },
+            .operators = .{
+                .add = "add",
+                .sub = "sub",
+                .mul = "vmul",
+                .eq = "equals",
+            },
+        };
+        // LUA END
 
         pub inline fn new(x: T, y: T, z: T) @This() {
             return .{
@@ -238,7 +280,7 @@ pub fn Vector3Type(comptime T: type) type {
             };
         }
 
-        pub inline fn dot(self: @This(), other: T) T {
+        pub inline fn dot(self: @This(), other: @This()) T {
             return self.x * other.x + self.y * other.y;
         }
 
@@ -402,20 +444,20 @@ pub fn Vector4Type(comptime T: type) type {
         }
     };
 }
-
-pub const Vector = Vector3Type(f64);
 pub const Vector4 = Vector4Type(f64);
-pub const Vectorf = Vector3Type(f32);
-pub const Vector2f = Vector2Type(f32);
-pub const Vector2 = Vector2Type(f64);
-
-pub const Vector2i = Vector2Type(i32);
-pub const Vector2c = Vector2Type(c_int);
-pub const Vector2u = Vector2Type(u32);
-pub const Vector2l = Vector2Type(i64);
-
-pub const EulerAngles = Vector3Type(f32);
 pub const Vector4f = Vector4Type(f32);
+
+pub const Vector = Vector3Type(f64, "Vector");
+pub const Vectorf = Vector3Type(f32, "Vectorf");
+pub const Vector2f = Vector2Type(f32, "Vector2f");
+pub const Vector2 = Vector2Type(f64, "Vector2");
+
+pub const Vector2i = Vector2Type(i32, "Vector2i");
+pub const Vector2c = Vector2Type(c_int, "Vector2c");
+pub const Vector2u = Vector2Type(u32, "Vector2u");
+pub const Vector2l = Vector2Type(i64, "Vector2l");
+
+pub const EulerAngles = Vectorf;
 pub const Quat = zm.Quat;
 pub const Mat = zm.Mat;
 pub const Transform = zm.Mat;

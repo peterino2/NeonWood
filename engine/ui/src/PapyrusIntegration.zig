@@ -63,7 +63,7 @@ const use_renderthread = core.BuildOption("use_renderthread");
 
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
-pub var NeonObjectTable: core.RttiData = core.RttiData.from(@This());
+pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
 pub const PushConstant = FontSDF_vert.constants;
@@ -321,7 +321,9 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
         self.papyrusCtx.pushDebugText("vulkan validation: ON", .{}) catch unreachable;
     }
 
-    self.papyrusCtx.pushDebugText("frameTime (ms): {d:.4} fps: {d:.3}", .{ self.averageFrameTime * 1000.0, 1.0 / self.averageFrameTime }) catch unreachable;
+    self.papyrusCtx.pushDebugText("ecs entities: {d}", .{core.getRegistry().baseSet.count()}) catch unreachable;
+
+    self.papyrusCtx.pushDebugText("frameTime (ms): {d:.4} fps: {d:.3} engine uptime: {d:.3}", .{ self.averageFrameTime * 1000.0, 1.0 / self.averageFrameTime, core.getEngineUptime() }) catch unreachable;
 
     self.papyrusCtx.pushDebugText("  systems (ms): {d:.4}", .{
         core.getEngine().systemsThreadTime * 1000.0,

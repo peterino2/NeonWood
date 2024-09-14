@@ -14,7 +14,7 @@ const c = nw.graphics.c;
 const NodeHandle = ui.NodeHandle;
 
 pub const GameContext = struct {
-    pub var NeonObjectTable: nw.core.RttiData = nw.core.RttiData.from(@This());
+    pub var NeonObjectTable: nw.core.EngineObjectVTable = nw.core.EngineObjectVTable.from(@This());
 
     allocator: std.mem.Allocator,
     debugOpen: bool = true,
@@ -82,8 +82,6 @@ pub const GameContext = struct {
         self.fpsText = std.fmt.allocPrint(self.allocator, "fps: {d:.2}", .{1.0 / dt}) catch unreachable;
 
         var ctx = ui.getContext();
-
-        // holy crap that's bad i need a better way to automate this.
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
     }
 
@@ -151,7 +149,6 @@ pub const GameContext = struct {
         for (0..1) |i| {
             _ = i;
             const unk2 = try ctx.addPanel(unk);
-            ctx.setFont(unk2, "bitmap");
             ctx.get(unk2).justify = .Left;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
@@ -160,10 +157,10 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me\n(default font)");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.getText(unk2Text).textSize = 20;
         }
 
         for (0..1) |i| {
@@ -177,10 +174,11 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me!\n(monospace font)");
+            ctx.setFont(unk2Text, "bitmap");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
-            ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
-            ctx.getText(unk2Text).textSize = 32;
+            ctx.get(unk2Text).size = .{ .x = 250, .y = 75 };
+            ctx.getText(unk2Text).textSize = 16;
         }
 
         for (0..1) |i| {
@@ -189,7 +187,7 @@ pub const GameContext = struct {
             ctx.get(unk2).justify = .Right;
             ctx.get(unk2).pos = .{ .x = 0, .y = 0 };
             ctx.get(unk2).size = .{ .x = 150, .y = 75 };
-            ctx.get(unk2).style.backgroundColor = BurnStyle.Diminished;
+            ctx.get(unk2).style.backgroundColor = BurnStyle.LightGrey;
             ctx.getPanel(unk2).rounding = .{
                 .tl = 10.0,
                 .tr = 10.0,
@@ -200,7 +198,7 @@ pub const GameContext = struct {
             try ctx.events.installOnPressedEvent(unk2, .onReleased, .Mouse1, null, &onUnk2);
             try ctx.events.installMouseOverEvent(unk2, .mouseOff, null, &onUnk2MouseOff);
 
-            const unk2Text = try ctx.addText(unk2, "click me!");
+            const unk2Text = try ctx.addText(unk2, "click me!(bitmap font)");
             ctx.get(unk2Text).pos = .{ .x = 5, .y = 5 };
             ctx.get(unk2Text).size = .{ .x = 150, .y = 75 };
             ctx.setFont(unk2Text, "bitmap");
@@ -223,7 +221,8 @@ pub const GameContext = struct {
 
         const te = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         ctx.get(te).size = .{ .x = 600, .y = 200 };
-        ctx.getTextEntry(te).font = ctx.defaultMonoFont;
+        // ctx.getTextEntry(te).font = ctx.defaultMonoFont;
+        ctx.setFont(te, "monospace");
 
         const te2 = try ctx.addTextEntry_experimental(unk, "wutang clan forever...\nthis is a second line, try mousing over.");
         try ctx.removeFromParent(te2);
@@ -328,7 +327,13 @@ pub fn main() anyerror!void {
     const allocator = tracker.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
-    try nw.start_everything(allocator, .{ .windowName = "NeonWood: ui" }, args);
+    platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });
+    try nw.start_everything(.{
+        .enabledModules = .{
+            .vkImgui = false,
+        },
+    }, allocator, args);
     defer nw.shutdown_everything(allocator);
+
     try nw.run_everything(GameContext);
 }

@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
+const memory = core.MemoryTracker;
 
 const core = neonwood.core;
 const platform = neonwood.platform;
@@ -37,12 +38,13 @@ const AssetReferences = [_]assets.AssetImportReference{
 // basic engine onboarding
 pub const GameContext = struct {
     const Self = @This();
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(Self);
 
     camera: graphics.Camera,
     allocator: std.mem.Allocator,
     showDemo: bool = true,
     debugOpen: bool = true,
+    sphere: core.ObjectHandle = undefined,
     gc: *graphics.NeonVkContext = undefined,
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
@@ -87,6 +89,7 @@ pub const GameContext = struct {
                 var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
                 obj.setTextureByName(self.gc, texName);
                 self.assetReady = true;
+                memory.MTPrintStatsDelta();
             }
         }
 
@@ -109,8 +112,18 @@ pub const GameContext = struct {
         var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
 
         self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@as(f32, @floatCast(deltaTime))));
+
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
+
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(self.time));
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.applyScalars();
+
+        graphics.debugSphere(
+            self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position,
+            1.0,
+            .{},
+        );
 
         var i: f32 = 0;
         while (i < 0) : (i += 1) {
@@ -127,10 +140,6 @@ pub const GameContext = struct {
             );
         }
         self.tickPanel(deltaTime) catch unreachable;
-
-        if (fastTest) {
-            core.engine_logs("fastteston");
-        }
 
         if (fastTest and self.time > 10.0) {
             core.signalShutdown();
@@ -163,6 +172,9 @@ pub const GameContext = struct {
     }
 
     pub fn prepare_game(self: *Self) !void {
+        try core.fs().addContentPath("demo");
+        try core.script.runScriptFile("scripts/prepare.lua");
+
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
@@ -173,6 +185,28 @@ pub const GameContext = struct {
             .material_name = core.MakeName("t_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
+
+        const objHandle2 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_sphere"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(0, 0, 0),
+        });
+
+        self.sphere = objHandle2;
+
+        const objHandle3 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_sphere"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(5, 0, 0),
+        });
+        _ = objHandle3;
+
+        const objHandle4 = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_primitive_line"),
+            .material_name = core.MakeName("t_mesh"),
+            .init_transform = core.zm.translation(5, 0, 0),
+        });
+        _ = objHandle4;
 
         var ctx = ui.getContext();
 
@@ -386,7 +420,6 @@ pub fn main() anyerror!void {
             std.debug.print("gpa cleanup leaked memory\n", .{});
         }
     }
-    const memory = core.MemoryTracker;
 
     //memory.MTSetup(std.heap.c_allocator);
     memory.MTSetup(gpa.allocator());
@@ -409,7 +442,9 @@ pub fn main() anyerror!void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    try neonwood.start_everything_imgui(allocator, .{ .windowName = "NeonWood: ui" }, args);
+    platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });
+
+    try neonwood.start_everything(@import("spec.zig").spec, allocator, args);
     defer neonwood.shutdown_everything(allocator);
 
     _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);

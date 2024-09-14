@@ -25,7 +25,7 @@ const jobTestCount = 1000;
 // job dispatching.
 const GameContext = struct {
     const Self = @This();
-    pub var NeonObjectTable: core.RttiData = core.RttiData.from(Self);
+    pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(Self);
 
     allocator: std.mem.Allocator,
     wakeCount: u32 = 100,

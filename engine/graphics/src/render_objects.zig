@@ -120,6 +120,12 @@ pub const RenderObject = struct {
         self.rotation = zm.matToQuat(self.transform);
         self.scale = core.matToScalef(self.transform);
     }
+
+    pub fn applyScalars(self: *RenderObject) void {
+        var newTransform = core.zm.translationV(self.position.toZm());
+        newTransform = core.zm.mul(newTransform, core.zm.matFromQuat(self.rotation));
+        self.transform = newTransform;
+    }
 };
 
 fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
@@ -142,7 +148,8 @@ fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {
 // forward = +Z (index finger)
 // left = +X (middle finger)
 // up = +Y (thumb)
-//
+
+const ecs = core.ecs;
 
 pub const Camera = struct {
     fov: f32 = 70.0,
@@ -165,6 +172,8 @@ pub const Camera = struct {
         200000,
     ),
     final: Mat = zm.identity(),
+
+    pub const EcsComponentDefinition = ecs.DefineComponent(@This(), .set); // set, map, multiset, maplist
 
     pub fn isDirty(self: *Camera) bool {
         if (self.fov_cache != self.fov)

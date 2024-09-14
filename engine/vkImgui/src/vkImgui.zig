@@ -22,6 +22,11 @@ pub const c = @cImport({
 
 const NeonVkContext = vk_renderer.NeonVkContext;
 
+pub const Module: core.ModuleDescription = .{
+    .name = "vkImgui",
+    .enabledByDefault = true,
+};
+
 // new imgui integration
 //
 // arather than call imgui newframe only during the draw step.
@@ -37,7 +42,7 @@ fn vkCast(comptime T: type, handle: anytype) T {
 // this data structure is invalid until you call setup
 pub const NeonVkImGui = struct {
     const Self = @This();
-    pub const NeonObjectTable = core.RttiData.from(Self);
+    pub const NeonObjectTable = core.EngineObjectVTable.from(Self);
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(Self);
 
     allocator: std.mem.Allocator,
@@ -53,8 +58,6 @@ pub const NeonVkImGui = struct {
 
         return self;
     }
-
-    pub fn tick(_: *Self, _: f64) void {}
 
     // NeonObject interface
     pub fn preTick(_: *Self, _: f64) core.EngineDataEventError!void {
@@ -161,7 +164,6 @@ pub const NeonVkImGui = struct {
 
         var imguiInit = c.ImGui_ImplVulkan_InitInfo{
             .Instance = vkCast(c.VkInstance, ctx.instance),
-            ////.Instance = @ptrCast(c.VkInstance, @intToPtr(*anyopaque, @enumToInt(ctx.instance))),
             .PhysicalDevice = vkCast(c.VkPhysicalDevice, ctx.physicalDevice),
             .Device = vkCast(c.VkDevice, ctx.dev),
             .QueueFamily = ctx.graphicsQueue.family,
@@ -220,7 +222,9 @@ export fn checkVkResult(result: c_int) void {
     unreachable;
 }
 
-pub fn start_module(allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     _ = allocator;
     const neonVkImgui = try core.createObject(NeonVkImGui, .{});
     try neonVkImgui.setup(graphics.getContext());

@@ -456,8 +456,8 @@ pub const NeonVkUploader = struct {
         try vkd.endCommandBuffer(self.commandBuffer);
         var submit = vkinit.submitInfo(&self.commandBuffer);
         // !!!!!!!!!!!!!!!!!!!!!!!!!!
-        // oh yeah senpai... this is fucked.
         // there should be a dedicated uploader queue.
+        // .. but thats not something that is always going to be available.
         // !!!!!!!!!!!!!!!!!!!!!!!!!!
         try vkd.queueSubmit(
             self.gc.graphicsQueue.handle,

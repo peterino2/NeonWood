@@ -129,8 +129,8 @@ pub fn MakeName(string: []const u8) Name {
 }
 
 pub const Name = struct {
-    index: ?u32 = 0,
-    string: []const u8 = "Invalid",
+    index: ?u32 = 0, // do not directly access
+    string: []const u8 = "Invalid", // do not directly access
 
     pub fn MakeComptime(string: []const u8) @This() {
         return .{ .index = null, .string = string };
@@ -157,7 +157,7 @@ pub const Name = struct {
     pub fn utf8(self: *const @This()) []const u8 {
         // so nasty... and const-violating. but the ergonomics is so good...
         if (self.index == null) {
-            // fuck it..  i'll pay the cost of duplicating even comptime strings
+            // screw it..  i'll pay the cost of duplicating even comptime strings
             const index = getRegistry().InstallNameInner(self.string, true);
             const mutableThis = @as(*@This(), @ptrCast(@constCast(self)));
             mutableThis.*.index = index;

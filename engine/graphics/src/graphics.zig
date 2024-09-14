@@ -4,6 +4,7 @@ const memory = core.MemoryTracker;
 pub const vk_renderer = @import("vk_renderer.zig");
 const materials = @import("materials.zig");
 
+pub const graphics_ecs = @import("graphics_ecs.zig");
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
 
@@ -44,7 +45,6 @@ pub const PixelPos = vk_renderer.PixelPos;
 
 pub const NeonVkBuffer = vk_renderer.NeonVkBuffer;
 
-pub const setWindowName = vk_renderer.setWindowName;
 pub const NumFrames = constants.NUM_FRAMES;
 
 const engine_logs = core.engine_logs;
@@ -69,25 +69,36 @@ pub fn registerRendererPlugin(value: anytype) !void {
     try gc.rendererPlugins.append(gc.allocator, ref);
 }
 
-pub fn start_module(allocator: std.mem.Allocator) void {
+pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+    _ = args;
+    _ = programSpec;
     engine_logs("graphics module starting up...");
 
+    memory.MTPrintStatsDelta();
     const context: *NeonVkContext = core.gEngine.createObject(
         NeonVkContext,
         .{ .can_tick = true, .isCore = true },
     ) catch unreachable;
+    memory.MTPrintStatsDelta();
+    engine_logs("NeonVkContext grew");
 
     vk_renderer.gContext = context;
+    try graphics_ecs.registerEcs(allocator);
+    memory.MTPrintStatsDelta();
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
+    memory.MTPrintStatsDelta();
 
-    // debug_draw.init_debug_draw_subsystem() catch unreachable;
+    if (core.fs().fileExists("meshes/primitive_sphere.obj")) {
+        debug_draw.init_debug_draw_subsystem() catch unreachable;
+    }
     memory.MTPrintStatsDelta();
 }
 
-pub fn shutdown_module() void {
+pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    _ = allocator;
     engine_logs("graphics module shutting down...");
-    // debug_draw.shutdown();
+    graphics_ecs.shutdownEcs();
     vk_renderer.gContext.shutdown();
 }
 
@@ -138,3 +149,8 @@ pub fn start_gles(allocator: std.mem.Allocator) void {
 pub fn shutdown_gles(allocator: std.mem.Allocator) void {
     gles_renderer.shutdown(allocator);
 }
+
+pub const Module = core.ModuleDescription{
+    .name = "graphics",
+    .enabledByDefault = true,
+};
