@@ -141,10 +141,6 @@ pub const GameContext = struct {
         }
         self.tickPanel(deltaTime) catch unreachable;
 
-        if (fastTest) {
-            core.engine_logs("fastteston");
-        }
-
         if (fastTest and self.time > 10.0) {
             core.signalShutdown();
         }
