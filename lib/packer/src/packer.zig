@@ -8,6 +8,7 @@ pub const PackerFS = packerfs.PackerFS;
 
 const constants = @import("constants.zig");
 pub const PackerMagic = constants.PackerMagic;
+pub const littleEndian = constants.littleEndian;
 
 // this is invalidated if a PackedArhive is modified
 pub const PackerBytesRef = struct {
