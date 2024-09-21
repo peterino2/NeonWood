@@ -25,6 +25,12 @@ pub fn WrapZigFunc(comptime baseFunc: anytype) LuaCFunc {
     return CWrap(FuncWrapper(baseFunc).wrapper);
 }
 
+var debugEnabled: bool = false;
+
+pub fn debugPrints(enable: bool) void {
+    debugEnabled = enable;
+}
+
 pub fn FuncWrapper(comptime baseFunc: anytype) type {
     return struct {
         pub fn wrapper(state: LuaState) i32 {
@@ -233,6 +239,9 @@ pub const LuaState = struct {
     }
 
     pub fn toUserdata(self: @This(), comptime T: type, index: i32) ?*T {
+        if (debugEnabled) {
+            std.debug.print("toUserdata: {s}", .{@typeName(T)});
+        }
         return @ptrCast(@alignCast(c.lua_touserdata(self.l, index)));
     }
 
@@ -347,5 +356,9 @@ pub const LuaState = struct {
         }
         try self.setMetatable(-2);
         return rv;
+    }
+
+    pub fn emitError(self: @This(), errorMessage: [:0]const u8) void {
+        _ = c.luaL_error(self.l, errorMessage);
     }
 };
