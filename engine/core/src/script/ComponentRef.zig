@@ -199,7 +199,19 @@ pub fn FuncWrapper(comptime baseFunc: anytype, comptime baseType: type) type {
                         args[index] = ref.ptr.*;
                     },
                     else => {
-                        args[index] = state.toUserdata(field.type, index + 1).?.*;
+                        // if(isComponentType(field.type)) {
+                        // const ref = state.toUserdata(field.type, index + 1).?;
+                        // ref.resolve();
+                        // args[index] = ref.ptr.*;
+                        // continue;
+                        // }
+                        //
+                        lua.debugPrints(true);
+                        args[index] = (state.toUserdata(field.type, index + 1) orelse {
+                            state.emitError("something's weird with this argument");
+                            @panic("lmao");
+                        }).*;
+                        lua.debugPrints(false);
                     },
                 }
             }

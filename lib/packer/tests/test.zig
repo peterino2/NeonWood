@@ -113,4 +113,6 @@ test "packerfs_test" {
     for (subpaths.data.items) |x| {
         std.debug.print(".[x ] = {s}\n", .{x});
     }
+
+    std.debug.print("littleEndian {any}", .{packer.littleEndian});
 }

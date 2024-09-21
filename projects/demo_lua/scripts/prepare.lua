@@ -1,6 +1,9 @@
--- local SineBall = require("SineBall")
--- local Flycam = require("demo_lua/script/Flycam")
-
 local ball = SineBall.create()
-local camera = Flycam.create()
+-- local camera = Flycam.create()
+
+lostEmpire = Entity.new()
+
+-- local mesh = lostEmpire:addComponent(Mesh)
+-- mesh:setMesh("m_empire")
+-- mesh:setTexture("t_texture")
 
