@@ -1,5 +1,5 @@
 const packer = @import("packer");
-const testfile = @embedFile("testfile.txt");
+const testFile = @embedFile("testFile.txt");
 const lost_empire = @embedFile("lost_empire.obj");
 const monkey = @embedFile("monkey.obj");
 const embeddedArchive = @embedFile("archive.pak");
@@ -20,7 +20,7 @@ test "packer forward path" {
     defer archive.deinit();
 
     try archive.appendFileByBytes("raw_bytes", "monkey.obj", monkey);
-    try archive.appendFileByBytes("text", "testfile.txt", testfile);
+    try archive.appendFileByBytes("text", "testFile.txt", testFile);
     try archive.appendFileByBytes("mesh", "lost_empire.obj", lost_empire);
 
     try archive.finishBuilding(false);
@@ -39,8 +39,8 @@ test "packer forward path" {
 
     try std.testing.expect(std.mem.eql(
         u8,
-        archive.getFileByName("testfile.txt").?.raw_bytes,
-        archive2.getFileByName("testfile.txt").?.raw_bytes,
+        archive.getFileByName("testFile.txt").?.raw_bytes,
+        archive2.getFileByName("testFile.txt").?.raw_bytes,
     ));
 
     try std.testing.expect(std.mem.eql(
@@ -56,8 +56,8 @@ test "packer forward path" {
 
     try std.testing.expect(std.mem.eql(
         u8,
-        archive.getFileByName("testfile.txt").?.raw_bytes,
-        archive3.getFileByName("testfile.txt").?.raw_bytes,
+        archive.getFileByName("testFile.txt").?.raw_bytes,
+        archive3.getFileByName("testFile.txt").?.raw_bytes,
     ));
 
     const writer = std.io.getStdErr().writer();
