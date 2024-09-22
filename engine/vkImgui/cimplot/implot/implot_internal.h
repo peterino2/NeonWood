@@ -297,7 +297,25 @@ struct ImPlotTime {
     ImPlotTime(time_t s, int us = 0) { S  = s + us / 1000000; Us = us % 1000000; }
     void RollOver() { S  = S + Us / 1000000;  Us = Us % 1000000; }
     double ToDouble() const { return (double)S + (double)Us / 1000000.0; }
-    static ImPlotTime FromDouble(double t) { return ImPlotTime((time_t)t, (int)(t * 1000000 - floor(t) * 1000000)); }
+
+    static double ClampTime(double x)
+    {
+        static constexpr double maxTime = 1e18;
+        if (x > maxTime)
+        {
+            return maxTime;
+        }
+        if (x < -maxTime)
+        {
+            return -maxTime;
+        }
+        return x;
+    }
+
+    static ImPlotTime FromDouble(double inDouble) { 
+        double clampedTime = ClampTime(inDouble);
+        return ImPlotTime((time_t)clampedTime, (int)(clampedTime * 1000000 - floor(clampedTime) * 1000000)); 
+    }
 };
 
 static inline ImPlotTime operator+(const ImPlotTime& lhs, const ImPlotTime& rhs)
