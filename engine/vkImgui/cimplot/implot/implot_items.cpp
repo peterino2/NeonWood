@@ -468,6 +468,9 @@ bool BeginItem(const char* label_id, ImPlotItemFlags flags, ImPlotCol recolor_fr
         s.RenderMarkerLine = s.Colors[ImPlotCol_MarkerOutline].w > 0 && s.MarkerWeight > 0;
         // push rendering clip rect
         PushPlotClipRect();
+        // NEONWOOD_CHANGE_BEGIN: @peterino2 - fixing scroll wheel issue
+        ImGui::SetItemUsingMouseWheel();
+        // NEONWOOD_CHANGE_END: @peterino2 - fixing scroll wheel issue
         return true;
     }
 }
