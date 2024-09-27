@@ -39,7 +39,10 @@ fn vkCast(comptime T: type, handle: anytype) T {
     return @as(T, @ptrFromInt(@as(u64, @intFromEnum(handle))));
 }
 
-// this data structure is invalid until you call setup
+// this data structure represents the imgui integration setup.
+// it is invalid until you call setup()
+//
+// largely don't need to touch this structure from the user's side.
 pub const NeonVkImGui = struct {
     const Self = @This();
     pub const NeonObjectTable = core.EngineObjectVTable.from(Self);

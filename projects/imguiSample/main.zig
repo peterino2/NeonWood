@@ -46,6 +46,7 @@ pub const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
+    neonwood.graphics.setStartupSettings("maxObjectCount", 10);
     try neonwood.initializeAndRunStandardProgram(GameContext, .{
         .name = "imguiSample",
         .enabledModules = .{
