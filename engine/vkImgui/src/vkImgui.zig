@@ -128,6 +128,7 @@ pub const NeonVkImGui = struct {
 
     pub fn setup(self: *Self, ctx: *NeonVkContext) !void {
         self.ctx = ctx;
+        std.debug.print("vkImGui = {d}\n", .{@sizeOf(c.ImGuiStyle)});
 
         const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
             .{ .type = .sampler, .descriptor_count = 1000 },

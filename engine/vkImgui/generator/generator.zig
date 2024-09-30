@@ -98,8 +98,11 @@ const ParserContext = struct {
     }
 
     fn matchString(self: *@This(), str: []const u8) ?usize {
-        std.log.info("checking: [{s}]", .{self.read[0..@min(str.len, self.read.len)]});
-        if (std.mem.eql(u8, self.read, str)) {
+        if (self.read.len < str.len) {
+            return null;
+        }
+
+        if (std.mem.eql(u8, self.read[0..str.len], str)) {
             return str.len - 1;
         }
         return null;
@@ -113,11 +116,6 @@ const ParserContext = struct {
     }
 
     inline fn next(self: *@This()) !void {
-
-        // because this is just a simple C parser, we don't need to backtrack or do recursive descent.
-        // a simple forward pass should be enough to just determine typing
-        //
-        // phase 1: just parse struct types
         switch (self.state) {
             .Empty => {
                 try self.advanceEmpty();
@@ -168,9 +166,8 @@ pub fn main() !void {
         opts.outputFile,
     });
 
-    const parser = try ParserContext.create(allocator, &opts);
-    defer parser.destroy();
+    const tokenizer = try Tokenizer.create(allocator, &opts);
+    defer tokenizer.destroy();
 
-    const parseResults = try parser.parseHeader();
-    _ = parseResults; // part of parser arenas, gets oblitereated when parser gets destroyed
+    const tokenizeResults = try tokenizer.tokenize();
 }
