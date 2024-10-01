@@ -1,10 +1,22 @@
 // manually crafted translation for cimgui to zig
 
 // ImVector_int == i32 in zig,
-pub const Const_CharPtr = extern struct {
+pub const ConstCharPtrVector = extern struct {
     size: c_int,
     capacity: c_int,
     data: [*c][*c]const u8,
+};
+
+pub const CharVector = extern struct {
+    size: c_int,
+    capacity: c_int,
+    data: [*c][*c]u8,
+};
+
+pub const WcharVector = extern struct { // typedef struct ImVector_ImWchar {
+    size: c_int,
+    capacity: c_int,
+    data: [*c]Wchar,
 };
 
 // ImVector typedefs
@@ -42,12 +54,13 @@ pub const VectorInt = c_int; // ImVector_Int
 // pub const TableColumnFlags = c_int; // ImGuiTableColumnFlags
 // pub const TableRowFlags = c_int; // ImGuiTableRowFlags
 // pub const TreeNodeFlags = c_int; // ImGuiTreeNodeFlags
-pub const ViewportFlags = c_int; // ImGuiViewportFlags
+// pub const ViewportFlags = c_int; // ImGuiViewportFlags
 
 // Im typedefs
-pub const DrawFlags = c_int; // ImDrawFlags
-pub const DrawListFlags = c_int; // ImDrawListFlags
-pub const FontAtlasFlags = c_int; // ImFontAtlasFlags
+//pub const DrawFlags = c_int; // ImDrawFlags
+// pub const DrawListFlags = c_int; // ImDrawListFlags
+// pub const FontAtlasFlags = c_int; // ImFontAtlasFlags
+//
 
 // Base Type Typedefs
 pub const TextureID = ?*anyopaque; //ImTextureID;
@@ -366,6 +379,14 @@ pub const DataType = enum(c_int) {
     COUNT,
     _,
 };
+
+pub const DataTypePrivate = enum(c_int) {
+    String = DataType.COUNT,
+    Pointer,
+    ID,
+    _,
+};
+
 pub const Dir = enum(c_int) {
     none = -1,
     left = 0,
@@ -524,6 +545,49 @@ pub const Key = enum(c_int) {
     // NamedKey_COUNT = Key.NamedKey_END - Key.NamedKey_BEGIN,
     // KeysData_SIZE = Key.COUNT,
     // KeysData_OFFSET = 0,
+};
+
+pub const NamedKeyCOUNT = Key.COUNT - 512;
+
+pub const KeyPrivate = enum(c_int) {
+    LegacyNative_BEGIN = 0,
+    LegacyNative_END = 512,
+    ImGuiKey_Gamepad_BEGIN = Key.GamepadStart,
+    ImGuiKey_Gamepad_END = Key.GamepadRStickRight + 1,
+};
+
+pub const InputEventType = enum(c_int) {
+    None = 0,
+    MousePos,
+    MouseWheel,
+    MouseButton,
+    MouseViewport,
+    Key,
+    Text,
+    Focus,
+    COUNT,
+    _,
+};
+
+pub const InputSource = enum(c_int) {
+    None = 0,
+    Mouse,
+    Keyboard,
+    Gamepad,
+    Clipboard,
+    Nav,
+    COUNT,
+    _,
+};
+
+pub const NavReadMode = enum(c_int) {
+    Down,
+    Pressed,
+    Released,
+    Repeat,
+    RepeatSlow,
+    RepeatFast,
+    _,
 };
 
 pub const ModFlags = packed struct(c_int) {
@@ -811,12 +875,6 @@ pub const KeyData = extern struct { // struct ImGuiKeyData
     analog_value: f32,
 };
 
-pub const Vector_Wchar = extern struct { // typedef struct ImVector_ImWchar {
-    size: c_int,
-    capacity: c_int,
-    data: [*c]Wchar,
-};
-
 pub const FontAtlas = extern struct { // struct ImFontAtlas
     flags: FontAtlasFlags,
     tex_i_d: TextureID,
@@ -949,7 +1007,7 @@ pub const Io = extern struct {
     backend_using_legacy_key_arrays: S8, // ImS8 BackendUsingLegacyKeyArrays;
     backend_using_legacy_nav_input_array: bool, // bool BackendUsingLegacyNavInputArray;
     input_queue_surrogate: Wchar16, // ImWchar16 InputQueueSurrogate;
-    input_queue_characters: Wchar, // ImVector_ImWchar InputQueueCharacters;
+    input_queue_characters: WcharVector, // ImVector_ImWchar InputQueueCharacters;
 };
 
 pub const Viewport = extern struct { // struct ImGuiViewport
@@ -971,11 +1029,1032 @@ pub const Viewport = extern struct { // struct ImGuiViewport
     platform_request_close: bool,
 };
 
+pub const PlatformMonitorVector = extern struct { // struct ImVector_ImGuiPlatformMonitor
+    size: c_int,
+    capacity: c_int,
+    data: [*c]PlatformMonitor,
+};
+
+pub const ViewportPtrVector = extern struct { // struct ImVector_ImGuiViewportPtr
+    size: c_int,
+    capacity: c_int,
+    data: [*c][*c]Viewport,
+};
+
+pub const PlatformIO = extern struct { // struct ImGuiPlatformIO
+    platform_create_window: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_destroy_window: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_show_window: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_set_window_pos: *const fn ([*c]Viewport, Vec2) callconv(.C) void,
+    platform_get_window_pos: *const fn ([*c]Viewport) callconv(.C) Vec2,
+    platform_set_window_size: *const fn ([*c]Viewport, Vec2) callconv(.C) void,
+    platform_get_window_size: *const fn ([*c]Viewport) callconv(.C) Vec2,
+    platform_set_window_focus: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_get_window_focus: *const fn ([*c]Viewport) callconv(.C) bool,
+    platform_get_window_minimized: *const fn ([*c]Viewport) callconv(.C) bool,
+    platform_set_window_title: *const fn ([*c]Viewport, [*c]const u8) callconv(.C) void,
+    platform_set_window_alpha: *const fn ([*c]Viewport, f32) callconv(.C) void,
+    platform_update_window: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_render_window: *const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void,
+    platform_swap_buffers: *const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void,
+    platform_get_window_dpi_scale: *const fn ([*c]Viewport) callconv(.C) f32,
+    platform_on_changed_viewport: *const fn ([*c]Viewport) callconv(.C) void,
+    platform_create_vk_surface: *const fn ([*c]Viewport, U64, [*c]const void, [*c]U64) callconv(.C) c_int,
+    renderer_create_window: *const fn ([*c]Viewport) callconv(.C) void,
+    renderer_destroy_window: *const fn ([*c]Viewport) callconv(.C) void,
+    renderer_set_window_size: *const fn ([*c]Viewport, Vec2) callconv(.C) void,
+    renderer_render_window: *const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void,
+    renderer_swap_buffers: *const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void,
+    monitors: PlatformMonitor,
+    viewports: ViewportPtrVector,
+};
+
+pub const PlatformMonitor = extern struct { // struct ImGuiPlatformMonitor
+    main_pos: Vec2,
+    main_size: Vec2,
+    work_pos: Vec2,
+    work_size: Vec2,
+    dpi_scale: f32,
+};
+
+pub const ViewportFlags = packed struct(c_int) {
+    is_platform_window: bool = false, // cmGuiViewportFlags_IsPlatformWindow = 1 << 0,
+    is_platform_monitor: bool = false, // ImGuiViewportFlags_IsPlatformMonitor = 1 << 1,
+    owned_by_app: bool = false, // ImGuiViewportFlags_OwnedByApp = 1 << 2,
+    no_decoration: bool = false, // ImGuiViewportFlags_NoDecoration = 1 << 3,
+    no_task_bar_icon: bool = false, // ImGuiViewportFlags_NoTaskBarIcon = 1 << 4,
+    no_focus_on_appearing: bool = false, // ImGuiViewportFlags_NoFocusOnAppearing = 1 << 5,
+    no_focus_on_click: bool = false, // ImGuiViewportFlags_NoFocusOnClick = 1 << 6,
+    no_inputs: bool = false, // ImGuiViewportFlags_NoInputs = 1 << 7,
+    no_renderer_clear: bool = false, // ImGuiViewportFlags_NoRendererClear = 1 << 8,
+    top_most: bool = false, // ImGuiViewportFlags_TopMost = 1 << 9,
+    minimized: bool = false, // ImGuiViewportFlags_Minimized = 1 << 10,
+    no_auto_merge: bool = false, // ImGuiViewportFlags_NoAutoMerge = 1 << 11,
+    can_host_other_windows: bool = false, // ImGuiViewportFlags_CanHostOtherWindows = 1 << 12
+    reserved: u19 = 0, // reserved, don't use
+};
+
+pub const DrawFlags = packed struct(c_int) {
+    closed: bool = false, // ImDrawFlags_Closed = 1 << 0,
+    round_corners_top_left: bool = false, // ImDrawFlags_RoundCornersTopLeft = 1 << 4,
+    round_corners_top_right: bool = false, // ImDrawFlags_RoundCornersTopRight = 1 << 5,
+    round_corners_bottom_left: bool = false, // ImDrawFlags_RoundCornersBottomLeft = 1 << 6,
+    round_corners_bottom_right: bool = false, // ImDrawFlags_RoundCornersBottomRight = 1 << 7,
+    round_corners_none: bool = false, // ImDrawFlags_RoundCornersNone = 1 << 8,
+    reserved: u26 = 0, // reserved, don't use
+
+    pub const round_corners_top = .{ .round_corners_top_left = true, .round_corners_top_right = true };
+    pub const round_corners_bottom = .{ .round_corners_bottom_left = true, .round_corners_bottom_right = true };
+    pub const round_corners_left = .{ .round_corners_bottom_left = true, .round_corners_top_left = true };
+    pub const round_corners_right = .{ .round_corners_bottom_right = true, .round_corners_top_right = true };
+    pub const round_corners_all = .{ .round_corners_top_left = true, .round_corners_top_right = true, .round_corners_bottom_left = true, .round_corners_bottom_right = true };
+    pub const round_corners_default = .{ .round_corners_all = true };
+    pub const round_corners_mask = .{ .round_corners_all = true, .round_corners_none = true };
+};
+
+pub const DrawListFlags = packed struct(c_int) {
+    anti_aliased_lines: bool = false, // ImDrawListFlags_AntiAliasedLines = 1 << 0,
+    anti_aliased_lines_use_tex: bool = false, // ImDrawListFlags_AntiAliasedLinesUseTex = 1 << 1,
+    anti_aliased_fill: bool = false, // ImDrawListFlags_AntiAliasedFill = 1 << 2,
+    allow_vtx_offset: bool = false, // ImDrawListFlags_AllowVtxOffset = 1 << 3
+    reserved: u28 = 0, // reserved, don't use
+};
+
+pub const FontAtlasFlags = packed struct(c_int) {
+    no_power_of_two_height: bool = false, // ImFontAtlasFlags_NoPowerOfTwoHeight = 1 << 0,
+    no_mouse_cursors: bool = false, // ImFontAtlasFlags_NoMouseCursors = 1 << 1,
+    no_baked_lines: bool = false, // ImFontAtlasFlags_NoBakedLines = 1 << 2
+    reserved: u29 = 0, // reserved, don't use
+};
+
+pub const PlatformImeData = extern struct { // struct ImGuiPlatformImeData
+    want_visible: bool,
+    input_pos: Vec2,
+    input_line_height: f32,
+};
+
+pub const StbUndoRecord = extern struct { // struct StbUndoRecord
+    where: c_int,
+    insert_length: c_int,
+    delete_length: c_int,
+    char_storage: c_int,
+};
+
+pub const StbUndoState = extern struct { // struct StbUndoState
+    undo_rec: [99]StbUndoRecord,
+    undo_char: [999]Wchar,
+    undo_point: c_short,
+    redo_point: c_short,
+    undo_char_point: c_int,
+    redo_char_point: c_int,
+};
+
+pub const StbTexteditState = extern struct { // struct STB_TexteditState
+    cursor: c_int,
+    select_start: c_int,
+    select_end: c_int,
+    insert_mode: u8,
+    row_count_per_page: c_int,
+    cursor_at_end_of_line: u8,
+    initialized: u8,
+    has_preferred_x: u8,
+    single_line: u8,
+    padding3: [3]u8,
+    preferred_x: f32,
+    undostate: StbUndoState,
+};
+
+pub const StbTexteditRow = extern struct { // struct StbTexteditRow
+    x0: f32,
+    x1: f32,
+    baseline_y_delta: f32,
+    ymin: f32,
+    ymax: f32,
+    num_chars: c_int,
+};
+
+pub const Vec1 = extern struct { // struct ImVec1
+    x: f32,
+};
+
+pub const Rect = extern struct { // struct ImRect
+    min: Vec2,
+    max: Vec2,
+};
+
+pub const BitVector = extern struct { // struct ImBitVector
+    storage: U32,
+};
+
+pub const Vec2ih = extern struct { // struct ImVec2ih
+    x: c_short,
+    y: c_short,
+};
+
+pub const PoolIdx = c_int;
+
+pub const DrawListSharedData = extern struct { // struct ImDrawListSharedData
+    tex_uv_white_pixel: Vec2,
+    font: [*c]Font,
+    font_size: f32,
+    curve_tessellation_tol: f32,
+    circle_segment_max_error: f32,
+    clip_rect_fullscreen: Vec4,
+    initial_flags: DrawListFlags,
+    arc_fast_vtx: [48]Vec2,
+    arc_fast_radius_cutoff: f32,
+    circle_segment_counts: [64]U8,
+    tex_uv_lines: [*c]const Vec4,
+};
+
+pub const DrawListPtrVector = extern struct { // struct ImVector_ImDrawListPtr
+    size: c_int,
+    capacity: c_int,
+    data: [*c][*c]DrawList,
+};
+
+pub const DrawList = extern struct { // struct ImDrawList
+    cmd_buffer: DrawCmd,
+    idx_buffer: DrawIdx,
+    vtx_buffer: DrawVert,
+    flags: DrawListFlags,
+    _vtx_current_idx: c_uint,
+    _data: [*c]const DrawListSharedData,
+    _owner_name: [*c]const u8,
+    _vtx_write_ptr: [*c]DrawVert,
+    _idx_write_ptr: [*c]DrawIdx,
+    _clip_rect_stack: Vec4,
+    _texture_id_stack: TextureID,
+    _path: Vec2,
+    _cmd_header: DrawCmdHeader,
+    _splitter: DrawListSplitter,
+    _fringe_scale: f32,
+};
+
+pub const DrawDataBuilder = extern struct { // struct ImDrawDataBuilder
+    layers: [2]DrawListPtrVector,
+};
+
+pub const ItemFlags = packed struct(c_int) {
+    no_tab_stop: bool = false, // ImGuiItemFlags_NoTabStop = 1 << 0,
+    button_repeat: bool = false, // ImGuiItemFlags_ButtonRepeat = 1 << 1,
+    disabled: bool = false, // ImGuiItemFlags_Disabled = 1 << 2,
+    no_nav: bool = false, // ImGuiItemFlags_NoNav = 1 << 3,
+    no_nav_default_focus: bool = false, // ImGuiItemFlags_NoNavDefaultFocus = 1 << 4,
+    selectable_dont_close_popup: bool = false, // ImGuiItemFlags_SelectableDontClosePopup = 1 << 5,
+    mixed_value: bool = false, // ImGuiItemFlags_MixedValue = 1 << 6,
+    read_only: bool = false, // ImGuiItemFlags_ReadOnly = 1 << 7,
+    inputable: bool = false, // ImGuiItemFlags_Inputable = 1 << 8
+    reserved: u23 = 0, // reserved, don't use
+};
+pub const ItemStatusFlags = packed struct(c_int) {
+    hovered_rect: bool = false, // ImGuiItemStatusFlags_HoveredRect = 1 << 0,
+    has_display_rect: bool = false, // ImGuiItemStatusFlags_HasDisplayRect = 1 << 1,
+    edited: bool = false, // ImGuiItemStatusFlags_Edited = 1 << 2,
+    toggled_selection: bool = false, // ImGuiItemStatusFlags_ToggledSelection = 1 << 3,
+    toggled_open: bool = false, // ImGuiItemStatusFlags_ToggledOpen = 1 << 4,
+    has_deactivated: bool = false, // ImGuiItemStatusFlags_HasDeactivated = 1 << 5,
+    deactivated: bool = false, // ImGuiItemStatusFlags_Deactivated = 1 << 6,
+    hovered_window: bool = false, // ImGuiItemStatusFlags_HoveredWindow = 1 << 7,
+    focused_by_tabbing: bool = false, // ImGuiItemStatusFlags_FocusedByTabbing = 1 << 8
+    reserved: u23 = 0, // reserved, don't use
+};
+
+pub const SeparatorFlags = packed struct(c_int) {
+    horizontal: bool = false, // ImGuiSeparatorFlags_Horizontal = 1 << 0,
+    vertical: bool = false, // ImGuiSeparatorFlags_Vertical = 1 << 1,
+    span_all_columns: bool = false, // ImGuiSeparatorFlags_SpanAllColumns = 1 << 2
+    reserved: u29 = 0, // reserved, don't use
+};
+
+pub const TextFlags = packed struct(c_int) {
+    no_width_for_large_clipped_text: bool = false, // ImGuiTextFlags_NoWidthForLargeClippedText = 1 << 0
+    reserved: u31 = 0, // reserved, don't use
+};
+
+pub const TooltipFlags = packed struct(c_int) {
+    override_previous_tooltip: bool = false, // ImGuiTooltipFlags_OverridePreviousTooltip = 1 << 0
+    reserved: u31 = 0, // reserved, don't use
+};
+
+pub const LayoutType = enum(c_int) {
+    Horizontal = 0,
+    Vertical = 1,
+    _,
+};
+
+pub const LogType = enum(c_int) {
+    None = 0,
+    TTY,
+    File,
+    Buffer,
+    Clipboard,
+    _,
+};
+
+pub const Axis = enum(c_int) {
+    None = -1,
+    X = 0,
+    Y = 1,
+    _,
+};
+
+pub const PlotType = enum(c_int) {
+    Lines,
+    Histogram,
+    _,
+};
+
+pub const PopupPositionPolicy = enum(c_int) {
+    Default,
+    ComboBox,
+    Tooltip,
+    _,
+};
+
+pub const NextWindowDataFlags = packed struct(c_int) {
+    has_pos: bool = false, // ImGuiNextWindowDataFlags_HasPos = 1 << 0,
+    has_size: bool = false, // ImGuiNextWindowDataFlags_HasSize = 1 << 1,
+    has_content_size: bool = false, // ImGuiNextWindowDataFlags_HasContentSize = 1 << 2,
+    has_collapsed: bool = false, // ImGuiNextWindowDataFlags_HasCollapsed = 1 << 3,
+    has_size_constraint: bool = false, // ImGuiNextWindowDataFlags_HasSizeConstraint = 1 << 4,
+    has_focus: bool = false, // ImGuiNextWindowDataFlags_HasFocus = 1 << 5,
+    has_bg_alpha: bool = false, // ImGuiNextWindowDataFlags_HasBgAlpha = 1 << 6,
+    has_scroll: bool = false, // ImGuiNextWindowDataFlags_HasScroll = 1 << 7,
+    has_viewport: bool = false, // ImGuiNextWindowDataFlags_HasViewport = 1 << 8,
+    has_dock: bool = false, // ImGuiNextWindowDataFlags_HasDock = 1 << 9,
+    has_window_class: bool = false, // ImGuiNextWindowDataFlags_HasWindowClass = 1 << 10
+    reserved: u21 = 0, // reserved, don't use
+};
+
+pub const NextItemDataFlags = packed struct(c_int) {
+    has_width: bool = false, // ImGuiNextItemDataFlags_HasWidth = 1 << 0,
+    has_open: bool = false, // ImGuiNextItemDataFlags_HasOpen = 1 << 1
+    reserved: u30 = 0, // reserved, don't use
+};
+
+pub const ActivateFlags = packed struct(c_int) {
+    prefer_input: bool = false, // ImGuiActivateFlags_PreferInput = 1 << 0,
+    prefer_tweak: bool = false, // ImGuiActivateFlags_PreferTweak = 1 << 1,
+    try_to_preserve_state: bool = false, // ImGuiActivateFlags_TryToPreserveState = 1 << 2
+    reserved: u29 = 0, // reserved, don't use
+};
+pub const ScrollFlags = packed struct(c_int) {
+    keep_visible_edge_x: bool = false, // ImGuiScrollFlags_KeepVisibleEdgeX = 1 << 0,
+    keep_visible_edge_y: bool = false, // ImGuiScrollFlags_KeepVisibleEdgeY = 1 << 1,
+    keep_visible_center_x: bool = false, // ImGuiScrollFlags_KeepVisibleCenterX = 1 << 2,
+    keep_visible_center_y: bool = false, // ImGuiScrollFlags_KeepVisibleCenterY = 1 << 3,
+    always_center_x: bool = false, // ImGuiScrollFlags_AlwaysCenterX = 1 << 4,
+    always_center_y: bool = false, // ImGuiScrollFlags_AlwaysCenterY = 1 << 5,
+    no_scroll_parent: bool = false, // ImGuiScrollFlags_NoScrollParent = 1 << 6,
+    reserved: u25 = 0, // reserved, don't use
+
+    pub const mask_x = .{ .keep_visible_edge_x = true, .keep_visible_center_x = true, .always_center_x = true };
+    pub const mask_y = .{ .keep_visible_edge_y = true, .keep_visible_center_y = true, .always_center_y = true };
+};
+pub const NavHighlightFlags = packed struct(c_int) {
+    type_default: bool = false, // ImGuiNavHighlightFlags_TypeDefault = 1 << 0,
+    type_thin: bool = false, // ImGuiNavHighlightFlags_TypeThin = 1 << 1,
+    always_draw: bool = false, // ImGuiNavHighlightFlags_AlwaysDraw = 1 << 2,
+    no_rounding: bool = false, // ImGuiNavHighlightFlags_NoRounding = 1 << 3
+    reserved: u28 = 0, // reserved, don't use
+};
+pub const NavDirSourceFlags = packed struct(c_int) {
+    raw_keyboard: bool = false, // ImGuiNavDirSourceFlags_RawKeyboard = 1 << 0,
+    keyboard: bool = false, // ImGuiNavDirSourceFlags_Keyboard = 1 << 1,
+    pad_d_pad: bool = false, // ImGuiNavDirSourceFlags_PadDPad = 1 << 2,
+    pad_l_stick: bool = false, // ImGuiNavDirSourceFlags_PadLStick = 1 << 3
+    reserved: u28 = 0, // reserved, don't use
+};
+pub const NavMoveFlags = packed struct(c_int) {
+    loop_x: bool = false, // ImGuiNavMoveFlags_LoopX = 1 << 0,
+    loop_y: bool = false, // ImGuiNavMoveFlags_LoopY = 1 << 1,
+    wrap_x: bool = false, // ImGuiNavMoveFlags_WrapX = 1 << 2,
+    wrap_y: bool = false, // ImGuiNavMoveFlags_WrapY = 1 << 3,
+    allow_current_nav_id: bool = false, // ImGuiNavMoveFlags_AllowCurrentNavId = 1 << 4,
+    also_score_visible_set: bool = false, // ImGuiNavMoveFlags_AlsoScoreVisibleSet = 1 << 5,
+    scroll_to_edge_y: bool = false, // ImGuiNavMoveFlags_ScrollToEdgeY = 1 << 6,
+    forwarded: bool = false, // ImGuiNavMoveFlags_Forwarded = 1 << 7,
+    debug_no_result: bool = false, // ImGuiNavMoveFlags_DebugNoResult = 1 << 8,
+    focus_api: bool = false, // ImGuiNavMoveFlags_FocusApi = 1 << 9,
+    tabbing: bool = false, // ImGuiNavMoveFlags_Tabbing = 1 << 10,
+    activate: bool = false, // ImGuiNavMoveFlags_Activate = 1 << 11,
+    dont_set_nav_highlight: bool = false, // ImGuiNavMoveFlags_DontSetNavHighlight = 1 << 12
+    reserved: u19 = 0, // reserved, don't use
+};
+
+pub const OldColumnFlags = packed struct(c_int) {
+    no_border: bool = false, // ImGuiOldColumnFlags_NoBorder = 1 << 0,
+    no_resize: bool = false, // ImGuiOldColumnFlags_NoResize = 1 << 1,
+    no_preserve_widths: bool = false, // ImGuiOldColumnFlags_NoPreserveWidths = 1 << 2,
+    no_force_within_window: bool = false, // ImGuiOldColumnFlags_NoForceWithinWindow = 1 << 3,
+    grow_parent_contents_size: bool = false, // ImGuiOldColumnFlags_GrowParentContentsSize = 1 << 4
+    reserved: u27 = 0, // reserved, don't use
+};
+pub const DebugLogFlags = packed struct(c_int) {
+    event_active_id: bool = false, // ImGuiDebugLogFlags_EventActiveId = 1 << 0,
+    event_focus: bool = false, // ImGuiDebugLogFlags_EventFocus = 1 << 1,
+    event_popup: bool = false, // ImGuiDebugLogFlags_EventPopup = 1 << 2,
+    event_nav: bool = false, // ImGuiDebugLogFlags_EventNav = 1 << 3,
+    event_i_o: bool = false, // ImGuiDebugLogFlags_EventIO = 1 << 4,
+    event_docking: bool = false, // ImGuiDebugLogFlags_EventDocking = 1 << 5,
+    event_viewport: bool = false, // ImGuiDebugLogFlags_EventViewport = 1 << 6,
+    output_to_t_t_y: bool = false, // ImGuiDebugLogFlags_OutputToTTY = 1 << 10
+    reserved: u24 = 0, // reserved, don't use
+
+    pub const event_mask = .{ .event_active_id = true, .event_focus = true, .event_popup = true, .event_nav = true, .event_i_o = true, .event_docking = true, .event_viewport = true };
+};
+
+pub const NavLayer = enum(c_int) {
+    Main = 0,
+    Menu = 1,
+    COUNT,
+    _,
+};
+
+pub const DataAuthority = enum(c_int) {
+    Auto,
+    DockNode,
+    Window,
+    _,
+};
+
+pub const DockNodeState = enum(c_int) {
+    Unknown,
+    HostWindowHiddenBecauseSingleWindow,
+    HostWindowHiddenBecauseWindowsAreResizing,
+    HostWindowVisible,
+    _,
+};
+
+pub const WindowDockStyleCol = enum(c_int) {
+    Text,
+    Tab,
+    TabHovered,
+    TabActive,
+    TabUnfocused,
+    TabUnfocusedActive,
+    COUNT,
+    _,
+};
+
+pub const ContextHookType = enum(c_int) {
+    NewFramePre,
+    NewFramePost,
+    EndFramePre,
+    EndFramePost,
+    RenderPre,
+    RenderPost,
+    Shutdown,
+    PendingRemoval,
+    _,
+};
+
+pub const DataTypeTempStorage = extern struct { // struct ImGuiDataTypeTempStorage
+    data: [8]U8,
+};
+
+pub const DataTypeInfo = extern struct { // struct ImGuiDataTypeInfo
+    size: usize,
+    name: [*c]const u8,
+    print_fmt: [*c]const u8,
+    scan_fmt: [*c]const u8,
+};
+
+pub const ColorMod = extern struct { // struct ImGuiColorMod
+    col: Col,
+    backup_value: Vec4,
+};
+
+// struct ImGuiStyleMod
+// {
+//     ImGuiStyleVar VarIdx;
+//     union { int BackupInt[2]; float BackupFloat[2]; };
+// };
+
+pub const StyleMod = struct {
+    VarIdx: StyleVar,
+    Backup: union {
+        int: [2]c_int,
+        float: [2]f32,
+    },
+};
+
+pub const ComboPreviewData = extern struct { // struct ImGuiComboPreviewData
+    preview_rect: Rect,
+    backup_cursor_pos: Vec2,
+    backup_cursor_max_pos: Vec2,
+    backup_cursor_pos_prev_line: Vec2,
+    backup_prev_line_text_base_offset: f32,
+    backup_layout: LayoutType,
+};
+
+pub const GroupData = extern struct { // struct ImGuiGroupData
+    window_i_d: ID,
+    backup_cursor_pos: Vec2,
+    backup_cursor_max_pos: Vec2,
+    backup_indent: Vec1,
+    backup_group_offset: Vec1,
+    backup_curr_line_size: Vec2,
+    backup_curr_line_text_base_offset: f32,
+    backup_active_id_is_alive: ID,
+    backup_active_id_previous_frame_is_alive: bool,
+    backup_hovered_id_is_alive: bool,
+    emit_item: bool,
+};
+
+pub const MenuColumns = extern struct { // struct ImGuiMenuColumns
+    total_width: U32,
+    next_total_width: U32,
+    spacing: U16,
+    offset_icon: U16,
+    offset_label: U16,
+    offset_shortcut: U16,
+    offset_mark: U16,
+    widths: [4]U16,
+};
+
+pub const InputTextState = extern struct { // struct ImGuiInputTextState
+    id: ID,
+    cur_len_w: c_int,
+    cur_len_a: c_int,
+    text_w: WcharVector,
+    text_a: CharVector,
+    initial_text_a: CharVector,
+    text_a_is_valid: bool,
+    buf_capacity_a: c_int,
+    scroll_x: f32,
+    stb: StbTexteditState,
+    cursor_anim: f32,
+    cursor_follow: bool,
+    selected_all_mouse_lock: bool,
+    edited: bool,
+    flags: InputTextFlags,
+};
+
+pub const PopupData = extern struct { // struct ImGuiPopupData
+    popup_id: ID,
+    window: [*c]Window,
+    source_window: [*c]Window,
+    parent_nav_layer: c_int,
+    open_frame_count: c_int,
+    open_parent_id: ID,
+    open_popup_pos: Vec2,
+    open_mouse_pos: Vec2,
+};
+
+pub const NextWindowData = extern struct { // struct ImGuiNextWindowData
+    flags: NextWindowDataFlags,
+    pos_cond: Cond,
+    size_cond: Cond,
+    collapsed_cond: Cond,
+    dock_cond: Cond,
+    pos_val: Vec2,
+    pos_pivot_val: Vec2,
+    size_val: Vec2,
+    content_size_val: Vec2,
+    scroll_val: Vec2,
+    pos_undock: bool,
+    collapsed_val: bool,
+    size_constraint_rect: Rect,
+    size_callback: SizeCallback,
+    size_callback_user_data: ?*anyopaque,
+    bg_alpha_val: f32,
+    viewport_id: ID,
+    dock_id: ID,
+    window_class: WindowClass,
+    menu_bar_offset_min_val: Vec2,
+};
+
+pub const NextItemData = extern struct { // struct ImGuiNextItemData
+    flags: NextItemDataFlags,
+    width: f32,
+    focus_scope_id: ID,
+    open_cond: Cond,
+    open_val: bool,
+};
+
+pub const LastItemData = extern struct { // struct ImGuiLastItemData
+    id: ID,
+    in_flags: ItemFlags,
+    status_flags: ItemStatusFlags,
+    rect: Rect,
+    nav_rect: Rect,
+    display_rect: Rect,
+};
+
+pub const StackSizes = extern struct { // struct ImGuiStackSizes
+    size_of_id_stack: c_short,
+    size_of_color_stack: c_short,
+    size_of_style_var_stack: c_short,
+    size_of_font_stack: c_short,
+    size_of_focus_scope_stack: c_short,
+    size_of_group_stack: c_short,
+    size_of_item_flags_stack: c_short,
+    size_of_begin_popup_stack: c_short,
+    size_of_disabled_stack: c_short,
+};
+
+pub const WindowStackData = extern struct { // struct ImGuiWindowStackData
+    window: [*c]Window,
+    parent_last_item_data_backup: LastItemData,
+    stack_sizes_on_begin: StackSizes,
+};
+
+pub const PtrOrIndex = extern struct { // struct ImGuiPtrOrIndex
+    ptr: ?*anyopaque,
+    index: c_int,
+};
+
+pub const BitArrayForNamedKeys = extern struct { // struct ImBitArrayForNamedKeys
+    storage: [(NamedKeyCOUNT + 31) >> 5]U32,
+};
+
+pub const InputEventMousePos = extern struct { // struct ImGuiInputEventMousePos
+    pos_x: f32,
+    pos_y: f32,
+};
+
+pub const InputEventMouseWheel = extern struct { // struct ImGuiInputEventMouseWheel
+    wheel_x: f32,
+    wheel_y: f32,
+};
+
+pub const InputEventMouseButton = extern struct { // struct ImGuiInputEventMouseButton
+    button: c_int,
+    down: bool,
+};
+
+pub const InputEventMouseViewport = extern struct { // struct ImGuiInputEventMouseViewport
+    hovered_viewport_i_d: ID,
+};
+
+pub const InputEventKey = extern struct { // struct ImGuiInputEventKey
+    key: Key,
+    down: bool,
+    analog_value: f32,
+};
+
+pub const InputEventText = extern struct { // struct ImGuiInputEventText
+    char: c_uint,
+};
+
+pub const InputEventAppFocused = extern struct { // struct ImGuiInputEventAppFocused
+    focused: bool,
+};
+
+pub const InputEvent = extern struct { // struct ImGuiInputEvent
+    type: InputEventType,
+    source: InputSource,
+    events: extern union {
+        mouse_pos: InputEventMousePos,
+        mouse_wheel: InputEventMouseWheel,
+        mouse_button: InputEventMouseButton,
+        mouse_viewport: InputEventMouseViewport,
+        key: InputEventKey,
+        text: InputEventText,
+        app_focused: InputEventAppFocused,
+    },
+    added_by_test_engine: bool,
+};
+
+pub const ListClipperRange = extern struct { // struct ImGuiListClipperRange
+    min: c_int,
+    max: c_int,
+    pos_to_index_convert: bool,
+    pos_to_index_offset_min: S8,
+    pos_to_index_offset_max: S8,
+};
+
+pub const ListClipperData = extern struct { // struct ImGuiListClipperData
+    list_clipper: [*c]ListClipper,
+    lossyness_offset: f32,
+    step_no: c_int,
+    items_frozen: c_int,
+    ranges: ListClipperRangeVector,
+};
+
+pub const ListClipperRangeVector = extern struct { // struct ImVector_ImGuiListClipperRange
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ListClipperRange,
+};
+
+pub const NavItemData = extern struct { // struct ImGuiNavItemData
+    window: [*c]Window,
+    id: ID,
+    focus_scope_id: ID,
+    rect_rel: Rect,
+    in_flags: ItemFlags,
+    dist_box: f32,
+    dist_center: f32,
+    dist_axial: f32,
+};
+
+pub const OldColumnData = extern struct { // struct ImGuiOldColumnData
+    offset_norm: f32,
+    offset_norm_before_resize: f32,
+    flags: OldColumnFlags,
+    clip_rect: Rect,
+};
+
+pub const OldColumnDataVector = extern struct { // struct ImVector_ImGuiOldColumnData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]OldColumnData,
+};
+
+pub const WindowPtrVector = extern struct { // struct ImVector_ImGuiWindowPtr
+    size: c_int,
+    capacity: c_int,
+    data: [*c]Window,
+};
+
+pub const WindowDockStyle = extern struct { // struct ImGuiWindowDockStyle
+    colors: [WindowDockStyleCol.COUNT]U32,
+};
+
+pub const DockRequestVector = extern struct { // struct ImVector_ImGuiDockRequest
+    size: c_int,
+    capacity: c_int,
+    data: [*c]DockRequest,
+};
+
+pub const DockNodeSettingsVector = extern struct { // struct ImVector_ImGuiDockNodeSettings
+    size: c_int,
+    capacity: c_int,
+    data: [*c]DockNodeSettings,
+};
+
+pub const DockContext = extern struct { // struct ImGuiDockContext
+    nodes: Storage,
+    requests: DockRequestVector,
+    nodes_settings: DockNodeSettingsVector,
+    want_full_rebuild: bool,
+};
+
+pub const ViewportP = extern struct { // struct ImGuiViewportP
+    _imgui_viewport: Viewport,
+    idx: c_int,
+    last_frame_active: c_int,
+    last_front_most_stamp_count: c_int,
+    last_name_hash: ID,
+    last_pos: Vec2,
+    alpha: f32,
+    last_alpha: f32,
+    platform_monitor: c_short,
+    platform_window_created: bool,
+    window: [*c]Window,
+    draw_lists_last_frame: [2]c_int,
+    draw_lists: [2][*c]DrawList,
+    draw_data_p: DrawData,
+    draw_data_builder: DrawDataBuilder,
+    last_platform_pos: Vec2,
+    last_platform_size: Vec2,
+    last_renderer_size: Vec2,
+    work_offset_min: Vec2,
+    work_offset_max: Vec2,
+    build_work_offset_min: Vec2,
+    build_work_offset_max: Vec2,
+};
+
+pub const WindowSettings = extern struct { // struct ImGuiWindowSettings
+    i_d: ID,
+    pos: Vec2ih,
+    size: Vec2ih,
+    viewport_pos: Vec2ih,
+    viewport_id: ID,
+    dock_id: ID,
+    class_id: ID,
+    dock_order: c_short,
+    collapsed: bool,
+    want_apply: bool,
+};
+
+pub const SettingsHandler = extern struct { // struct ImGuiSettingsHandler
+    type_name: [*c]const u8,
+    type_hash: ID,
+    clear_all_fn: *const fn ([*c]Context, [*c]SettingsHandler) void,
+    read_init_fn: *const fn ([*c]Context, [*c]SettingsHandler) void,
+    read_open_fn: *const fn ([*c]Context, [*c]SettingsHandler, [*c]const u8) ?*anyopaque,
+    read_line_fn: *const fn ([*c]Context, [*c]SettingsHandler, ?*anyopaque, [*c]const u8) void,
+    apply_all_fn: *const fn ([*c]Context, [*c]SettingsHandler) void,
+    write_all_fn: *const fn ([*c]Context, [*c]SettingsHandler, [*c]TextBuffer) void,
+    user_data: ?*anyopaque,
+};
+
+pub const MetricsConfig = extern struct { // struct ImGuiMetricsConfig
+    show_debug_log: bool,
+    show_stack_tool: bool,
+    show_windows_rects: bool,
+    show_windows_begin_order: bool,
+    show_tables_rects: bool,
+    show_draw_cmd_mesh: bool,
+    show_draw_cmd_bounding_boxes: bool,
+    show_docking_nodes: bool,
+    show_windows_rects_type: c_int,
+    show_tables_rects_type: c_int,
+};
+
+pub const StackLevelInfoVector = extern struct { // struct ImVector_ImGuiStackLevelInfo
+    size: c_int,
+    capacity: c_int,
+    data: [*c]StackLevelInfo,
+};
+
+pub const StackTool = extern struct { // struct ImGuiStackTool
+    last_active_frame: c_int,
+    stack_level: c_int,
+    query_id: ID,
+    results: StackLevelInfoVector,
+    copy_to_clipboard_on_ctrl_c: bool,
+    copy_to_clipboard_last_time: f32,
+};
+
+pub const ContextHook = extern struct { // struct ImGuiContextHook
+    hook_id: ID,
+    type: ContextHookType,
+    owner: ID,
+    callback: ContextHookCallback,
+    user_data: ?*anyopaque,
+};
+
+pub const InputEventVector = extern struct { // struct ImVector_ImGuiInputEvent
+    size: c_int,
+    capacity: c_int,
+    data: [*c]InputEvent,
+};
+
+pub const WindowStackDataVector = extern struct { // struct ImVector_ImGuiWindowStackData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]WindowStackData,
+};
+
+pub const ColorModVector = extern struct { // struct ImVector_ImGuiColorMod
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ColorMod,
+};
+
+pub const StyleModVector = extern struct { // struct ImGuiStyleMod
+    size: c_int,
+    capacity: c_int,
+    data: [*c]StyleMod,
+};
+
+pub const IDVector = extern struct { // struct ImGuiID
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ID,
+};
+
+pub const ItemFlagsVector = extern struct { // struct ImGuiItemFlags
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ItemFlags,
+};
+
+pub const GroupDataVector = extern struct { // struct ImGuiGroupData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]GroupData,
+};
+
+pub const PopupDataVector = extern struct { // struct ImGuiPopupData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]PopupData,
+};
+
+pub const ViewportPPtrVector = extern struct { // struct ImGuiViewportPPtr
+    size: c_int,
+    capacity: c_int,
+    data: [*c][*c]ViewportP,
+};
+
+pub const ListClipperDataVector = extern struct { // struct ImGuiListClipperData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ListClipperData,
+};
+
+pub const TableTempDataVector = extern struct { // struct ImGuiTableTempData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]TableTempData,
+};
+
+pub const TableVector = extern struct { // struct ImVector_ImGuiTable
+    size: c_int,
+    capacity: c_int,
+    data: [*c]Table,
+};
+
+pub const TabBarVector = extern struct { // struct ImVector_ImGuiTabBar
+    size: c_int,
+    capacity: c_int,
+    data: [*c]TabBar,
+};
+
+pub const PtrOrIndexVector = extern struct { // struct ImVector_ImGuiPtrOrIndex
+    size: c_int,
+    capacity: c_int,
+    data: [*c]PtrOrIndex,
+};
+
+pub const ShrinkWidthItemVector = extern struct { // struct ImVector_ImGuiShrinkWidthItem
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ShrinkWidthItem,
+};
+
+pub const ShrinkWidthItem = extern struct { // struct ImVector_ImGuiShrinkWidthItem
+    index: c_int,
+    width: f32,
+    initial_width: f32,
+};
+
+pub const SettingsHandlerVector = extern struct { // struct ImVector_ImGuiSettingsHandler
+    size: c_int,
+    capacity: c_int,
+    data: [*c]SettingsHandler,
+};
+
+pub const ContextHookVector = extern struct { // struct ImVector_ImGuiContextHook
+    size: c_int,
+    capacity: c_int,
+    data: [*c]ContextHook,
+};
+
+pub const u8Vector = extern struct { // struct ImVector_unsigned_char
+    size: c_int,
+    capacity: c_int,
+    data: [*c]u8,
+};
+
+pub const TablePool = extern struct { // struct ImPool_ImGuiTable
+    buf: TableVector,
+    map: Storage,
+    free_idx: PoolIdx,
+    alive_count: PoolIdx,
+};
+
+pub const TabBarPool = extern struct { // struct ImPool_ImGuiTabBar
+    buf: TabBarVector,
+    map: Storage,
+    free_idx: PoolIdx,
+    alive_count: PoolIdx,
+};
+
+pub const TabItemVector = extern struct { // struct ImVector_ImGuiTabItem
+    size: c_int,
+    capacity: c_int,
+    data: [*c]TabItem,
+};
+
+pub const WindowSettingsChunkStream = extern struct { // struct ImChunkStream_ImGuiWindowSettings
+    buf: u8Vector,
+};
+
+pub const TableSettingsChunkStream = extern struct { // struct ImChunkStream_ImGuiTableSettings
+    buf: u8Vector,
+};
+
+pub const TabItem = extern struct { // struct ImGuiTabItem
+    i_d: ID,
+    flags: TabItemFlags,
+    window: [*c]Window,
+    last_frame_visible: c_int,
+    last_frame_selected: c_int,
+    offset: f32,
+    width: f32,
+    content_width: f32,
+    requested_width: f32,
+    name_offset: S32,
+    begin_order: S16,
+    index_during_layout: S16,
+    want_close: bool,
+};
+
+pub const TabBar = extern struct { // struct ImGuiTabBar
+    tabs: TabItemVector,
+    flags: TabBarFlags,
+    i_d: ID,
+    selected_tab_id: ID,
+    next_selected_tab_id: ID,
+    visible_tab_id: ID,
+    curr_frame_visible: c_int,
+    prev_frame_visible: c_int,
+    bar_rect: Rect,
+    curr_tabs_contents_height: f32,
+    prev_tabs_contents_height: f32,
+    width_all_tabs: f32,
+    width_all_tabs_ideal: f32,
+    scrolling_anim: f32,
+    scrolling_target: f32,
+    scrolling_target_dist_to_visibility: f32,
+    scrolling_speed: f32,
+    scrolling_rect_min_x: f32,
+    scrolling_rect_max_x: f32,
+    reorder_request_tab_id: ID,
+    reorder_request_offset: S16,
+    begin_count: S8,
+    want_layout: bool,
+    visible_tab_was_submitted: bool,
+    tabs_added_new: bool,
+    tabs_active_count: S16,
+    last_tab_item_idx: S16,
+    item_spacing_y: f32,
+    frame_padding: Vec2,
+    backup_cursor_pos: Vec2,
+    tabs_names: TextBuffer,
+};
+
+pub const TableTempData = extern struct { // struct ImGuiTableTempData
+    table_index: c_int,
+    last_time_active: f32,
+    user_outer_size: Vec2,
+    draw_splitter: DrawListSplitter,
+    host_backup_work_rect: Rect,
+    host_backup_parent_work_rect: Rect,
+    host_backup_prev_line_size: Vec2,
+    host_backup_curr_line_size: Vec2,
+    host_backup_cursor_max_pos: Vec2,
+    host_backup_columns_offset: Vec1,
+    host_backup_item_width: f32,
+    host_backup_item_width_stack_size: c_int,
+};
+
+pub const ContextHookCallback = *const fn ([*c]Context, [*c]ContextHook) void;
+pub const TextBuffer = struct {};
+pub const Context = struct {};
+pub const DockRequest = struct {};
+pub const DockNodeSettings = struct {};
+pub const Storage = struct {};
+
+// TODO structs with bitfields...
+// for the time being this shall be just an opaque pointer
+pub const Table = opaque {};
+pub const StackLevelInfo = opaque {};
+pub const DockNode = opaque {};
+
+// TODO file handles? typedef FILE* ImFileHandle;
+
+pub const ErrorLogCallback = *const fn (?*anyopaque, [*c]const u8) callconv(.C) void;
+
 // placeholders
-pub const PlatformImeData = struct {};
+pub const Window = struct {};
+pub const ListClipper = struct {};
+pub const WindowClass = struct {};
 pub const InputTextCallbackData = struct {};
 pub const SizeCallbackData = struct {};
 pub const DrawData = struct {};
+pub const Font = struct {};
+pub const DrawCmd = struct {};
+pub const DrawVert = struct {};
+pub const DrawCmdHeader = struct {};
+pub const DrawListSplitter = struct {};
 
 test "Imgui Header test" {
     const std = @import("std");
@@ -983,5 +2062,6 @@ test "Imgui Header test" {
     const flags2 = WindowFlags.no_nav;
     std.debug.print("flags = {any}\n{any}\n\n ", .{ flags, flags2 });
     std.debug.print("size of Style = {d}", .{@sizeOf(Style)});
-    std.debug.print("size of Io = {d}", .{@sizeOf(Io)});
+    std.debug.print("size of Io = {d}\n", .{@sizeOf(Io)});
+    std.debug.print("size of InputEvent = {d}\n", .{@sizeOf(InputEvent)});
 }

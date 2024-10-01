@@ -1,31 +1,36 @@
 import re
 inp3 = """
-    ImGuiTableRowFlags_None = 0,
-    ImGuiTableRowFlags_Headers = 1 << 0
 """
 
+enumLists = []
+for s in inp3.split("typedef enum {"):
+    raw = s.strip('\n ')
+    linesSplit = []
+    for l in raw.split('\n'):
+        if '}' in l:
+            continue
+        linesSplit.append(l.strip(' \n'))
+
+    x = '\n'.join(linesSplit)
+    enumLists.append(x)
+
 inp4 = """
-    ImGuiCond_None = 0,
-    ImGuiCond_Always = 1 << 0,
-    ImGuiCond_Once = 1 << 1,
-    ImGuiCond_FirstUseEver = 1 << 2,
-    ImGuiCond_Appearing = 1 << 3
+    ImGuiPlotType_Lines,
+    ImGuiPlotType_Histogram
 """
 
 # these are normal-ass enums
 inp5 = """
-    ImGuiMouseCursor_None = -1,
-    ImGuiMouseCursor_Arrow = 0,
-    ImGuiMouseCursor_TextInput,
-    ImGuiMouseCursor_ResizeAll,
-    ImGuiMouseCursor_ResizeNS,
-    ImGuiMouseCursor_ResizeEW,
-    ImGuiMouseCursor_ResizeNESW,
-    ImGuiMouseCursor_ResizeNWSE,
-    ImGuiMouseCursor_Hand,
-    ImGuiMouseCursor_NotAllowed,
-    ImGuiMouseCursor_COUNT
+    ImGuiContextHookType_NewFramePre,
+    ImGuiContextHookType_NewFramePost,
+    ImGuiContextHookType_EndFramePre,
+    ImGuiContextHookType_EndFramePost,
+    ImGuiContextHookType_RenderPre,
+    ImGuiContextHookType_RenderPost,
+    ImGuiContextHookType_Shutdown,
+    ImGuiContextHookType_PendingRemoval_
 """
+
 x = inp5.split('line')
 preamble = ''
 for l in x:
@@ -38,7 +43,6 @@ for l in x:
 print('   ', inp5.replace(preamble, '').replace('_', '').strip('\n ') + ',')
 print('    _,')
 
-enumLists = []
 
 def convertName(name):
     ostr = ""
@@ -85,6 +89,9 @@ def convertCompositeFlag(convert):
     return ostr
 
 def convertFlags(inputString):
+    #print("input: ", inputString)
+    if len(inputString.strip(' ')) <= 0:
+        return
     singles = []
     composites = []
     firstLine = None
@@ -135,5 +142,3 @@ def convertEnum(enumStr):
             continue
         name = convertFlagName(line)
         print(name)
-
-convertFlags(inp4)

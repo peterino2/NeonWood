@@ -838,6 +838,7 @@ struct ImGuiKeyData
     float DownDurationPrev;
     float AnalogValue;
 };
+
 typedef struct ImVector_ImWchar {int Size;int Capacity;ImWchar* Data;} ImVector_ImWchar;
 
 struct ImGuiIO
@@ -1816,7 +1817,8 @@ struct ImGuiInputEventText
 };
 typedef struct ImGuiInputEventAppFocused ImGuiInputEventAppFocused;
 struct ImGuiInputEventAppFocused
-{ bool Focused;
+{ 
+    bool Focused;
 };
 typedef struct ImGuiInputEvent ImGuiInputEvent;
 struct ImGuiInputEvent
