@@ -1,4 +1,5 @@
 // manually crafted translation for cimgui to zig
+const std = @import("std");
 
 // ImVector_int == i32 in zig,
 pub const ConstCharPtrVector = extern struct {
@@ -902,7 +903,6 @@ pub const FontAtlas = extern struct { // struct ImFontAtlas
 pub const FontAtlasCustomRect = struct {};
 pub const FontPtr = struct {};
 pub const FontConfig = struct {};
-pub const FontBuilderIO = struct {};
 
 pub const Io = extern struct {
     config_flags: ConfigFlags, // ImGuiConfigFlags ConfigFlags;
@@ -1879,7 +1879,7 @@ pub const ListClipperDataVector = extern struct { // struct ImGuiListClipperData
     data: [*c]ListClipperData,
 };
 
-pub const TableTempDataVector = extern struct { // struct ImGuiTableTempData
+pub const TableTempDataVector = extern struct { // struct ImVector_ImGuiTableTempData
     size: c_int,
     capacity: c_int,
     data: [*c]TableTempData,
@@ -2025,39 +2025,478 @@ pub const TableTempData = extern struct { // struct ImGuiTableTempData
     host_backup_item_width: f32,
     host_backup_item_width_stack_size: c_int,
 };
-
 pub const ContextHookCallback = *const fn ([*c]Context, [*c]ContextHook) void;
-pub const TextBuffer = struct {};
-pub const Context = struct {};
-pub const DockRequest = struct {};
+
+pub const TableSettings = extern struct { // struct ImGuiTableSettings
+    id: ID,
+    save_flags: TableFlags,
+    ref_scale: f32,
+    columns_count: TableColumnIdx,
+    columns_count_max: TableColumnIdx,
+    want_apply: bool,
+};
+
+pub const FontBuilderIO = extern struct { // struct ImFontBuilderIO
+    font_builder_build: *const fn ([*c]FontAtlas) callconv(.C) bool,
+};
+
+pub const TableCellData = extern struct { // struct ImGuiTableCellData
+    bg_color: U32,
+    column: TableColumnIdx,
+};
+
+pub const TableInstanceData = extern struct { // struct ImGuiTableInstanceData
+    last_outer_height: f32,
+    last_first_row_height: f32,
+};
+
+pub const TableColumnSpan = extern struct { // struct ImSpan_ImGuiTableColumn
+    data: [*c]TableColumn,
+    data_end: [*c]TableColumn,
+};
+
+pub const TableColumnIdxSpan = extern struct { // struct ImSpan_ImGuiTableColumnIdx
+    data: [*c]TableColumnIdx,
+    data_end: [*c]TableColumnIdx,
+};
+
+pub const TableCellDataSpan = extern struct { // struct ImSpan_ImGuiTableCellData
+    data: [*c]TableCellData,
+    data_end: [*c]TableCellData,
+};
+
+pub const TableInstanceDataVector = extern struct { // struct ImVector_ImGuiTableInstanceData
+    size: c_int,
+    capacity: c_int,
+    data: [*c]TableInstanceData,
+};
+
+pub const TableColumnSortSpecsVector = extern struct { // struct ImVector_ImGuiTableColumnSortSpecs
+    size: c_int,
+    capacity: c_int,
+    data: [*c]TableColumnSortSpecs,
+};
+
+pub const TextBuffer = extern struct { // struct ImGuiTextBuffer
+    buf: u8Vector,
+};
+
+pub const TableColumnIdx = S8; // ImGuiTableColumnIdx
+pub const TableDrawChannelIdx = U8; // ImGuiTableDrawChannelIdx
+
+pub const Context = extern struct { // struct ImGuiContext
+    initialized: bool,
+    font_atlas_owned_by_context: bool,
+    io: Io,
+    platform_i_o: PlatformIO,
+    input_events_queue: InputEventVector,
+    input_events_trail: InputEventVector,
+    style: Style,
+    config_flags_curr_frame: ConfigFlags,
+    config_flags_last_frame: ConfigFlags,
+    font: [*c]Font,
+    font_size: f32,
+    font_base_size: f32,
+    draw_list_shared_data: DrawListSharedData,
+    time: f64,
+    frame_count: c_int,
+    frame_count_ended: c_int,
+    frame_count_platform_ended: c_int,
+    frame_count_rendered: c_int,
+    within_frame_scope: bool,
+    within_frame_scope_with_implicit_window: bool,
+    within_end_child: bool,
+    gc_compact_all: bool,
+    test_engine_hook_items: bool,
+    test_engine: ?*anyopaque,
+    windows: WindowPtrVector,
+    windows_focus_order: WindowPtrVector,
+    windows_temp_sort_buffer: WindowPtrVector,
+    current_window_stack: WindowStackDataVector,
+    windows_by_id: Storage,
+    windows_active_count: c_int,
+    windows_hover_padding: Vec2,
+    current_window: [*c]Window,
+    hovered_window: [*c]Window,
+    hovered_window_under_moving_window: [*c]Window,
+    hovered_dock_node: [*c]DockNode,
+    moving_window: [*c]Window,
+    wheeling_window: [*c]Window,
+    wheeling_window_ref_mouse_pos: Vec2,
+    wheeling_window_timer: f32,
+    debug_hook_id_info: ID,
+    hovered_id: ID,
+    hovered_id_previous_frame: ID,
+    hovered_id_allow_overlap: bool,
+    hovered_id_using_mouse_wheel: bool,
+    hovered_id_previous_frame_using_mouse_wheel: bool,
+    hovered_id_disabled: bool,
+    hovered_id_timer: f32,
+    hovered_id_not_active_timer: f32,
+    active_id: ID,
+    active_id_is_alive: ID,
+    active_id_timer: f32,
+    active_id_is_just_activated: bool,
+    active_id_allow_overlap: bool,
+    active_id_no_clear_on_focus_loss: bool,
+    active_id_has_been_pressed_before: bool,
+    active_id_has_been_edited_before: bool,
+    active_id_has_been_edited_this_frame: bool,
+    active_id_click_offset: Vec2,
+    active_id_window: [*c]Window,
+    active_id_source: InputSource,
+    active_id_mouse_button: c_int,
+    active_id_previous_frame: ID,
+    active_id_previous_frame_is_alive: bool,
+    active_id_previous_frame_has_been_edited_before: bool,
+    active_id_previous_frame_window: [*c]Window,
+    last_active_id: ID,
+    last_active_id_timer: f32,
+    active_id_using_mouse_wheel: bool,
+    active_id_using_nav_dir_mask: U32,
+    active_id_using_nav_input_mask: U32,
+    active_id_using_key_input_mask: BitArrayForNamedKeys,
+    current_item_flags: ItemFlags,
+    next_item_data: NextItemData,
+    last_item_data: LastItemData,
+    next_window_data: NextWindowData,
+    color_stack: ColorModVector,
+    style_var_stack: StyleModVector,
+    font_stack: FontPtrVector,
+    focus_scope_stack: IDVector,
+    item_flags_stack: ItemFlagsVector,
+    group_stack: GroupDataVector,
+    open_popup_stack: PopupDataVector,
+    begin_popup_stack: PopupDataVector,
+    begin_menu_count: c_int,
+    viewports: ViewportPPtrVector,
+    current_dpi_scale: f32,
+    current_viewport: [*c]ViewportP,
+    mouse_viewport: [*c]ViewportP,
+    mouse_last_hovered_viewport: [*c]ViewportP,
+    platform_last_focused_viewport_id: ID,
+    fallback_monitor: PlatformMonitor,
+    viewport_front_most_stamp_count: c_int,
+    nav_window: [*c]Window,
+    nav_id: ID,
+    nav_focus_scope_id: ID,
+    nav_activate_id: ID,
+    nav_activate_down_id: ID,
+    nav_activate_pressed_id: ID,
+    nav_activate_input_id: ID,
+    nav_activate_flags: ActivateFlags,
+    nav_just_moved_to_id: ID,
+    nav_just_moved_to_focus_scope_id: ID,
+    nav_just_moved_to_key_mods: ModFlags,
+    nav_next_activate_id: ID,
+    nav_next_activate_flags: ActivateFlags,
+    nav_input_source: InputSource,
+    nav_layer: NavLayer,
+    nav_id_is_alive: bool,
+    nav_mouse_pos_dirty: bool,
+    nav_disable_highlight: bool,
+    nav_disable_mouse_hover: bool,
+    nav_any_request: bool,
+    nav_init_request: bool,
+    nav_init_request_from_move: bool,
+    nav_init_result_id: ID,
+    nav_init_result_rect_rel: Rect,
+    nav_move_submitted: bool,
+    nav_move_scoring_items: bool,
+    nav_move_forward_to_next_frame: bool,
+    nav_move_flags: NavMoveFlags,
+    nav_move_scroll_flags: ScrollFlags,
+    nav_move_key_mods: ModFlags,
+    nav_move_dir: Dir,
+    nav_move_dir_for_debug: Dir,
+    nav_move_clip_dir: Dir,
+    nav_scoring_rect: Rect,
+    nav_scoring_no_clip_rect: Rect,
+    nav_scoring_debug_count: c_int,
+    nav_tabbing_dir: c_int,
+    nav_tabbing_counter: c_int,
+    nav_move_result_local: NavItemData,
+    nav_move_result_local_visible: NavItemData,
+    nav_move_result_other: NavItemData,
+    nav_tabbing_result_first: NavItemData,
+    nav_windowing_target: [*c]Window,
+    nav_windowing_target_anim: [*c]Window,
+    nav_windowing_list_window: [*c]Window,
+    nav_windowing_timer: f32,
+    nav_windowing_highlight_alpha: f32,
+    nav_windowing_toggle_layer: bool,
+    dim_bg_ratio: f32,
+    mouse_cursor: MouseCursor,
+    drag_drop_active: bool,
+    drag_drop_within_source: bool,
+    drag_drop_within_target: bool,
+    drag_drop_source_flags: DragDropFlags,
+    drag_drop_source_frame_count: c_int,
+    drag_drop_mouse_button: c_int,
+    drag_drop_payload: Payload,
+    drag_drop_target_rect: Rect,
+    drag_drop_target_id: ID,
+    drag_drop_accept_flags: DragDropFlags,
+    drag_drop_accept_id_curr_rect_surface: f32,
+    drag_drop_accept_id_curr: ID,
+    drag_drop_accept_id_prev: ID,
+    drag_drop_accept_frame_count: c_int,
+    drag_drop_hold_just_pressed_id: ID,
+    drag_drop_payload_buf_heap: u8Vector,
+    drag_drop_payload_buf_local: [16]u8,
+    clipper_temp_data_stacked: c_int,
+    clipper_temp_data: ListClipperDataVector,
+    current_table: [*c]Table,
+    tables_temp_data_stacked: c_int,
+    tables_temp_data: TableTempDataVector,
+    tables: Table,
+    tables_last_time_active: f32Vector,
+    draw_channels_temp_merge_buffer: DrawChannelVector,
+    current_tab_bar: [*c]TabBar,
+    tab_bars: TabBar,
+    current_tab_bar_stack: PtrOrIndexVector,
+    shrink_width_buffer: ShrinkWidthItemVector,
+    mouse_last_valid_pos: Vec2,
+    input_text_state: InputTextState,
+    input_text_password_font: Font,
+    temp_input_id: ID,
+    color_edit_options: ColorEditFlags,
+    color_edit_last_hue: f32,
+    color_edit_last_sat: f32,
+    color_edit_last_color: U32,
+    color_picker_ref: Vec4,
+    combo_preview_data: ComboPreviewData,
+    slider_grab_click_offset: f32,
+    slider_current_accum: f32,
+    slider_current_accum_dirty: bool,
+    drag_current_accum_dirty: bool,
+    drag_current_accum: f32,
+    drag_speed_default_ratio: f32,
+    scrollbar_click_delta_to_grab_center: f32,
+    disabled_alpha_backup: f32,
+    disabled_stack_size: c_short,
+    tooltip_override_count: c_short,
+    tooltip_slow_delay: f32,
+    clipboard_handler_data: u8Vector,
+    menus_id_submitted_this_frame: IDVector,
+    platform_ime_data: PlatformImeData,
+    platform_ime_data_prev: PlatformImeData,
+    platform_ime_viewport: ID,
+    platform_locale_decimal_point: u8,
+    dock_context: DockContext,
+    settings_loaded: bool,
+    settings_dirty_timer: f32,
+    settings_ini_data: TextBuffer,
+    settings_handlers: SettingsHandlerVector,
+    settings_windows: WindowSettings,
+    settings_tables: TableSettings,
+    hooks: ContextHookVector,
+    hook_id_next: ID,
+    log_enabled: bool,
+    log_type: LogType,
+    log_file: FileHandle,
+    log_buffer: TextBuffer,
+    log_next_prefix: [*c]const u8,
+    log_next_suffix: [*c]const u8,
+    log_line_pos_y: f32,
+    log_line_first_item: bool,
+    log_depth_ref: c_int,
+    log_depth_to_expand: c_int,
+    log_depth_to_expand_default: c_int,
+    debug_log_flags: DebugLogFlags,
+    debug_log_buf: TextBuffer,
+    debug_item_picker_active: bool,
+    debug_item_picker_break_id: ID,
+    debug_metrics_config: MetricsConfig,
+    debug_stack_tool: StackTool,
+    framerate_sec_per_frame: [120]f32,
+    framerate_sec_per_frame_idx: c_int,
+    framerate_sec_per_frame_count: c_int,
+    framerate_sec_per_frame_accum: f32,
+    want_capture_mouse_next_frame: c_int,
+    want_capture_keyboard_next_frame: c_int,
+    want_text_input_next_frame: c_int,
+    temp_buffer: u8Vector,
+};
+
+pub const DrawChannelVector = extern struct { // struct ImVector_ImDrawChannel
+    size: c_int,
+    capacity: c_int,
+    data: [*c]DrawChannel,
+};
+
+pub const DrawChannel = extern struct { // struct ImDrawChannel
+    _cmd_buffer: DrawCmdVector,
+    _idx_buffer: DrawIdxVector,
+};
+
+pub const DrawCmdVector = extern struct { // struct ImVector_ImDrawCmd
+    size: c_int,
+    capacity: c_int,
+    data: [*c]DrawCmd,
+};
+
+pub const DrawIdxVector = extern struct { // struct ImVector_ImDrawIdx
+    size: c_int,
+    capacity: c_int,
+    data: [*c]DrawIdx,
+};
+
+pub const f32Vector = extern struct { // struct ImVector_float
+    size: c_int,
+    capacity: c_int,
+    data: [*c]f32,
+};
+
+pub const FontPtrVector = extern struct { // struct ImVector_ImFontPtr
+    size: c_int,
+    capacity: c_int,
+    data: [*c]Font,
+};
+
+pub const Payload = extern struct { // struct ImGuiPayload
+    data: ?*anyopaque,
+    data_size: c_int,
+    source_id: ID,
+    source_parent_id: ID,
+    data_frame_count: c_int,
+    data_type: [32 + 1]u8,
+    preview: bool,
+    delivery: bool,
+};
+
+pub const ListClipper = extern struct { // struct ImGuiListClipper
+    display_start: c_int,
+    display_end: c_int,
+    items_count: c_int,
+    items_height: f32,
+    start_pos_y: f32,
+    temp_data: ?*anyopaque,
+};
+
 pub const DockNodeSettings = struct {};
 pub const Storage = struct {};
 
+pub const WindowClass = extern struct { // struct ImGuiWindowClass
+    class_id: ID,
+    parent_viewport_id: ID,
+    viewport_flags_override_set: ViewportFlags,
+    viewport_flags_override_clear: ViewportFlags,
+    tab_item_flags_override_set: TabItemFlags,
+    dock_node_flags_override_set: DockNodeFlags,
+    docking_always_tab_bar: bool,
+    docking_allow_unclassed: bool,
+};
+
+pub const InputTextCallbackData = extern struct { // struct ImGuiInputTextCallbackData
+    event_flag: InputTextFlags,
+    flags: InputTextFlags,
+    user_data: ?*anyopaque,
+    event_char: Wchar,
+    event_key: Key,
+    buf: [*c]u8,
+    buf_text_len: c_int,
+    buf_size: c_int,
+    buf_dirty: bool,
+    cursor_pos: c_int,
+    selection_start: c_int,
+    selection_end: c_int,
+};
+
+pub const SizeCallbackData = extern struct { // struct ImGuiSizeCallbackData
+    user_data: ?*anyopaque,
+    pos: Vec2,
+    current_size: Vec2,
+    desired_size: Vec2,
+};
+
+pub const DrawData = extern struct { // struct ImDrawData
+    valid: bool,
+    cmd_lists_count: c_int,
+    total_idx_count: c_int,
+    total_vtx_count: c_int,
+    cmd_lists: [*c]DrawList,
+    display_pos: Vec2,
+    display_size: Vec2,
+    framebuffer_scale: Vec2,
+    owner_viewport: [*c]Viewport,
+};
+
+pub const FontGlyphVector = extern struct { // struct ImVector_ImFontGlyph
+    size: c_int,
+    capacity: c_int,
+    data: ?*FontGlyph,
+};
+
+pub const Font = extern struct { // struct ImFont
+    index_advance_x: f32Vector,
+    fallback_advance_x: f32,
+    font_size: f32,
+    index_lookup: WcharVector,
+    glyphs: FontGlyphVector,
+    fallback_glyph: ?*FontGlyph,
+    container_atlas: [*c]FontAtlas,
+    config_data: [*c]const FontConfig,
+    config_data_count: c_short,
+    fallback_char: Wchar,
+    ellipsis_char: Wchar,
+    dot_char: Wchar,
+    dirty_lookup_tables: bool,
+    scale: f32,
+    ascent: f32,
+    descent: f32,
+    metrics_total_surface: c_int,
+    used4k_pages_map: [(0xFFFF + 1) / 4096 / 8]U8,
+};
+
+pub const DrawCmd = extern struct { // struct ImDrawCmd
+    clip_rect: Vec4,
+    texture_id: TextureID,
+    vtx_offset: c_uint,
+    idx_offset: c_uint,
+    elem_count: c_uint,
+    user_callback: DrawCallback,
+    user_callback_data: ?*anyopaque,
+};
+
+pub const DrawVert = extern struct { // struct ImDrawVert
+    pos: Vec2,
+    uv: Vec2,
+    col: U32,
+};
+
+pub const DrawCmdHeader = extern struct { // struct ImDrawCmdHeader
+    clip_rect: Vec4,
+    texture_id: TextureID,
+    vtx_offset: c_uint,
+};
+
+pub const DrawListSplitter = extern struct { // struct ImDrawListSplitter
+    _current: c_int,
+    _count: c_int,
+    _channels: DrawChannelVector,
+};
+
 // TODO structs with bitfields...
 // for the time being this shall be just an opaque pointer
+pub const DockRequest = opaque {};
 pub const Table = opaque {};
 pub const StackLevelInfo = opaque {};
+pub const TableColumnSortSpecs = opaque {};
 pub const DockNode = opaque {};
-
-// TODO file handles? typedef FILE* ImFileHandle;
+pub const TableColumnSettings = opaque {};
+pub const TableColumn = opaque {};
+pub const Window = opaque {};
+pub const FontGlyph = opaque {};
 
 pub const ErrorLogCallback = *const fn (?*anyopaque, [*c]const u8) callconv(.C) void;
 
-// placeholders
-pub const Window = struct {};
-pub const ListClipper = struct {};
-pub const WindowClass = struct {};
-pub const InputTextCallbackData = struct {};
-pub const SizeCallbackData = struct {};
-pub const DrawData = struct {};
-pub const Font = struct {};
-pub const DrawCmd = struct {};
-pub const DrawVert = struct {};
-pub const DrawCmdHeader = struct {};
-pub const DrawListSplitter = struct {};
+pub const DrawCallback = *const fn ([*c]const DrawList, [*c]const DrawCmd) callconv(.C) void;
+
+// TODO file handles? typedef FILE* ImFileHandle;
+pub const FileHandle = std.fs.File;
 
 test "Imgui Header test" {
-    const std = @import("std");
     const flags = WindowFlags{};
     const flags2 = WindowFlags.no_nav;
     std.debug.print("flags = {any}\n{any}\n\n ", .{ flags, flags2 });

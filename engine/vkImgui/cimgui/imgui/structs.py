@@ -1,7 +1,10 @@
 inp = """
-struct ImChunkStream_ImGuiTableSettings {
-ImVector_char Buf;
-} ImChunkStream_ImGuiTableSettings;
+struct ImDrawListSplitter
+{
+    int _Current;
+    int _Count;
+    ImVector_ImDrawChannel _Channels;
+};
 """
 
 '''
@@ -186,21 +189,9 @@ def generateStruct(inp):
 generateStruct(inp)
 
 
-structs = """ImGuiColorMod {int Size;int Capacity;ImGuiColorMod* Data;} ImVector_ImGuiColorMod;
-ImGuiStyleMod {int Size;int Capacity;ImGuiStyleMod* Data;} ImVector_ImGuiStyleMod;
-ImGuiID {int Size;int Capacity;ImGuiID* Data;} ImVector_ImGuiID;
-ImGuiItemFlags {int Size;int Capacity;ImGuiItemFlags* Data;} ImVector_ImGuiItemFlags;
-ImGuiGroupData {int Size;int Capacity;ImGuiGroupData* Data;} ImVector_ImGuiGroupData;
-ImGuiPopupData {int Size;int Capacity;ImGuiPopupData* Data;} ImVector_ImGuiPopupData;
-ImGuiViewportPPtr {int Size;int Capacity;ImGuiViewportP** Data;} ImVector_ImGuiViewportPPtr;
-ImGuiListClipperData {int Size;int Capacity;ImGuiListClipperData* Data;} ImVector_ImGuiListClipperData;
-ImGuiTableTempData {int Size;int Capacity;ImGuiTableTempData* Data;} ImVector_ImGuiTableTempData;
-ImGuiTable {int Size;int Capacity;ImGuiTable* Data;} ImVector_ImGuiTable;
-ImGuiTabBar {int Size;int Capacity;ImGuiTabBar* Data;} ImVector_ImGuiTabBar;
-ImGuiPtrOrIndex {int Size;int Capacity;ImGuiPtrOrIndex* Data;} ImVector_ImGuiPtrOrIndex;
-ImGuiShrinkWidthItem {int Size;int Capacity;ImGuiShrinkWidthItem* Data;} ImVector_ImGuiShrinkWidthItem;
-ImGuiSettingsHandler {int Size;int Capacity;ImGuiSettingsHandler* Data;} ImVector_ImGuiSettingsHandler;
-ImGuiContextHook {int Size;int Capacity;ImGuiContextHook* Data;} ImVector_ImGuiContextHook;
+structs = """
+ImDrawCmd {int Size;int Capacity;ImDrawCmd* Data;} ImVector_ImDrawCmd;
+ImDrawIdx {int Size;int Capacity;ImDrawIdx* Data;} ImVector_ImDrawIdx;
 """
 
 """
@@ -222,5 +213,5 @@ pub const {tname}Vector = extern struct {{ // struct ImVector_{sname}
     data: [*c]{tname},
 }};
     """
-    #print(o)
+    print(o)
 
