@@ -85,15 +85,15 @@ pub const MemAllocFunc = *fn (sz: usize, user_data: ?*anyopaque) ?*anyopaque; //
 pub const MemFreeFunc = *fn (ptr: ?*anyopaque, user_data: ?*anyopaque) void; // ImMemAllocFunction
 
 pub const Vec2 = extern struct { // ImVec2
-    x: f32,
-    y: f32,
+    x: f32 = 0,
+    y: f32 = 0,
 };
 
 pub const Vec4 = extern struct { // ImVec4
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
+    x: f32 = 0,
+    y: f32 = 0,
+    z: f32 = 0,
+    w: f32 = 0,
 };
 
 pub const WindowFlags = packed struct(c_int) { // ImGuiWindowFlags
@@ -2553,6 +2553,52 @@ pub fn getDrawData() [*c]DrawData {
 pub fn showDemoWindow(p_open: [*c]bool) void {
     c.igShowDemoWindow(p_open);
 }
+
+// ====
+
+pub fn setNextWindowPos(pos: Vec2, cond: Cond, pivot: Vec2) void {
+    c.igSetNextWindowPos(@bitCast(pos), @bitCast(cond), @bitCast(pivot));
+}
+
+pub fn getMainViewport() ?*Viewport {
+    return @ptrCast(c.igGetMainViewport());
+}
+
+pub fn setNextWindowViewport(viewport_id: ID) void {
+    c.igSetNextWindowViewport(viewport_id);
+}
+
+pub fn setNextWindowSize(size: Vec2, cond: Cond) void {
+    c.igSetNextWindowSize(@bitCast(size), @bitCast(cond));
+}
+
+pub fn pushStyleVar_Float(idx: StyleVar, val: f32) void {
+    c.igPushStyleVar_Float(@intFromEnum(idx), val);
+}
+pub fn pushStyleVar_Vec2(idx: StyleVar, val: Vec2) void {
+    c.igPushStyleVar_Vec2(@intFromEnum(idx), @bitCast(val));
+}
+
+pub fn popStyleVar(count: c_int) void {
+    c.igPopStyleVar(count);
+}
+
+pub fn getID_Str(str_id: [*c]const u8) ID {
+    return c.igGetID_Str(str_id);
+}
+
+pub fn dockSpace(id: ID, size: Vec2, flags: DockNodeFlags, window_class: [*c]const WindowClass) ID {
+    return c.igDockSpace(id, @bitCast(size), @bitCast(flags), @ptrCast(window_class));
+}
+
+pub fn begin(name: [*c]const u8, p_open: [*c]bool, flags: WindowFlags) bool {
+    return c.igBegin(name, p_open, @bitCast(flags));
+}
+pub fn end() void {
+    c.igEnd();
+}
+
+// ===
 
 // TODO structs with bitfields...
 // for the time being this shall be just an opaque pointer

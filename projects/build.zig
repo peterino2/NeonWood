@@ -45,4 +45,10 @@ pub fn build(b: *std.Build) void {
         .desc = "demo project with lua scripting",
         .root_source_file = b.path("demo_lua/main.zig"),
     });
+
+    _ = nwbuild.addProgram(.{
+        .name = "allocList",
+        .desc = "misc tool for viewing memory allocations in a list",
+        .root_source_file = b.path("misc/allocList.zig"),
+    });
 }

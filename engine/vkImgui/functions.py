@@ -23,10 +23,26 @@ singletonList = [
     'getStyle',
     'getIO',
     'getCurrentContext',
+    'getMainViewport',
+]
+
+bitcastList = [
+    "Vec2",
+    "Vec4",
+    "Cond",
+    "WindowFlags",
+]
+
+ptrcastList = [
+    "WindowClass"
+]
+
+enumcastList = [
+    'StyleVar'
 ]
 
 with open('functions.txt') as f:
-    # inp = f.read()
+    inp = f.read()
     pass
 
 def splitTypeAndLabel(line):
@@ -151,7 +167,7 @@ def convertTypeName(entry):
         typeName = x[-1]
     rv = convertInner(typeName)
 
-    if const:
+    if const and pointer:
         rv = 'const ' + rv
 
     if pointer:

@@ -30,6 +30,10 @@ pub const GameContext = struct {
         self.implot = c.ImPlot_CreateContext();
 
         core.MemoryTracker.MTPrintStatsDelta();
+        const style = ig.getStyle().?;
+        style.tab_rounding = 0.0;
+        style.window_rounding = 0.0;
+        style.alpha = 1;
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
@@ -37,10 +41,6 @@ pub const GameContext = struct {
         self.* = .{
             .allocator = allocator,
         };
-        const style = ig.getStyle().?;
-        style.tab_rounding = 0.0;
-        style.window_rounding = 0.0;
-        style.alpha = 1;
         return self;
     }
 

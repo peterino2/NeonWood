@@ -122,10 +122,10 @@ pub const FileLog = struct {
         defer self.free(obuf);
 
         const cwd = std.fs.cwd();
-        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, core.DefaultSavePath ++ "/{s}", .{fileName});
         defer self.allocator.free(ofile);
 
-        try cwd.makePath("Saved");
+        try cwd.makePath(core.DefaultSavePath);
         try cwd.writeFile(.{
             .sub_path = ofile,
             .data = obuf,
@@ -134,9 +134,9 @@ pub const FileLog = struct {
 
     pub fn writeOut(self: @This(), fileName: []const u8) !void {
         const cwd = std.fs.cwd();
-        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, core.DefaultSavePath ++ "/{s}", .{fileName});
         defer self.allocator.free(ofile);
-        try cwd.makePath("Saved");
+        try cwd.makePath(core.DefaultSavePath);
         try cwd.writeFile(.{
             .sub_path = ofile,
             .data = self.buffer.items,
@@ -238,8 +238,8 @@ pub const LoggerSys = struct {
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         const cwd = std.fs.cwd();
-        const ofile = std.fmt.allocPrint(allocator, "Saved/{s}", .{"Session_Log.txt"}) catch unreachable;
-        cwd.makePath("Saved") catch unreachable;
+        const ofile = std.fmt.allocPrint(allocator, core.DefaultSavePath ++ "/{s}", .{"Session_Log.txt"}) catch unreachable;
+        cwd.makePath(core.DefaultSavePath) catch unreachable;
 
         const self = try allocator.create(@This());
         self.* = @This(){
