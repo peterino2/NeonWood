@@ -651,7 +651,7 @@ pub const BackendFlags = packed struct(c_int) {
     reserved: u25 = 0, // reserved, don't use
 };
 
-pub const Col = enum(c_int) {
+pub const StyleColor = enum(c_int) { // ImGuiCol
     Text,
     TextDisabled,
     WindowBg,
@@ -866,7 +866,11 @@ pub const Style = extern struct {
     anti_aliased_fill: bool,
     curve_tessellation_tol: f32,
     circle_tessellation_max_error: f32,
-    colors: [@as(usize, @intFromEnum(Col.COUNT))]Vec4,
+    colors: [@as(usize, @intFromEnum(StyleColor.COUNT))]Vec4,
+
+    pub fn setColor(self: *@This(), colorId: StyleColor, newColor: Vec4) void {
+        self.colors[@as(usize, @intCast(@intFromEnum(colorId)))] = newColor;
+    }
 };
 
 pub const KeyData = extern struct { // struct ImGuiKeyData
@@ -890,7 +894,7 @@ pub const FontAtlas = extern struct { // struct ImFontAtlas
     tex_height: c_int,
     tex_uv_scale: Vec2,
     tex_uv_white_pixel: Vec2,
-    fonts: FontPtr,
+    fonts: FontPtrVector,
     custom_rects: FontAtlasCustomRect,
     font_config: FontConfig,
     tex_uv_lines: [64]Vec4,
@@ -900,9 +904,38 @@ pub const FontAtlas = extern struct { // struct ImFontAtlas
     pack_id_lines: c_int,
 };
 
-pub const FontAtlasCustomRect = struct {};
-pub const FontPtr = struct {};
-pub const FontConfig = struct {};
+pub const FontAtlasCustomRect = extern struct { // struct ImFontAtlasCustomRect
+    width: c_short,
+    height: c_short,
+    x: c_short,
+    y: c_short,
+    glyph_id: c_uint,
+    glyph_advance_x: f32,
+    glyph_offset: i32,
+    font: [*c]Font,
+};
+
+pub const FontConfig = extern struct { // struct ImFontConfig
+    font_data: ?*anyopaque,
+    font_data_size: c_int,
+    font_data_owned_by_atlas: bool,
+    font_no: c_int,
+    size_pixels: f32,
+    oversample_h: c_int,
+    oversample_v: c_int,
+    pixel_snap_h: bool,
+    glyph_extra_spacing: Vec2,
+    glyph_offset: Vec2,
+    glyph_ranges: [*c]const Wchar,
+    glyph_min_advance_x: f32,
+    glyph_max_advance_y: f32,
+    merge_mode: bool,
+    font_builder_flags: c_uint,
+    rasterizer_multiply: f32,
+    ellipsis_char: Wchar,
+    name: [40]u8,
+    dst_font: [*c]Font,
+};
 
 pub const Io = extern struct {
     config_flags: ConfigFlags, // ImGuiConfigFlags ConfigFlags;
@@ -1462,7 +1495,7 @@ pub const DataTypeInfo = extern struct { // struct ImGuiDataTypeInfo
 };
 
 pub const ColorMod = extern struct { // struct ImGuiColorMod
-    col: Col,
+    col: StyleColor,
     backup_value: Vec4,
 };
 
@@ -2374,8 +2407,15 @@ pub const ListClipper = extern struct { // struct ImGuiListClipper
     temp_data: ?*anyopaque,
 };
 
-pub const DockNodeSettings = struct {};
-pub const Storage = struct {};
+pub const Storage = struct { // struct ImGuiStorage
+    data: StoragePairVector,
+};
+
+pub const StoragePairVector = struct {
+    size: c_int,
+    capacity: c_int,
+    data: ?*StoragePair,
+};
 
 pub const WindowClass = extern struct { // struct ImGuiWindowClass
     class_id: ID,
@@ -2477,6 +2517,43 @@ pub const DrawListSplitter = extern struct { // struct ImDrawListSplitter
     _channels: DrawChannelVector,
 };
 
+pub fn imVec2_ImVec2_Nil(x: [*c]const u8) [*c]Vec2 {
+    return c.igImVec2_ImVec2_Nil(x);
+}
+pub fn createContext(shared_font_atlas: [*c]FontAtlas) [*c]Context {
+    return c.igCreateContext(shared_font_atlas);
+}
+pub fn destroyContext(ctx: [*c]Context) void {
+    c.igDestroyContext(ctx);
+}
+pub fn getCurrentContext() ?*Context {
+    return @ptrCast(c.igGetCurrentContext());
+}
+pub fn setCurrentContext(ctx: [*c]Context) void {
+    c.igSetCurrentContext(ctx);
+}
+pub fn getIo() ?*Io {
+    return @ptrCast(c.igGetIO());
+}
+pub fn getStyle() ?*Style {
+    return @ptrCast(c.igGetStyle());
+}
+pub fn newFrame() void {
+    c.igNewFrame();
+}
+pub fn endFrame() void {
+    c.igEndFrame();
+}
+pub fn render() void {
+    c.igRender();
+}
+pub fn getDrawData() [*c]DrawData {
+    return c.igGetDrawData();
+}
+pub fn showDemoWindow(p_open: [*c]bool) void {
+    c.igShowDemoWindow(p_open);
+}
+
 // TODO structs with bitfields...
 // for the time being this shall be just an opaque pointer
 pub const DockRequest = opaque {};
@@ -2488,13 +2565,23 @@ pub const TableColumnSettings = opaque {};
 pub const TableColumn = opaque {};
 pub const Window = opaque {};
 pub const FontGlyph = opaque {};
+pub const DockNodeSettings = opaque {};
+pub const StoragePair = opaque {};
 
 pub const ErrorLogCallback = *const fn (?*anyopaque, [*c]const u8) callconv(.C) void;
-
 pub const DrawCallback = *const fn ([*c]const DrawList, [*c]const DrawCmd) callconv(.C) void;
 
 // TODO file handles? typedef FILE* ImFileHandle;
 pub const FileHandle = std.fs.File;
+
+pub const c = @cImport({
+    @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
+    @cDefine("CIMGUI_USE_GLFW", "1"); // if this needs a reference to glfw3, cleanest thing to do is to copy the glfw3 header here. I suspect it won't need it though.
+    @cInclude("cimgui.h");
+    @cInclude("cimgui_compat.h");
+    @cInclude("cimgui_impl.h");
+    @cInclude("cimplot.h");
+});
 
 test "Imgui Header test" {
     const flags = WindowFlags{};

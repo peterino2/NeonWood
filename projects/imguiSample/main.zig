@@ -3,6 +3,7 @@ const std = @import("std");
 const neonwood = @import("NeonWood");
 const core = neonwood.core;
 const vkImgui = neonwood.vkImgui;
+const ig = neonwood.vkImgui.api;
 const c = vkImgui.c;
 
 pub const GameContext = struct {
@@ -17,7 +18,7 @@ pub const GameContext = struct {
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
         _ = deltaTime;
-        c.igShowDemoWindow(&self.showDemoWindow);
+        ig.showDemoWindow(&self.showDemoWindow);
         c.ImPlot_ShowDemoWindow(&self.showDemoWindow);
         if (self.first) {
             self.first = false;
@@ -36,6 +37,10 @@ pub const GameContext = struct {
         self.* = .{
             .allocator = allocator,
         };
+        const style = ig.getStyle().?;
+        style.tab_rounding = 0.0;
+        style.window_rounding = 0.0;
+        style.alpha = 1;
         return self;
     }
 

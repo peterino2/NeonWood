@@ -11,14 +11,8 @@ const vk_constants = graphics.constants;
 
 const use_renderthread = core.BuildOption("use_renderthread");
 
-pub const c = @cImport({
-    @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
-    @cDefine("CIMGUI_USE_GLFW", "1"); // if this needs a reference to glfw3, cleanest thing to do is to copy the glfw3 header here. I suspect it won't need it though.
-    @cInclude("cimgui.h");
-    @cInclude("cimgui_compat.h");
-    @cInclude("cimgui_impl.h");
-    @cInclude("cimplot.h");
-});
+pub const api = @import("cimgui.zig");
+pub const c = api.c;
 
 const NeonVkContext = vk_renderer.NeonVkContext;
 
