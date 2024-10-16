@@ -125,6 +125,12 @@ pub fn initializeAndRunStandardProgram(comptime GameContext: type, comptime spec
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
+    if (@hasField(@TypeOf(spec), "windowName")) {
+        platform.setWindowSettings(.{ .windowName = spec.windowName });
+    } else {
+        platform.setWindowSettings(.{ .windowName = spec.name });
+    }
+
     try start_everything(spec, allocator, args);
     defer shutdown_everything(allocator);
 

@@ -31,14 +31,205 @@ bitcastList = [
     "Vec4",
     "Cond",
     "WindowFlags",
+    "DockNodeFlags",
+    "ConstCharPtrVector",
+    "CharVector",
+    "WcharVector",
+    "InputTextFlags",
+    "TreeNodeFlags",
+    "PopupFlags",
+    "SelectableFlags",
+    "ComboFlags",
+    "TabBarFlags",
+    "TabItemFlags",
+    "TableColumnFlags",
+    "TableFlags",
+    "TableRowFlags",
+    "TableBgTarget",
+    "FocusedFlags",
+    "HoveredFlags",
+    "DragDropFlags",
+    "DockNodeFlags",
+    "ModFlags",
+    "ConfigFlags",
+    "BackendFlags",
+    "ColorEditFlags",
+    "SliderFlags",
+    "Cond",
+    "Style",
+    "KeyData",
+    "FontAtlas",
+    "FontAtlasCustomRect",
+    "FontConfig",
+    "Io",
+    "Viewport",
+    "PlatformMonitorVector",
+    "ViewportPtrVector",
+    "PlatformIO",
+    "PlatformMonitor",
+    "ViewportFlags",
+    "DrawFlags",
+    "DrawListFlags",
+    "FontAtlasFlags",
+    "PlatformImeData",
+    "StbUndoRecord",
+    "StbUndoState",
+    "StbTexteditState",
+    "StbTexteditRow",
+    "Vec1",
+    "Rect",
+    "BitVector",
+    "Vec2ih",
+    "DrawListSharedData",
+    "DrawListPtrVector",
+    "DrawList",
+    "DrawDataBuilder",
+    "ItemFlags",
+    "ItemStatusFlags",
+    "SeparatorFlags",
+    "TextFlags",
+    "TooltipFlags",
+    "NextWindowDataFlags",
+    "NextItemDataFlags",
+    "ActivateFlags",
+    "ScrollFlags",
+    "NavHighlightFlags",
+    "NavDirSourceFlags",
+    "NavMoveFlags",
+    "OldColumnFlags",
+    "DebugLogFlags",
+    "DataTypeTempStorage",
+    "DataTypeInfo",
+    "ColorMod",
+    "StyleMod",
+    "ComboPreviewData",
+    "GroupData",
+    "MenuColumns",
+    "InputTextState",
+    "PopupData",
+    "NextWindowData",
+    "NextItemData",
+    "LastItemData",
+    "StackSizes",
+    "WindowStackData",
+    "PtrOrIndex",
+    "BitArrayForNamedKeys",
+    "InputEventMousePos",
+    "InputEventMouseWheel",
+    "InputEventMouseButton",
+    "InputEventMouseViewport",
+    "InputEventKey",
+    "InputEventText",
+    "InputEventAppFocused",
+    "InputEvent",
+    "ListClipperRange",
+    "ListClipperData",
+    "ListClipperRangeVector",
+    "NavItemData",
+    "OldColumnData",
+    "OldColumnDataVector",
+    "WindowPtrVector",
+    "WindowDockStyle",
+    "DockRequestVector",
+    "DockNodeSettingsVector",
+    "DockContext",
+    "ViewportP",
+    "WindowSettings",
+    "SettingsHandler",
+    "MetricsConfig",
+    "StackLevelInfoVector",
+    "StackTool",
+    "ContextHook",
+    "InputEventVector",
+    "WindowStackDataVector",
+    "ColorModVector",
+    "StyleModVector",
+    "IDVector",
+    "ItemFlagsVector",
+    "GroupDataVector",
+    "PopupDataVector",
+    "ViewportPPtrVector",
+    "ListClipperDataVector",
+    "TableTempDataVector",
+    "TableVector",
+    "TabBarVector",
+    "PtrOrIndexVector",
+    "ShrinkWidthItemVector",
+    "ShrinkWidthItem",
+    "SettingsHandlerVector",
+    "ContextHookVector",
+    "u8Vector",
+    "TablePool",
+    "TabBarPool",
+    "TabItemVector",
+    "WindowSettingsChunkStream",
+    "TableSettingsChunkStream",
+    "TabItem",
+    "TabBar",
+    "TableTempData",
+    "TableSettings",
+    "FontBuilderIO",
+    "TableCellData",
+    "TableInstanceData",
+    "TableColumnSpan",
+    "TableColumnIdxSpan",
+    "TableCellDataSpan",
+    "TableInstanceDataVector",
+    "TableColumnSortSpecsVector",
+    "TextBuffer",
+    "Context",
+    "DrawChannelVector",
+    "DrawChannel",
+    "DrawCmdVector",
+    "DrawIdxVector",
+    "f32Vector",
+    "FontPtrVector",
+    "Payload",
+    "ListClipper",
+    "Storage",
+    "StoragePairVector",
+    "WindowClass",
+    "InputTextCallbackData",
+    "SizeCallbackData",
+    "DrawData",
+    "FontGlyphVector",
+    "Font",
+    "DrawCmd",
+    "DrawVert",
+    "DrawCmdHeader",
+    "DrawListSplitter",
 ]
+
 
 ptrcastList = [
     "WindowClass"
 ]
 
 enumcastList = [
-    'StyleVar'
+    "StyleVar",
+    "DataType",
+    "DataTypePrivate",
+    "NavLayer",
+    "DataAuthority",
+    "DockNodeState",
+    "WindowDockStyleCol",
+    "ContextHookType",
+    "Dir",
+    "NavInput",
+    "LayoutType",
+    "LogType",
+    "Axis",
+    "PlotType",
+    "PopupPositionPolicy",
+    "MouseButton",
+    "MouseCursor",
+    "SortDirection",
+    "Key",
+    "StyleColor",
+    "KeyPrivate",
+    "InputSource",
+    "NavReadMode",
+    "InputEventType",
 ]
 
 with open('functions.txt') as f:
@@ -55,6 +246,10 @@ def splitTypeAndLabel(line):
         return line, ''
 
 def convertInner(typeName):
+    if 'size_t' == typeName:
+        return 'usize'
+    if 'double' == typeName:
+        return 'f64'
     if 'float' == typeName:
         return 'f32'
     if 'char' == typeName:
@@ -139,6 +334,8 @@ def convertTypeName(entry):
         return '?*anyopaque'
     if 'void' == entry:
         return 'void'
+    if 'size_t' == entry:
+        return 'c_usize'
 
     # print('---')
     # print(entry)
@@ -211,6 +408,7 @@ def lowerFirst(s):
 funcList = []
 for l in inp.split('\n'):
     line = l.strip(' \n;')
+    line = line.replace(' *', '* ')
 
     if len(line) == 0:
         continue
@@ -264,6 +462,7 @@ for f in funcList:
                 ostr += ', '
             ostr += convertVarName(arg[1]) + ': '
             ostr += convertTypeName(arg[0])
+
         ostr += ") "
         returnType = convertTypeName(f['returnType'])
         isSingleton = False
@@ -273,7 +472,7 @@ for f in funcList:
                 isSingleton = True
                 break
         ostr += returnType
-        ostr += " {\n    "
+        ostr += " { //" + f['label'] +"\n    "
         if returnType != 'void':
             ostr += 'return '
         if isSingleton:
@@ -288,7 +487,20 @@ for f in funcList:
 
             if arg[0] == 'void':
                 continue
-            ostr += convertVarName(arg[1])
+            argStr = convertVarName(arg[1])
+            def applyCasts(a, t):
+                for cast in bitcastList:
+                    if t == cast:
+                        return '@bitCast(' + a + ')'
+                for cast in ptrcastList:
+                    if cast in t:
+                        return '@ptrCast(' + a + ')'
+                for cast in enumcastList:
+                    if t == cast:
+                        return '@intFromEnum(' + a + ')'
+                return a
+            argStr = applyCasts(argStr, convertTypeName(arg[0]))
+            ostr += argStr
             # print(wrapCast(arg))
         if isSingleton:
             ostr += ')'

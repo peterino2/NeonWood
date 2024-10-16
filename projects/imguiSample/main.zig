@@ -3,7 +3,7 @@ const std = @import("std");
 const neonwood = @import("NeonWood");
 const core = neonwood.core;
 const vkImgui = neonwood.vkImgui;
-const ig = neonwood.vkImgui.api;
+const imgui = neonwood.vkImgui.api;
 const c = vkImgui.c;
 
 pub const GameContext = struct {
@@ -18,7 +18,7 @@ pub const GameContext = struct {
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
         _ = deltaTime;
-        ig.showDemoWindow(&self.showDemoWindow);
+        imgui.showDemoWindow(&self.showDemoWindow);
         c.ImPlot_ShowDemoWindow(&self.showDemoWindow);
         if (self.first) {
             self.first = false;
@@ -26,11 +26,11 @@ pub const GameContext = struct {
         }
     }
 
-    pub fn prepare_game(self: *@This()) !void {
+    pub fn prepare(self: *@This()) !void {
         self.implot = c.ImPlot_CreateContext();
 
         core.MemoryTracker.MTPrintStatsDelta();
-        const style = ig.getStyle().?;
+        const style = imgui.getStyle().?;
         style.tab_rounding = 0.0;
         style.window_rounding = 0.0;
         style.alpha = 1;

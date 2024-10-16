@@ -1,8 +1,5 @@
-//
 // given a file format which contains a list of allocs, frees, and reallocs
-//
 // display them in chronological order.
-//
 // and highlight which allocations are not free'd at each step
 const nw = @import("NeonWood");
 
@@ -13,17 +10,28 @@ padding: bool = false,
 dockspaceFlags: imgui.DockNodeFlags = .{},
 
 open: bool = false,
-// eventsList: p2.PagedVector(),
 
 pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
 pub fn tick(self: *@This(), _: f64) void {
     dockspace(&self.open);
+    self.mainWindow();
+}
+
+pub fn mainWindow(self: *@This()) void {
+    if (imgui.begin("Main", &self.open, .{
+        .no_collapse = true,
+    })) {
+        if (imgui.smallButton("click me!")) {
+            core.engine_logs("you clicked me");
+        }
+    }
+    imgui.end();
 }
 
 pub fn dockspace(open: *bool) void {
     const flags: imgui.WindowFlags = .{
-        .menu_bar = true,
+        .menu_bar = false,
         .no_docking = true,
         .no_title_bar = true,
         .no_collapse = true,
@@ -66,10 +74,10 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn main() !void {
+    nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.initializeAndRunStandardProgram(@This(), .{ .name = "Allocation viewer", .ui = false, .papyrus = false });
 }
 
 const std = @import("std");
 const core = nw.core;
 const imgui = nw.vkImgui.api;
-const igWidgets = nw.vkImgui.widgets;

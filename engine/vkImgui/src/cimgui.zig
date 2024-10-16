@@ -20,6 +20,8 @@ pub const WcharVector = extern struct { // typedef struct ImVector_ImWchar {
     data: [*c]Wchar,
 };
 
+const OldColumns = c_int;
+
 // ImVector typedefs
 pub const VectorInt = c_int; // ImVector_Int
 
@@ -2517,88 +2519,2314 @@ pub const DrawListSplitter = extern struct { // struct ImDrawListSplitter
     _channels: DrawChannelVector,
 };
 
-pub fn imVec2_ImVec2_Nil(x: [*c]const u8) [*c]Vec2 {
-    return c.igImVec2_ImVec2_Nil(x);
-}
-pub fn createContext(shared_font_atlas: [*c]FontAtlas) [*c]Context {
+pub fn createContext(shared_font_atlas: [*c]FontAtlas) [*c]Context { //igCreateContext
     return c.igCreateContext(shared_font_atlas);
 }
-pub fn destroyContext(ctx: [*c]Context) void {
+pub fn destroyContext(ctx: [*c]Context) void { //igDestroyContext
     c.igDestroyContext(ctx);
 }
-pub fn getCurrentContext() ?*Context {
+pub fn getCurrentContext() ?*Context { //igGetCurrentContext
     return @ptrCast(c.igGetCurrentContext());
 }
-pub fn setCurrentContext(ctx: [*c]Context) void {
+pub fn setCurrentContext(ctx: [*c]Context) void { //igSetCurrentContext
     c.igSetCurrentContext(ctx);
 }
-pub fn getIo() ?*Io {
+pub fn getIO() ?*Io { //igGetIO
     return @ptrCast(c.igGetIO());
 }
-pub fn getStyle() ?*Style {
+pub fn getStyle() ?*Style { //igGetStyle
     return @ptrCast(c.igGetStyle());
 }
-pub fn newFrame() void {
+pub fn newFrame() void { //igNewFrame
     c.igNewFrame();
 }
-pub fn endFrame() void {
+pub fn endFrame() void { //igEndFrame
     c.igEndFrame();
 }
-pub fn render() void {
+pub fn render() void { //igRender
     c.igRender();
 }
-pub fn getDrawData() [*c]DrawData {
+pub fn getDrawData() [*c]DrawData { //igGetDrawData
     return c.igGetDrawData();
 }
-pub fn showDemoWindow(p_open: [*c]bool) void {
+pub fn showDemoWindow(p_open: [*c]bool) void { //igShowDemoWindow
     c.igShowDemoWindow(p_open);
 }
-
-// ====
-
-pub fn setNextWindowPos(pos: Vec2, cond: Cond, pivot: Vec2) void {
-    c.igSetNextWindowPos(@bitCast(pos), @bitCast(cond), @bitCast(pivot));
+pub fn showMetricsWindow(p_open: [*c]bool) void { //igShowMetricsWindow
+    c.igShowMetricsWindow(p_open);
 }
-
-pub fn getMainViewport() ?*Viewport {
-    return @ptrCast(c.igGetMainViewport());
+pub fn showDebugLogWindow(p_open: [*c]bool) void { //igShowDebugLogWindow
+    c.igShowDebugLogWindow(p_open);
 }
-
-pub fn setNextWindowViewport(viewport_id: ID) void {
-    c.igSetNextWindowViewport(viewport_id);
+pub fn showStackToolWindow(p_open: [*c]bool) void { //igShowStackToolWindow
+    c.igShowStackToolWindow(p_open);
 }
-
-pub fn setNextWindowSize(size: Vec2, cond: Cond) void {
-    c.igSetNextWindowSize(@bitCast(size), @bitCast(cond));
+pub fn showAboutWindow(p_open: [*c]bool) void { //igShowAboutWindow
+    c.igShowAboutWindow(p_open);
 }
-
-pub fn pushStyleVar_Float(idx: StyleVar, val: f32) void {
-    c.igPushStyleVar_Float(@intFromEnum(idx), val);
+pub fn showStyleEditor(ref: [*c]Style) void { //igShowStyleEditor
+    c.igShowStyleEditor(ref);
 }
-pub fn pushStyleVar_Vec2(idx: StyleVar, val: Vec2) void {
-    c.igPushStyleVar_Vec2(@intFromEnum(idx), @bitCast(val));
+pub fn showStyleSelector(label: [*c]const u8) bool { //igShowStyleSelector
+    return c.igShowStyleSelector(label);
 }
-
-pub fn popStyleVar(count: c_int) void {
-    c.igPopStyleVar(count);
+pub fn showFontSelector(label: [*c]const u8) void { //igShowFontSelector
+    c.igShowFontSelector(label);
 }
-
-pub fn getID_Str(str_id: [*c]const u8) ID {
-    return c.igGetID_Str(str_id);
+pub fn showUserGuide() void { //igShowUserGuide
+    c.igShowUserGuide();
 }
-
-pub fn dockSpace(id: ID, size: Vec2, flags: DockNodeFlags, window_class: [*c]const WindowClass) ID {
-    return c.igDockSpace(id, @bitCast(size), @bitCast(flags), @ptrCast(window_class));
+pub fn getVersion() [*c]const u8 { //igGetVersion
+    return c.igGetVersion();
 }
-
-pub fn begin(name: [*c]const u8, p_open: [*c]bool, flags: WindowFlags) bool {
+pub fn styleColorsDark(dst: [*c]Style) void { //igStyleColorsDark
+    c.igStyleColorsDark(dst);
+}
+pub fn styleColorsLight(dst: [*c]Style) void { //igStyleColorsLight
+    c.igStyleColorsLight(dst);
+}
+pub fn styleColorsClassic(dst: [*c]Style) void { //igStyleColorsClassic
+    c.igStyleColorsClassic(dst);
+}
+pub fn begin(name: [*c]const u8, p_open: [*c]bool, flags: WindowFlags) bool { //igBegin
     return c.igBegin(name, p_open, @bitCast(flags));
 }
-pub fn end() void {
+pub fn end() void { //igEnd
     c.igEnd();
 }
+pub fn beginChild_Str(str_id: [*c]const u8, size: Vec2, border: bool, flags: WindowFlags) bool { //igBeginChild_Str
+    return c.igBeginChild_Str(str_id, @bitCast(size), border, @bitCast(flags));
+}
+pub fn beginChild_ID(id: ID, size: Vec2, border: bool, flags: WindowFlags) bool { //igBeginChild_ID
+    return c.igBeginChild_ID(id, @bitCast(size), border, @bitCast(flags));
+}
+pub fn endChild() void { //igEndChild
+    c.igEndChild();
+}
+pub fn isWindowAppearing() bool { //igIsWindowAppearing
+    return c.igIsWindowAppearing();
+}
+pub fn isWindowCollapsed() bool { //igIsWindowCollapsed
+    return c.igIsWindowCollapsed();
+}
+pub fn isWindowFocused(flags: FocusedFlags) bool { //igIsWindowFocused
+    return c.igIsWindowFocused(@bitCast(flags));
+}
+pub fn isWindowHovered(flags: HoveredFlags) bool { //igIsWindowHovered
+    return c.igIsWindowHovered(@bitCast(flags));
+}
+pub fn getWindowDrawList() [*c]DrawList { //igGetWindowDrawList
+    return c.igGetWindowDrawList();
+}
+pub fn getWindowDpiScale() f32 { //igGetWindowDpiScale
+    return c.igGetWindowDpiScale();
+}
+pub fn getWindowPos(pout: [*c]Vec2) void { //igGetWindowPos
+    c.igGetWindowPos(pout);
+}
+pub fn getWindowSize(pout: [*c]Vec2) void { //igGetWindowSize
+    c.igGetWindowSize(pout);
+}
+pub fn getWindowWidth() f32 { //igGetWindowWidth
+    return c.igGetWindowWidth();
+}
+pub fn getWindowHeight() f32 { //igGetWindowHeight
+    return c.igGetWindowHeight();
+}
+pub fn getWindowViewport() [*c]Viewport { //igGetWindowViewport
+    return c.igGetWindowViewport();
+}
+pub fn setNextWindowPos(pos: Vec2, cond: Cond, pivot: Vec2) void { //igSetNextWindowPos
+    c.igSetNextWindowPos(@bitCast(pos), @bitCast(cond), @bitCast(pivot));
+}
+pub fn setNextWindowSize(size: Vec2, cond: Cond) void { //igSetNextWindowSize
+    c.igSetNextWindowSize(@bitCast(size), @bitCast(cond));
+}
+pub fn setNextWindowSizeConstraints(size_min: Vec2, size_max: Vec2, custom_callback: SizeCallback, custom_callback_data: ?*anyopaque) void { //igSetNextWindowSizeConstraints
+    c.igSetNextWindowSizeConstraints(@bitCast(size_min), @bitCast(size_max), custom_callback, custom_callback_data);
+}
+pub fn setNextWindowContentSize(size: Vec2) void { //igSetNextWindowContentSize
+    c.igSetNextWindowContentSize(@bitCast(size));
+}
+pub fn setNextWindowCollapsed(collapsed: bool, cond: Cond) void { //igSetNextWindowCollapsed
+    c.igSetNextWindowCollapsed(collapsed, @bitCast(cond));
+}
+pub fn setNextWindowFocus() void { //igSetNextWindowFocus
+    c.igSetNextWindowFocus();
+}
+pub fn setNextWindowBgAlpha(alpha: f32) void { //igSetNextWindowBgAlpha
+    c.igSetNextWindowBgAlpha(alpha);
+}
+pub fn setNextWindowViewport(viewport_id: ID) void { //igSetNextWindowViewport
+    c.igSetNextWindowViewport(viewport_id);
+}
+pub fn setWindowPos_Vec2(pos: Vec2, cond: Cond) void { //igSetWindowPos_Vec2
+    c.igSetWindowPos_Vec2(@bitCast(pos), @bitCast(cond));
+}
+pub fn setWindowSize_Vec2(size: Vec2, cond: Cond) void { //igSetWindowSize_Vec2
+    c.igSetWindowSize_Vec2(@bitCast(size), @bitCast(cond));
+}
+pub fn setWindowCollapsed_Bool(collapsed: bool, cond: Cond) void { //igSetWindowCollapsed_Bool
+    c.igSetWindowCollapsed_Bool(collapsed, @bitCast(cond));
+}
+pub fn setWindowFocus_Nil() void { //igSetWindowFocus_Nil
+    c.igSetWindowFocus_Nil();
+}
+pub fn setWindowFontScale(scale: f32) void { //igSetWindowFontScale
+    c.igSetWindowFontScale(scale);
+}
+pub fn setWindowPos_Str(name: [*c]const u8, pos: Vec2, cond: Cond) void { //igSetWindowPos_Str
+    c.igSetWindowPos_Str(name, @bitCast(pos), @bitCast(cond));
+}
+pub fn setWindowSize_Str(name: [*c]const u8, size: Vec2, cond: Cond) void { //igSetWindowSize_Str
+    c.igSetWindowSize_Str(name, @bitCast(size), @bitCast(cond));
+}
+pub fn setWindowCollapsed_Str(name: [*c]const u8, collapsed: bool, cond: Cond) void { //igSetWindowCollapsed_Str
+    c.igSetWindowCollapsed_Str(name, collapsed, @bitCast(cond));
+}
+pub fn setWindowFocus_Str(name: [*c]const u8) void { //igSetWindowFocus_Str
+    c.igSetWindowFocus_Str(name);
+}
+pub fn getContentRegionAvail(pout: [*c]Vec2) void { //igGetContentRegionAvail
+    c.igGetContentRegionAvail(pout);
+}
+pub fn getContentRegionMax(pout: [*c]Vec2) void { //igGetContentRegionMax
+    c.igGetContentRegionMax(pout);
+}
+pub fn getWindowContentRegionMin(pout: [*c]Vec2) void { //igGetWindowContentRegionMin
+    c.igGetWindowContentRegionMin(pout);
+}
+pub fn getWindowContentRegionMax(pout: [*c]Vec2) void { //igGetWindowContentRegionMax
+    c.igGetWindowContentRegionMax(pout);
+}
+pub fn getScrollX() f32 { //igGetScrollX
+    return c.igGetScrollX();
+}
+pub fn getScrollY() f32 { //igGetScrollY
+    return c.igGetScrollY();
+}
+pub fn setScrollX_Float(scroll_x: f32) void { //igSetScrollX_Float
+    c.igSetScrollX_Float(scroll_x);
+}
+pub fn setScrollY_Float(scroll_y: f32) void { //igSetScrollY_Float
+    c.igSetScrollY_Float(scroll_y);
+}
+pub fn getScrollMaxX() f32 { //igGetScrollMaxX
+    return c.igGetScrollMaxX();
+}
+pub fn getScrollMaxY() f32 { //igGetScrollMaxY
+    return c.igGetScrollMaxY();
+}
+pub fn setScrollHereX(center_x_ratio: f32) void { //igSetScrollHereX
+    c.igSetScrollHereX(center_x_ratio);
+}
+pub fn setScrollHereY(center_y_ratio: f32) void { //igSetScrollHereY
+    c.igSetScrollHereY(center_y_ratio);
+}
+pub fn setScrollFromPosX_Float(local_x: f32, center_x_ratio: f32) void { //igSetScrollFromPosX_Float
+    c.igSetScrollFromPosX_Float(local_x, center_x_ratio);
+}
+pub fn setScrollFromPosY_Float(local_y: f32, center_y_ratio: f32) void { //igSetScrollFromPosY_Float
+    c.igSetScrollFromPosY_Float(local_y, center_y_ratio);
+}
+pub fn pushFont(font: [*c]Font) void { //igPushFont
+    c.igPushFont(font);
+}
+pub fn popFont() void { //igPopFont
+    c.igPopFont();
+}
+pub fn pushStyleColor_U32(idx: StyleColor, col: U32) void { //igPushStyleColor_U32
+    c.igPushStyleColor_U32(idx, col);
+}
+pub fn pushStyleColor_Vec4(idx: StyleColor, col: Vec4) void { //igPushStyleColor_Vec4
+    c.igPushStyleColor_Vec4(idx, @bitCast(col));
+}
+pub fn popStyleColor(count: c_int) void { //igPopStyleColor
+    c.igPopStyleColor(count);
+}
+pub fn pushStyleVar_Float(idx: StyleVar, val: f32) void { //igPushStyleVar_Float
+    c.igPushStyleVar_Float(@intFromEnum(idx), val);
+}
+pub fn pushStyleVar_Vec2(idx: StyleVar, val: Vec2) void { //igPushStyleVar_Vec2
+    c.igPushStyleVar_Vec2(@intFromEnum(idx), @bitCast(val));
+}
+pub fn popStyleVar(count: c_int) void { //igPopStyleVar
+    c.igPopStyleVar(count);
+}
+pub fn pushAllowKeyboardFocus(allow_keyboard_focus: bool) void { //igPushAllowKeyboardFocus
+    c.igPushAllowKeyboardFocus(allow_keyboard_focus);
+}
+pub fn popAllowKeyboardFocus() void { //igPopAllowKeyboardFocus
+    c.igPopAllowKeyboardFocus();
+}
+pub fn pushButtonRepeat(repeat: bool) void { //igPushButtonRepeat
+    c.igPushButtonRepeat(repeat);
+}
+pub fn popButtonRepeat() void { //igPopButtonRepeat
+    c.igPopButtonRepeat();
+}
+pub fn pushItemWidth(item_width: f32) void { //igPushItemWidth
+    c.igPushItemWidth(item_width);
+}
+pub fn popItemWidth() void { //igPopItemWidth
+    c.igPopItemWidth();
+}
+pub fn setNextItemWidth(item_width: f32) void { //igSetNextItemWidth
+    c.igSetNextItemWidth(item_width);
+}
+pub fn calcItemWidth() f32 { //igCalcItemWidth
+    return c.igCalcItemWidth();
+}
+pub fn pushTextWrapPos(wrap_local_pos_x: f32) void { //igPushTextWrapPos
+    c.igPushTextWrapPos(wrap_local_pos_x);
+}
+pub fn popTextWrapPos() void { //igPopTextWrapPos
+    c.igPopTextWrapPos();
+}
+pub fn getFont() [*c]Font { //igGetFont
+    return c.igGetFont();
+}
+pub fn getFontSize() f32 { //igGetFontSize
+    return c.igGetFontSize();
+}
+pub fn getFontTexUvWhitePixel(pout: [*c]Vec2) void { //igGetFontTexUvWhitePixel
+    c.igGetFontTexUvWhitePixel(pout);
+}
+pub fn getColorU32_Col(idx: StyleColor, alpha_mul: f32) U32 { //igGetColorU32_Col
+    return c.igGetColorU32_Col(idx, alpha_mul);
+}
+pub fn getColorU32_Vec4(col: Vec4) U32 { //igGetColorU32_Vec4
+    return c.igGetColorU32_Vec4(@bitCast(col));
+}
+pub fn getColorU32_U32(col: U32) U32 { //igGetColorU32_U32
+    return c.igGetColorU32_U32(col);
+}
+pub fn getStyleColorVec4(idx: StyleColor) [*c]const Vec4 { //igGetStyleColorVec4
+    return c.igGetStyleColorVec4(idx);
+}
+pub fn separator() void { //igSeparator
+    c.igSeparator();
+}
+pub fn sameLine(offset_from_start_x: f32, space: f32) void { //igSameLine
+    c.igSameLine(offset_from_start_x, space);
+}
+pub fn newLine() void { //igNewLine
+    c.igNewLine();
+}
+pub fn spacing() void { //igSpacing
+    c.igSpacing();
+}
+pub fn dummy(size: Vec2) void { //igDummy
+    c.igDummy(@bitCast(size));
+}
+pub fn indent(indent_w: f32) void { //igIndent
+    c.igIndent(indent_w);
+}
+pub fn unindent(indent_w: f32) void { //igUnindent
+    c.igUnindent(indent_w);
+}
+pub fn beginGroup() void { //igBeginGroup
+    c.igBeginGroup();
+}
+pub fn endGroup() void { //igEndGroup
+    c.igEndGroup();
+}
+pub fn getCursorPos(pout: [*c]Vec2) void { //igGetCursorPos
+    c.igGetCursorPos(pout);
+}
+pub fn getCursorPosX() f32 { //igGetCursorPosX
+    return c.igGetCursorPosX();
+}
+pub fn getCursorPosY() f32 { //igGetCursorPosY
+    return c.igGetCursorPosY();
+}
+pub fn setCursorPos(local_pos: Vec2) void { //igSetCursorPos
+    c.igSetCursorPos(@bitCast(local_pos));
+}
+pub fn setCursorPosX(local_x: f32) void { //igSetCursorPosX
+    c.igSetCursorPosX(local_x);
+}
+pub fn setCursorPosY(local_y: f32) void { //igSetCursorPosY
+    c.igSetCursorPosY(local_y);
+}
+pub fn getCursorStartPos(pout: [*c]Vec2) void { //igGetCursorStartPos
+    c.igGetCursorStartPos(pout);
+}
+pub fn getCursorScreenPos(pout: [*c]Vec2) void { //igGetCursorScreenPos
+    c.igGetCursorScreenPos(pout);
+}
+pub fn setCursorScreenPos(pos: Vec2) void { //igSetCursorScreenPos
+    c.igSetCursorScreenPos(@bitCast(pos));
+}
+pub fn alignTextToFramePadding() void { //igAlignTextToFramePadding
+    c.igAlignTextToFramePadding();
+}
+pub fn getTextLineHeight() f32 { //igGetTextLineHeight
+    return c.igGetTextLineHeight();
+}
+pub fn getTextLineHeightWithSpacing() f32 { //igGetTextLineHeightWithSpacing
+    return c.igGetTextLineHeightWithSpacing();
+}
+pub fn getFrameHeight() f32 { //igGetFrameHeight
+    return c.igGetFrameHeight();
+}
+pub fn getFrameHeightWithSpacing() f32 { //igGetFrameHeightWithSpacing
+    return c.igGetFrameHeightWithSpacing();
+}
+pub fn pushID_Str(str_id: [*c]const u8) void { //igPushID_Str
+    c.igPushID_Str(str_id);
+}
+pub fn pushID_StrStr(str_id_begin: [*c]const u8, str_id_end: [*c]const u8) void { //igPushID_StrStr
+    c.igPushID_StrStr(str_id_begin, str_id_end);
+}
+pub fn pushID_Ptr(ptr_id: [*c]const void) void { //igPushID_Ptr
+    c.igPushID_Ptr(ptr_id);
+}
+pub fn pushID_Int(int_id: c_int) void { //igPushID_Int
+    c.igPushID_Int(int_id);
+}
+pub fn popID() void { //igPopID
+    c.igPopID();
+}
+pub fn getID_Str(str_id: [*c]const u8) ID { //igGetID_Str
+    return c.igGetID_Str(str_id);
+}
+pub fn getID_StrStr(str_id_begin: [*c]const u8, str_id_end: [*c]const u8) ID { //igGetID_StrStr
+    return c.igGetID_StrStr(str_id_begin, str_id_end);
+}
+pub fn getID_Ptr(ptr_id: [*c]const void) ID { //igGetID_Ptr
+    return c.igGetID_Ptr(ptr_id);
+}
+pub fn textUnformatted(text: [*c]const u8, text_end: [*c]const u8) void { //igTextUnformatted
+    c.igTextUnformatted(text, text_end);
+}
+pub fn button(label: [*c]const u8, size: Vec2) bool { //igButton
+    return c.igButton(label, @bitCast(size));
+}
+pub fn smallButton(label: [*c]const u8) bool { //igSmallButton
+    return c.igSmallButton(label);
+}
+pub fn invisibleButton(str_id: [*c]const u8, size: Vec2, flags: ButtonFlags) bool { //igInvisibleButton
+    return c.igInvisibleButton(str_id, @bitCast(size), flags);
+}
+pub fn arrowButton(str_id: [*c]const u8, dir: Dir) bool { //igArrowButton
+    return c.igArrowButton(str_id, @intFromEnum(dir));
+}
+pub fn image(user_texture_id: TextureID, size: Vec2, uv0: Vec2, uv1: Vec2, tint_col: Vec4, border_col: Vec4) void { //igImage
+    c.igImage(user_texture_id, @bitCast(size), @bitCast(uv0), @bitCast(uv1), @bitCast(tint_col), @bitCast(border_col));
+}
+pub fn imageButton(user_texture_id: TextureID, size: Vec2, uv0: Vec2, uv1: Vec2, frame_padding: c_int, bg_col: Vec4, tint_col: Vec4) bool { //igImageButton
+    return c.igImageButton(user_texture_id, @bitCast(size), @bitCast(uv0), @bitCast(uv1), frame_padding, @bitCast(bg_col), @bitCast(tint_col));
+}
+pub fn checkbox(label: [*c]const u8, v: [*c]bool) bool { //igCheckbox
+    return c.igCheckbox(label, v);
+}
+pub fn checkboxFlags_IntPtr(label: [*c]const u8, flags: [*c]c_int, flags_value: c_int) bool { //igCheckboxFlags_IntPtr
+    return c.igCheckboxFlags_IntPtr(label, flags, flags_value);
+}
+pub fn checkboxFlags_UintPtr(label: [*c]const u8, flags: [*c]c_uint, flags_value: c_uint) bool { //igCheckboxFlags_UintPtr
+    return c.igCheckboxFlags_UintPtr(label, flags, flags_value);
+}
+pub fn radioButton_Bool(label: [*c]const u8, active: bool) bool { //igRadioButton_Bool
+    return c.igRadioButton_Bool(label, active);
+}
+pub fn radioButton_IntPtr(label: [*c]const u8, v: [*c]c_int, v_button: c_int) bool { //igRadioButton_IntPtr
+    return c.igRadioButton_IntPtr(label, v, v_button);
+}
+pub fn progressBar(fraction: f32, size_arg: Vec2, overlay: [*c]const u8) void { //igProgressBar
+    c.igProgressBar(fraction, @bitCast(size_arg), overlay);
+}
+pub fn bullet() void { //igBullet
+    c.igBullet();
+}
+pub fn beginCombo(label: [*c]const u8, preview_value: [*c]const u8, flags: ComboFlags) bool { //igBeginCombo
+    return c.igBeginCombo(label, preview_value, @bitCast(flags));
+}
+pub fn endCombo() void { //igEndCombo
+    c.igEndCombo();
+}
+pub fn combo_Str(label: [*c]const u8, current_item: [*c]c_int, items_separated_by_zeros: [*c]const u8, popup_max_height_in_items: c_int) bool { //igCombo_Str
+    return c.igCombo_Str(label, current_item, items_separated_by_zeros, popup_max_height_in_items);
+}
+pub fn dragFloat(label: [*c]const u8, v: [*c]f32, v_speed: f32, v_min: f32, v_max: f32, format: [*c]const u8, flags: SliderFlags) bool { //igDragFloat
+    return c.igDragFloat(label, v, v_speed, v_min, v_max, format, @bitCast(flags));
+}
+pub fn dragFloatRange2(label: [*c]const u8, v_current_min: [*c]f32, v_current_max: [*c]f32, v_speed: f32, v_min: f32, v_max: f32, format: [*c]const u8, format_max: [*c]const u8, flags: SliderFlags) bool { //igDragFloatRange2
+    return c.igDragFloatRange2(label, v_current_min, v_current_max, v_speed, v_min, v_max, format, format_max, @bitCast(flags));
+}
+pub fn dragInt(label: [*c]const u8, v: [*c]c_int, v_speed: f32, v_min: c_int, v_max: c_int, format: [*c]const u8, flags: SliderFlags) bool { //igDragInt
+    return c.igDragInt(label, v, v_speed, v_min, v_max, format, @bitCast(flags));
+}
+pub fn dragIntRange2(label: [*c]const u8, v_current_min: [*c]c_int, v_current_max: [*c]c_int, v_speed: f32, v_min: c_int, v_max: c_int, format: [*c]const u8, format_max: [*c]const u8, flags: SliderFlags) bool { //igDragIntRange2
+    return c.igDragIntRange2(label, v_current_min, v_current_max, v_speed, v_min, v_max, format, format_max, @bitCast(flags));
+}
+pub fn dragScalar(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, v_speed: f32, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igDragScalar
+    return c.igDragScalar(label, @intFromEnum(data_type), p_data, v_speed, p_min, p_max, format, @bitCast(flags));
+}
+pub fn dragScalarN(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, components: c_int, v_speed: f32, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igDragScalarN
+    return c.igDragScalarN(label, @intFromEnum(data_type), p_data, components, v_speed, p_min, p_max, format, @bitCast(flags));
+}
+pub fn sliderFloat(label: [*c]const u8, v: [*c]f32, v_min: f32, v_max: f32, format: [*c]const u8, flags: SliderFlags) bool { //igSliderFloat
+    return c.igSliderFloat(label, v, v_min, v_max, format, @bitCast(flags));
+}
+pub fn sliderAngle(label: [*c]const u8, v_rad: [*c]f32, v_degrees_min: f32, v_degrees_max: f32, format: [*c]const u8, flags: SliderFlags) bool { //igSliderAngle
+    return c.igSliderAngle(label, v_rad, v_degrees_min, v_degrees_max, format, @bitCast(flags));
+}
+pub fn sliderInt(label: [*c]const u8, v: [*c]c_int, v_min: c_int, v_max: c_int, format: [*c]const u8, flags: SliderFlags) bool { //igSliderInt
+    return c.igSliderInt(label, v, v_min, v_max, format, @bitCast(flags));
+}
+pub fn sliderScalar(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igSliderScalar
+    return c.igSliderScalar(label, @intFromEnum(data_type), p_data, p_min, p_max, format, @bitCast(flags));
+}
+pub fn sliderScalarN(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, components: c_int, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igSliderScalarN
+    return c.igSliderScalarN(label, @intFromEnum(data_type), p_data, components, p_min, p_max, format, @bitCast(flags));
+}
+pub fn vSliderFloat(label: [*c]const u8, size: Vec2, v: [*c]f32, v_min: f32, v_max: f32, format: [*c]const u8, flags: SliderFlags) bool { //igVSliderFloat
+    return c.igVSliderFloat(label, @bitCast(size), v, v_min, v_max, format, @bitCast(flags));
+}
+pub fn vSliderInt(label: [*c]const u8, size: Vec2, v: [*c]c_int, v_min: c_int, v_max: c_int, format: [*c]const u8, flags: SliderFlags) bool { //igVSliderInt
+    return c.igVSliderInt(label, @bitCast(size), v, v_min, v_max, format, @bitCast(flags));
+}
+pub fn vSliderScalar(label: [*c]const u8, size: Vec2, data_type: DataType, p_data: ?*anyopaque, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igVSliderScalar
+    return c.igVSliderScalar(label, @bitCast(size), @intFromEnum(data_type), p_data, p_min, p_max, format, @bitCast(flags));
+}
+pub fn inputText(label: [*c]const u8, buf: [*c]u8, buf_size: usize, flags: InputTextFlags, callback: InputTextCallback, user_data: ?*anyopaque) bool { //igInputText
+    return c.igInputText(label, buf, buf_size, @bitCast(flags), callback, user_data);
+}
+pub fn inputTextMultiline(label: [*c]const u8, buf: [*c]u8, buf_size: usize, size: Vec2, flags: InputTextFlags, callback: InputTextCallback, user_data: ?*anyopaque) bool { //igInputTextMultiline
+    return c.igInputTextMultiline(label, buf, buf_size, @bitCast(size), @bitCast(flags), callback, user_data);
+}
+pub fn inputTextWithHint(label: [*c]const u8, hint: [*c]const u8, buf: [*c]u8, buf_size: usize, flags: InputTextFlags, callback: InputTextCallback, user_data: ?*anyopaque) bool { //igInputTextWithHint
+    return c.igInputTextWithHint(label, hint, buf, buf_size, @bitCast(flags), callback, user_data);
+}
+pub fn inputFloat(label: [*c]const u8, v: [*c]f32, step: f32, step_fast: f32, format: [*c]const u8, flags: InputTextFlags) bool { //igInputFloat
+    return c.igInputFloat(label, v, step, step_fast, format, @bitCast(flags));
+}
+pub fn inputInt(label: [*c]const u8, v: [*c]c_int, step: c_int, step_fast: c_int, flags: InputTextFlags) bool { //igInputInt
+    return c.igInputInt(label, v, step, step_fast, @bitCast(flags));
+}
 
-// ===
+pub fn inputDouble(label: [*c]const u8, v: [*c]f64, step: f64, step_fast: f64, format: [*c]const u8, flags: InputTextFlags) bool { //igInputDouble
+    return c.igInputDouble(label, v, step, step_fast, format, @bitCast(flags));
+}
+pub fn inputScalar(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, p_step: [*c]const void, p_step_fast: [*c]const void, format: [*c]const u8, flags: InputTextFlags) bool { //igInputScalar
+    return c.igInputScalar(label, @intFromEnum(data_type), p_data, p_step, p_step_fast, format, @bitCast(flags));
+}
+pub fn inputScalarN(label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, components: c_int, p_step: [*c]const void, p_step_fast: [*c]const void, format: [*c]const u8, flags: InputTextFlags) bool { //igInputScalarN
+    return c.igInputScalarN(label, @intFromEnum(data_type), p_data, components, p_step, p_step_fast, format, @bitCast(flags));
+}
+pub fn colorButton(desc_id: [*c]const u8, col: Vec4, flags: ColorEditFlags, size: Vec2) bool { //igColorButton
+    return c.igColorButton(desc_id, @bitCast(col), @bitCast(flags), @bitCast(size));
+}
+pub fn setColorEditOptions(flags: ColorEditFlags) void { //igSetColorEditOptions
+    c.igSetColorEditOptions(@bitCast(flags));
+}
+pub fn treeNode_Str(label: [*c]const u8) bool { //igTreeNode_Str
+    return c.igTreeNode_Str(label);
+}
+pub fn treeNodeEx_Str(label: [*c]const u8, flags: TreeNodeFlags) bool { //igTreeNodeEx_Str
+    return c.igTreeNodeEx_Str(label, @bitCast(flags));
+}
+pub fn treePush_Str(str_id: [*c]const u8) void { //igTreePush_Str
+    c.igTreePush_Str(str_id);
+}
+pub fn treePush_Ptr(ptr_id: [*c]const void) void { //igTreePush_Ptr
+    c.igTreePush_Ptr(ptr_id);
+}
+pub fn treePop() void { //igTreePop
+    c.igTreePop();
+}
+pub fn getTreeNodeToLabelSpacing() f32 { //igGetTreeNodeToLabelSpacing
+    return c.igGetTreeNodeToLabelSpacing();
+}
+pub fn collapsingHeader_TreeNodeFlags(label: [*c]const u8, flags: TreeNodeFlags) bool { //igCollapsingHeader_TreeNodeFlags
+    return c.igCollapsingHeader_TreeNodeFlags(label, @bitCast(flags));
+}
+pub fn collapsingHeader_BoolPtr(label: [*c]const u8, p_visible: [*c]bool, flags: TreeNodeFlags) bool { //igCollapsingHeader_BoolPtr
+    return c.igCollapsingHeader_BoolPtr(label, p_visible, @bitCast(flags));
+}
+pub fn setNextItemOpen(is_open: bool, cond: Cond) void { //igSetNextItemOpen
+    c.igSetNextItemOpen(is_open, @bitCast(cond));
+}
+pub fn selectable_Bool(label: [*c]const u8, selected: bool, flags: SelectableFlags, size: Vec2) bool { //igSelectable_Bool
+    return c.igSelectable_Bool(label, selected, @bitCast(flags), @bitCast(size));
+}
+pub fn selectable_BoolPtr(label: [*c]const u8, p_selected: [*c]bool, flags: SelectableFlags, size: Vec2) bool { //igSelectable_BoolPtr
+    return c.igSelectable_BoolPtr(label, p_selected, @bitCast(flags), @bitCast(size));
+}
+pub fn beginListBox(label: [*c]const u8, size: Vec2) bool { //igBeginListBox
+    return c.igBeginListBox(label, @bitCast(size));
+}
+pub fn endListBox() void { //igEndListBox
+    c.igEndListBox();
+}
+pub fn plotLines_FloatPtr(label: [*c]const u8, values: [*c]const f32, values_count: c_int, values_offset: c_int, overlay_text: [*c]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2, stride: c_int) void { //igPlotLines_FloatPtr
+    c.igPlotLines_FloatPtr(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, @bitCast(graph_size), stride);
+}
+pub fn plotHistogram_FloatPtr(label: [*c]const u8, values: [*c]const f32, values_count: c_int, values_offset: c_int, overlay_text: [*c]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2, stride: c_int) void { //igPlotHistogram_FloatPtr
+    c.igPlotHistogram_FloatPtr(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, @bitCast(graph_size), stride);
+}
+pub fn value_Bool(prefix: [*c]const u8, b: bool) void { //igValue_Bool
+    c.igValue_Bool(prefix, b);
+}
+pub fn value_Int(prefix: [*c]const u8, v: c_int) void { //igValue_Int
+    c.igValue_Int(prefix, v);
+}
+pub fn value_Uint(prefix: [*c]const u8, v: c_uint) void { //igValue_Uint
+    c.igValue_Uint(prefix, v);
+}
+pub fn value_Float(prefix: [*c]const u8, v: f32, float_format: [*c]const u8) void { //igValue_Float
+    c.igValue_Float(prefix, v, float_format);
+}
+pub fn beginMenuBar() bool { //igBeginMenuBar
+    return c.igBeginMenuBar();
+}
+pub fn endMenuBar() void { //igEndMenuBar
+    c.igEndMenuBar();
+}
+pub fn beginMainMenuBar() bool { //igBeginMainMenuBar
+    return c.igBeginMainMenuBar();
+}
+pub fn endMainMenuBar() void { //igEndMainMenuBar
+    c.igEndMainMenuBar();
+}
+pub fn beginMenu(label: [*c]const u8, enabled: bool) bool { //igBeginMenu
+    return c.igBeginMenu(label, enabled);
+}
+pub fn endMenu() void { //igEndMenu
+    c.igEndMenu();
+}
+pub fn menuItem_Bool(label: [*c]const u8, shortcut: [*c]const u8, selected: bool, enabled: bool) bool { //igMenuItem_Bool
+    return c.igMenuItem_Bool(label, shortcut, selected, enabled);
+}
+pub fn menuItem_BoolPtr(label: [*c]const u8, shortcut: [*c]const u8, p_selected: [*c]bool, enabled: bool) bool { //igMenuItem_BoolPtr
+    return c.igMenuItem_BoolPtr(label, shortcut, p_selected, enabled);
+}
+pub fn beginTooltip() void { //igBeginTooltip
+    c.igBeginTooltip();
+}
+pub fn endTooltip() void { //igEndTooltip
+    c.igEndTooltip();
+}
+pub fn beginPopup(str_id: [*c]const u8, flags: WindowFlags) bool { //igBeginPopup
+    return c.igBeginPopup(str_id, @bitCast(flags));
+}
+pub fn beginPopupModal(name: [*c]const u8, p_open: [*c]bool, flags: WindowFlags) bool { //igBeginPopupModal
+    return c.igBeginPopupModal(name, p_open, @bitCast(flags));
+}
+pub fn endPopup() void { //igEndPopup
+    c.igEndPopup();
+}
+pub fn openPopup_Str(str_id: [*c]const u8, popup_flags: PopupFlags) void { //igOpenPopup_Str
+    c.igOpenPopup_Str(str_id, @bitCast(popup_flags));
+}
+pub fn openPopup_ID(id: ID, popup_flags: PopupFlags) void { //igOpenPopup_ID
+    c.igOpenPopup_ID(id, @bitCast(popup_flags));
+}
+pub fn openPopupOnItemClick(str_id: [*c]const u8, popup_flags: PopupFlags) void { //igOpenPopupOnItemClick
+    c.igOpenPopupOnItemClick(str_id, @bitCast(popup_flags));
+}
+pub fn closeCurrentPopup() void { //igCloseCurrentPopup
+    c.igCloseCurrentPopup();
+}
+pub fn beginPopupContextItem(str_id: [*c]const u8, popup_flags: PopupFlags) bool { //igBeginPopupContextItem
+    return c.igBeginPopupContextItem(str_id, @bitCast(popup_flags));
+}
+pub fn beginPopupContextWindow(str_id: [*c]const u8, popup_flags: PopupFlags) bool { //igBeginPopupContextWindow
+    return c.igBeginPopupContextWindow(str_id, @bitCast(popup_flags));
+}
+pub fn beginPopupContextVoid(str_id: [*c]const u8, popup_flags: PopupFlags) bool { //igBeginPopupContextVoid
+    return c.igBeginPopupContextVoid(str_id, @bitCast(popup_flags));
+}
+pub fn isPopupOpen_Str(str_id: [*c]const u8, flags: PopupFlags) bool { //igIsPopupOpen_Str
+    return c.igIsPopupOpen_Str(str_id, @bitCast(flags));
+}
+pub fn beginTable(str_id: [*c]const u8, column: c_int, flags: TableFlags, outer_size: Vec2, inner_width: f32) bool { //igBeginTable
+    return c.igBeginTable(str_id, column, @bitCast(flags), @bitCast(outer_size), inner_width);
+}
+pub fn endTable() void { //igEndTable
+    c.igEndTable();
+}
+pub fn tableNextRow(row_flags: TableRowFlags, min_row_height: f32) void { //igTableNextRow
+    c.igTableNextRow(@bitCast(row_flags), min_row_height);
+}
+pub fn tableNextColumn() bool { //igTableNextColumn
+    return c.igTableNextColumn();
+}
+pub fn tableSetColumnIndex(column_n: c_int) bool { //igTableSetColumnIndex
+    return c.igTableSetColumnIndex(column_n);
+}
+pub fn tableSetupColumn(label: [*c]const u8, flags: TableColumnFlags, init_width_or_weight: f32, user_id: ID) void { //igTableSetupColumn
+    c.igTableSetupColumn(label, @bitCast(flags), init_width_or_weight, user_id);
+}
+pub fn tableSetupScrollFreeze(cols: c_int, rows: c_int) void { //igTableSetupScrollFreeze
+    c.igTableSetupScrollFreeze(cols, rows);
+}
+pub fn tableHeadersRow() void { //igTableHeadersRow
+    c.igTableHeadersRow();
+}
+pub fn tableHeader(label: [*c]const u8) void { //igTableHeader
+    c.igTableHeader(label);
+}
+pub fn tableGetColumnCount() c_int { //igTableGetColumnCount
+    return c.igTableGetColumnCount();
+}
+pub fn tableGetColumnIndex() c_int { //igTableGetColumnIndex
+    return c.igTableGetColumnIndex();
+}
+pub fn tableGetRowIndex() c_int { //igTableGetRowIndex
+    return c.igTableGetRowIndex();
+}
+pub fn tableGetColumnName_Int(column_n: c_int) [*c]const u8 { //igTableGetColumnName_Int
+    return c.igTableGetColumnName_Int(column_n);
+}
+pub fn tableGetColumnFlags(column_n: c_int) TableColumnFlags { //igTableGetColumnFlags
+    return c.igTableGetColumnFlags(column_n);
+}
+pub fn tableSetColumnEnabled(column_n: c_int, v: bool) void { //igTableSetColumnEnabled
+    c.igTableSetColumnEnabled(column_n, v);
+}
+pub fn tableSetBgColor(target: TableBgTarget, color: U32, column_n: c_int) void { //igTableSetBgColor
+    c.igTableSetBgColor(@bitCast(target), color, column_n);
+}
+pub fn columns(count: c_int, id: [*c]const u8, border: bool) void { //igColumns
+    c.igColumns(count, id, border);
+}
+pub fn nextColumn() void { //igNextColumn
+    c.igNextColumn();
+}
+pub fn getColumnIndex() c_int { //igGetColumnIndex
+    return c.igGetColumnIndex();
+}
+pub fn getColumnWidth(column_index: c_int) f32 { //igGetColumnWidth
+    return c.igGetColumnWidth(column_index);
+}
+pub fn setColumnWidth(column_index: c_int, width: f32) void { //igSetColumnWidth
+    c.igSetColumnWidth(column_index, width);
+}
+pub fn getColumnOffset(column_index: c_int) f32 { //igGetColumnOffset
+    return c.igGetColumnOffset(column_index);
+}
+pub fn setColumnOffset(column_index: c_int, offset_x: f32) void { //igSetColumnOffset
+    c.igSetColumnOffset(column_index, offset_x);
+}
+pub fn getColumnsCount() c_int { //igGetColumnsCount
+    return c.igGetColumnsCount();
+}
+pub fn beginTabBar(str_id: [*c]const u8, flags: TabBarFlags) bool { //igBeginTabBar
+    return c.igBeginTabBar(str_id, @bitCast(flags));
+}
+pub fn endTabBar() void { //igEndTabBar
+    c.igEndTabBar();
+}
+pub fn beginTabItem(label: [*c]const u8, p_open: [*c]bool, flags: TabItemFlags) bool { //igBeginTabItem
+    return c.igBeginTabItem(label, p_open, @bitCast(flags));
+}
+pub fn endTabItem() void { //igEndTabItem
+    c.igEndTabItem();
+}
+pub fn tabItemButton(label: [*c]const u8, flags: TabItemFlags) bool { //igTabItemButton
+    return c.igTabItemButton(label, @bitCast(flags));
+}
+pub fn setTabItemClosed(tab_or_docked_window_label: [*c]const u8) void { //igSetTabItemClosed
+    c.igSetTabItemClosed(tab_or_docked_window_label);
+}
+pub fn dockSpace(id: ID, size: Vec2, flags: DockNodeFlags, window_class: [*c]const WindowClass) ID { //igDockSpace
+    return c.igDockSpace(id, @bitCast(size), @bitCast(flags), @ptrCast(window_class));
+}
+pub fn dockSpaceOverViewport(viewport: [*c]const Viewport, flags: DockNodeFlags, window_class: [*c]const WindowClass) ID { //igDockSpaceOverViewport
+    return c.igDockSpaceOverViewport(viewport, @bitCast(flags), @ptrCast(window_class));
+}
+pub fn setNextWindowDockID(dock_id: ID, cond: Cond) void { //igSetNextWindowDockID
+    c.igSetNextWindowDockID(dock_id, @bitCast(cond));
+}
+pub fn setNextWindowClass(window_class: [*c]const WindowClass) void { //igSetNextWindowClass
+    c.igSetNextWindowClass(@ptrCast(window_class));
+}
+pub fn getWindowDockID() ID { //igGetWindowDockID
+    return c.igGetWindowDockID();
+}
+pub fn isWindowDocked() bool { //igIsWindowDocked
+    return c.igIsWindowDocked();
+}
+pub fn logToTTY(auto_open_depth: c_int) void { //igLogToTTY
+    c.igLogToTTY(auto_open_depth);
+}
+pub fn logToFile(auto_open_depth: c_int, filename: [*c]const u8) void { //igLogToFile
+    c.igLogToFile(auto_open_depth, filename);
+}
+pub fn logToClipboard(auto_open_depth: c_int) void { //igLogToClipboard
+    c.igLogToClipboard(auto_open_depth);
+}
+pub fn logFinish() void { //igLogFinish
+    c.igLogFinish();
+}
+pub fn logButtons() void { //igLogButtons
+    c.igLogButtons();
+}
+pub fn beginDragDropSource(flags: DragDropFlags) bool { //igBeginDragDropSource
+    return c.igBeginDragDropSource(@bitCast(flags));
+}
+pub fn setDragDropPayload(t: [*c]const u8, data: [*c]const void, sz: usize, cond: Cond) bool { //igSetDragDropPayload
+    return c.igSetDragDropPayload(t, data, sz, @bitCast(cond));
+}
+pub fn endDragDropSource() void { //igEndDragDropSource
+    c.igEndDragDropSource();
+}
+pub fn beginDragDropTarget() bool { //igBeginDragDropTarget
+    return c.igBeginDragDropTarget();
+}
+pub fn acceptDragDropPayload(t: [*c]const u8, flags: DragDropFlags) [*c]const Payload { //igAcceptDragDropPayload
+    return c.igAcceptDragDropPayload(t, @bitCast(flags));
+}
+pub fn endDragDropTarget() void { //igEndDragDropTarget
+    c.igEndDragDropTarget();
+}
+pub fn getDragDropPayload() [*c]const Payload { //igGetDragDropPayload
+    return c.igGetDragDropPayload();
+}
+pub fn beginDisabled(disabled: bool) void { //igBeginDisabled
+    c.igBeginDisabled(disabled);
+}
+pub fn endDisabled() void { //igEndDisabled
+    c.igEndDisabled();
+}
+pub fn pushClipRect(clip_rect_min: Vec2, clip_rect_max: Vec2, intersect_with_current_clip_rect: bool) void { //igPushClipRect
+    c.igPushClipRect(@bitCast(clip_rect_min), @bitCast(clip_rect_max), intersect_with_current_clip_rect);
+}
+pub fn popClipRect() void { //igPopClipRect
+    c.igPopClipRect();
+}
+pub fn setItemDefaultFocus() void { //igSetItemDefaultFocus
+    c.igSetItemDefaultFocus();
+}
+pub fn setKeyboardFocusHere(offset: c_int) void { //igSetKeyboardFocusHere
+    c.igSetKeyboardFocusHere(offset);
+}
+pub fn isItemHovered(flags: HoveredFlags) bool { //igIsItemHovered
+    return c.igIsItemHovered(@bitCast(flags));
+}
+pub fn isItemActive() bool { //igIsItemActive
+    return c.igIsItemActive();
+}
+pub fn isItemFocused() bool { //igIsItemFocused
+    return c.igIsItemFocused();
+}
+pub fn isItemClicked(mouse_button: MouseButton) bool { //igIsItemClicked
+    return c.igIsItemClicked(@intFromEnum(mouse_button));
+}
+pub fn isItemVisible() bool { //igIsItemVisible
+    return c.igIsItemVisible();
+}
+pub fn isItemEdited() bool { //igIsItemEdited
+    return c.igIsItemEdited();
+}
+pub fn isItemActivated() bool { //igIsItemActivated
+    return c.igIsItemActivated();
+}
+pub fn isItemDeactivated() bool { //igIsItemDeactivated
+    return c.igIsItemDeactivated();
+}
+pub fn isItemDeactivatedAfterEdit() bool { //igIsItemDeactivatedAfterEdit
+    return c.igIsItemDeactivatedAfterEdit();
+}
+pub fn isItemToggledOpen() bool { //igIsItemToggledOpen
+    return c.igIsItemToggledOpen();
+}
+pub fn isAnyItemHovered() bool { //igIsAnyItemHovered
+    return c.igIsAnyItemHovered();
+}
+pub fn isAnyItemActive() bool { //igIsAnyItemActive
+    return c.igIsAnyItemActive();
+}
+pub fn isAnyItemFocused() bool { //igIsAnyItemFocused
+    return c.igIsAnyItemFocused();
+}
+pub fn getItemRectMin(pout: [*c]Vec2) void { //igGetItemRectMin
+    c.igGetItemRectMin(pout);
+}
+pub fn getItemRectMax(pout: [*c]Vec2) void { //igGetItemRectMax
+    c.igGetItemRectMax(pout);
+}
+pub fn getItemRectSize(pout: [*c]Vec2) void { //igGetItemRectSize
+    c.igGetItemRectSize(pout);
+}
+pub fn setItemAllowOverlap() void { //igSetItemAllowOverlap
+    c.igSetItemAllowOverlap();
+}
+pub fn getMainViewport() ?*Viewport { //igGetMainViewport
+    return @ptrCast(c.igGetMainViewport());
+}
+pub fn getBackgroundDrawList_Nil() [*c]DrawList { //igGetBackgroundDrawList_Nil
+    return c.igGetBackgroundDrawList_Nil();
+}
+pub fn getForegroundDrawList_Nil() [*c]DrawList { //igGetForegroundDrawList_Nil
+    return c.igGetForegroundDrawList_Nil();
+}
+pub fn getBackgroundDrawList_ViewportPtr(viewport: [*c]Viewport) [*c]DrawList { //igGetBackgroundDrawList_ViewportPtr
+    return c.igGetBackgroundDrawList_ViewportPtr(viewport);
+}
+pub fn getForegroundDrawList_ViewportPtr(viewport: [*c]Viewport) [*c]DrawList { //igGetForegroundDrawList_ViewportPtr
+    return c.igGetForegroundDrawList_ViewportPtr(viewport);
+}
+pub fn isRectVisible_Nil(size: Vec2) bool { //igIsRectVisible_Nil
+    return c.igIsRectVisible_Nil(@bitCast(size));
+}
+pub fn isRectVisible_Vec2(rect_min: Vec2, rect_max: Vec2) bool { //igIsRectVisible_Vec2
+    return c.igIsRectVisible_Vec2(@bitCast(rect_min), @bitCast(rect_max));
+}
+pub fn getTime() f64 { //igGetTime
+    return c.igGetTime();
+}
+pub fn getFrameCount() c_int { //igGetFrameCount
+    return c.igGetFrameCount();
+}
+pub fn getDrawListSharedData() [*c]DrawListSharedData { //igGetDrawListSharedData
+    return c.igGetDrawListSharedData();
+}
+pub fn getStyleColorName(idx: StyleColor) [*c]const u8 { //igGetStyleColorName
+    return c.igGetStyleColorName(idx);
+}
+pub fn setStateStorage(storage: [*c]Storage) void { //igSetStateStorage
+    c.igSetStateStorage(storage);
+}
+pub fn getStateStorage() [*c]Storage { //igGetStateStorage
+    return c.igGetStateStorage();
+}
+pub fn beginChildFrame(id: ID, size: Vec2, flags: WindowFlags) bool { //igBeginChildFrame
+    return c.igBeginChildFrame(id, @bitCast(size), @bitCast(flags));
+}
+pub fn endChildFrame() void { //igEndChildFrame
+    c.igEndChildFrame();
+}
+pub fn calcTextSize(pout: [*c]Vec2, text: [*c]const u8, text_end: [*c]const u8, hide_text_after_double_hash: bool, wrap_width: f32) void { //igCalcTextSize
+    c.igCalcTextSize(pout, text, text_end, hide_text_after_double_hash, wrap_width);
+}
+pub fn colorConvertU32ToFloat4(pout: [*c]Vec4, in: U32) void { //igColorConvertU32ToFloat4
+    c.igColorConvertU32ToFloat4(pout, in);
+}
+pub fn colorConvertFloat4ToU32(in: Vec4) U32 { //igColorConvertFloat4ToU32
+    return c.igColorConvertFloat4ToU32(@bitCast(in));
+}
+pub fn colorConvertRGBtoHSV(r: f32, g: f32, b: f32, out_h: [*c]f32, out_s: [*c]f32, out_v: [*c]f32) void { //igColorConvertRGBtoHSV
+    c.igColorConvertRGBtoHSV(r, g, b, out_h, out_s, out_v);
+}
+pub fn colorConvertHSVtoRGB(h: f32, s: f32, v: f32, out_r: [*c]f32, out_g: [*c]f32, out_b: [*c]f32) void { //igColorConvertHSVtoRGB
+    c.igColorConvertHSVtoRGB(h, s, v, out_r, out_g, out_b);
+}
+pub fn isKeyDown(key: Key) bool { //igIsKeyDown
+    return c.igIsKeyDown(@intFromEnum(key));
+}
+pub fn isKeyPressed(key: Key, repeat: bool) bool { //igIsKeyPressed
+    return c.igIsKeyPressed(@intFromEnum(key), repeat);
+}
+pub fn isKeyReleased(key: Key) bool { //igIsKeyReleased
+    return c.igIsKeyReleased(@intFromEnum(key));
+}
+pub fn getKeyPressedAmount(key: Key, repeat_delay: f32, rate: f32) c_int { //igGetKeyPressedAmount
+    return c.igGetKeyPressedAmount(@intFromEnum(key), repeat_delay, rate);
+}
+pub fn getKeyName(key: Key) [*c]const u8 { //igGetKeyName
+    return c.igGetKeyName(@intFromEnum(key));
+}
+pub fn setNextFrameWantCaptureKeyboard(want_capture_keyboard: bool) void { //igSetNextFrameWantCaptureKeyboard
+    c.igSetNextFrameWantCaptureKeyboard(want_capture_keyboard);
+}
+pub fn isMouseDown(btn: MouseButton) bool { //igIsMouseDown
+    return c.igIsMouseDown(@intFromEnum(btn));
+}
+pub fn isMouseClicked(btn: MouseButton, repeat: bool) bool { //igIsMouseClicked
+    return c.igIsMouseClicked(@intFromEnum(btn), repeat);
+}
+pub fn isMouseReleased(btn: MouseButton) bool { //igIsMouseReleased
+    return c.igIsMouseReleased(@intFromEnum(btn));
+}
+pub fn isMouseDoubleClicked(btn: MouseButton) bool { //igIsMouseDoubleClicked
+    return c.igIsMouseDoubleClicked(@intFromEnum(btn));
+}
+pub fn getMouseClickedCount(btn: MouseButton) c_int { //igGetMouseClickedCount
+    return c.igGetMouseClickedCount(@intFromEnum(btn));
+}
+pub fn isMouseHoveringRect(r_min: Vec2, r_max: Vec2, clip: bool) bool { //igIsMouseHoveringRect
+    return c.igIsMouseHoveringRect(@bitCast(r_min), @bitCast(r_max), clip);
+}
+pub fn isMousePosValid(mouse_pos: [*c]const Vec2) bool { //igIsMousePosValid
+    return c.igIsMousePosValid(mouse_pos);
+}
+pub fn isAnyMouseDown() bool { //igIsAnyMouseDown
+    return c.igIsAnyMouseDown();
+}
+pub fn getMousePos(pout: [*c]Vec2) void { //igGetMousePos
+    c.igGetMousePos(pout);
+}
+pub fn getMousePosOnOpeningCurrentPopup(pout: [*c]Vec2) void { //igGetMousePosOnOpeningCurrentPopup
+    c.igGetMousePosOnOpeningCurrentPopup(pout);
+}
+pub fn isMouseDragging(btn: MouseButton, lock_threshold: f32) bool { //igIsMouseDragging
+    return c.igIsMouseDragging(@intFromEnum(btn), lock_threshold);
+}
+pub fn getMouseDragDelta(pout: [*c]Vec2, btn: MouseButton, lock_threshold: f32) void { //igGetMouseDragDelta
+    c.igGetMouseDragDelta(pout, @intFromEnum(btn), lock_threshold);
+}
+pub fn resetMouseDragDelta(btn: MouseButton) void { //igResetMouseDragDelta
+    c.igResetMouseDragDelta(@intFromEnum(btn));
+}
+pub fn getMouseCursor() MouseCursor { //igGetMouseCursor
+    return c.igGetMouseCursor();
+}
+pub fn setMouseCursor(cursor_type: MouseCursor) void { //igSetMouseCursor
+    c.igSetMouseCursor(@intFromEnum(cursor_type));
+}
+pub fn setNextFrameWantCaptureMouse(want_capture_mouse: bool) void { //igSetNextFrameWantCaptureMouse
+    c.igSetNextFrameWantCaptureMouse(want_capture_mouse);
+}
+pub fn getClipboardText() [*c]const u8 { //igGetClipboardText
+    return c.igGetClipboardText();
+}
+pub fn setClipboardText(text: [*c]const u8) void { //igSetClipboardText
+    c.igSetClipboardText(text);
+}
+pub fn loadIniSettingsFromDisk(ini_filename: [*c]const u8) void { //igLoadIniSettingsFromDisk
+    c.igLoadIniSettingsFromDisk(ini_filename);
+}
+pub fn loadIniSettingsFromMemory(ini_data: [*c]const u8, ini_size: usize) void { //igLoadIniSettingsFromMemory
+    c.igLoadIniSettingsFromMemory(ini_data, ini_size);
+}
+pub fn saveIniSettingsToDisk(ini_filename: [*c]const u8) void { //igSaveIniSettingsToDisk
+    c.igSaveIniSettingsToDisk(ini_filename);
+}
+pub fn saveIniSettingsToMemory(out_ini_size: [*c]usize) [*c]const u8 { //igSaveIniSettingsToMemory
+    return c.igSaveIniSettingsToMemory(out_ini_size);
+}
+pub fn debugTextEncoding(text: [*c]const u8) void { //igDebugTextEncoding
+    c.igDebugTextEncoding(text);
+}
+pub fn debugCheckVersionAndDataLayout(version_str: [*c]const u8, sz_io: usize, sz_style: usize, sz_vec2: usize, sz_vec4: usize, sz_drawvert: usize, sz_drawidx: usize) bool { //igDebugCheckVersionAndDataLayout
+    return c.igDebugCheckVersionAndDataLayout(version_str, sz_io, sz_style, sz_vec2, sz_vec4, sz_drawvert, sz_drawidx);
+}
+pub fn setAllocatorFunctions(alloc_func: MemAllocFunc, free_func: MemFreeFunc, user_data: ?*anyopaque) void { //igSetAllocatorFunctions
+    c.igSetAllocatorFunctions(alloc_func, free_func, user_data);
+}
+pub fn getAllocatorFunctions(p_alloc_func: [*c]MemAllocFunc, p_free_func: [*c]MemFreeFunc, p_user_data: [*c]void) void { //igGetAllocatorFunctions
+    c.igGetAllocatorFunctions(p_alloc_func, p_free_func, p_user_data);
+}
+pub fn memAlloc(size: usize) ?*anyopaque { //igMemAlloc
+    return c.igMemAlloc(size);
+}
+pub fn memFree(ptr: ?*anyopaque) void { //igMemFree
+    c.igMemFree(ptr);
+}
+pub fn getPlatformIO() [*c]PlatformIO { //igGetPlatformIO
+    return c.igGetPlatformIO();
+}
+pub fn updatePlatformWindows() void { //igUpdatePlatformWindows
+    c.igUpdatePlatformWindows();
+}
+pub fn renderPlatformWindowsDefault(platform_render_arg: ?*anyopaque, renderer_render_arg: ?*anyopaque) void { //igRenderPlatformWindowsDefault
+    c.igRenderPlatformWindowsDefault(platform_render_arg, renderer_render_arg);
+}
+pub fn destroyPlatformWindows() void { //igDestroyPlatformWindows
+    c.igDestroyPlatformWindows();
+}
+pub fn findViewportByID(id: ID) [*c]Viewport { //igFindViewportByID
+    return c.igFindViewportByID(id);
+}
+pub fn findViewportByPlatformHandle(platform_handle: ?*anyopaque) [*c]Viewport { //igFindViewportByPlatformHandle
+    return c.igFindViewportByPlatformHandle(platform_handle);
+}
+pub fn getKeyIndex(key: Key) c_int { //igGetKeyIndex
+    return c.igGetKeyIndex(@intFromEnum(key));
+}
+pub fn imHashData(data: [*c]const void, data_size: usize, seed: U32) ID { //igImHashData
+    return c.igImHashData(data, data_size, seed);
+}
+pub fn imHashStr(data: [*c]const u8, data_size: usize, seed: U32) ID { //igImHashStr
+    return c.igImHashStr(data, data_size, seed);
+}
+pub fn imQsort(base: ?*anyopaque, count: usize, size_of_element: usize) void { //igImQsort
+    c.igImQsort(base, count, size_of_element);
+}
+pub fn imAlphaBlendColors(col_a: U32, col_b: U32) U32 { //igImAlphaBlendColors
+    return c.igImAlphaBlendColors(col_a, col_b);
+}
+pub fn imIsPowerOfTwo_Int(v: c_int) bool { //igImIsPowerOfTwo_Int
+    return c.igImIsPowerOfTwo_Int(v);
+}
+pub fn imIsPowerOfTwo_U64(v: U64) bool { //igImIsPowerOfTwo_U64
+    return c.igImIsPowerOfTwo_U64(v);
+}
+pub fn imUpperPowerOfTwo(v: c_int) c_int { //igImUpperPowerOfTwo
+    return c.igImUpperPowerOfTwo(v);
+}
+pub fn imStricmp(str1: [*c]const u8, str2: [*c]const u8) c_int { //igImStricmp
+    return c.igImStricmp(str1, str2);
+}
+pub fn imStrnicmp(str1: [*c]const u8, str2: [*c]const u8, count: usize) c_int { //igImStrnicmp
+    return c.igImStrnicmp(str1, str2, count);
+}
+pub fn imStrncpy(dst: [*c]u8, src: [*c]const u8, count: usize) void { //igImStrncpy
+    c.igImStrncpy(dst, src, count);
+}
+pub fn imStrdup(str: [*c]const u8) [*c]u8 { //igImStrdup
+    return c.igImStrdup(str);
+}
+pub fn imStrdupcpy(dst: [*c]u8, p_dst_size: [*c]usize, str: [*c]const u8) [*c]u8 { //igImStrdupcpy
+    return c.igImStrdupcpy(dst, p_dst_size, str);
+}
+pub fn imStrchrRange(str_begin: [*c]const u8, str_end: [*c]const u8, ch: u8) [*c]const u8 { //igImStrchrRange
+    return c.igImStrchrRange(str_begin, str_end, ch);
+}
+pub fn imStrlenW(str: [*c]const Wchar) c_int { //igImStrlenW
+    return c.igImStrlenW(str);
+}
+pub fn imStreolRange(str: [*c]const u8, str_end: [*c]const u8) [*c]const u8 { //igImStreolRange
+    return c.igImStreolRange(str, str_end);
+}
+pub fn imStrbolW(buf_mid_line: [*c]const Wchar, buf_begin: [*c]const Wchar) [*c]const Wchar { //igImStrbolW
+    return c.igImStrbolW(buf_mid_line, buf_begin);
+}
+pub fn imStristr(haystack: [*c]const u8, haystack_end: [*c]const u8, needle: [*c]const u8, needle_end: [*c]const u8) [*c]const u8 { //igImStristr
+    return c.igImStristr(haystack, haystack_end, needle, needle_end);
+}
+pub fn imStrTrimBlanks(str: [*c]u8) void { //igImStrTrimBlanks
+    c.igImStrTrimBlanks(str);
+}
+pub fn imStrSkipBlank(str: [*c]const u8) [*c]const u8 { //igImStrSkipBlank
+    return c.igImStrSkipBlank(str);
+}
+pub fn imCharIsBlankA(ch: u8) bool { //igImCharIsBlankA
+    return c.igImCharIsBlankA(ch);
+}
+pub fn imCharIsBlankW(ch: c_uint) bool { //igImCharIsBlankW
+    return c.igImCharIsBlankW(ch);
+}
+pub fn imParseFormatFindStart(format: [*c]const u8) [*c]const u8 { //igImParseFormatFindStart
+    return c.igImParseFormatFindStart(format);
+}
+pub fn imParseFormatFindEnd(format: [*c]const u8) [*c]const u8 { //igImParseFormatFindEnd
+    return c.igImParseFormatFindEnd(format);
+}
+pub fn imParseFormatTrimDecorations(format: [*c]const u8, buf: [*c]u8, buf_size: usize) [*c]const u8 { //igImParseFormatTrimDecorations
+    return c.igImParseFormatTrimDecorations(format, buf, buf_size);
+}
+pub fn imParseFormatSanitizeForPrinting(fmt_in: [*c]const u8, fmt_out: [*c]u8, fmt_out_size: usize) void { //igImParseFormatSanitizeForPrinting
+    c.igImParseFormatSanitizeForPrinting(fmt_in, fmt_out, fmt_out_size);
+}
+pub fn imParseFormatSanitizeForScanning(fmt_in: [*c]const u8, fmt_out: [*c]u8, fmt_out_size: usize) [*c]const u8 { //igImParseFormatSanitizeForScanning
+    return c.igImParseFormatSanitizeForScanning(fmt_in, fmt_out, fmt_out_size);
+}
+pub fn imParseFormatPrecision(format: [*c]const u8, default_value: c_int) c_int { //igImParseFormatPrecision
+    return c.igImParseFormatPrecision(format, default_value);
+}
+pub fn imTextStrToUtf8(out_buf: [*c]u8, out_buf_size: c_int, in_text: [*c]const Wchar, in_text_end: [*c]const Wchar) c_int { //igImTextStrToUtf8
+    return c.igImTextStrToUtf8(out_buf, out_buf_size, in_text, in_text_end);
+}
+pub fn imTextCharFromUtf8(out_char: [*c]c_uint, in_text: [*c]const u8, in_text_end: [*c]const u8) c_int { //igImTextCharFromUtf8
+    return c.igImTextCharFromUtf8(out_char, in_text, in_text_end);
+}
+pub fn imTextStrFromUtf8(out_buf: [*c]Wchar, out_buf_size: c_int, in_text: [*c]const u8, in_text_end: [*c]const u8, in_remaining: [*c]const u8) c_int { //igImTextStrFromUtf8
+    return c.igImTextStrFromUtf8(out_buf, out_buf_size, in_text, in_text_end, in_remaining);
+}
+pub fn imTextCountCharsFromUtf8(in_text: [*c]const u8, in_text_end: [*c]const u8) c_int { //igImTextCountCharsFromUtf8
+    return c.igImTextCountCharsFromUtf8(in_text, in_text_end);
+}
+pub fn imTextCountUtf8BytesFromChar(in_text: [*c]const u8, in_text_end: [*c]const u8) c_int { //igImTextCountUtf8BytesFromChar
+    return c.igImTextCountUtf8BytesFromChar(in_text, in_text_end);
+}
+pub fn imTextCountUtf8BytesFromStr(in_text: [*c]const Wchar, in_text_end: [*c]const Wchar) c_int { //igImTextCountUtf8BytesFromStr
+    return c.igImTextCountUtf8BytesFromStr(in_text, in_text_end);
+}
+pub fn imFileOpen(filename: [*c]const u8, mode: [*c]const u8) FileHandle { //igImFileOpen
+    return c.igImFileOpen(filename, mode);
+}
+pub fn imFileClose(file: FileHandle) bool { //igImFileClose
+    return c.igImFileClose(file);
+}
+pub fn imFileGetSize(file: FileHandle) U64 { //igImFileGetSize
+    return c.igImFileGetSize(file);
+}
+pub fn imFileRead(data: ?*anyopaque, size: U64, count: U64, file: FileHandle) U64 { //igImFileRead
+    return c.igImFileRead(data, size, count, file);
+}
+pub fn imFileWrite(data: [*c]const void, size: U64, count: U64, file: FileHandle) U64 { //igImFileWrite
+    return c.igImFileWrite(data, size, count, file);
+}
+pub fn imFileLoadToMemory(filename: [*c]const u8, mode: [*c]const u8, out_file_size: [*c]usize, padding_bytes: c_int) ?*anyopaque { //igImFileLoadToMemory
+    return c.igImFileLoadToMemory(filename, mode, out_file_size, padding_bytes);
+}
+pub fn imPow_Float(x: f32, y: f32) f32 { //igImPow_Float
+    return c.igImPow_Float(x, y);
+}
+pub fn imPow_double(x: f64, y: f64) f64 { //igImPow_double
+    return c.igImPow_double(x, y);
+}
+pub fn imLog_Float(x: f32) f32 { //igImLog_Float
+    return c.igImLog_Float(x);
+}
+pub fn imLog_double(x: f64) f64 { //igImLog_double
+    return c.igImLog_double(x);
+}
+pub fn imAbs_Int(x: c_int) c_int { //igImAbs_Int
+    return c.igImAbs_Int(x);
+}
+pub fn imAbs_Float(x: f32) f32 { //igImAbs_Float
+    return c.igImAbs_Float(x);
+}
+pub fn imAbs_double(x: f64) f64 { //igImAbs_double
+    return c.igImAbs_double(x);
+}
+pub fn imSign_Float(x: f32) f32 { //igImSign_Float
+    return c.igImSign_Float(x);
+}
+pub fn imSign_double(x: f64) f64 { //igImSign_double
+    return c.igImSign_double(x);
+}
+pub fn imRsqrt_Float(x: f32) f32 { //igImRsqrt_Float
+    return c.igImRsqrt_Float(x);
+}
+pub fn imRsqrt_double(x: f64) f64 { //igImRsqrt_double
+    return c.igImRsqrt_double(x);
+}
+pub fn imMin(pout: [*c]Vec2, lhs: Vec2, rhs: Vec2) void { //igImMin
+    c.igImMin(pout, @bitCast(lhs), @bitCast(rhs));
+}
+pub fn imMax(pout: [*c]Vec2, lhs: Vec2, rhs: Vec2) void { //igImMax
+    c.igImMax(pout, @bitCast(lhs), @bitCast(rhs));
+}
+pub fn imClamp(pout: [*c]Vec2, v: Vec2, mn: Vec2, mx: Vec2) void { //igImClamp
+    c.igImClamp(pout, @bitCast(v), @bitCast(mn), @bitCast(mx));
+}
+pub fn imLerp_Vec2Float(pout: [*c]Vec2, a: Vec2, b: Vec2, t: f32) void { //igImLerp_Vec2Float
+    c.igImLerp_Vec2Float(pout, @bitCast(a), @bitCast(b), t);
+}
+pub fn imLerp_Vec2Vec2(pout: [*c]Vec2, a: Vec2, b: Vec2, t: Vec2) void { //igImLerp_Vec2Vec2
+    c.igImLerp_Vec2Vec2(pout, @bitCast(a), @bitCast(b), @bitCast(t));
+}
+pub fn imLerp_Vec4(pout: [*c]Vec4, a: Vec4, b: Vec4, t: f32) void { //igImLerp_Vec4
+    c.igImLerp_Vec4(pout, @bitCast(a), @bitCast(b), t);
+}
+pub fn imSaturate(f: f32) f32 { //igImSaturate
+    return c.igImSaturate(f);
+}
+pub fn imLengthSqr_Vec2(lhs: Vec2) f32 { //igImLengthSqr_Vec2
+    return c.igImLengthSqr_Vec2(@bitCast(lhs));
+}
+pub fn imLengthSqr_Vec4(lhs: Vec4) f32 { //igImLengthSqr_Vec4
+    return c.igImLengthSqr_Vec4(@bitCast(lhs));
+}
+pub fn imInvLength(lhs: Vec2, fail_value: f32) f32 { //igImInvLength
+    return c.igImInvLength(@bitCast(lhs), fail_value);
+}
+pub fn imFloor_Float(f: f32) f32 { //igImFloor_Float
+    return c.igImFloor_Float(f);
+}
+pub fn imFloorSigned_Float(f: f32) f32 { //igImFloorSigned_Float
+    return c.igImFloorSigned_Float(f);
+}
+pub fn imFloor_Vec2(pout: [*c]Vec2, v: Vec2) void { //igImFloor_Vec2
+    c.igImFloor_Vec2(pout, @bitCast(v));
+}
+pub fn imFloorSigned_Vec2(pout: [*c]Vec2, v: Vec2) void { //igImFloorSigned_Vec2
+    c.igImFloorSigned_Vec2(pout, @bitCast(v));
+}
+pub fn imModPositive(a: c_int, b: c_int) c_int { //igImModPositive
+    return c.igImModPositive(a, b);
+}
+pub fn imDot(a: Vec2, b: Vec2) f32 { //igImDot
+    return c.igImDot(@bitCast(a), @bitCast(b));
+}
+pub fn imRotate(pout: [*c]Vec2, v: Vec2, cos_a: f32, sin_a: f32) void { //igImRotate
+    c.igImRotate(pout, @bitCast(v), cos_a, sin_a);
+}
+pub fn imLinearSweep(current: f32, target: f32, speed: f32) f32 { //igImLinearSweep
+    return c.igImLinearSweep(current, target, speed);
+}
+pub fn imMul(pout: [*c]Vec2, lhs: Vec2, rhs: Vec2) void { //igImMul
+    c.igImMul(pout, @bitCast(lhs), @bitCast(rhs));
+}
+pub fn imIsFloatAboveGuaranteedIntegerPrecision(f: f32) bool { //igImIsFloatAboveGuaranteedIntegerPrecision
+    return c.igImIsFloatAboveGuaranteedIntegerPrecision(f);
+}
+pub fn imBezierCubicCalc(pout: [*c]Vec2, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, t: f32) void { //igImBezierCubicCalc
+    c.igImBezierCubicCalc(pout, @bitCast(p1), @bitCast(p2), @bitCast(p3), @bitCast(p4), t);
+}
+pub fn imBezierCubicClosestPoint(pout: [*c]Vec2, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, p: Vec2, num_segments: c_int) void { //igImBezierCubicClosestPoint
+    c.igImBezierCubicClosestPoint(pout, @bitCast(p1), @bitCast(p2), @bitCast(p3), @bitCast(p4), @bitCast(p), num_segments);
+}
+pub fn imBezierCubicClosestPointCasteljau(pout: [*c]Vec2, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, p: Vec2, tess_tol: f32) void { //igImBezierCubicClosestPointCasteljau
+    c.igImBezierCubicClosestPointCasteljau(pout, @bitCast(p1), @bitCast(p2), @bitCast(p3), @bitCast(p4), @bitCast(p), tess_tol);
+}
+pub fn imBezierQuadraticCalc(pout: [*c]Vec2, p1: Vec2, p2: Vec2, p3: Vec2, t: f32) void { //igImBezierQuadraticCalc
+    c.igImBezierQuadraticCalc(pout, @bitCast(p1), @bitCast(p2), @bitCast(p3), t);
+}
+pub fn imLineClosestPoint(pout: [*c]Vec2, a: Vec2, b: Vec2, p: Vec2) void { //igImLineClosestPoint
+    c.igImLineClosestPoint(pout, @bitCast(a), @bitCast(b), @bitCast(p));
+}
+pub fn imTriangleContainsPoint(a: Vec2, b: Vec2, _c: Vec2, p: Vec2) bool { //igImTriangleContainsPoint
+    return c.igImTriangleContainsPoint(@bitCast(a), @bitCast(b), @bitCast(_c), @bitCast(p));
+}
+pub fn imTriangleClosestPoint(pout: [*c]Vec2, a: Vec2, b: Vec2, _c: Vec2, p: Vec2) void { //igImTriangleClosestPoint
+    c.igImTriangleClosestPoint(pout, @bitCast(a), @bitCast(b), @bitCast(_c), @bitCast(p));
+}
+pub fn imTriangleBarycentricCoords(a: Vec2, b: Vec2, _c: Vec2, p: Vec2, out_u: [*c]f32, out_v: [*c]f32, out_w: [*c]f32) void { //igImTriangleBarycentricCoords
+    c.igImTriangleBarycentricCoords(@bitCast(a), @bitCast(b), @bitCast(_c), @bitCast(p), out_u, out_v, out_w);
+}
+pub fn imTriangleArea(a: Vec2, b: Vec2, _c: Vec2) f32 { //igImTriangleArea
+    return c.igImTriangleArea(@bitCast(a), @bitCast(b), @bitCast(_c));
+}
+pub fn imGetDirQuadrantFromDelta(dx: f32, dy: f32) Dir { //igImGetDirQuadrantFromDelta
+    return c.igImGetDirQuadrantFromDelta(dx, dy);
+}
+pub fn imBitArrayTestBit(arr: [*c]const U32, n: c_int) bool { //igImBitArrayTestBit
+    return c.igImBitArrayTestBit(arr, n);
+}
+pub fn imBitArrayClearBit(arr: [*c]U32, n: c_int) void { //igImBitArrayClearBit
+    c.igImBitArrayClearBit(arr, n);
+}
+pub fn imBitArraySetBit(arr: [*c]U32, n: c_int) void { //igImBitArraySetBit
+    c.igImBitArraySetBit(arr, n);
+}
+pub fn imBitArraySetBitRange(arr: [*c]U32, n: c_int, n2: c_int) void { //igImBitArraySetBitRange
+    c.igImBitArraySetBitRange(arr, n, n2);
+}
+pub fn getCurrentWindowRead() [*c]Window { //igGetCurrentWindowRead
+    return c.igGetCurrentWindowRead();
+}
+pub fn getCurrentWindow() [*c]Window { //igGetCurrentWindow
+    return c.igGetCurrentWindow();
+}
+pub fn findWindowByID(id: ID) [*c]Window { //igFindWindowByID
+    return c.igFindWindowByID(id);
+}
+pub fn findWindowByName(name: [*c]const u8) [*c]Window { //igFindWindowByName
+    return c.igFindWindowByName(name);
+}
+pub fn updateWindowParentAndRootLinks(window: [*c]Window, flags: WindowFlags, parent_window: [*c]Window) void { //igUpdateWindowParentAndRootLinks
+    c.igUpdateWindowParentAndRootLinks(window, @bitCast(flags), parent_window);
+}
+pub fn calcWindowNextAutoFitSize(pout: [*c]Vec2, window: [*c]Window) void { //igCalcWindowNextAutoFitSize
+    c.igCalcWindowNextAutoFitSize(pout, window);
+}
+pub fn isWindowChildOf(window: [*c]Window, potential_parent: [*c]Window, popup_hierarchy: bool, dock_hierarchy: bool) bool { //igIsWindowChildOf
+    return c.igIsWindowChildOf(window, potential_parent, popup_hierarchy, dock_hierarchy);
+}
+pub fn isWindowWithinBeginStackOf(window: [*c]Window, potential_parent: [*c]Window) bool { //igIsWindowWithinBeginStackOf
+    return c.igIsWindowWithinBeginStackOf(window, potential_parent);
+}
+pub fn isWindowAbove(potential_above: [*c]Window, potential_below: [*c]Window) bool { //igIsWindowAbove
+    return c.igIsWindowAbove(potential_above, potential_below);
+}
+pub fn isWindowNavFocusable(window: [*c]Window) bool { //igIsWindowNavFocusable
+    return c.igIsWindowNavFocusable(window);
+}
+pub fn setWindowPos_WindowPtr(window: [*c]Window, pos: Vec2, cond: Cond) void { //igSetWindowPos_WindowPtr
+    c.igSetWindowPos_WindowPtr(window, @bitCast(pos), @bitCast(cond));
+}
+pub fn setWindowSize_WindowPtr(window: [*c]Window, size: Vec2, cond: Cond) void { //igSetWindowSize_WindowPtr
+    c.igSetWindowSize_WindowPtr(window, @bitCast(size), @bitCast(cond));
+}
+pub fn setWindowCollapsed_WindowPtr(window: [*c]Window, collapsed: bool, cond: Cond) void { //igSetWindowCollapsed_WindowPtr
+    c.igSetWindowCollapsed_WindowPtr(window, collapsed, @bitCast(cond));
+}
+pub fn setWindowHitTestHole(window: [*c]Window, pos: Vec2, size: Vec2) void { //igSetWindowHitTestHole
+    c.igSetWindowHitTestHole(window, @bitCast(pos), @bitCast(size));
+}
+pub fn windowRectAbsToRel(pout: [*c]Rect, window: [*c]Window, r: Rect) void { //igWindowRectAbsToRel
+    c.igWindowRectAbsToRel(pout, window, @bitCast(r));
+}
+pub fn windowRectRelToAbs(pout: [*c]Rect, window: [*c]Window, r: Rect) void { //igWindowRectRelToAbs
+    c.igWindowRectRelToAbs(pout, window, @bitCast(r));
+}
+pub fn focusWindow(window: [*c]Window) void { //igFocusWindow
+    c.igFocusWindow(window);
+}
+pub fn focusTopMostWindowUnderOne(under_this_window: [*c]Window, ignore_window: [*c]Window) void { //igFocusTopMostWindowUnderOne
+    c.igFocusTopMostWindowUnderOne(under_this_window, ignore_window);
+}
+pub fn bringWindowToFocusFront(window: [*c]Window) void { //igBringWindowToFocusFront
+    c.igBringWindowToFocusFront(window);
+}
+pub fn bringWindowToDisplayFront(window: [*c]Window) void { //igBringWindowToDisplayFront
+    c.igBringWindowToDisplayFront(window);
+}
+pub fn bringWindowToDisplayBack(window: [*c]Window) void { //igBringWindowToDisplayBack
+    c.igBringWindowToDisplayBack(window);
+}
+pub fn bringWindowToDisplayBehind(window: [*c]Window, above_window: [*c]Window) void { //igBringWindowToDisplayBehind
+    c.igBringWindowToDisplayBehind(window, above_window);
+}
+pub fn findWindowDisplayIndex(window: [*c]Window) c_int { //igFindWindowDisplayIndex
+    return c.igFindWindowDisplayIndex(window);
+}
+pub fn findBottomMostVisibleWindowWithinBeginStack(window: [*c]Window) [*c]Window { //igFindBottomMostVisibleWindowWithinBeginStack
+    return c.igFindBottomMostVisibleWindowWithinBeginStack(window);
+}
+pub fn setCurrentFont(font: [*c]Font) void { //igSetCurrentFont
+    c.igSetCurrentFont(font);
+}
+pub fn getDefaultFont() [*c]Font { //igGetDefaultFont
+    return c.igGetDefaultFont();
+}
+pub fn getForegroundDrawList_WindowPtr(window: [*c]Window) [*c]DrawList { //igGetForegroundDrawList_WindowPtr
+    return c.igGetForegroundDrawList_WindowPtr(window);
+}
+pub fn initialize() void { //igInitialize
+    c.igInitialize();
+}
+pub fn shutdown() void { //igShutdown
+    c.igShutdown();
+}
+pub fn updateInputEvents(trickle_fast_inputs: bool) void { //igUpdateInputEvents
+    c.igUpdateInputEvents(trickle_fast_inputs);
+}
+pub fn updateHoveredWindowAndCaptureFlags() void { //igUpdateHoveredWindowAndCaptureFlags
+    c.igUpdateHoveredWindowAndCaptureFlags();
+}
+pub fn startMouseMovingWindow(window: [*c]Window) void { //igStartMouseMovingWindow
+    c.igStartMouseMovingWindow(window);
+}
+pub fn startMouseMovingWindowOrNode(window: [*c]Window, node: [*c]DockNode, undock_floating_node: bool) void { //igStartMouseMovingWindowOrNode
+    c.igStartMouseMovingWindowOrNode(window, node, undock_floating_node);
+}
+pub fn updateMouseMovingWindowNewFrame() void { //igUpdateMouseMovingWindowNewFrame
+    c.igUpdateMouseMovingWindowNewFrame();
+}
+pub fn updateMouseMovingWindowEndFrame() void { //igUpdateMouseMovingWindowEndFrame
+    c.igUpdateMouseMovingWindowEndFrame();
+}
+pub fn addContextHook(context: [*c]Context, hook: [*c]const ContextHook) ID { //igAddContextHook
+    return c.igAddContextHook(context, hook);
+}
+pub fn removeContextHook(context: [*c]Context, hook_to_remove: ID) void { //igRemoveContextHook
+    c.igRemoveContextHook(context, hook_to_remove);
+}
+pub fn callContextHooks(context: [*c]Context, t: ContextHookType) void { //igCallContextHooks
+    c.igCallContextHooks(context, @intFromEnum(t));
+}
+pub fn translateWindowsInViewport(viewport: [*c]ViewportP, old_pos: Vec2, new_pos: Vec2) void { //igTranslateWindowsInViewport
+    c.igTranslateWindowsInViewport(viewport, @bitCast(old_pos), @bitCast(new_pos));
+}
+pub fn scaleWindowsInViewport(viewport: [*c]ViewportP, scale: f32) void { //igScaleWindowsInViewport
+    c.igScaleWindowsInViewport(viewport, scale);
+}
+pub fn destroyPlatformWindow(viewport: [*c]ViewportP) void { //igDestroyPlatformWindow
+    c.igDestroyPlatformWindow(viewport);
+}
+pub fn setWindowViewport(window: [*c]Window, viewport: [*c]ViewportP) void { //igSetWindowViewport
+    c.igSetWindowViewport(window, viewport);
+}
+pub fn setCurrentViewport(window: [*c]Window, viewport: [*c]ViewportP) void { //igSetCurrentViewport
+    c.igSetCurrentViewport(window, viewport);
+}
+pub fn getViewportPlatformMonitor(viewport: [*c]Viewport) [*c]const PlatformMonitor { //igGetViewportPlatformMonitor
+    return c.igGetViewportPlatformMonitor(viewport);
+}
+pub fn findHoveredViewportFromPlatformWindowStack(mouse_platform_pos: Vec2) [*c]ViewportP { //igFindHoveredViewportFromPlatformWindowStack
+    return c.igFindHoveredViewportFromPlatformWindowStack(@bitCast(mouse_platform_pos));
+}
+pub fn markIniSettingsDirty_Nil() void { //igMarkIniSettingsDirty_Nil
+    c.igMarkIniSettingsDirty_Nil();
+}
+pub fn markIniSettingsDirty_WindowPtr(window: [*c]Window) void { //igMarkIniSettingsDirty_WindowPtr
+    c.igMarkIniSettingsDirty_WindowPtr(window);
+}
+pub fn clearIniSettings() void { //igClearIniSettings
+    c.igClearIniSettings();
+}
+pub fn createNewWindowSettings(name: [*c]const u8) [*c]WindowSettings { //igCreateNewWindowSettings
+    return c.igCreateNewWindowSettings(name);
+}
+pub fn findWindowSettings(id: ID) [*c]WindowSettings { //igFindWindowSettings
+    return c.igFindWindowSettings(id);
+}
+pub fn findOrCreateWindowSettings(name: [*c]const u8) [*c]WindowSettings { //igFindOrCreateWindowSettings
+    return c.igFindOrCreateWindowSettings(name);
+}
+pub fn addSettingsHandler(handler: [*c]const SettingsHandler) void { //igAddSettingsHandler
+    c.igAddSettingsHandler(handler);
+}
+pub fn removeSettingsHandler(type_name: [*c]const u8) void { //igRemoveSettingsHandler
+    c.igRemoveSettingsHandler(type_name);
+}
+pub fn findSettingsHandler(type_name: [*c]const u8) [*c]SettingsHandler { //igFindSettingsHandler
+    return c.igFindSettingsHandler(type_name);
+}
+pub fn setNextWindowScroll(scroll: Vec2) void { //igSetNextWindowScroll
+    c.igSetNextWindowScroll(@bitCast(scroll));
+}
+pub fn setScrollX_WindowPtr(window: [*c]Window, scroll_x: f32) void { //igSetScrollX_WindowPtr
+    c.igSetScrollX_WindowPtr(window, scroll_x);
+}
+pub fn setScrollY_WindowPtr(window: [*c]Window, scroll_y: f32) void { //igSetScrollY_WindowPtr
+    c.igSetScrollY_WindowPtr(window, scroll_y);
+}
+pub fn setScrollFromPosX_WindowPtr(window: [*c]Window, local_x: f32, center_x_ratio: f32) void { //igSetScrollFromPosX_WindowPtr
+    c.igSetScrollFromPosX_WindowPtr(window, local_x, center_x_ratio);
+}
+pub fn setScrollFromPosY_WindowPtr(window: [*c]Window, local_y: f32, center_y_ratio: f32) void { //igSetScrollFromPosY_WindowPtr
+    c.igSetScrollFromPosY_WindowPtr(window, local_y, center_y_ratio);
+}
+pub fn scrollToItem(flags: ScrollFlags) void { //igScrollToItem
+    c.igScrollToItem(@bitCast(flags));
+}
+pub fn scrollToRect(window: [*c]Window, rect: Rect, flags: ScrollFlags) void { //igScrollToRect
+    c.igScrollToRect(window, @bitCast(rect), @bitCast(flags));
+}
+pub fn scrollToRectEx(pout: [*c]Vec2, window: [*c]Window, rect: Rect, flags: ScrollFlags) void { //igScrollToRectEx
+    c.igScrollToRectEx(pout, window, @bitCast(rect), @bitCast(flags));
+}
+pub fn scrollToBringRectIntoView(window: [*c]Window, rect: Rect) void { //igScrollToBringRectIntoView
+    c.igScrollToBringRectIntoView(window, @bitCast(rect));
+}
+pub fn getItemID() ID { //igGetItemID
+    return c.igGetItemID();
+}
+pub fn getItemStatusFlags() ItemStatusFlags { //igGetItemStatusFlags
+    return c.igGetItemStatusFlags();
+}
+pub fn getItemFlags() ItemFlags { //igGetItemFlags
+    return c.igGetItemFlags();
+}
+pub fn getActiveID() ID { //igGetActiveID
+    return c.igGetActiveID();
+}
+pub fn getFocusID() ID { //igGetFocusID
+    return c.igGetFocusID();
+}
+pub fn setActiveID(id: ID, window: [*c]Window) void { //igSetActiveID
+    c.igSetActiveID(id, window);
+}
+pub fn setFocusID(id: ID, window: [*c]Window) void { //igSetFocusID
+    c.igSetFocusID(id, window);
+}
+pub fn clearActiveID() void { //igClearActiveID
+    c.igClearActiveID();
+}
+pub fn getHoveredID() ID { //igGetHoveredID
+    return c.igGetHoveredID();
+}
+pub fn setHoveredID(id: ID) void { //igSetHoveredID
+    c.igSetHoveredID(id);
+}
+pub fn keepAliveID(id: ID) void { //igKeepAliveID
+    c.igKeepAliveID(id);
+}
+pub fn markItemEdited(id: ID) void { //igMarkItemEdited
+    c.igMarkItemEdited(id);
+}
+pub fn pushOverrideID(id: ID) void { //igPushOverrideID
+    c.igPushOverrideID(id);
+}
+pub fn getIDWithSeed(str_id_begin: [*c]const u8, str_id_end: [*c]const u8, seed: ID) ID { //igGetIDWithSeed
+    return c.igGetIDWithSeed(str_id_begin, str_id_end, seed);
+}
+pub fn itemSize_Vec2(size: Vec2, text_baseline_y: f32) void { //igItemSize_Vec2
+    c.igItemSize_Vec2(@bitCast(size), text_baseline_y);
+}
+pub fn itemSize_Rect(bb: Rect, text_baseline_y: f32) void { //igItemSize_Rect
+    c.igItemSize_Rect(@bitCast(bb), text_baseline_y);
+}
+pub fn itemAdd(bb: Rect, id: ID, nav_bb: [*c]const Rect, extra_flags: ItemFlags) bool { //igItemAdd
+    return c.igItemAdd(@bitCast(bb), id, nav_bb, @bitCast(extra_flags));
+}
+pub fn itemHoverable(bb: Rect, id: ID) bool { //igItemHoverable
+    return c.igItemHoverable(@bitCast(bb), id);
+}
+pub fn isClippedEx(bb: Rect, id: ID) bool { //igIsClippedEx
+    return c.igIsClippedEx(@bitCast(bb), id);
+}
+pub fn setLastItemData(item_id: ID, in_flags: ItemFlags, status_flags: ItemStatusFlags, item_rect: Rect) void { //igSetLastItemData
+    c.igSetLastItemData(item_id, @bitCast(in_flags), @bitCast(status_flags), @bitCast(item_rect));
+}
+pub fn calcItemSize(pout: [*c]Vec2, size: Vec2, default_w: f32, default_h: f32) void { //igCalcItemSize
+    c.igCalcItemSize(pout, @bitCast(size), default_w, default_h);
+}
+pub fn calcWrapWidthForPos(pos: Vec2, wrap_pos_x: f32) f32 { //igCalcWrapWidthForPos
+    return c.igCalcWrapWidthForPos(@bitCast(pos), wrap_pos_x);
+}
+pub fn pushMultiItemsWidths(components: c_int, width_full: f32) void { //igPushMultiItemsWidths
+    c.igPushMultiItemsWidths(components, width_full);
+}
+pub fn isItemToggledSelection() bool { //igIsItemToggledSelection
+    return c.igIsItemToggledSelection();
+}
+pub fn getContentRegionMaxAbs(pout: [*c]Vec2) void { //igGetContentRegionMaxAbs
+    c.igGetContentRegionMaxAbs(pout);
+}
+pub fn shrinkWidths(items: [*c]ShrinkWidthItem, count: c_int, width_excess: f32) void { //igShrinkWidths
+    c.igShrinkWidths(items, count, width_excess);
+}
+pub fn pushItemFlag(option: ItemFlags, enabled: bool) void { //igPushItemFlag
+    c.igPushItemFlag(@bitCast(option), enabled);
+}
+pub fn popItemFlag() void { //igPopItemFlag
+    c.igPopItemFlag();
+}
+pub fn logBegin(t: LogType, auto_open_depth: c_int) void { //igLogBegin
+    c.igLogBegin(@intFromEnum(t), auto_open_depth);
+}
+pub fn logToBuffer(auto_open_depth: c_int) void { //igLogToBuffer
+    c.igLogToBuffer(auto_open_depth);
+}
+pub fn logRenderedText(ref_pos: [*c]const Vec2, text: [*c]const u8, text_end: [*c]const u8) void { //igLogRenderedText
+    c.igLogRenderedText(ref_pos, text, text_end);
+}
+pub fn logSetNextTextDecoration(prefix: [*c]const u8, suffix: [*c]const u8) void { //igLogSetNextTextDecoration
+    c.igLogSetNextTextDecoration(prefix, suffix);
+}
+pub fn beginChildEx(name: [*c]const u8, id: ID, size_arg: Vec2, border: bool, flags: WindowFlags) bool { //igBeginChildEx
+    return c.igBeginChildEx(name, id, @bitCast(size_arg), border, @bitCast(flags));
+}
+pub fn openPopupEx(id: ID, popup_flags: PopupFlags) void { //igOpenPopupEx
+    c.igOpenPopupEx(id, @bitCast(popup_flags));
+}
+pub fn closePopupToLevel(remaining: c_int, restore_focus_to_window_under_popup: bool) void { //igClosePopupToLevel
+    c.igClosePopupToLevel(remaining, restore_focus_to_window_under_popup);
+}
+pub fn closePopupsOverWindow(ref_window: [*c]Window, restore_focus_to_window_under_popup: bool) void { //igClosePopupsOverWindow
+    c.igClosePopupsOverWindow(ref_window, restore_focus_to_window_under_popup);
+}
+pub fn closePopupsExceptModals() void { //igClosePopupsExceptModals
+    c.igClosePopupsExceptModals();
+}
+pub fn isPopupOpen_ID(id: ID, popup_flags: PopupFlags) bool { //igIsPopupOpen_ID
+    return c.igIsPopupOpen_ID(id, @bitCast(popup_flags));
+}
+pub fn beginPopupEx(id: ID, extra_flags: WindowFlags) bool { //igBeginPopupEx
+    return c.igBeginPopupEx(id, @bitCast(extra_flags));
+}
+pub fn beginTooltipEx(tooltip_flags: TooltipFlags, extra_window_flags: WindowFlags) void { //igBeginTooltipEx
+    c.igBeginTooltipEx(@bitCast(tooltip_flags), @bitCast(extra_window_flags));
+}
+pub fn getPopupAllowedExtentRect(pout: [*c]Rect, window: [*c]Window) void { //igGetPopupAllowedExtentRect
+    c.igGetPopupAllowedExtentRect(pout, window);
+}
+pub fn getTopMostPopupModal() [*c]Window { //igGetTopMostPopupModal
+    return c.igGetTopMostPopupModal();
+}
+pub fn getTopMostAndVisiblePopupModal() [*c]Window { //igGetTopMostAndVisiblePopupModal
+    return c.igGetTopMostAndVisiblePopupModal();
+}
+pub fn findBestWindowPosForPopup(pout: [*c]Vec2, window: [*c]Window) void { //igFindBestWindowPosForPopup
+    c.igFindBestWindowPosForPopup(pout, window);
+}
+pub fn findBestWindowPosForPopupEx(pout: [*c]Vec2, ref_pos: Vec2, size: Vec2, last_dir: [*c]Dir, r_outer: Rect, r_avoid: Rect, policy: PopupPositionPolicy) void { //igFindBestWindowPosForPopupEx
+    c.igFindBestWindowPosForPopupEx(pout, @bitCast(ref_pos), @bitCast(size), last_dir, @bitCast(r_outer), @bitCast(r_avoid), @intFromEnum(policy));
+}
+pub fn beginViewportSideBar(name: [*c]const u8, viewport: [*c]Viewport, dir: Dir, size: f32, window_flags: WindowFlags) bool { //igBeginViewportSideBar
+    return c.igBeginViewportSideBar(name, viewport, @intFromEnum(dir), size, @bitCast(window_flags));
+}
+pub fn beginMenuEx(label: [*c]const u8, icon: [*c]const u8, enabled: bool) bool { //igBeginMenuEx
+    return c.igBeginMenuEx(label, icon, enabled);
+}
+pub fn menuItemEx(label: [*c]const u8, icon: [*c]const u8, shortcut: [*c]const u8, selected: bool, enabled: bool) bool { //igMenuItemEx
+    return c.igMenuItemEx(label, icon, shortcut, selected, enabled);
+}
+pub fn beginComboPopup(popup_id: ID, bb: Rect, flags: ComboFlags) bool { //igBeginComboPopup
+    return c.igBeginComboPopup(popup_id, @bitCast(bb), @bitCast(flags));
+}
+pub fn beginComboPreview() bool { //igBeginComboPreview
+    return c.igBeginComboPreview();
+}
+pub fn endComboPreview() void { //igEndComboPreview
+    c.igEndComboPreview();
+}
+pub fn navInitWindow(window: [*c]Window, force_reinit: bool) void { //igNavInitWindow
+    c.igNavInitWindow(window, force_reinit);
+}
+pub fn navInitRequestApplyResult() void { //igNavInitRequestApplyResult
+    c.igNavInitRequestApplyResult();
+}
+pub fn navMoveRequestButNoResultYet() bool { //igNavMoveRequestButNoResultYet
+    return c.igNavMoveRequestButNoResultYet();
+}
+pub fn navMoveRequestSubmit(move_dir: Dir, clip_dir: Dir, move_flags: NavMoveFlags, scroll_flags: ScrollFlags) void { //igNavMoveRequestSubmit
+    c.igNavMoveRequestSubmit(@intFromEnum(move_dir), @intFromEnum(clip_dir), @bitCast(move_flags), @bitCast(scroll_flags));
+}
+pub fn navMoveRequestForward(move_dir: Dir, clip_dir: Dir, move_flags: NavMoveFlags, scroll_flags: ScrollFlags) void { //igNavMoveRequestForward
+    c.igNavMoveRequestForward(@intFromEnum(move_dir), @intFromEnum(clip_dir), @bitCast(move_flags), @bitCast(scroll_flags));
+}
+pub fn navMoveRequestResolveWithLastItem(result: [*c]NavItemData) void { //igNavMoveRequestResolveWithLastItem
+    c.igNavMoveRequestResolveWithLastItem(result);
+}
+pub fn navMoveRequestCancel() void { //igNavMoveRequestCancel
+    c.igNavMoveRequestCancel();
+}
+pub fn navMoveRequestApplyResult() void { //igNavMoveRequestApplyResult
+    c.igNavMoveRequestApplyResult();
+}
+pub fn navMoveRequestTryWrapping(window: [*c]Window, move_flags: NavMoveFlags) void { //igNavMoveRequestTryWrapping
+    c.igNavMoveRequestTryWrapping(window, @bitCast(move_flags));
+}
+pub fn getNavInputName(n: NavInput) [*c]const u8 { //igGetNavInputName
+    return c.igGetNavInputName(@intFromEnum(n));
+}
+pub fn getNavInputAmount(n: NavInput, mode: NavReadMode) f32 { //igGetNavInputAmount
+    return c.igGetNavInputAmount(@intFromEnum(n), @intFromEnum(mode));
+}
+pub fn getNavInputAmount2d(pout: [*c]Vec2, dir_sources: NavDirSourceFlags, mode: NavReadMode, slow_factor: f32, fast_factor: f32) void { //igGetNavInputAmount2d
+    c.igGetNavInputAmount2d(pout, @bitCast(dir_sources), @intFromEnum(mode), slow_factor, fast_factor);
+}
+pub fn calcTypematicRepeatAmount(t0: f32, t1: f32, repeat_delay: f32, repeat_rate: f32) c_int { //igCalcTypematicRepeatAmount
+    return c.igCalcTypematicRepeatAmount(t0, t1, repeat_delay, repeat_rate);
+}
+pub fn activateItem(id: ID) void { //igActivateItem
+    c.igActivateItem(id);
+}
+pub fn setNavWindow(window: [*c]Window) void { //igSetNavWindow
+    c.igSetNavWindow(window);
+}
+pub fn setNavID(id: ID, nav_layer: NavLayer, focus_scope_id: ID, rect_rel: Rect) void { //igSetNavID
+    c.igSetNavID(id, @intFromEnum(nav_layer), focus_scope_id, @bitCast(rect_rel));
+}
+pub fn pushFocusScope(id: ID) void { //igPushFocusScope
+    c.igPushFocusScope(id);
+}
+pub fn popFocusScope() void { //igPopFocusScope
+    c.igPopFocusScope();
+}
+pub fn getFocusedFocusScope() ID { //igGetFocusedFocusScope
+    return c.igGetFocusedFocusScope();
+}
+pub fn getFocusScope() ID { //igGetFocusScope
+    return c.igGetFocusScope();
+}
+pub fn isNamedKey(key: Key) bool { //igIsNamedKey
+    return c.igIsNamedKey(@intFromEnum(key));
+}
+pub fn isLegacyKey(key: Key) bool { //igIsLegacyKey
+    return c.igIsLegacyKey(@intFromEnum(key));
+}
+pub fn isGamepadKey(key: Key) bool { //igIsGamepadKey
+    return c.igIsGamepadKey(@intFromEnum(key));
+}
+pub fn getKeyData(key: Key) [*c]KeyData { //igGetKeyData
+    return c.igGetKeyData(@intFromEnum(key));
+}
+pub fn setItemUsingMouseWheel() void { //igSetItemUsingMouseWheel
+    c.igSetItemUsingMouseWheel();
+}
+pub fn setActiveIdUsingNavAndKeys() void { //igSetActiveIdUsingNavAndKeys
+    c.igSetActiveIdUsingNavAndKeys();
+}
+pub fn isActiveIdUsingNavDir(dir: Dir) bool { //igIsActiveIdUsingNavDir
+    return c.igIsActiveIdUsingNavDir(@intFromEnum(dir));
+}
+pub fn isActiveIdUsingNavInput(input: NavInput) bool { //igIsActiveIdUsingNavInput
+    return c.igIsActiveIdUsingNavInput(@intFromEnum(input));
+}
+pub fn isActiveIdUsingKey(key: Key) bool { //igIsActiveIdUsingKey
+    return c.igIsActiveIdUsingKey(@intFromEnum(key));
+}
+pub fn setActiveIdUsingKey(key: Key) void { //igSetActiveIdUsingKey
+    c.igSetActiveIdUsingKey(@intFromEnum(key));
+}
+pub fn isMouseDragPastThreshold(btn: MouseButton, lock_threshold: f32) bool { //igIsMouseDragPastThreshold
+    return c.igIsMouseDragPastThreshold(@intFromEnum(btn), lock_threshold);
+}
+pub fn isNavInputDown(n: NavInput) bool { //igIsNavInputDown
+    return c.igIsNavInputDown(@intFromEnum(n));
+}
+pub fn isNavInputTest(n: NavInput, rm: NavReadMode) bool { //igIsNavInputTest
+    return c.igIsNavInputTest(@intFromEnum(n), @intFromEnum(rm));
+}
+pub fn getMergedModFlags() ModFlags { //igGetMergedModFlags
+    return c.igGetMergedModFlags();
+}
+pub fn isKeyPressedMap(key: Key, repeat: bool) bool { //igIsKeyPressedMap
+    return c.igIsKeyPressedMap(@intFromEnum(key), repeat);
+}
+pub fn dockContextInitialize(ctx: [*c]Context) void { //igDockContextInitialize
+    c.igDockContextInitialize(ctx);
+}
+pub fn dockContextShutdown(ctx: [*c]Context) void { //igDockContextShutdown
+    c.igDockContextShutdown(ctx);
+}
+pub fn dockContextClearNodes(ctx: [*c]Context, root_id: ID, clear_settings_refs: bool) void { //igDockContextClearNodes
+    c.igDockContextClearNodes(ctx, root_id, clear_settings_refs);
+}
+pub fn dockContextRebuildNodes(ctx: [*c]Context) void { //igDockContextRebuildNodes
+    c.igDockContextRebuildNodes(ctx);
+}
+pub fn dockContextNewFrameUpdateUndocking(ctx: [*c]Context) void { //igDockContextNewFrameUpdateUndocking
+    c.igDockContextNewFrameUpdateUndocking(ctx);
+}
+pub fn dockContextNewFrameUpdateDocking(ctx: [*c]Context) void { //igDockContextNewFrameUpdateDocking
+    c.igDockContextNewFrameUpdateDocking(ctx);
+}
+pub fn dockContextEndFrame(ctx: [*c]Context) void { //igDockContextEndFrame
+    c.igDockContextEndFrame(ctx);
+}
+pub fn dockContextGenNodeID(ctx: [*c]Context) ID { //igDockContextGenNodeID
+    return c.igDockContextGenNodeID(ctx);
+}
+pub fn dockContextQueueDock(ctx: [*c]Context, target: [*c]Window, target_node: [*c]DockNode, payload: [*c]Window, split_dir: Dir, split_ratio: f32, split_outer: bool) void { //igDockContextQueueDock
+    c.igDockContextQueueDock(ctx, target, target_node, payload, @intFromEnum(split_dir), split_ratio, split_outer);
+}
+pub fn dockContextQueueUndockWindow(ctx: [*c]Context, window: [*c]Window) void { //igDockContextQueueUndockWindow
+    c.igDockContextQueueUndockWindow(ctx, window);
+}
+pub fn dockContextQueueUndockNode(ctx: [*c]Context, node: [*c]DockNode) void { //igDockContextQueueUndockNode
+    c.igDockContextQueueUndockNode(ctx, node);
+}
+pub fn dockContextCalcDropPosForDocking(target: [*c]Window, target_node: [*c]DockNode, payload: [*c]Window, split_dir: Dir, split_outer: bool, out_pos: [*c]Vec2) bool { //igDockContextCalcDropPosForDocking
+    return c.igDockContextCalcDropPosForDocking(target, target_node, payload, @intFromEnum(split_dir), split_outer, out_pos);
+}
+pub fn dockNodeBeginAmendTabBar(node: [*c]DockNode) bool { //igDockNodeBeginAmendTabBar
+    return c.igDockNodeBeginAmendTabBar(node);
+}
+pub fn dockNodeEndAmendTabBar() void { //igDockNodeEndAmendTabBar
+    c.igDockNodeEndAmendTabBar();
+}
+pub fn dockNodeGetRootNode(node: [*c]DockNode) [*c]DockNode { //igDockNodeGetRootNode
+    return c.igDockNodeGetRootNode(node);
+}
+pub fn dockNodeIsInHierarchyOf(node: [*c]DockNode, parent: [*c]DockNode) bool { //igDockNodeIsInHierarchyOf
+    return c.igDockNodeIsInHierarchyOf(node, parent);
+}
+pub fn dockNodeGetDepth(node: [*c]const DockNode) c_int { //igDockNodeGetDepth
+    return c.igDockNodeGetDepth(node);
+}
+pub fn dockNodeGetWindowMenuButtonId(node: [*c]const DockNode) ID { //igDockNodeGetWindowMenuButtonId
+    return c.igDockNodeGetWindowMenuButtonId(node);
+}
+pub fn getWindowDockNode() [*c]DockNode { //igGetWindowDockNode
+    return c.igGetWindowDockNode();
+}
+pub fn getWindowAlwaysWantOwnTabBar(window: [*c]Window) bool { //igGetWindowAlwaysWantOwnTabBar
+    return c.igGetWindowAlwaysWantOwnTabBar(window);
+}
+pub fn beginDocked(window: [*c]Window, p_open: [*c]bool) void { //igBeginDocked
+    c.igBeginDocked(window, p_open);
+}
+pub fn beginDockableDragDropSource(window: [*c]Window) void { //igBeginDockableDragDropSource
+    c.igBeginDockableDragDropSource(window);
+}
+pub fn beginDockableDragDropTarget(window: [*c]Window) void { //igBeginDockableDragDropTarget
+    c.igBeginDockableDragDropTarget(window);
+}
+pub fn setWindowDock(window: [*c]Window, dock_id: ID, cond: Cond) void { //igSetWindowDock
+    c.igSetWindowDock(window, dock_id, @bitCast(cond));
+}
+pub fn dockBuilderDockWindow(window_name: [*c]const u8, node_id: ID) void { //igDockBuilderDockWindow
+    c.igDockBuilderDockWindow(window_name, node_id);
+}
+pub fn dockBuilderGetNode(node_id: ID) [*c]DockNode { //igDockBuilderGetNode
+    return c.igDockBuilderGetNode(node_id);
+}
+pub fn dockBuilderGetCentralNode(node_id: ID) [*c]DockNode { //igDockBuilderGetCentralNode
+    return c.igDockBuilderGetCentralNode(node_id);
+}
+pub fn dockBuilderAddNode(node_id: ID, flags: DockNodeFlags) ID { //igDockBuilderAddNode
+    return c.igDockBuilderAddNode(node_id, @bitCast(flags));
+}
+pub fn dockBuilderRemoveNode(node_id: ID) void { //igDockBuilderRemoveNode
+    c.igDockBuilderRemoveNode(node_id);
+}
+pub fn dockBuilderRemoveNodeDockedWindows(node_id: ID, clear_settings_refs: bool) void { //igDockBuilderRemoveNodeDockedWindows
+    c.igDockBuilderRemoveNodeDockedWindows(node_id, clear_settings_refs);
+}
+pub fn dockBuilderRemoveNodeChildNodes(node_id: ID) void { //igDockBuilderRemoveNodeChildNodes
+    c.igDockBuilderRemoveNodeChildNodes(node_id);
+}
+pub fn dockBuilderSetNodePos(node_id: ID, pos: Vec2) void { //igDockBuilderSetNodePos
+    c.igDockBuilderSetNodePos(node_id, @bitCast(pos));
+}
+pub fn dockBuilderSetNodeSize(node_id: ID, size: Vec2) void { //igDockBuilderSetNodeSize
+    c.igDockBuilderSetNodeSize(node_id, @bitCast(size));
+}
+pub fn dockBuilderSplitNode(node_id: ID, split_dir: Dir, size_ratio_for_node_at_dir: f32, out_id_at_dir: [*c]ID, out_id_at_opposite_dir: [*c]ID) ID { //igDockBuilderSplitNode
+    return c.igDockBuilderSplitNode(node_id, @intFromEnum(split_dir), size_ratio_for_node_at_dir, out_id_at_dir, out_id_at_opposite_dir);
+}
+pub fn dockBuilderCopyDockSpace(src_dockspace_id: ID, dst_dockspace_id: ID, in_window_remap_pairs: [*c]CharVector) void { //igDockBuilderCopyDockSpace
+    c.igDockBuilderCopyDockSpace(src_dockspace_id, dst_dockspace_id, in_window_remap_pairs);
+}
+pub fn dockBuilderCopyNode(src_node_id: ID, dst_node_id: ID, out_node_remap_pairs: [*c]IDVector) void { //igDockBuilderCopyNode
+    c.igDockBuilderCopyNode(src_node_id, dst_node_id, out_node_remap_pairs);
+}
+pub fn dockBuilderCopyWindowSettings(src_name: [*c]const u8, dst_name: [*c]const u8) void { //igDockBuilderCopyWindowSettings
+    c.igDockBuilderCopyWindowSettings(src_name, dst_name);
+}
+pub fn dockBuilderFinish(node_id: ID) void { //igDockBuilderFinish
+    c.igDockBuilderFinish(node_id);
+}
+pub fn isDragDropActive() bool { //igIsDragDropActive
+    return c.igIsDragDropActive();
+}
+pub fn beginDragDropTargetCustom(bb: Rect, id: ID) bool { //igBeginDragDropTargetCustom
+    return c.igBeginDragDropTargetCustom(@bitCast(bb), id);
+}
+pub fn clearDragDrop() void { //igClearDragDrop
+    c.igClearDragDrop();
+}
+pub fn isDragDropPayloadBeingAccepted() bool { //igIsDragDropPayloadBeingAccepted
+    return c.igIsDragDropPayloadBeingAccepted();
+}
+pub fn setWindowClipRectBeforeSetChannel(window: [*c]Window, clip_rect: Rect) void { //igSetWindowClipRectBeforeSetChannel
+    c.igSetWindowClipRectBeforeSetChannel(window, @bitCast(clip_rect));
+}
+pub fn beginColumns(str_id: [*c]const u8, count: c_int, flags: OldColumnFlags) void { //igBeginColumns
+    c.igBeginColumns(str_id, count, @bitCast(flags));
+}
+pub fn endColumns() void { //igEndColumns
+    c.igEndColumns();
+}
+pub fn pushColumnClipRect(column_index: c_int) void { //igPushColumnClipRect
+    c.igPushColumnClipRect(column_index);
+}
+pub fn pushColumnsBackground() void { //igPushColumnsBackground
+    c.igPushColumnsBackground();
+}
+pub fn popColumnsBackground() void { //igPopColumnsBackground
+    c.igPopColumnsBackground();
+}
+pub fn getColumnsID(str_id: [*c]const u8, count: c_int) ID { //igGetColumnsID
+    return c.igGetColumnsID(str_id, count);
+}
+pub fn getColumnOffsetFromNorm(col: [*c]const OldColumns, offset_norm: f32) f32 { //igGetColumnOffsetFromNorm
+    return c.igGetColumnOffsetFromNorm(col, offset_norm);
+}
+pub fn getColumnNormFromOffset(col: [*c]const OldColumns, offset: f32) f32 { //igGetColumnNormFromOffset
+    return c.igGetColumnNormFromOffset(col, offset);
+}
+pub fn tableOpenContextMenu(column_n: c_int) void { //igTableOpenContextMenu
+    c.igTableOpenContextMenu(column_n);
+}
+pub fn tableSetColumnWidth(column_n: c_int, width: f32) void { //igTableSetColumnWidth
+    c.igTableSetColumnWidth(column_n, width);
+}
+pub fn tableSetColumnSortDirection(column_n: c_int, sort_direction: SortDirection, append_to_sort_specs: bool) void { //igTableSetColumnSortDirection
+    c.igTableSetColumnSortDirection(column_n, @intFromEnum(sort_direction), append_to_sort_specs);
+}
+pub fn tableGetHoveredColumn() c_int { //igTableGetHoveredColumn
+    return c.igTableGetHoveredColumn();
+}
+pub fn tableGetHeaderRowHeight() f32 { //igTableGetHeaderRowHeight
+    return c.igTableGetHeaderRowHeight();
+}
+pub fn tablePushBackgroundChannel() void { //igTablePushBackgroundChannel
+    c.igTablePushBackgroundChannel();
+}
+pub fn tablePopBackgroundChannel() void { //igTablePopBackgroundChannel
+    c.igTablePopBackgroundChannel();
+}
+pub fn getCurrentTable() [*c]Table { //igGetCurrentTable
+    return c.igGetCurrentTable();
+}
+pub fn tableFindByID(id: ID) [*c]Table { //igTableFindByID
+    return c.igTableFindByID(id);
+}
+pub fn beginTableEx(name: [*c]const u8, id: ID, columns_count: c_int, flags: TableFlags, outer_size: Vec2, inner_width: f32) bool { //igBeginTableEx
+    return c.igBeginTableEx(name, id, columns_count, @bitCast(flags), @bitCast(outer_size), inner_width);
+}
+pub fn tableBeginInitMemory(table: [*c]Table, columns_count: c_int) void { //igTableBeginInitMemory
+    c.igTableBeginInitMemory(table, columns_count);
+}
+pub fn tableBeginApplyRequests(table: [*c]Table) void { //igTableBeginApplyRequests
+    c.igTableBeginApplyRequests(table);
+}
+pub fn tableSetupDrawChannels(table: [*c]Table) void { //igTableSetupDrawChannels
+    c.igTableSetupDrawChannels(table);
+}
+pub fn tableUpdateLayout(table: [*c]Table) void { //igTableUpdateLayout
+    c.igTableUpdateLayout(table);
+}
+pub fn tableUpdateBorders(table: [*c]Table) void { //igTableUpdateBorders
+    c.igTableUpdateBorders(table);
+}
+pub fn tableUpdateColumnsWeightFromWidth(table: [*c]Table) void { //igTableUpdateColumnsWeightFromWidth
+    c.igTableUpdateColumnsWeightFromWidth(table);
+}
+pub fn tableDrawBorders(table: [*c]Table) void { //igTableDrawBorders
+    c.igTableDrawBorders(table);
+}
+pub fn tableDrawContextMenu(table: [*c]Table) void { //igTableDrawContextMenu
+    c.igTableDrawContextMenu(table);
+}
+pub fn tableMergeDrawChannels(table: [*c]Table) void { //igTableMergeDrawChannels
+    c.igTableMergeDrawChannels(table);
+}
+pub fn tableGetInstanceData(table: [*c]Table, instance_no: c_int) [*c]TableInstanceData { //igTableGetInstanceData
+    return c.igTableGetInstanceData(table, instance_no);
+}
+pub fn tableSortSpecsSanitize(table: [*c]Table) void { //igTableSortSpecsSanitize
+    c.igTableSortSpecsSanitize(table);
+}
+pub fn tableSortSpecsBuild(table: [*c]Table) void { //igTableSortSpecsBuild
+    c.igTableSortSpecsBuild(table);
+}
+pub fn tableGetColumnNextSortDirection(column: [*c]TableColumn) SortDirection { //igTableGetColumnNextSortDirection
+    return c.igTableGetColumnNextSortDirection(column);
+}
+pub fn tableFixColumnSortDirection(table: [*c]Table, column: [*c]TableColumn) void { //igTableFixColumnSortDirection
+    c.igTableFixColumnSortDirection(table, column);
+}
+pub fn tableGetColumnWidthAuto(table: [*c]Table, column: [*c]TableColumn) f32 { //igTableGetColumnWidthAuto
+    return c.igTableGetColumnWidthAuto(table, column);
+}
+pub fn tableBeginRow(table: [*c]Table) void { //igTableBeginRow
+    c.igTableBeginRow(table);
+}
+pub fn tableEndRow(table: [*c]Table) void { //igTableEndRow
+    c.igTableEndRow(table);
+}
+pub fn tableBeginCell(table: [*c]Table, column_n: c_int) void { //igTableBeginCell
+    c.igTableBeginCell(table, column_n);
+}
+pub fn tableEndCell(table: [*c]Table) void { //igTableEndCell
+    c.igTableEndCell(table);
+}
+pub fn tableGetCellBgRect(pout: [*c]Rect, table: [*c]const Table, column_n: c_int) void { //igTableGetCellBgRect
+    c.igTableGetCellBgRect(pout, table, column_n);
+}
+pub fn tableGetColumnName_TablePtr(table: [*c]const Table, column_n: c_int) [*c]const u8 { //igTableGetColumnName_TablePtr
+    return c.igTableGetColumnName_TablePtr(table, column_n);
+}
+pub fn tableGetColumnResizeID(table: [*c]const Table, column_n: c_int, instance_no: c_int) ID { //igTableGetColumnResizeID
+    return c.igTableGetColumnResizeID(table, column_n, instance_no);
+}
+pub fn tableGetMaxColumnWidth(table: [*c]const Table, column_n: c_int) f32 { //igTableGetMaxColumnWidth
+    return c.igTableGetMaxColumnWidth(table, column_n);
+}
+pub fn tableSetColumnWidthAutoSingle(table: [*c]Table, column_n: c_int) void { //igTableSetColumnWidthAutoSingle
+    c.igTableSetColumnWidthAutoSingle(table, column_n);
+}
+pub fn tableSetColumnWidthAutoAll(table: [*c]Table) void { //igTableSetColumnWidthAutoAll
+    c.igTableSetColumnWidthAutoAll(table);
+}
+pub fn tableRemove(table: [*c]Table) void { //igTableRemove
+    c.igTableRemove(table);
+}
+pub fn tableGcCompactTransientBuffers_TablePtr(table: [*c]Table) void { //igTableGcCompactTransientBuffers_TablePtr
+    c.igTableGcCompactTransientBuffers_TablePtr(table);
+}
+pub fn tableGcCompactTransientBuffers_TableTempDataPtr(table: [*c]TableTempData) void { //igTableGcCompactTransientBuffers_TableTempDataPtr
+    c.igTableGcCompactTransientBuffers_TableTempDataPtr(table);
+}
+pub fn tableGcCompactSettings() void { //igTableGcCompactSettings
+    c.igTableGcCompactSettings();
+}
+pub fn tableLoadSettings(table: [*c]Table) void { //igTableLoadSettings
+    c.igTableLoadSettings(table);
+}
+pub fn tableSaveSettings(table: [*c]Table) void { //igTableSaveSettings
+    c.igTableSaveSettings(table);
+}
+pub fn tableResetSettings(table: [*c]Table) void { //igTableResetSettings
+    c.igTableResetSettings(table);
+}
+pub fn tableGetBoundSettings(table: [*c]Table) [*c]TableSettings { //igTableGetBoundSettings
+    return c.igTableGetBoundSettings(table);
+}
+pub fn tableSettingsAddSettingsHandler() void { //igTableSettingsAddSettingsHandler
+    c.igTableSettingsAddSettingsHandler();
+}
+pub fn tableSettingsCreate(id: ID, columns_count: c_int) [*c]TableSettings { //igTableSettingsCreate
+    return c.igTableSettingsCreate(id, columns_count);
+}
+pub fn tableSettingsFindByID(id: ID) [*c]TableSettings { //igTableSettingsFindByID
+    return c.igTableSettingsFindByID(id);
+}
+pub fn beginTabBarEx(tab_bar: [*c]TabBar, bb: Rect, flags: TabBarFlags, dock_node: [*c]DockNode) bool { //igBeginTabBarEx
+    return c.igBeginTabBarEx(tab_bar, @bitCast(bb), @bitCast(flags), dock_node);
+}
+pub fn tabBarFindTabByID(tab_bar: [*c]TabBar, tab_id: ID) [*c]TabItem { //igTabBarFindTabByID
+    return c.igTabBarFindTabByID(tab_bar, tab_id);
+}
+pub fn tabBarFindMostRecentlySelectedTabForActiveWindow(tab_bar: [*c]TabBar) [*c]TabItem { //igTabBarFindMostRecentlySelectedTabForActiveWindow
+    return c.igTabBarFindMostRecentlySelectedTabForActiveWindow(tab_bar);
+}
+pub fn tabBarAddTab(tab_bar: [*c]TabBar, tab_flags: TabItemFlags, window: [*c]Window) void { //igTabBarAddTab
+    c.igTabBarAddTab(tab_bar, @bitCast(tab_flags), window);
+}
+pub fn tabBarRemoveTab(tab_bar: [*c]TabBar, tab_id: ID) void { //igTabBarRemoveTab
+    c.igTabBarRemoveTab(tab_bar, tab_id);
+}
+pub fn tabBarCloseTab(tab_bar: [*c]TabBar, tab: [*c]TabItem) void { //igTabBarCloseTab
+    c.igTabBarCloseTab(tab_bar, tab);
+}
+pub fn tabBarQueueReorder(tab_bar: [*c]TabBar, tab: [*c]const TabItem, offset: c_int) void { //igTabBarQueueReorder
+    c.igTabBarQueueReorder(tab_bar, tab, offset);
+}
+pub fn tabBarQueueReorderFromMousePos(tab_bar: [*c]TabBar, tab: [*c]const TabItem, mouse_pos: Vec2) void { //igTabBarQueueReorderFromMousePos
+    c.igTabBarQueueReorderFromMousePos(tab_bar, tab, @bitCast(mouse_pos));
+}
+pub fn tabBarProcessReorder(tab_bar: [*c]TabBar) bool { //igTabBarProcessReorder
+    return c.igTabBarProcessReorder(tab_bar);
+}
+pub fn tabItemEx(tab_bar: [*c]TabBar, label: [*c]const u8, p_open: [*c]bool, flags: TabItemFlags, docked_window: [*c]Window) bool { //igTabItemEx
+    return c.igTabItemEx(tab_bar, label, p_open, @bitCast(flags), docked_window);
+}
+pub fn tabItemCalcSize(pout: [*c]Vec2, label: [*c]const u8, has_close_button: bool) void { //igTabItemCalcSize
+    c.igTabItemCalcSize(pout, label, has_close_button);
+}
+pub fn tabItemBackground(draw_list: [*c]DrawList, bb: Rect, flags: TabItemFlags, col: U32) void { //igTabItemBackground
+    c.igTabItemBackground(draw_list, @bitCast(bb), @bitCast(flags), col);
+}
+pub fn renderText(pos: Vec2, text: [*c]const u8, text_end: [*c]const u8, hide_text_after_hash: bool) void { //igRenderText
+    c.igRenderText(@bitCast(pos), text, text_end, hide_text_after_hash);
+}
+pub fn renderTextWrapped(pos: Vec2, text: [*c]const u8, text_end: [*c]const u8, wrap_width: f32) void { //igRenderTextWrapped
+    c.igRenderTextWrapped(@bitCast(pos), text, text_end, wrap_width);
+}
+pub fn renderTextEllipsis(draw_list: [*c]DrawList, pos_min: Vec2, pos_max: Vec2, clip_max_x: f32, ellipsis_max_x: f32, text: [*c]const u8, text_end: [*c]const u8, text_size_if_known: [*c]const Vec2) void { //igRenderTextEllipsis
+    c.igRenderTextEllipsis(draw_list, @bitCast(pos_min), @bitCast(pos_max), clip_max_x, ellipsis_max_x, text, text_end, text_size_if_known);
+}
+pub fn renderFrame(p_min: Vec2, p_max: Vec2, fill_col: U32, border: bool, rounding: f32) void { //igRenderFrame
+    c.igRenderFrame(@bitCast(p_min), @bitCast(p_max), fill_col, border, rounding);
+}
+pub fn renderFrameBorder(p_min: Vec2, p_max: Vec2, rounding: f32) void { //igRenderFrameBorder
+    c.igRenderFrameBorder(@bitCast(p_min), @bitCast(p_max), rounding);
+}
+pub fn renderColorRectWithAlphaCheckerboard(draw_list: [*c]DrawList, p_min: Vec2, p_max: Vec2, fill_col: U32, grid_step: f32, grid_off: Vec2, rounding: f32, flags: DrawFlags) void { //igRenderColorRectWithAlphaCheckerboard
+    c.igRenderColorRectWithAlphaCheckerboard(draw_list, @bitCast(p_min), @bitCast(p_max), fill_col, grid_step, @bitCast(grid_off), rounding, @bitCast(flags));
+}
+pub fn renderNavHighlight(bb: Rect, id: ID, flags: NavHighlightFlags) void { //igRenderNavHighlight
+    c.igRenderNavHighlight(@bitCast(bb), id, @bitCast(flags));
+}
+pub fn findRenderedTextEnd(text: [*c]const u8, text_end: [*c]const u8) [*c]const u8 { //igFindRenderedTextEnd
+    return c.igFindRenderedTextEnd(text, text_end);
+}
+pub fn renderMouseCursor(pos: Vec2, scale: f32, mouse_cursor: MouseCursor, col_fill: U32, col_border: U32, col_shadow: U32) void { //igRenderMouseCursor
+    c.igRenderMouseCursor(@bitCast(pos), scale, @intFromEnum(mouse_cursor), col_fill, col_border, col_shadow);
+}
+pub fn renderArrow(draw_list: [*c]DrawList, pos: Vec2, col: U32, dir: Dir, scale: f32) void { //igRenderArrow
+    c.igRenderArrow(draw_list, @bitCast(pos), col, @intFromEnum(dir), scale);
+}
+pub fn renderBullet(draw_list: [*c]DrawList, pos: Vec2, col: U32) void { //igRenderBullet
+    c.igRenderBullet(draw_list, @bitCast(pos), col);
+}
+pub fn renderCheckMark(draw_list: [*c]DrawList, pos: Vec2, col: U32, sz: f32) void { //igRenderCheckMark
+    c.igRenderCheckMark(draw_list, @bitCast(pos), col, sz);
+}
+pub fn renderArrowPointingAt(draw_list: [*c]DrawList, pos: Vec2, half_sz: Vec2, direction: Dir, col: U32) void { //igRenderArrowPointingAt
+    c.igRenderArrowPointingAt(draw_list, @bitCast(pos), @bitCast(half_sz), @intFromEnum(direction), col);
+}
+pub fn renderArrowDockMenu(draw_list: [*c]DrawList, p_min: Vec2, sz: f32, col: U32) void { //igRenderArrowDockMenu
+    c.igRenderArrowDockMenu(draw_list, @bitCast(p_min), sz, col);
+}
+pub fn renderRectFilledRangeH(draw_list: [*c]DrawList, rect: Rect, col: U32, x_start_norm: f32, x_end_norm: f32, rounding: f32) void { //igRenderRectFilledRangeH
+    c.igRenderRectFilledRangeH(draw_list, @bitCast(rect), col, x_start_norm, x_end_norm, rounding);
+}
+pub fn renderRectFilledWithHole(draw_list: [*c]DrawList, outer: Rect, inner: Rect, col: U32, rounding: f32) void { //igRenderRectFilledWithHole
+    c.igRenderRectFilledWithHole(draw_list, @bitCast(outer), @bitCast(inner), col, rounding);
+}
+pub fn calcRoundingFlagsForRectInRect(r_in: Rect, r_outer: Rect, threshold: f32) DrawFlags { //igCalcRoundingFlagsForRectInRect
+    return c.igCalcRoundingFlagsForRectInRect(@bitCast(r_in), @bitCast(r_outer), threshold);
+}
+pub fn textEx(text: [*c]const u8, text_end: [*c]const u8, flags: TextFlags) void { //igTextEx
+    c.igTextEx(text, text_end, @bitCast(flags));
+}
+pub fn buttonEx(label: [*c]const u8, size_arg: Vec2, flags: ButtonFlags) bool { //igButtonEx
+    return c.igButtonEx(label, @bitCast(size_arg), flags);
+}
+pub fn closeButton(id: ID, pos: Vec2) bool { //igCloseButton
+    return c.igCloseButton(id, @bitCast(pos));
+}
+pub fn collapseButton(id: ID, pos: Vec2, dock_node: [*c]DockNode) bool { //igCollapseButton
+    return c.igCollapseButton(id, @bitCast(pos), dock_node);
+}
+pub fn arrowButtonEx(str_id: [*c]const u8, dir: Dir, size_arg: Vec2, flags: ButtonFlags) bool { //igArrowButtonEx
+    return c.igArrowButtonEx(str_id, @intFromEnum(dir), @bitCast(size_arg), flags);
+}
+pub fn scrollbar(axis: Axis) void { //igScrollbar
+    c.igScrollbar(@intFromEnum(axis));
+}
+pub fn scrollbarEx(bb: Rect, id: ID, axis: Axis, p_scroll_v: [*c]S64, avail_v: S64, contents_v: S64, flags: DrawFlags) bool { //igScrollbarEx
+    return c.igScrollbarEx(@bitCast(bb), id, @intFromEnum(axis), p_scroll_v, avail_v, contents_v, @bitCast(flags));
+}
+pub fn imageButtonEx(id: ID, texture_id: TextureID, size: Vec2, uv0: Vec2, uv1: Vec2, padding: Vec2, bg_col: Vec4, tint_col: Vec4) bool { //igImageButtonEx
+    return c.igImageButtonEx(id, texture_id, @bitCast(size), @bitCast(uv0), @bitCast(uv1), @bitCast(padding), @bitCast(bg_col), @bitCast(tint_col));
+}
+pub fn getWindowScrollbarRect(pout: [*c]Rect, window: [*c]Window, axis: Axis) void { //igGetWindowScrollbarRect
+    c.igGetWindowScrollbarRect(pout, window, @intFromEnum(axis));
+}
+pub fn getWindowScrollbarID(window: [*c]Window, axis: Axis) ID { //igGetWindowScrollbarID
+    return c.igGetWindowScrollbarID(window, @intFromEnum(axis));
+}
+pub fn getWindowResizeCornerID(window: [*c]Window, n: c_int) ID { //igGetWindowResizeCornerID
+    return c.igGetWindowResizeCornerID(window, n);
+}
+pub fn getWindowResizeBorderID(window: [*c]Window, dir: Dir) ID { //igGetWindowResizeBorderID
+    return c.igGetWindowResizeBorderID(window, @intFromEnum(dir));
+}
+pub fn separatorEx(flags: SeparatorFlags) void { //igSeparatorEx
+    c.igSeparatorEx(@bitCast(flags));
+}
+pub fn checkboxFlags_S64Ptr(label: [*c]const u8, flags: [*c]S64, flags_value: S64) bool { //igCheckboxFlags_S64Ptr
+    return c.igCheckboxFlags_S64Ptr(label, flags, flags_value);
+}
+pub fn checkboxFlags_U64Ptr(label: [*c]const u8, flags: [*c]U64, flags_value: U64) bool { //igCheckboxFlags_U64Ptr
+    return c.igCheckboxFlags_U64Ptr(label, flags, flags_value);
+}
+pub fn buttonBehavior(bb: Rect, id: ID, out_hovered: [*c]bool, out_held: [*c]bool, flags: ButtonFlags) bool { //igButtonBehavior
+    return c.igButtonBehavior(@bitCast(bb), id, out_hovered, out_held, flags);
+}
+pub fn dragBehavior(id: ID, data_type: DataType, p_v: ?*anyopaque, v_speed: f32, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags) bool { //igDragBehavior
+    return c.igDragBehavior(id, @intFromEnum(data_type), p_v, v_speed, p_min, p_max, format, @bitCast(flags));
+}
+pub fn sliderBehavior(bb: Rect, id: ID, data_type: DataType, p_v: ?*anyopaque, p_min: [*c]const void, p_max: [*c]const void, format: [*c]const u8, flags: SliderFlags, out_grab_bb: [*c]Rect) bool { //igSliderBehavior
+    return c.igSliderBehavior(@bitCast(bb), id, @intFromEnum(data_type), p_v, p_min, p_max, format, @bitCast(flags), out_grab_bb);
+}
+pub fn splitterBehavior(bb: Rect, id: ID, axis: Axis, size1: [*c]f32, size2: [*c]f32, min_size1: f32, min_size2: f32, hover_extend: f32, hover_visibility_delay: f32, bg_col: U32) bool { //igSplitterBehavior
+    return c.igSplitterBehavior(@bitCast(bb), id, @intFromEnum(axis), size1, size2, min_size1, min_size2, hover_extend, hover_visibility_delay, bg_col);
+}
+pub fn treeNodeBehavior(id: ID, flags: TreeNodeFlags, label: [*c]const u8, label_end: [*c]const u8) bool { //igTreeNodeBehavior
+    return c.igTreeNodeBehavior(id, @bitCast(flags), label, label_end);
+}
+pub fn treeNodeBehaviorIsOpen(id: ID, flags: TreeNodeFlags) bool { //igTreeNodeBehaviorIsOpen
+    return c.igTreeNodeBehaviorIsOpen(id, @bitCast(flags));
+}
+pub fn treePushOverrideID(id: ID) void { //igTreePushOverrideID
+    c.igTreePushOverrideID(id);
+}
+pub fn dataTypeGetInfo(data_type: DataType) [*c]const DataTypeInfo { //igDataTypeGetInfo
+    return c.igDataTypeGetInfo(@intFromEnum(data_type));
+}
+pub fn dataTypeFormatString(buf: [*c]u8, buf_size: c_int, data_type: DataType, p_data: [*c]const void, format: [*c]const u8) c_int { //igDataTypeFormatString
+    return c.igDataTypeFormatString(buf, buf_size, @intFromEnum(data_type), p_data, format);
+}
+pub fn dataTypeApplyOp(data_type: DataType, op: c_int, output: ?*anyopaque, arg_1: [*c]const void, arg_2: [*c]const void) void { //igDataTypeApplyOp
+    c.igDataTypeApplyOp(@intFromEnum(data_type), op, output, arg_1, arg_2);
+}
+pub fn dataTypeApplyFromText(buf: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, format: [*c]const u8) bool { //igDataTypeApplyFromText
+    return c.igDataTypeApplyFromText(buf, @intFromEnum(data_type), p_data, format);
+}
+pub fn dataTypeCompare(data_type: DataType, arg_1: [*c]const void, arg_2: [*c]const void) c_int { //igDataTypeCompare
+    return c.igDataTypeCompare(@intFromEnum(data_type), arg_1, arg_2);
+}
+pub fn dataTypeClamp(data_type: DataType, p_data: ?*anyopaque, p_min: [*c]const void, p_max: [*c]const void) bool { //igDataTypeClamp
+    return c.igDataTypeClamp(@intFromEnum(data_type), p_data, p_min, p_max);
+}
+pub fn inputTextEx(label: [*c]const u8, hint: [*c]const u8, buf: [*c]u8, buf_size: c_int, size_arg: Vec2, flags: InputTextFlags, callback: InputTextCallback, user_data: ?*anyopaque) bool { //igInputTextEx
+    return c.igInputTextEx(label, hint, buf, buf_size, @bitCast(size_arg), @bitCast(flags), callback, user_data);
+}
+pub fn tempInputText(bb: Rect, id: ID, label: [*c]const u8, buf: [*c]u8, buf_size: c_int, flags: InputTextFlags) bool { //igTempInputText
+    return c.igTempInputText(@bitCast(bb), id, label, buf, buf_size, @bitCast(flags));
+}
+pub fn tempInputScalar(bb: Rect, id: ID, label: [*c]const u8, data_type: DataType, p_data: ?*anyopaque, format: [*c]const u8, p_clamp_min: [*c]const void, p_clamp_max: [*c]const void) bool { //igTempInputScalar
+    return c.igTempInputScalar(@bitCast(bb), id, label, @intFromEnum(data_type), p_data, format, p_clamp_min, p_clamp_max);
+}
+pub fn tempInputIsActive(id: ID) bool { //igTempInputIsActive
+    return c.igTempInputIsActive(id);
+}
+pub fn getInputTextState(id: ID) [*c]InputTextState { //igGetInputTextState
+    return c.igGetInputTextState(id);
+}
+pub fn colorTooltip(text: [*c]const u8, col: [*c]const f32, flags: ColorEditFlags) void { //igColorTooltip
+    c.igColorTooltip(text, col, @bitCast(flags));
+}
+pub fn colorEditOptionsPopup(col: [*c]const f32, flags: ColorEditFlags) void { //igColorEditOptionsPopup
+    c.igColorEditOptionsPopup(col, @bitCast(flags));
+}
+pub fn colorPickerOptionsPopup(ref_col: [*c]const f32, flags: ColorEditFlags) void { //igColorPickerOptionsPopup
+    c.igColorPickerOptionsPopup(ref_col, @bitCast(flags));
+}
+pub fn shadeVertsLinearColorGradientKeepAlpha(draw_list: [*c]DrawList, vert_start_idx: c_int, vert_end_idx: c_int, gradient_p0: Vec2, gradient_p1: Vec2, col0: U32, col1: U32) void { //igShadeVertsLinearColorGradientKeepAlpha
+    c.igShadeVertsLinearColorGradientKeepAlpha(draw_list, vert_start_idx, vert_end_idx, @bitCast(gradient_p0), @bitCast(gradient_p1), col0, col1);
+}
+pub fn shadeVertsLinearUV(draw_list: [*c]DrawList, vert_start_idx: c_int, vert_end_idx: c_int, a: Vec2, b: Vec2, uv_a: Vec2, uv_b: Vec2, clamp: bool) void { //igShadeVertsLinearUV
+    c.igShadeVertsLinearUV(draw_list, vert_start_idx, vert_end_idx, @bitCast(a), @bitCast(b), @bitCast(uv_a), @bitCast(uv_b), clamp);
+}
+pub fn gcCompactTransientMiscBuffers() void { //igGcCompactTransientMiscBuffers
+    c.igGcCompactTransientMiscBuffers();
+}
+pub fn gcCompactTransientWindowBuffers(window: [*c]Window) void { //igGcCompactTransientWindowBuffers
+    c.igGcCompactTransientWindowBuffers(window);
+}
+pub fn gcAwakeTransientWindowBuffers(window: [*c]Window) void { //igGcAwakeTransientWindowBuffers
+    c.igGcAwakeTransientWindowBuffers(window);
+}
+pub fn errorCheckEndFrameRecover(log_callback: ErrorLogCallback, user_data: ?*anyopaque) void { //igErrorCheckEndFrameRecover
+    c.igErrorCheckEndFrameRecover(log_callback, user_data);
+}
+pub fn errorCheckEndWindowRecover(log_callback: ErrorLogCallback, user_data: ?*anyopaque) void { //igErrorCheckEndWindowRecover
+    c.igErrorCheckEndWindowRecover(log_callback, user_data);
+}
+pub fn debugDrawItemRect(col: U32) void { //igDebugDrawItemRect
+    c.igDebugDrawItemRect(col);
+}
+pub fn debugStartItemPicker() void { //igDebugStartItemPicker
+    c.igDebugStartItemPicker();
+}
+pub fn showFontAtlas(atlas: [*c]FontAtlas) void { //igShowFontAtlas
+    c.igShowFontAtlas(atlas);
+}
+pub fn debugHookIdInfo(id: ID, data_type: DataType, data_id: [*c]const void, data_id_end: [*c]const void) void { //igDebugHookIdInfo
+    c.igDebugHookIdInfo(id, @intFromEnum(data_type), data_id, data_id_end);
+}
+pub fn debugNodeColumns(cols: [*c]OldColumns) void { //igDebugNodeColumns
+    c.igDebugNodeColumns(cols);
+}
+pub fn debugNodeDockNode(node: [*c]DockNode, label: [*c]const u8) void { //igDebugNodeDockNode
+    c.igDebugNodeDockNode(node, label);
+}
+pub fn debugNodeDrawList(window: [*c]Window, viewport: [*c]ViewportP, draw_list: [*c]const DrawList, label: [*c]const u8) void { //igDebugNodeDrawList
+    c.igDebugNodeDrawList(window, viewport, draw_list, label);
+}
+pub fn debugNodeDrawCmdShowMeshAndBoundingBox(out_draw_list: [*c]DrawList, draw_list: [*c]const DrawList, draw_cmd: [*c]const DrawCmd, show_mesh: bool, show_aabb: bool) void { //igDebugNodeDrawCmdShowMeshAndBoundingBox
+    c.igDebugNodeDrawCmdShowMeshAndBoundingBox(out_draw_list, draw_list, draw_cmd, show_mesh, show_aabb);
+}
+pub fn debugNodeFont(font: [*c]Font) void { //igDebugNodeFont
+    c.igDebugNodeFont(font);
+}
+pub fn debugNodeFontGlyph(font: [*c]Font, glyph: [*c]const FontGlyph) void { //igDebugNodeFontGlyph
+    c.igDebugNodeFontGlyph(font, glyph);
+}
+pub fn debugNodeStorage(storage: [*c]Storage, label: [*c]const u8) void { //igDebugNodeStorage
+    c.igDebugNodeStorage(storage, label);
+}
+pub fn debugNodeTabBar(tab_bar: [*c]TabBar, label: [*c]const u8) void { //igDebugNodeTabBar
+    c.igDebugNodeTabBar(tab_bar, label);
+}
+pub fn debugNodeTable(table: [*c]Table) void { //igDebugNodeTable
+    c.igDebugNodeTable(table);
+}
+pub fn debugNodeTableSettings(settings: [*c]TableSettings) void { //igDebugNodeTableSettings
+    c.igDebugNodeTableSettings(settings);
+}
+pub fn debugNodeInputTextState(state: [*c]InputTextState) void { //igDebugNodeInputTextState
+    c.igDebugNodeInputTextState(state);
+}
+pub fn debugNodeWindow(window: [*c]Window, label: [*c]const u8) void { //igDebugNodeWindow
+    c.igDebugNodeWindow(window, label);
+}
+pub fn debugNodeWindowSettings(settings: [*c]WindowSettings) void { //igDebugNodeWindowSettings
+    c.igDebugNodeWindowSettings(settings);
+}
+pub fn debugNodeWindowsList(windows: [*c]WindowPtrVector, label: [*c]const u8) void { //igDebugNodeWindowsList
+    c.igDebugNodeWindowsList(windows, label);
+}
+pub fn debugNodeWindowsListByBeginStackParent(windows: [*c]Window, windows_size: c_int, parent_in_begin_stack: [*c]Window) void { //igDebugNodeWindowsListByBeginStackParent
+    c.igDebugNodeWindowsListByBeginStackParent(windows, windows_size, parent_in_begin_stack);
+}
+pub fn debugNodeViewport(viewport: [*c]ViewportP) void { //igDebugNodeViewport
+    c.igDebugNodeViewport(viewport);
+}
+pub fn debugRenderViewportThumbnail(draw_list: [*c]DrawList, viewport: [*c]ViewportP, bb: Rect) void { //igDebugRenderViewportThumbnail
+    c.igDebugRenderViewportThumbnail(draw_list, viewport, @bitCast(bb));
+}
+pub fn imFontAtlasGetBuilderForStbTruetype() [*c]const FontBuilderIO { //igImFontAtlasGetBuilderForStbTruetype
+    return c.igImFontAtlasGetBuilderForStbTruetype();
+}
+pub fn imFontAtlasBuildInit(atlas: [*c]FontAtlas) void { //igImFontAtlasBuildInit
+    c.igImFontAtlasBuildInit(atlas);
+}
+pub fn imFontAtlasBuildSetupFont(atlas: [*c]FontAtlas, font: [*c]Font, font_config: [*c]FontConfig, ascent: f32, descent: f32) void { //igImFontAtlasBuildSetupFont
+    c.igImFontAtlasBuildSetupFont(atlas, font, font_config, ascent, descent);
+}
+pub fn imFontAtlasBuildPackCustomRects(atlas: [*c]FontAtlas, stbrp_context_opaque: ?*anyopaque) void { //igImFontAtlasBuildPackCustomRects
+    c.igImFontAtlasBuildPackCustomRects(atlas, stbrp_context_opaque);
+}
+pub fn imFontAtlasBuildFinish(atlas: [*c]FontAtlas) void { //igImFontAtlasBuildFinish
+    c.igImFontAtlasBuildFinish(atlas);
+}
+pub fn imFontAtlasBuildRender8bppRectFromString(atlas: [*c]FontAtlas, x: c_int, y: c_int, w: c_int, h: c_int, in_str: [*c]const u8, in_marker_char: u8, in_marker_pixel_value: u8) void { //igImFontAtlasBuildRender8bppRectFromString
+    c.igImFontAtlasBuildRender8bppRectFromString(atlas, x, y, w, h, in_str, in_marker_char, in_marker_pixel_value);
+}
+pub fn imFontAtlasBuildRender32bppRectFromString(atlas: [*c]FontAtlas, x: c_int, y: c_int, w: c_int, h: c_int, in_str: [*c]const u8, in_marker_char: u8, in_marker_pixel_value: c_uint) void { //igImFontAtlasBuildRender32bppRectFromString
+    c.igImFontAtlasBuildRender32bppRectFromString(atlas, x, y, w, h, in_str, in_marker_char, in_marker_pixel_value);
+}
 
 // TODO structs with bitfields...
 // for the time being this shall be just an opaque pointer
@@ -2619,6 +4847,59 @@ pub const DrawCallback = *const fn ([*c]const DrawList, [*c]const DrawCmd) callc
 
 // TODO file handles? typedef FILE* ImFileHandle;
 pub const FileHandle = std.fs.File;
+
+// pub fn textV(fmt: [*c]const u8, args: list) void { //igTextV
+//     c.igTextV(fmt, args);
+// }
+// pub fn textColoredV(col: Vec4, fmt: [*c]const u8, args: list) void { //igTextColoredV
+//     c.igTextColoredV(@bitCast(col), fmt, args);
+// }
+// pub fn textDisabledV(fmt: [*c]const u8, args: list) void { //igTextDisabledV
+//     c.igTextDisabledV(fmt, args);
+// }
+// pub fn textWrappedV(fmt: [*c]const u8, args: list) void { //igTextWrappedV
+//     c.igTextWrappedV(fmt, args);
+// }
+// pub fn labelTextV(label: [*c]const u8, fmt: [*c]const u8, args: list) void { //igLabelTextV
+//     c.igLabelTextV(label, fmt, args);
+// }
+// pub fn bulletTextV(fmt: [*c]const u8, args: list) void { //igBulletTextV
+//     c.igBulletTextV(fmt, args);
+// }
+//
+// pub fn treeNodeV_Str(str_id: [*c]const u8, fmt: [*c]const u8, args: list) bool { //igTreeNodeV_Str
+//     return c.igTreeNodeV_Str(str_id, fmt, args);
+// }
+// pub fn treeNodeV_Ptr(ptr_id: [*c]const void, fmt: [*c]const u8, args: list) bool { //igTreeNodeV_Ptr
+//     return c.igTreeNodeV_Ptr(ptr_id, fmt, args);
+// }
+//
+// pub fn treeNodeExV_Str(str_id: [*c]const u8, flags: TreeNodeFlags, fmt: [*c]const u8, args: list) bool { //igTreeNodeExV_Str
+//     return c.igTreeNodeExV_Str(str_id, @bitCast(flags), fmt, args);
+// }
+// pub fn treeNodeExV_Ptr(ptr_id: [*c]const void, flags: TreeNodeFlags, fmt: [*c]const u8, args: list) bool { //igTreeNodeExV_Ptr
+//     return c.igTreeNodeExV_Ptr(ptr_id, @bitCast(flags), fmt, args);
+// }
+//
+// pub fn setTooltipV(fmt: [*c]const u8, args: list) void { //igSetTooltipV
+//     c.igSetTooltipV(fmt, args);
+// }
+//
+// pub fn logTextV(fmt: [*c]const u8, args: list) void { //igLogTextV
+//     c.igLogTextV(fmt, args);
+// }
+//
+// pub fn imFormatStringV(buf: [*c]u8, buf_size: usize, fmt: [*c]const u8, args: list) c_int { //igImFormatStringV
+//     return c.igImFormatStringV(buf, buf_size, fmt, args);
+// }
+// pub fn imFormatStringToTempBufferV(out_buf: [*c]const u8, out_buf_end: [*c]const u8, fmt: [*c]const u8, args: list) void { //igImFormatStringToTempBufferV
+//     c.igImFormatStringToTempBufferV(out_buf, out_buf_end, fmt, args);
+// }
+//
+//
+// pub fn debugLogV(fmt: [*c]const u8, args: list) void { //igDebugLogV
+//     c.igDebugLogV(fmt, args);
+// }
 
 pub const c = @cImport({
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
