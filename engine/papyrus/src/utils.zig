@@ -13,10 +13,10 @@ pub fn loadFileAlloc(filename: []const u8, comptime alignment: usize, allocator:
 }
 
 pub fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFile: []const u8) !void {
-    const sourceFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{vizFile});
+    const sourceFile = try std.fmt.allocPrint(allocator, core.DefaultSavePath ++ "/{s}", .{vizFile});
     defer allocator.free(sourceFile);
 
-    const imageFile = try std.fmt.allocPrint(allocator, "Saved/{s}", .{pngFile});
+    const imageFile = try std.fmt.allocPrint(allocator, core.DefaultSavePath ++ "/{s}", .{pngFile});
     defer allocator.free(imageFile);
 
     var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
@@ -51,9 +51,9 @@ pub const FileLog = struct {
 
     pub fn writeOut(self: @This()) !void {
         const cwd = std.fs.cwd();
-        const ofile = try std.fmt.allocPrint(self.allocator, "Saved/{s}", .{self.fileName});
+        const ofile = try std.fmt.allocPrint(self.allocator, core.DefaultSavePath ++ "/{s}", .{self.fileName});
         defer self.allocator.free(ofile);
-        try cwd.makePath("Saved");
+        try cwd.makePath(core.DefaultSavePath);
         try cwd.writeFile(ofile, self.buffer.items);
     }
 

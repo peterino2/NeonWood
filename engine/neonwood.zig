@@ -70,9 +70,18 @@ pub fn shutdown_everything(allocator: std.mem.Allocator) void {
 }
 
 pub fn run_everything(comptime GameContext: type) !void {
-    var gameContext = try core.createObject(GameContext, .{ .can_tick = true });
+    var canTick: bool = false;
+
+    if (@hasDecl(GameContext, "tick")) {
+        canTick = true;
+    }
+
+    var gameContext = try core.createObject(GameContext, .{ .can_tick = canTick });
+
     if (@hasDecl(GameContext, "prepare_game")) {
         gameContext.prepare_game() catch @panic("Unable to run base level prepare script");
+    } else if (@hasDecl(GameContext, "prepare")) {
+        gameContext.prepare() catch @panic("Unable to run base level prepare script");
     }
 
     try core.gEngine.run();
@@ -115,6 +124,12 @@ pub fn initializeAndRunStandardProgram(comptime GameContext: type, comptime spec
     }
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
+
+    if (@hasField(@TypeOf(spec), "windowName")) {
+        platform.setWindowSettings(.{ .windowName = spec.windowName });
+    } else {
+        platform.setWindowSettings(.{ .windowName = spec.name });
+    }
 
     try start_everything(spec, allocator, args);
     defer shutdown_everything(allocator);

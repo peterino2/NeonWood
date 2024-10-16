@@ -11,14 +11,8 @@ const vk_constants = graphics.constants;
 
 const use_renderthread = core.BuildOption("use_renderthread");
 
-pub const c = @cImport({
-    @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", {});
-    @cDefine("CIMGUI_USE_GLFW", "1"); // if this needs a reference to glfw3, cleanest thing to do is to copy the glfw3 header here. I suspect it won't need it though.
-    @cInclude("cimgui.h");
-    @cInclude("cimgui_compat.h");
-    @cInclude("cimgui_impl.h");
-    @cInclude("cimplot.h");
-});
+pub const api = @import("cimgui.zig");
+pub const c = api.c;
 
 const NeonVkContext = vk_renderer.NeonVkContext;
 
@@ -39,7 +33,10 @@ fn vkCast(comptime T: type, handle: anytype) T {
     return @as(T, @ptrFromInt(@as(u64, @intFromEnum(handle))));
 }
 
-// this data structure is invalid until you call setup
+// this data structure represents the imgui integration setup.
+// it is invalid until you call setup()
+//
+// largely don't need to touch this structure from the user's side.
 pub const NeonVkImGui = struct {
     const Self = @This();
     pub const NeonObjectTable = core.EngineObjectVTable.from(Self);
@@ -125,6 +122,8 @@ pub const NeonVkImGui = struct {
 
     pub fn setup(self: *Self, ctx: *NeonVkContext) !void {
         self.ctx = ctx;
+        std.debug.print("vkImGui = {d}\n", .{@sizeOf(c.ImGuiStyle)});
+        std.debug.print("size of InputEvent = {d}\n", .{@sizeOf(c.ImGuiInputEvent)});
 
         const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
             .{ .type = .sampler, .descriptor_count = 1000 },

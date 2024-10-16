@@ -35,6 +35,8 @@ pub const spng = @import("spng");
 
 pub const MemoryTracker = @import("MemoryTracker.zig");
 
+pub const DefaultSavePath = "Saved";
+
 const logging = @import("logging.zig");
 const c = @This();
 
