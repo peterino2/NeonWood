@@ -576,6 +576,7 @@ pub const NeonVkContext = struct {
             .caps = self.caps,
             .framesInFlight = std.atomic.Value(u32).init(0),
             .maxObjectCount = self.maxObjectCount,
+            .isMinimized = std.atomic.Value(bool).init(false),
 
             // render resources
             .sceneParameterBuffer = self.sceneParameterBuffer,
@@ -1133,10 +1134,25 @@ pub const NeonVkContext = struct {
         self.rendererTime += deltaTime;
     }
 
+    pub fn checkIfResized() bool {
+        var w: c_int = undefined;
+        var h: c_int = undefined;
+        platform.glfw3.glfwGetWindowSize(platform.getInstance().window, &w, &h);
+
+        if (w > 0 and h > 0) {
+            return true;
+        }
+        return false;
+    }
+
     pub fn advanceFrameIndexRt(self: *@This()) u32 {
+        var z1 = tracy.ZoneNC(@src(), "advance frame index", 0x11111100);
+        defer z1.End();
+
         const fi = self.nextFrameIndex;
         while (self.renderthread.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
         self.nextFrameIndex = (self.nextFrameIndex + 1) % @as(u32, @intCast(vk_constants.NUM_FRAMES));
+
         return fi;
     }
 
@@ -1149,11 +1165,25 @@ pub const NeonVkContext = struct {
         // self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
-            const frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
+            var frameIndex: u32 = 0;
+
+            if (!self.renderthread.minimized()) {
+                frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
+            }
+
             var z2 = tracy.ZoneN(@src(), "renderer tick");
             self.sendSharedData(frameIndex) catch unreachable;
             self.sendSharedDataPlugins(frameIndex);
-            self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
+
+            if (!self.renderthread.minimized()) {
+                self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
+            } else {
+                if (checkIfResized()) {
+                    std.debug.print("dispatching frame for resize\n", .{});
+                    self.renderthread.dispatchNextFrame(dt, 0) catch unreachable;
+                }
+            }
+
             defer z2.End();
         } else {
             self.draw(dt) catch unreachable;

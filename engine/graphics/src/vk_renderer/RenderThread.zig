@@ -38,7 +38,7 @@ actual_extent: vk.Extent2D = undefined, // actual_extent is the base extent used
 commandBuffers: [NumFrames]vk.CommandBuffer = undefined,
 frameSync: [NumFrames]FrameSyncs = undefined,
 
-isMinimized: bool = false,
+isMinimized: std.atomic.Value(bool),
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
 // returns an index.
@@ -311,9 +311,23 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 // fi = frameIndex
 pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     _ = deltaTime;
+    var z1 = tracy.ZoneNC(@src(), "draw", 0x00FF1111);
+    defer z1.End();
 
-    if (!self.isMinimized) {
-        const syncIndex = try self.acquireNextFrame();
+    if (!self.isMinimized.load(.acquire)) {
+        const syncIndex = self.acquireNextFrame() catch |err| {
+            switch (err) {
+                error.OutOfDateKHR => {
+                    if (self.updateExtentIfDirty()) {
+                        try self.resizeToNewExtents();
+                    }
+                    return;
+                },
+                else => {
+                    return err;
+                },
+            }
+        };
         try self.preFrameUpdate(fi);
         const cmd = try self.startFrameCommands(fi);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
@@ -521,13 +535,15 @@ fn finishFrame(self: *@This(), frameIndex: u32, syncIndex: u32) !void {
         else => |narrow| return narrow,
     };
 
-    if (outOfDate or self.updateExtentIfDirty()) {
+    if (outOfDate and self.updateExtentIfDirty()) {
         try self.resizeToNewExtents();
     }
 }
 
 fn resizeToNewExtents(self: *@This()) !void {
-    self.isMinimized = false;
+    var z1 = tracy.ZoneN(@src(), "resizing to new extents");
+    defer z1.End();
+    self.isMinimized.store(false, .seq_cst);
     try vkd.deviceWaitIdle(self.dev);
     self.displayTarget.deinit(self);
 
@@ -535,12 +551,27 @@ fn resizeToNewExtents(self: *@This()) !void {
     try self.initFramebuffers();
 }
 
-fn updateExtentIfDirty(self: *@This()) bool {
+pub fn minimized(self: @This()) bool {
+    return self.isMinimized.load(.acquire);
+}
+
+pub fn checkIfStillMinimized() bool {
     var w: c_int = undefined;
     var h: c_int = undefined;
     platform.glfw3.glfwGetWindowSize(platform.getInstance().window, &w, &h);
 
-    if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and w > 0 and h > 0) {
+    if (w > 0 and h > 0) {
+        return true;
+    }
+    return false;
+}
+
+pub fn updateExtentIfDirty(self: *@This()) bool {
+    var w: c_int = undefined;
+    var h: c_int = undefined;
+    platform.glfw3.glfwGetWindowSize(platform.getInstance().window, &w, &h);
+
+    if (((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and w > 0 and h > 0)) {
         self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
         platform.getInstance().updateExtent(.{ .x = w, .y = h });
 
@@ -548,7 +579,11 @@ fn updateExtentIfDirty(self: *@This()) bool {
     }
 
     if (w <= 0 or h <= 0) {
-        self.isMinimized = true;
+        self.extent.width = 0;
+        self.extent.height = 0;
+        self.isMinimized.store(true, .seq_cst);
+    } else {
+        self.isMinimized.store(false, .seq_cst);
     }
 
     return false;
