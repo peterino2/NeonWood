@@ -211,7 +211,7 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
     var z1 = tracy.ZoneNC(@src(), "Waiting for frame", 0x111111);
     defer z1.End();
 
-    while (self.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
+    //while (self.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
 
     //while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
 
@@ -313,11 +313,12 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
     _ = deltaTime;
 
     if (!self.isMinimized) {
+        const syncIndex = try self.acquireNextFrame();
         try self.preFrameUpdate(fi);
         const cmd = try self.startFrameCommands(fi);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const time = core.getEngineTime();
-        try self.beginMainRenderpass(cmd, fi);
+        try self.beginMainRenderpass(cmd, syncIndex);
 
         self.renderMeshes(cmd, fi);
         self.postDrawPlugins(cmd, fi);
@@ -331,7 +332,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
 
         z.End();
         try vkd.endCommandBuffer(cmd);
-        try self.finishFrame(fi);
+        try self.finishFrame(fi, syncIndex);
     } else {
         if (self.updateExtentIfDirty()) {
             try self.resizeToNewExtents();
@@ -448,7 +449,7 @@ fn startFrameCommands(self: *@This(), fi: u32) !vk.CommandBuffer {
     return cmd;
 }
 
-fn beginMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
+fn beginMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, syncIndex: u32) !void {
     var z = tracy.ZoneNC(@src(), "Begin RenderPass", 0xFFBBBB);
     defer z.End();
 
@@ -469,7 +470,7 @@ fn beginMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
             .extent = self.actual_extent,
             .offset = .{ .x = 0, .y = 0 },
         },
-        .framebuffer = self.displayTarget.framebuffers[fi],
+        .framebuffer = self.displayTarget.framebuffers[syncIndex],
         .render_pass = self.renderPass,
         .clear_value_count = 2,
         .p_clear_values = @as([*]const vk.ClearValue, @ptrCast(&clearValues)),
@@ -481,15 +482,15 @@ fn beginMainRenderpass(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
     vkd.cmdSetScissor(cmd, 0, 1, @ptrCast(&self.displayTarget.scissor));
 }
 
-fn finishFrame(self: *@This(), frameIndex: u32) !void {
+fn finishFrame(self: *@This(), frameIndex: u32, syncIndex: u32) !void {
     var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
 
     var submit = vk.SubmitInfo{
         .p_wait_dst_stage_mask = @as([*]const vk.PipelineStageFlags, @ptrCast(&waitStage)),
         .wait_semaphore_count = 1,
-        .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[frameIndex].acquire)),
+        .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[syncIndex].acquire)),
         .signal_semaphore_count = 1,
-        .p_signal_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[frameIndex].renderComplete)),
+        .p_signal_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[syncIndex].renderComplete)),
         .command_buffer_count = 1,
         .p_command_buffers = @as([*]const vk.CommandBuffer, @ptrCast(&self.commandBuffers[frameIndex])),
     };
@@ -498,16 +499,16 @@ fn finishFrame(self: *@This(), frameIndex: u32) !void {
         self.graphicsQueue.handle,
         1,
         @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
-        self.frameSync[frameIndex].cmdFence,
+        self.frameSync[syncIndex].cmdFence,
     );
 
     var presentInfo = vk.PresentInfoKHR{
         .p_swapchains = @as([*]const vk.SwapchainKHR, @ptrCast(&self.displayTarget.swapchain)),
         .swapchain_count = 1,
-        //.p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[frameIndex])),
-        .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[frameIndex].renderComplete)),
+        //.p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[syncIndex])),
+        .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[syncIndex].renderComplete)),
         .wait_semaphore_count = 1,
-        .p_image_indices = @as([*]const u32, @ptrCast(&frameIndex)),
+        .p_image_indices = @as([*]const u32, @ptrCast(&syncIndex)),
         .p_results = null,
     };
 

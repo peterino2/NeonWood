@@ -1133,6 +1133,13 @@ pub const NeonVkContext = struct {
         self.rendererTime += deltaTime;
     }
 
+    pub fn advanceFrameIndexRt(self: *@This()) u32 {
+        const fi = self.nextFrameIndex;
+        while (self.renderthread.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
+        self.nextFrameIndex = (self.nextFrameIndex + 1) % @as(u32, @intCast(vk_constants.NUM_FRAMES));
+        return fi;
+    }
+
     pub fn engineDraw(self: *Self, dt: f64) void {
         self.updateTime(dt);
 
@@ -1142,7 +1149,7 @@ pub const NeonVkContext = struct {
         // self.sceneManager.update(self) catch unreachable;
 
         if (use_renderthread) {
-            const frameIndex = self.renderthread.acquireNextFrame() catch unreachable;
+            const frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
             var z2 = tracy.ZoneN(@src(), "renderer tick");
             self.sendSharedData(frameIndex) catch unreachable;
             self.sendSharedDataPlugins(frameIndex);
