@@ -211,10 +211,6 @@ pub fn acquireNextFrame(self: *@This()) !u32 {
     var z1 = tracy.ZoneNC(@src(), "Waiting for frame", 0x111111);
     defer z1.End();
 
-    //while (self.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
-
-    //while (self.framesInFlight.load(.seq_cst) >= maxFramesInFlight()) {}
-
     const nextFrameIndex = try self.getNextSwapImage();
 
     _ = try vkd.waitForFences(
@@ -249,9 +245,6 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
-            // ctx.r.dynamicMeshManager.finishUpload() catch unreachable;
-            // lets think about this one later.
-            //_ = ctx.r.framesInFlight.fetchSub(1, .seq_cst);
             while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
         }
     };

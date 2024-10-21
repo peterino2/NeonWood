@@ -22,8 +22,8 @@ pub fn mainWindow(self: *@This()) void {
     if (imgui.begin("Main", &self.open, .{
         .no_collapse = true,
     })) {
-        if (imgui.smallButton("click me!")) {
-            core.engine_logs("you clicked me");
+        if (imgui.button("Dump the callstack!!!!", .{})) {
+            core.walkAndPrintStack();
         }
     }
     imgui.end();

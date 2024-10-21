@@ -2646,7 +2646,7 @@ pub const NeonVkContext = struct {
     /// ---------- renderObject functions
 
     // this one treats the renderer like any other subsystem
-
+    //
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !RenderObject {
         var renderObject = RenderObject.fromTransform(params.init_transform);
 

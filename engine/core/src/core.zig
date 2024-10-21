@@ -57,6 +57,9 @@ pub usingnamespace ecs;
 
 pub const script = @import("script.zig");
 
+pub const stacks = @import("stacks.zig");
+pub const walkAndPrintStack = stacks.walkAndPrintStack;
+
 pub fn fs() *PackerFS {
     return gPackerFS;
 }
