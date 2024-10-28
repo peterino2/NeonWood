@@ -23,7 +23,21 @@ pub fn mainWindow(self: *@This()) void {
         .no_collapse = true,
     })) {
         if (imgui.button("Dump the callstack!!!!", .{})) {
-            core.walkAndPrintStack();
+            core.stacks.pushCallStack();
+        }
+
+        const compactor = core.stacks.getStackCompactor();
+        var iter = compactor.stackMap.iterator();
+        while (iter.next()) |x| {
+            // std.debug.print("> {x}\n", .{x.key_ptr.*});
+            const stack = x.value_ptr;
+
+            for (stack.*.debugStr) |debugStr| {
+                if (debugStr) |s| {
+                    std.debug.print("> {s}\n", .{s});
+                    // imgui.textFmt("{s}", debugStr);
+                }
+            }
         }
     }
     imgui.end();
@@ -64,7 +78,10 @@ pub inline fn allocator(self: @This()) std.mem.Allocator {
 
 pub fn init(alloc: std.mem.Allocator) !*@This() {
     const self = try alloc.create(@This());
-    self.* = .{ .backingAllocator = alloc, .arena = std.heap.ArenaAllocator.init(alloc) };
+    self.* = .{
+        .backingAllocator = alloc,
+        .arena = std.heap.ArenaAllocator.init(alloc),
+    };
     return self;
 }
 
@@ -74,6 +91,7 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn main() !void {
+    core.stacks.initStackCompactor();
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.initializeAndRunStandardProgram(@This(), .{ .name = "Allocation viewer", .ui = false, .papyrus = false });
 }

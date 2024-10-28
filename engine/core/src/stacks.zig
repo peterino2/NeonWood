@@ -1,4 +1,6 @@
 const std = @import("std");
+const core = @import("core.zig");
+const BumpArena = core.BumpArena;
 
 pub fn hashStackList(stack: []const usize) u32 {
     var c: u32 = 0;
@@ -44,26 +46,62 @@ test "test hash64s" {
     std.debug.print("combined hash = {x} ({x})\n", .{ combined, hashStackList(pointers) });
 }
 
-// lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-// lhs ^= rhs + 0x517cc1b727220a95 + (lhs << 6) + (lhs >> 2);
 pub const StackCompactor = struct {
     allocator: std.mem.Allocator,
-    stackArena: std.heap.ArenaAllocator, // todo. replace with p2.BumpArena
-    stackMap: std.AutohashMapUnmanaged(u32, []usize) = .{},
+    stackArena: BumpArena,
+    stackMap: std.AutoHashMapUnmanaged(u32, *CallStack) = .{},
+    const CallStack = struct {
+        pointers: []usize,
+        debugStr: []?[]u8,
+    };
 
     pub fn create(allocator: std.mem.Allocator) !*@This() {
         const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .stackArena = std.heap.ArenaAllocator.init(allocator),
+            .stackArena = try BumpArena.init(allocator),
         };
 
         return self;
     }
 
-    pub fn addNewCallstack(self: @This(), stack: []const usize) !void {
+    pub fn addNewCallstack(self: *@This(), stack: []const usize) !void {
         const hash = hashStackList(stack);
-        if (!self.stackMap.contains(hash)) {}
+        const bumpAllocator = self.stackArena.allocator();
+
+        if (!self.stackMap.contains(hash)) {
+            const ownedStack: *CallStack = try bumpAllocator.create(CallStack);
+            ownedStack.pointers = try bumpAllocator.dupe(usize, stack);
+            ownedStack.debugStr = try bumpAllocator.alloc(?[]u8, stack.len);
+
+            const debug_info = std.debug.getSelfDebugInfo() catch {
+                try self.stackMap.put(self.allocator, hash, ownedStack);
+                return;
+            };
+
+            for (stack, 0..) |address, i| {
+                ownedStack.debugStr[i] = null;
+
+                const module = debug_info.getModuleForAddress(address) catch continue;
+                const symbol_info = module.getSymbolAtAddress(debug_info.allocator, address) catch continue;
+
+                if (symbol_info.line_info) |line_info| {
+                    ownedStack.debugStr[i] = try std.fmt.allocPrintZ(
+                        bumpAllocator,
+                        "{d}> @0x{x} symbol_name: {s} {s} > {s}: {d}",
+                        .{ i, address, symbol_info.symbol_name, symbol_info.compile_unit_name, line_info.file_name, line_info.line },
+                    );
+                } else {
+                    ownedStack.debugStr[i] = try std.fmt.allocPrintZ(
+                        bumpAllocator,
+                        "{d}> @0x{x} symbol_name: {s} {s} > no file info",
+                        .{ i, address, symbol_info.symbol_name, symbol_info.compile_unit_name },
+                    );
+                }
+            }
+
+            try self.stackMap.put(self.allocator, hash, ownedStack);
+        }
     }
 
     pub fn deinit(self: @This()) void {
@@ -71,6 +109,30 @@ pub const StackCompactor = struct {
         self.allocator.destroy(self);
     }
 };
+
+var stackCompactor: *core.StackCompactor = undefined;
+
+pub fn initStackCompactor() void {
+    stackCompactor = core.StackCompactor.create(std.heap.c_allocator) catch unreachable;
+}
+
+pub inline fn pushCallStack() void {
+    var context: std.debug.ThreadContext = undefined;
+    const has_context = std.debug.getContext(&context);
+
+    if (!has_context) {
+        return;
+    }
+
+    var addr_buf: [1024]usize = undefined;
+    const n = std.debug.walkStackWindows(addr_buf[0..], &context);
+
+    stackCompactor.addNewCallstack(addr_buf[0..n]) catch unreachable;
+}
+
+pub fn getStackCompactor() *StackCompactor {
+    return stackCompactor;
+}
 
 pub fn walkAndPrintStack() void {
     var context: std.debug.ThreadContext = undefined;

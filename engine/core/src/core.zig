@@ -48,6 +48,8 @@ pub const packer = @import("packer");
 pub const FileSystem = packer.PackerFS;
 const PackerFS = packer.PackerFS;
 
+pub const StackCompactor = stacks.StackCompactor;
+
 var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
