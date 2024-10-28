@@ -323,8 +323,13 @@ pub fn main() anyerror!void {
     const memory = nw.core.MemoryTracker;
     memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
+
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
+
+    // var bumpArena = try core.algorithm.BumpArena.init(tracker.allocator());
+    // defer bumpArena.deinit();
+    // const allocator = bumpArena.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });

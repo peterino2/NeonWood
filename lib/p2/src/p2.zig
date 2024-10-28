@@ -2,6 +2,8 @@
 const std = @import("std");
 const utils = @import("structures/utils.zig");
 
+pub const BumpArena = @import("structures/bump-arena.zig").BumpArena;
+
 pub const dupeString = utils.dupeString;
 pub const xxd = @import("utils/xxd.zig");
 
