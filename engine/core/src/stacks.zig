@@ -28,6 +28,17 @@ pub inline fn hashPtr(value: usize) u32 {
     } else {}
 }
 
+test "1 million stacks." {
+    // see how fast i can walk 1 million stacks
+    var timer = std.time.Timer.start() catch unreachable;
+    const startTime = timer.read();
+    for (0..100000) |_| {
+        core.stacks.pushCallStack();
+    }
+    const endTime = timer.read();
+    std.debug.print("timeElapsed 100k callstacks {d}s", .{@as(f64, @floatFromInt(endTime - startTime)) / 1000000000});
+}
+
 test "test hash64s" {
     const pointers: []const usize = &.{
         0x0,
@@ -65,7 +76,7 @@ pub const StackCompactor = struct {
         return self;
     }
 
-    pub fn addNewCallstack(self: *@This(), stack: []const usize) !void {
+    pub fn addNewCallstack(self: *@This(), stack: []const usize) !u32 {
         const hash = hashStackList(stack);
         const bumpAllocator = self.stackArena.allocator();
 
@@ -76,7 +87,7 @@ pub const StackCompactor = struct {
 
             const debug_info = std.debug.getSelfDebugInfo() catch {
                 try self.stackMap.put(self.allocator, hash, ownedStack);
-                return;
+                return hash;
             };
 
             for (stack, 0..) |address, i| {
@@ -102,11 +113,26 @@ pub const StackCompactor = struct {
 
             try self.stackMap.put(self.allocator, hash, ownedStack);
         }
+        return hash;
     }
 
     pub fn deinit(self: @This()) void {
         self.stackList.deinit(self.allocator);
         self.allocator.destroy(self);
+    }
+
+    pub fn getCallStack(self: *@This()) u32 {
+        var context: std.debug.ThreadContext = undefined;
+        const has_context = std.debug.getContext(&context);
+
+        if (!has_context) {
+            return;
+        }
+
+        var addr_buf: [1024]usize = undefined;
+        const n = std.debug.walkStackWindows(addr_buf[0..], &context);
+
+        return self.addNewCallstack(addr_buf[0..n]) catch unreachable;
     }
 };
 

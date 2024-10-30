@@ -174,7 +174,7 @@ pub fn PagedVector(comptime T: type) type {
         }
 
         pub fn get(self: *const @This(), index: usize) *const T {
-            self.vector.get(index);
+            return self.vector.get(index);
         }
 
         pub fn getMutable(self: *@This(), index: usize) *T {

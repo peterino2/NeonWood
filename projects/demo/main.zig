@@ -256,6 +256,9 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 12;
         }
 
+        const imageChangeBtn = try ctx.addButton(unk, "change image");
+        try ctx.events.installOnPressedEvent(imageChangeBtn, .onPressed, .Mouse1, null, &dumpTimeline);
+
         if (graphics.getStartupSettings().vulkanValidation) {
             const validation = try ctx.addText(.{}, "Vulkan validation: on");
             ctx.get(validation).pos = .{ .x = 20, .y = 20 };
@@ -277,6 +280,14 @@ var unk: ui.NodeHandle = undefined;
 var gIpsumPos: core.Vector2f = .{ .x = 900, .y = 30 };
 var gSavedMouseOffset: core.Vector2f = .{};
 var gIpsumDown: bool = false;
+
+fn dumpTimeline(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
+    _ = context;
+    _ = node;
+    if (eventType == .onPressed) {
+        memory.dumpTimeline("demo_timeline.txt") catch unreachable;
+    }
+}
 
 fn onPressed(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     _ = context;
@@ -421,7 +432,6 @@ pub fn main() anyerror!void {
         }
     }
 
-    //memory.MTSetup(std.heap.c_allocator);
     memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
 

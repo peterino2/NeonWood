@@ -23,21 +23,7 @@ pub fn mainWindow(self: *@This()) void {
         .no_collapse = true,
     })) {
         if (imgui.button("Dump the callstack!!!!", .{})) {
-            core.stacks.pushCallStack();
-        }
-
-        const compactor = core.stacks.getStackCompactor();
-        var iter = compactor.stackMap.iterator();
-        while (iter.next()) |x| {
-            // std.debug.print("> {x}\n", .{x.key_ptr.*});
-            const stack = x.value_ptr;
-
-            for (stack.*.debugStr) |debugStr| {
-                if (debugStr) |s| {
-                    std.debug.print("> {s}\n", .{s});
-                    // imgui.textFmt("{s}", debugStr);
-                }
-            }
+            core.MemoryTracker.dumpTimeline("timeline.txt") catch unreachable;
         }
     }
     imgui.end();

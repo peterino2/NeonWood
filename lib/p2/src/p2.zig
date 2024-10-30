@@ -50,6 +50,9 @@ pub const ConcurrentQueueUnmanagedAdvanced = concurrent_queue.ConcurrentQueueUnm
 
 pub const string_pool = @import("structures/string-pool.zig");
 
+pub const paged_vector = @import("structures/paged-vector.zig");
+pub const PagedVector = paged_vector.PagedVector;
+
 pub const names = @import("structures/names.zig");
 
 pub const NameInvalid = names.NameInvalid;
