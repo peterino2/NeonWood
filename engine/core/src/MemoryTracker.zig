@@ -64,6 +64,7 @@ const EventTimeline = struct {
     }
 };
 
+// warning, due to laziness this uses timelineAllocator, which will leak
 pub fn dumpTimeline(filename: []const u8) !void {
     if (MTGet()) |tracker| {
         tracker.lock.lock();
