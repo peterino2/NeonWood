@@ -7,6 +7,7 @@
         .core = .{ .path = "engine/core" },
         .graphics = .{ .path = "engine/graphics" },
         .papyrus = .{ .path = "engine/papyrus" },
+        .physics = .{ .path = "engine/physics" },
         .platform = .{ .path = "engine/platform" },
         .ui = .{ .path = "engine/ui" },
         .vkImgui = .{ .path = "engine/vkImgui" },

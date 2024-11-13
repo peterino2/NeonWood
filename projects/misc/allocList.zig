@@ -32,7 +32,7 @@ pub fn mainWindow(self: *@This()) void {
 
         if (core.MemoryTracker.MTGet()) |tracker| {
             if (tracker.stackCompactor) |compactor| {
-                var buf: [32]u8 = undefined;
+                var buttonLabel: [32]u8 = undefined;
 
                 if (compactor.stackMap.get(self.stackToView)) |stack| {
                     const strList = stack.debugStr;
@@ -47,7 +47,7 @@ pub fn mainWindow(self: *@This()) void {
                     var iter = compactor.stackMap.iterator();
                     while (iter.next()) |v| {
                         const stackDbgList = v.value_ptr.*.debugStr;
-                        const buttonValue = std.fmt.bufPrintZ(&buf, "callstack: {x}", .{v.key_ptr.*}) catch unreachable;
+                        const buttonValue = std.fmt.bufPrintZ(&buttonLabel, "callstack: {x}", .{v.key_ptr.*}) catch unreachable;
 
                         if (imgui.button(buttonValue, .{})) {
                             self.stackToView = v.key_ptr.*;

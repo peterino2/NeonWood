@@ -122,6 +122,8 @@ pub fn dumpTimeline(filename: []const u8) !void {
                     .data = obuf.items,
                 });
             }
+        } else {
+            core.engine_logs("skipping writing memory timeline as timeline is not enabled");
         }
     }
 }
@@ -144,10 +146,15 @@ pub var vtable: std.mem.Allocator.VTable = .{
     .resize = resize,
 };
 
-const EnableMemoryTimeline = true;
-
-pub fn init(backingAllocator: std.mem.Allocator) @This() {
+pub fn init(backingAllocator: std.mem.Allocator, settings: SetupSettings) @This() {
     // use the ansi allocator
+
+    const EnableMemoryTimeline = settings.timeline;
+
+    if (EnableMemoryTimeline) {
+        core.engine_logs("[dmt] Enabling Detailed Memory Tracking");
+    }
+
     const stackCompactor = if (EnableMemoryTimeline) core.StackCompactor.create(std.heap.c_allocator) catch null else null;
 
     return .{
@@ -248,16 +255,13 @@ pub fn removeUntrackedAllocation(self: *@This(), allocatedSize: usize) void {
 
 var gMemTracker: ?*@This() = null;
 
-pub fn setupMemTracker(backingAllocator: std.mem.Allocator) void {
-    gMemTracker = .create(@This());
-    gMemTracker.* = @This(){ .backingAllocator = backingAllocator };
-}
+pub const SetupSettings = struct {
+    timeline: bool = false,
+};
 
-pub fn getMemTracker() *@This() {}
-
-pub fn MTSetup(backingAllocator: std.mem.Allocator) void {
+pub fn MTSetup(backingAllocator: std.mem.Allocator, settings: SetupSettings) void {
     gMemTracker = backingAllocator.create(@This()) catch unreachable;
-    gMemTracker.?.* = @This().init(backingAllocator);
+    gMemTracker.?.* = @This().init(backingAllocator, settings);
 }
 
 pub fn MTShutdown() void {

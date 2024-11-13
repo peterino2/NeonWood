@@ -7,7 +7,7 @@ nw_mod: *std.Build.Module,
 spirvReflect: SpirvReflect.SpirvGenerator2,
 options: *std.Build.Step.Options,
 
-const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "ui", "vkImgui" };
+const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "physics", "ui", "vkImgui" };
 
 const BuildSystem = @This();
 const std = @import("std");

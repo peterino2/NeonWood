@@ -1,11 +1,10 @@
 const std = @import("std");
-pub const neonwood = @import("root").neonwood;
+pub const neonwood = @import("NeonWood");
 
 const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
 const engine_log = core.engine_log;
-const c = graphics.c;
 var gGame: *GameContext = undefined;
 
 const testimage1 = "content/textures/lost_empire-RGBA.png";
@@ -45,57 +44,14 @@ const GameContext = struct {
     }
 
     pub fn tick(self: *Self, deltaTime: f64) void {
+        _ = self;
         _ = deltaTime;
-
-        if (self.showDemo) {
-            c.igShowDemoWindow(&self.showDemo);
-        }
-
-        if (self.debugOpen) {
-            if (!c.igBegin("Debug Menu", &(self.debugOpen), 0)) {
-                c.igEnd();
-            } else {
-                c.igText("hello boss");
-
-                if (c.igButton("Press me!", .{ .x = 250.0, .y = 30.0 })) {
-                    core.engine_logs("I have been pressed!");
-                    self.debugOpen = false;
-                }
-                c.igEnd();
-            }
-        }
-
-        _ = c.igBegin(
-            "instructions",
-            null,
-            c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoCollapse | c.ImGuiWindowFlags_NoTitleBar,
-        );
-        c.igText("Press ESC to close\nPress SPACE to open the demo window");
-        c.igEnd();
-
-        const drawList = c.igGetBackgroundDrawList_Nil();
-        c.ImDrawList_AddQuad(
-            drawList,
-            .{ .x = 100, .y = 100 },
-            .{ .x = 200, .y = 100 },
-            .{ .x = 200, .y = 200 },
-            .{ .x = 100, .y = 200 },
-            0xFF0000FF,
-            2.0,
-        );
     }
 
     pub fn prepare_game(self: *Self) !void {
-        try graphics.getContext().add_ui_object(.{
-            .ptr = self,
-            .vtable = &InterfaceUiTable,
-        });
-
         gGame = self;
 
         try assets.loadList(AssetReferences);
-
-        _ = c.glfwSetKeyCallback(graphics.getContext().window, input_callback);
     }
 
     pub fn deinit(self: *Self) void {
@@ -104,17 +60,27 @@ const GameContext = struct {
 };
 
 pub fn main() anyerror!void {
-    graphics.setWindowName("NeonWood: imgui demo");
-
     engine_log("Starting up", .{});
 
-    core.start_module();
-    defer core.shutdown_module();
-    assets.start_module();
-    defer assets.shutdown_module();
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 20,
+    }){};
+    defer {
+        core.printInner("shutting down gpa", .{});
+        const cleanupStatus = gpa.deinit();
+        if (cleanupStatus == .leak) {
+            core.printInner("gpa cleanup leaked memory\n", .{});
+        }
+    }
+    const allocator = gpa.allocator();
 
-    graphics.start_module();
-    defer graphics.shutdown_module();
+    try core.start_module(.{}, .{}, allocator);
+    defer core.shutdown_module(allocator);
+    try assets.start_module(.{}, .{}, allocator);
+    defer assets.shutdown_module(allocator);
+
+    try graphics.start_module(.{}, .{}, allocator);
+    defer graphics.shutdown_module(allocator);
 
     var gameContext = try core.createObject(GameContext, .{ .can_tick = false });
     try gameContext.prepare_game();

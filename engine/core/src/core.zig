@@ -72,7 +72,6 @@ pub const Module = ModuleDescription{
 };
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
-    _ = args;
     _ = programSpec;
     _ = try algorithm.createNameRegistry(allocator);
     // LUA BEGIN -- what if i want to make the scripting integration optional?
@@ -82,7 +81,9 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
 
-    try logging.setupLogging(gEngine);
+    if (@hasField(@TypeOf(args), "unitTest") and args.unitTest) {} else {
+        try logging.setupLogging(gEngine);
+    }
 
     try ecs.setup(allocator);
 

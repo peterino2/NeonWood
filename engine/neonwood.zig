@@ -5,18 +5,18 @@ pub const audio = @import("audio");
 pub const graphics = @import("graphics");
 pub const vkImgui = @import("vkImgui");
 pub const ui = @import("ui");
-
 pub const papyrus = @import("papyrus");
+pub const physics = @import("physics");
 
 const modulelist = @import("modulelist.zig").list;
 
 const std = @import("std");
 
 pub const NwArgs = struct {
-    useGPA: bool = true,
+    useGPA: bool = true, // slower zig based memory allocator, provides detailed tracking of leaks and memory violations
     vulkanValidation: bool = true,
     fastTest: bool = false,
-    renderThread: bool = false,
+    dmt: bool = false, // detailed memory tracking, implements a timeline for tracking all memory allocations
 };
 
 pub fn getArgs() !NwArgs {
@@ -31,14 +31,18 @@ pub fn getArgs() !NwArgs {
 
 var shutdownList: std.ArrayListUnmanaged(*const fn (std.mem.Allocator) void) = .{};
 
-pub fn start_modules(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+pub fn start_modules(comptime programSpec: anytype, maybeArgs: ?NwArgs, allocator: std.mem.Allocator) !void {
     const NeonWood = @This();
 
     inline for (modulelist) |feature| {
         if (@hasDecl(NeonWood, feature)) {
             const Struct = @field(NeonWood, feature);
             if (comptime core.isModuleEnabled(Struct.Module, programSpec)) {
-                try Struct.start_module(programSpec, args, allocator);
+                if (maybeArgs) |args| {
+                    try Struct.start_module(programSpec, args, allocator);
+                } else {
+                    try Struct.start_module(programSpec, .{}, allocator);
+                }
                 try shutdownList.append(allocator, Struct.shutdown_module);
                 core.engine_logs("module started >>>> " ++ feature ++ " <<<<");
             }
@@ -56,8 +60,6 @@ pub fn shutdown_modules(allocator: std.mem.Allocator) void {
 
 pub fn start_everything(comptime spec: anytype, allocator: std.mem.Allocator, maybeArgs: ?NwArgs) !void {
     if (maybeArgs) |args| {
-        if (args.renderThread)
-            graphics.setStartupSettings("useSeperateRenderThread", true);
         if (args.vulkanValidation)
             graphics.setStartupSettings("vulkanValidation", true);
     }
@@ -113,7 +115,7 @@ pub fn initializeAndRunStandardProgram(comptime GameContext: type, comptime spec
     }
 
     const memory = core.MemoryTracker;
-    memory.MTSetup(backingAllocator);
+    memory.MTSetup(backingAllocator, .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;

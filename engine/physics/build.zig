@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
 
     mod.addImport("core", core_dep.module("core"));
     mod.addImport("zphysics", zphysics_dep.module("root"));
+    mod.linkLibrary(zphysics_dep.artifact("joltc"));
 
     const test_step = b.step("test-physics", "run unit tests for core");
     const tests = b.addTest(.{
