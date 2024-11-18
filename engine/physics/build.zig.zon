@@ -3,6 +3,7 @@
     .version = "0.0.0",
     .dependencies = .{
         .core = .{ .path = "../core" },
+        .graphics = .{ .path = "../graphics" }, // TODO REMOVE< PHYSICS MUST NOT DEPEND ON GRAPHICS
         .zphysics = .{ .path = "../../lib/zphysics" },
     },
     .paths = .{

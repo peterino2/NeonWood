@@ -51,4 +51,35 @@ pub fn build(b: *std.Build) void {
         .desc = "misc tool for viewing memory allocations in a list",
         .root_source_file = b.path("misc/allocList.zig"),
     });
+
+    const cwd = std.fs.cwd().openDir("tests", .{ .iterate = true }) catch unreachable;
+    var iterator = cwd.iterate();
+
+    while (iterator.next() catch unreachable) |value| {
+        switch (value.kind) {
+            .file => {
+                std.debug.print("{?s}\n", .{getBaseName(value.name)});
+                if (getBaseName(value.name)) |testName| {
+                    _ = nwbuild.addProgram(.{
+                        .name = b.fmt("test-{s}", .{testName}),
+                        .desc = "a test",
+                        .root_source_file = b.path(b.fmt("tests/{s}.zig", .{testName})),
+                    });
+                }
+            },
+            else => {},
+        }
+    }
+}
+
+fn getBaseName(slice: []const u8) ?[]const u8 {
+    var i: usize = slice.len - 1;
+    const s = slice;
+    while (s[i] != '.' and i > 0) : (i -= 1) {}
+
+    if (i == 0) {
+        return null;
+    } else {
+        return s[0..i];
+    }
 }

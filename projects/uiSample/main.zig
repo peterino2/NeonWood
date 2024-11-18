@@ -210,7 +210,7 @@ pub const GameContext = struct {
         ctx.getPanel(image).imageReference = core.MakeName("t_sampleImage");
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
-        const imageChangeBtn = try ctx.addButton(unk, "change image");
+        const imageChangeBtn = try ctx.addButton(unk, "dump timeline");
         try ctx.events.installOnPressedEvent(imageChangeBtn, .onPressed, .Mouse1, &self.pixelBuffer, &changeImage);
 
         const btn = try ctx.addButton(unk, "select file...");
@@ -323,8 +323,13 @@ pub fn main() anyerror!void {
     const memory = nw.core.MemoryTracker;
     memory.MTSetup(gpa.allocator());
     defer memory.MTShutdown();
+
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
+
+    // var bumpArena = try core.algorithm.BumpArena.init(tracker.allocator());
+    // defer bumpArena.deinit();
+    // const allocator = bumpArena.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });

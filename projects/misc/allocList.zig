@@ -9,7 +9,9 @@ fullscreen: bool = false,
 padding: bool = false,
 dockspaceFlags: imgui.DockNodeFlags = .{},
 
-open: bool = false,
+stackToView: u32 = 0,
+
+open: bool = true,
 
 pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
@@ -18,12 +20,90 @@ pub fn tick(self: *@This(), _: f64) void {
     self.mainWindow();
 }
 
+var strline: [256]u8 = undefined;
+
 pub fn mainWindow(self: *@This()) void {
     if (imgui.begin("Main", &self.open, .{
         .no_collapse = true,
     })) {
-        if (imgui.smallButton("click me!")) {
-            core.engine_logs("you clicked me");
+        if (imgui.button("Dump the callstack!!!!", .{})) {
+            core.MemoryTracker.dumpTimeline("timeline.txt") catch unreachable;
+        }
+
+        if (core.MemoryTracker.MTGet()) |tracker| {
+            if (tracker.stackCompactor) |compactor| {
+                var buttonLabel: [32]u8 = undefined;
+
+                if (compactor.stackMap.get(self.stackToView)) |stack| {
+                    const strList = stack.debugStr;
+                    for (strList) |str| {
+                        if (str) |s| {
+                            imgui.textSlice(s);
+                        }
+                    }
+                }
+
+                if (false) {
+                    var iter = compactor.stackMap.iterator();
+                    while (iter.next()) |v| {
+                        const stackDbgList = v.value_ptr.*.debugStr;
+                        const buttonValue = std.fmt.bufPrintZ(&buttonLabel, "callstack: {x}", .{v.key_ptr.*}) catch unreachable;
+
+                        if (imgui.button(buttonValue, .{})) {
+                            self.stackToView = v.key_ptr.*;
+                        }
+
+                        if (self.stackToView == v.key_ptr.*) {
+                            for (stackDbgList) |dbg| {
+                                if (dbg) |dbgStr| {
+                                    imgui.textSlice(dbgStr);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    imgui.end();
+
+    if (imgui.begin("Timeline", &self.open, .{ .no_collapse = true })) {
+        if (core.MemoryTracker.MTGet()) |tracker| {
+            if (tracker.timeline) |*timeline| {
+                var i: usize = 0;
+                var s: [:0]u8 = undefined;
+                while (i < timeline.events.len() and i < 1024) : (i += 1) {
+                    const event = timeline.events.get(i);
+                    switch (event.event) {
+                        .alloc => |x| {
+                            s = std.fmt.bufPrintZ(
+                                &strline,
+                                "{d} {x} alloc {d} bytes\n",
+                                .{ i, event.callstackId, x.size },
+                            ) catch unreachable;
+                        },
+                        .free => |x| {
+                            s = std.fmt.bufPrintZ(
+                                &strline,
+                                "{d} {x} free {d} bytes\n",
+                                .{ i, event.callstackId, x.size },
+                            ) catch unreachable;
+                        },
+                        .resize => |x| {
+                            s = std.fmt.bufPrintZ(
+                                &strline,
+                                "{d} {x} resize {d} -> {d} bytes\n",
+                                .{ i, event.callstackId, x.oldSize, x.newSize },
+                            ) catch unreachable;
+                        },
+                    }
+
+                    if (imgui.button(s, .{})) {
+                        core.engine_log("callstack clicked on {x}", .{event.callstackId});
+                        self.stackToView = event.callstackId;
+                    }
+                }
+            }
         }
     }
     imgui.end();
@@ -64,7 +144,10 @@ pub inline fn allocator(self: @This()) std.mem.Allocator {
 
 pub fn init(alloc: std.mem.Allocator) !*@This() {
     const self = try alloc.create(@This());
-    self.* = .{ .backingAllocator = alloc, .arena = std.heap.ArenaAllocator.init(alloc) };
+    self.* = .{
+        .backingAllocator = alloc,
+        .arena = std.heap.ArenaAllocator.init(alloc),
+    };
     return self;
 }
 
@@ -74,6 +157,7 @@ pub fn deinit(self: *@This()) void {
 }
 
 pub fn main() !void {
+    core.stacks.initStackCompactor();
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     try nw.initializeAndRunStandardProgram(@This(), .{ .name = "Allocation viewer", .ui = false, .papyrus = false });
 }

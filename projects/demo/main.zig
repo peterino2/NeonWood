@@ -2,6 +2,7 @@ const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
 const memory = core.MemoryTracker;
+const physicsDemo = @import("physics-demo.zig");
 
 const core = neonwood.core;
 const platform = neonwood.platform;
@@ -28,10 +29,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "meshes/lost_empire.obj",
         },
     ),
-    assets.MakeImportRefOptions("Texture", "t_empire", .{
-        .path = testimage1,
-        .textureUseBlockySampler = false,
-    }),
+    // assets.MakeImportRefOptions("Texture", "t_empire", .{
+    //     .path = testimage1,
+    //     .textureUseBlockySampler = false,
+    // }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -60,6 +61,8 @@ pub const GameContext = struct {
     movingAverage: f64 = 0,
     panel: NodeHandle = .{},
     panelText: ?[]u8 = null,
+
+    movablePanel: NodeHandle = .{},
 
     frameCount: u32 = 5,
 
@@ -116,7 +119,7 @@ pub const GameContext = struct {
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(self.time));
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(200 * self.time));
         self.gc.renderObjectSet.get(self.sphere, .renderObject).?.applyScalars();
 
         graphics.debugSphere(
@@ -140,6 +143,8 @@ pub const GameContext = struct {
             );
         }
         self.tickPanel(deltaTime) catch unreachable;
+
+        physicsDemo.tick(self, deltaTime);
 
         if (fastTest and self.time > 10.0) {
             core.signalShutdown();
@@ -221,7 +226,7 @@ pub const GameContext = struct {
             ctx.get(panel).style.foregroundColor = ModernStyle.Yellow;
             ctx.get(panel).style.borderColor = ModernStyle.BrightGrey;
             ctx.get(panel).pos = .{ .x = gIpsumPos.x, .y = gIpsumPos.y };
-            ctx.get(panel).setSize(.{ .x = 500, .y = 150 });
+            ctx.get(panel).setSize(.{ .x = 200, .y = 150 });
         }
 
         gGame = self;
@@ -256,6 +261,9 @@ pub const GameContext = struct {
             ctx.getText(unk2Text).textSize = 12;
         }
 
+        const dumpTimelineButton = try ctx.addButton(unk, "save timeline");
+        try ctx.events.installOnPressedEvent(dumpTimelineButton, .onPressed, .Mouse1, null, &dumpTimeline);
+
         if (graphics.getStartupSettings().vulkanValidation) {
             const validation = try ctx.addText(.{}, "Vulkan validation: on");
             ctx.get(validation).pos = .{ .x = 20, .y = 20 };
@@ -264,9 +272,12 @@ pub const GameContext = struct {
             ctx.setFont(validation, "monospace");
             ctx.getText(validation).textSize = 36;
         }
+
+        try physicsDemo.preparePhysics(self);
     }
 
     pub fn deinit(self: *Self) void {
+        physicsDemo.unpreparePhysics(self);
         if (self.panelText != null)
             self.allocator.free(self.panelText.?);
         self.allocator.destroy(self);
@@ -277,6 +288,14 @@ var unk: ui.NodeHandle = undefined;
 var gIpsumPos: core.Vector2f = .{ .x = 900, .y = 30 };
 var gSavedMouseOffset: core.Vector2f = .{};
 var gIpsumDown: bool = false;
+
+fn dumpTimeline(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
+    _ = context;
+    _ = node;
+    if (eventType == .onPressed) {
+        memory.dumpTimeline("demo_timeline.txt") catch unreachable;
+    }
+}
 
 fn onPressed(node: ui.NodeHandle, eventType: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     _ = context;
@@ -421,16 +440,15 @@ pub fn main() anyerror!void {
         }
     }
 
-    //memory.MTSetup(std.heap.c_allocator);
-    memory.MTSetup(gpa.allocator());
+    const args = try neonwood.getArgs();
+
+    memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
 
     engine_log("Starting up", .{});
-
-    const args = try neonwood.getArgs();
 
     if (args.vulkanValidation) {
         core.engine_logs("Using vulkan validation");

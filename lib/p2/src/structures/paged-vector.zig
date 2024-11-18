@@ -26,7 +26,7 @@ const std = @import("std");
 pub fn PagedVectorAdvanced(comptime T: type, comptime growth: usize) type {
     return struct {
         const Page = struct {
-            data: [growth]T = undefined,
+            data: [growth]T align(8) = undefined,
             len: u32 = 0,
         };
 
@@ -71,6 +71,17 @@ pub fn PagedVectorAdvanced(comptime T: type, comptime growth: usize) type {
             } else {
                 self.currentPageId += 1;
             }
+        }
+
+        // frees all pages. and resets back to default state
+        pub fn reset(self: *@This(), allocator: std.mem.Allocator) void {
+            if (self.pages.items.len > 1) {
+                for (self.pages.items[1..]) |page| {
+                    allocator.destroy(page);
+                }
+            }
+            self.currentPageId = 0;
+            self.head = &self.pages.items[0].data[0];
         }
 
         pub fn append(self: *@This(), allocator: std.mem.Allocator, value: T) !void {
@@ -163,7 +174,7 @@ pub fn PagedVector(comptime T: type) type {
         }
 
         pub fn get(self: *const @This(), index: usize) *const T {
-            self.vector.get(index);
+            return self.vector.get(index);
         }
 
         pub fn getMutable(self: *@This(), index: usize) *T {
@@ -180,6 +191,10 @@ pub fn PagedVector(comptime T: type) type {
 
         pub fn swapRemove(self: *@This(), index: usize) void {
             self.vector.swapRemove(index);
+        }
+
+        pub fn reset(self: *@This()) void {
+            self.vector.reset(self.allocator);
         }
 
         // // retrieves a value, shrinking length by 1

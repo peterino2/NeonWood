@@ -1,5 +1,5 @@
 const std = @import("std");
-const neonwood = @import("root").neonwood;
+const neonwood = @import("NeonWood");
 const core = neonwood.core;
 const graphics = neonwood.graphics;
 const assets = neonwood.assets;
@@ -178,7 +178,7 @@ pub fn main() anyerror!void {
     }
     const allocator = gpa.allocator();
     engine_log("Starting up", .{});
-    core.start_module(allocator);
+    try core.start_module(.{}, .{}, allocator);
     defer core.shutdown_module(allocator);
 
     // Setup the game

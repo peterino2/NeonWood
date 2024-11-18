@@ -13,10 +13,13 @@ pub fn build(b: *std.Build) void {
     });
 
     const core_dep = b.dependency("core", .{ .target = target, .optimize = optimize });
+    const graphics_dep = b.dependency("graphics", .{ .target = target, .optimize = optimize });
+    mod.addImport("graphics", graphics_dep.module("graphics"));
     const zphysics_dep = b.dependency("zphysics", .{ .target = target, .optimize = optimize });
 
     mod.addImport("core", core_dep.module("core"));
     mod.addImport("zphysics", zphysics_dep.module("root"));
+    mod.linkLibrary(zphysics_dep.artifact("joltc"));
 
     const test_step = b.step("test-physics", "run unit tests for core");
     const tests = b.addTest(.{

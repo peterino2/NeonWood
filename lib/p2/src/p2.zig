@@ -2,6 +2,8 @@
 const std = @import("std");
 const utils = @import("structures/utils.zig");
 
+pub const BumpArena = @import("structures/bump-arena.zig").BumpArena;
+
 pub const dupeString = utils.dupeString;
 pub const xxd = @import("utils/xxd.zig");
 
@@ -47,6 +49,9 @@ pub const ConcurrentQueueU = concurrent_queue.ConcurrentQueueU;
 pub const ConcurrentQueueUnmanagedAdvanced = concurrent_queue.ConcurrentQueueUnmanagedAdvanced;
 
 pub const string_pool = @import("structures/string-pool.zig");
+
+pub const paged_vector = @import("structures/paged-vector.zig");
+pub const PagedVector = paged_vector.PagedVector;
 
 pub const names = @import("structures/names.zig");
 

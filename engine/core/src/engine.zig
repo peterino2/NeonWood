@@ -50,6 +50,9 @@ pub const Engine = struct {
     tickables: ArrayListUnmanaged(usize), // todo: this maybe should just be a list of objects
     jobManager: *JobManager,
 
+    // the destroy list is a list of things to destroy when the engine shuts down.
+    // the main difference between core and simple objects, is that when the
+    // simple object shuts down it's an
     destroyListSimple: ArrayListUnmanaged(EngineObjectRef) = .{},
     destroyListCore: ArrayListUnmanaged(EngineObjectRef) = .{},
 
@@ -101,11 +104,13 @@ pub const Engine = struct {
         core.engine_logs("shutting down job Manager");
         self.jobManager.destroy();
 
-        var i: i32 = @intCast(self.destroyListCore.items.len - 1);
-        while (i >= 0) : (i -= 1) {
-            const item = self.destroyListCore.items[@as(usize, @intCast(i))];
-            if (item.vtable.deinit_func) |deinitFn| {
-                deinitFn(item.ptr);
+        if (self.destroyListCore.items.len > 0) {
+            var i: i32 = @intCast(self.destroyListCore.items.len - 1);
+            while (i >= 0) : (i -= 1) {
+                const item = self.destroyListCore.items[@as(usize, @intCast(i))];
+                if (item.vtable.deinit_func) |deinitFn| {
+                    deinitFn(item.ptr);
+                }
             }
         }
         self.destroyListCore.deinit(self.allocator);
@@ -291,11 +296,13 @@ pub const Engine = struct {
     }
 
     fn destroyDependents(self: *@This()) void {
-        var i: i32 = @intCast(self.destroyListSimple.items.len - 1);
-        while (i >= 0) : (i -= 1) {
-            const item = self.destroyListSimple.items[@as(usize, @intCast(i))];
-            if (item.vtable.deinit_func) |deinitFn| {
-                deinitFn(item.ptr);
+        if (self.destroyListSimple.items.len > 0) {
+            var i: i32 = @intCast(self.destroyListSimple.items.len - 1);
+            while (i >= 0) : (i -= 1) {
+                const item = self.destroyListSimple.items[@as(usize, @intCast(i))];
+                if (item.vtable.deinit_func) |deinitFn| {
+                    deinitFn(item.ptr);
+                }
             }
         }
         self.dependentsDestroyed.store(true, .seq_cst);

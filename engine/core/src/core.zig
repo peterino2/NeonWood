@@ -48,6 +48,8 @@ pub const packer = @import("packer");
 pub const FileSystem = packer.PackerFS;
 const PackerFS = packer.PackerFS;
 
+pub const StackCompactor = stacks.StackCompactor;
+
 var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
@@ -56,6 +58,9 @@ pub const ecs = @import("ecs.zig");
 pub usingnamespace ecs;
 
 pub const script = @import("script.zig");
+
+pub const stacks = @import("stacks.zig");
+pub const walkAndPrintStack = stacks.walkAndPrintStack;
 
 pub fn fs() *PackerFS {
     return gPackerFS;
@@ -67,7 +72,6 @@ pub const Module = ModuleDescription{
 };
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
-    _ = args;
     _ = programSpec;
     _ = try algorithm.createNameRegistry(allocator);
     // LUA BEGIN -- what if i want to make the scripting integration optional?
@@ -77,7 +81,9 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     gEngine = try allocator.create(Engine);
     gEngine.* = try Engine.init(allocator);
 
-    try logging.setupLogging(gEngine);
+    if (@hasField(@TypeOf(args), "unitTest") and args.unitTest) {} else {
+        try logging.setupLogging(gEngine);
+    }
 
     try ecs.setup(allocator);
 

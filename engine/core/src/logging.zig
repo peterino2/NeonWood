@@ -295,6 +295,10 @@ pub fn setupLogging(engine: *core.Engine) !void {
 }
 
 pub fn shutdownLogging() void {
+    if (gLoggerSys) |g| {
+        while (g.flushing.load(.acquire)) {}
+        forceFlush();
+    }
     gLoggerSys = null;
 }
 

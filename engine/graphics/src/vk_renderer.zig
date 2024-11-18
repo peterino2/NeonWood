@@ -1226,7 +1226,7 @@ pub const NeonVkContext = struct {
         while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
             const object = self.renderObjectSet.dense.items(.renderObject)[i];
 
-            if (object.mesh != null and object.material != null) {
+            if (object.mesh != null and object.material != null and object.visibility) {
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
@@ -2646,7 +2646,7 @@ pub const NeonVkContext = struct {
     /// ---------- renderObject functions
 
     // this one treats the renderer like any other subsystem
-
+    //
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !RenderObject {
         var renderObject = RenderObject.fromTransform(params.init_transform);
 
