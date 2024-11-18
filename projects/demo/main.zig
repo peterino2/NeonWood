@@ -29,10 +29,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "meshes/lost_empire.obj",
         },
     ),
-    assets.MakeImportRefOptions("Texture", "t_empire", .{
-        .path = testimage1,
-        .textureUseBlockySampler = false,
-    }),
+    // assets.MakeImportRefOptions("Texture", "t_empire", .{
+    //     .path = testimage1,
+    //     .textureUseBlockySampler = false,
+    // }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -119,7 +119,7 @@ pub const GameContext = struct {
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
-        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(self.time));
+        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(200 * self.time));
         self.gc.renderObjectSet.get(self.sphere, .renderObject).?.applyScalars();
 
         graphics.debugSphere(

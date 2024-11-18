@@ -332,6 +332,14 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
             };
         }
 
+        pub inline fn fromArray(o: anytype) @This() {
+            return .{
+                .x = o[0],
+                .y = o[1],
+                .z = o[2],
+            };
+        }
+
         pub inline fn from(o: anytype) @This() {
             const OType: std.builtin.Type = @typeInfo(@TypeOf(o.x));
             switch (@typeInfo(T)) {

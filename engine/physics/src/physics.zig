@@ -10,17 +10,16 @@ pub const Module: core.ModuleDescription = .{
     .enabledByDefault = false,
 };
 
-var gPhysicsRuntime: *runtime.PhysicsRuntime = undefined;
+pub var gPhysicsRuntime: *runtime.PhysicsRuntime = undefined;
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
     _ = programSpec;
     try zphysics.init(allocator, .{});
-    gPhysicsRuntime = try runtime.PhysicsRuntime.create(allocator);
+    gPhysicsRuntime = try core.createObject(runtime.PhysicsRuntime, .{ .can_tick = true });
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
-    gPhysicsRuntime.destroy();
     zphysics.deinit();
 }
