@@ -258,12 +258,13 @@ pub const PhysicsRuntime = struct {
 
             _ = bodyInterface.createAndAddBody(
                 .{
-                    .position = .{ 0 + self.offset, 2, 0, 1 },
+                    .position = .{ 0 + self.offset, 15, 0, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
                     .shape = self.sphereShape,
                     .motion_type = .dynamic,
                     .object_layer = ObjectLayers.moving,
                     .angular_velocity = .{ 0, 0, 0, 0 },
+                    .inertia_multiplier = 30,
                 },
                 .activate,
             ) catch unreachable;
