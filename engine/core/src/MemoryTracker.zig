@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const core = @import("core.zig");
+const builtin = @import("builtin");
 
 lock: std.Thread.Mutex = .{},
 backingAllocator: std.mem.Allocator,
@@ -149,7 +150,7 @@ pub var vtable: std.mem.Allocator.VTable = .{
 pub fn init(backingAllocator: std.mem.Allocator, settings: SetupSettings) @This() {
     // use the ansi allocator
 
-    const EnableMemoryTimeline = settings.timeline;
+    const EnableMemoryTimeline = settings.timeline and builtin.os.tag == .windows;
 
     if (EnableMemoryTimeline) {
         core.engine_logs("[dmt] Enabling Detailed Memory Tracking");

@@ -2,6 +2,11 @@
 
 const std = @import("std");
 
+pub const debug_draw = @import("debug_draw.zig");
+pub const DebugDrawParams = debug_draw.DebugDrawParams;
+pub const DebugDrawInterface = debug_draw.DebugDrawInterface;
+pub const debugSphere = debug_draw.debugSphere;
+
 pub usingnamespace @import("misc.zig");
 pub usingnamespace @import("logging.zig");
 pub usingnamespace @import("engineTime.zig");
