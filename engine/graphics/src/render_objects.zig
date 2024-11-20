@@ -17,22 +17,34 @@ const mul = zm.mul;
 
 const Mesh = meshes.Mesh;
 
-pub const RenderObject = struct {
+pub const StaticMeshSet = core.SparseSet(StaticMesh);
+
+pub const StaticMesh = struct {
     const Self = @This();
+
     mesh: ?*Mesh = null,
     material: ?*Material = null,
     texture: ?vk.DescriptorSet = null,
-    transform: core.Mat,
+    transform: core.Mat = core.zm.translation(0, 0, 0),
     visibility: bool = true,
 
     // new position and rotator based api
-    position: Vectorf,
-    rotation: Quat,
-    scale: Vectorf,
+    position: Vectorf = .{},
+    rotation: Quat = .{ 0, 0, 0, 1 },
+    scale: Vectorf = .{ .x = 1, .y = 1, .z = 1 },
 
     // TODO factor this out into a metadata function
     textureName: core.Name = core.NameInvalid,
     meshName: core.Name = core.NameInvalid,
+
+    pub var BaseContainer: *StaticMeshSet = undefined;
+    pub const ComponentName = "Mesh";
+
+    pub const ScriptExports: []const []const u8 = &.{
+        "applyRelativeRotationX",
+        "applyRelativeRotationY",
+        "applyRelativeRotationZ",
+    };
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
@@ -59,12 +71,12 @@ pub const RenderObject = struct {
         self.textureName = name;
     }
 
-    pub fn applyTransform(self: *RenderObject, transform: core.Mat) void {
+    pub fn applyTransform(self: *StaticMesh, transform: core.Mat) void {
         self.transform = core.zm.mul(self.transform, transform);
         self.updateScalars();
     }
 
-    pub fn applyRelativeRotationX(self: *RenderObject, angle: f32) void {
+    pub fn applyRelativeRotationX(self: *StaticMesh, angle: f32) void {
         var imat = core.zm.identity();
         imat[0][3] = -self.transform[0][3];
         imat[1][3] = -self.transform[1][3];
@@ -81,7 +93,7 @@ pub const RenderObject = struct {
         self.transform = newTransform;
     }
 
-    pub fn applyRelativeRotationZ(self: *RenderObject, angle: f32) void {
+    pub fn applyRelativeRotationZ(self: *StaticMesh, angle: f32) void {
         var imat = core.zm.identity();
         imat[0][3] = -self.transform[0][3];
         imat[1][3] = -self.transform[1][3];
@@ -98,7 +110,7 @@ pub const RenderObject = struct {
         self.transform = newTransform;
     }
 
-    pub fn applyRelativeRotationY(self: *RenderObject, angle: f32) void {
+    pub fn applyRelativeRotationY(self: *StaticMesh, angle: f32) void {
         var imat = core.zm.identity();
         imat[0][3] = -self.transform[0][3];
         imat[1][3] = -self.transform[1][3];
@@ -115,13 +127,13 @@ pub const RenderObject = struct {
         self.transform = newTransform;
     }
 
-    pub fn updateScalars(self: *RenderObject) void {
+    pub fn updateScalars(self: *StaticMesh) void {
         self.position = Vectorf.fromZm(mul(self.transform, Vectorf.new(0.0, 0.0, 0.0).toZm()));
         self.rotation = zm.matToQuat(self.transform);
         self.scale = core.matToScalef(self.transform);
     }
 
-    pub fn applyScalars(self: *RenderObject) void {
+    pub fn applyScalars(self: *StaticMesh) void {
         var newTransform = core.zm.mul(
             core.zm.scalingV(self.scale.toZm()),
             core.zm.matFromQuat(self.rotation),

@@ -95,7 +95,7 @@ pub const GameContext = struct {
         // ig.igShowDemoWindow(&self.showDemo);
         if (!self.assetReady) {
             if (self.gc.textures.contains(texName.handle())) {
-                var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+                var obj = self.gc.staticMeshSet.get(self.objHandle).?;
                 obj.setTextureByName(self.gc, texName);
                 self.assetReady = true;
                 memory.MTPrintStatsDelta();
@@ -198,7 +198,7 @@ pub const GameContext = struct {
                     .init_transform = core.zm.translation(0, 0, 0),
                 });
                 self.spheres[i] = oHandle;
-                var obj = self.gc.renderObjectSet.get(oHandle, .renderObject).?;
+                var obj = self.gc.staticMeshSet.get(oHandle).?;
                 obj.visibility = false;
             }
         }

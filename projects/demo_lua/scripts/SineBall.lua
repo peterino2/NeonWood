@@ -24,7 +24,10 @@ local function create()
 
     local scene = ball:addComponent(Scene)
     -- todo implement a custom argument type
-    scene:setPosition(Vectorf.new(1, 2, 3))
+    scene:setPosition(Vectorf.new(0, 1, 0))
+
+    local sm = ball:addComponent(StaticMesh)
+    sm:setMesh("m_primitive_sphere")
 
     -- Systems.registerTick(ball, tick)
     return ball

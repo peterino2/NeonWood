@@ -19,7 +19,7 @@ pub fn preparePhysics(self: *GameContext) !void {
     {
         const btn = ctx.get(button);
         btn.setSize(.{ .x = 120, .y = 50 });
-        var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
         obj.visibility = !obj.visibility;
     }
 
@@ -38,7 +38,7 @@ pub fn unpreparePhysics(self: *GameContext) void {
 fn swapToPhysics(_: ui.NodeHandle, _: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     if (context) |c| {
         const self: *GameContext = @alignCast(@ptrCast(c));
-        var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
         obj.visibility = !obj.visibility;
     }
 }
@@ -57,7 +57,7 @@ pub fn tick(self: *GameContext, deltaTime: f64) void {
         }
         const rotation = physicsRuntime.sphereRotations.items[i];
         const handle = self.spheres[i];
-        var obj = self.gc.renderObjectSet.get(handle, .renderObject).?;
+        var obj = self.gc.staticMeshSet.get(handle).?;
         obj.visibility = true;
         obj.position = position;
         obj.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };

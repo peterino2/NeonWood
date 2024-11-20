@@ -135,6 +135,7 @@ pub const Scene = struct {
     }
 
     pub fn getTransform(self: @This()) core.Transform {
+        // walk up the parent stack and resolve transforms?
         return BaseContainer.get(self.handle, ._repr).?.transform;
     }
 

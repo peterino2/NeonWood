@@ -17,7 +17,7 @@ var gEcs: GraphicsEcs = undefined;
 
 pub fn registerEcs(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    // const container = core.makeEcsContainerRef(&graphics.getContext().renderObjectSet);
+    // const container = core.makeEcsContainerRef(&graphics.getContext().staticMeshSet);
     //
     // try core.registerEcsContainer(container, core.MakeName("RenderObjects"));
 
