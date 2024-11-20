@@ -22,6 +22,13 @@ pub fn preparePhysics(self: *GameContext) !void {
         var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
         obj.visibility = !obj.visibility;
     }
+
+    self.cameraPhysicsBody = try physics.addPrimitiveBody(.box, .{
+        .motion_type = .kinematic,
+        .object_layer = physics.ObjectLayers.moving,
+    }, .activate);
+
+    physics.optimizeBroadPhase();
 }
 
 pub fn unpreparePhysics(self: *GameContext) void {
@@ -36,15 +43,18 @@ fn swapToPhysics(_: ui.NodeHandle, _: ui.PressedType, context: ?*anyopaque) ui.H
     }
 }
 
-var lolaBunny = core.MakeName("t_lolaBunny");
-
 pub fn tick(self: *GameContext, deltaTime: f64) void {
     _ = deltaTime;
 
     const physicsRuntime = physics.gPhysicsRuntime;
 
+    physics.setBodyPosition(self.cameraPhysicsBody, self.camera.position);
+
     for (physicsRuntime.spherePositions.items, 0..) |position, i| {
-        // graphics.debugSphere(position, 0.5, .{ .rotation = physicsRuntime.sphereRotations.items[i] });
+        const id = physicsRuntime.sphereIds.items[i];
+        if (id == self.cameraPhysicsBody) {
+            continue;
+        }
         const rotation = physicsRuntime.sphereRotations.items[i];
         const handle = self.spheres[i];
         var obj = self.gc.renderObjectSet.get(handle, .renderObject).?;

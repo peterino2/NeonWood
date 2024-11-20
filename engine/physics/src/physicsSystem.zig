@@ -3,16 +3,16 @@ const zphysics = @import("zphysics");
 const core = @import("core");
 const zm = core.zm;
 
-const ObjectLayers = struct {
-    const non_moving: zphysics.ObjectLayer = 0;
-    const moving: zphysics.ObjectLayer = 1;
-    const len: u32 = 2;
+pub const ObjectLayers = struct {
+    pub const non_moving: zphysics.ObjectLayer = 0;
+    pub const moving: zphysics.ObjectLayer = 1;
+    pub const len: u32 = 2;
 };
 
-const BroadPhaseLayers = struct {
-    const non_moving: zphysics.BroadPhaseLayer = 0;
-    const moving: zphysics.BroadPhaseLayer = 1;
-    const len: u32 = 2;
+pub const BroadPhaseLayers = struct {
+    pub const non_moving: zphysics.BroadPhaseLayer = 0;
+    pub const moving: zphysics.BroadPhaseLayer = 1;
+    pub const len: u32 = 2;
 };
 
 const BroadPhaseLayerInterface = extern struct {
@@ -93,11 +93,11 @@ pub const PhysicsRuntime = struct {
 
     system: *zphysics.PhysicsSystem = undefined,
 
-    boxSettings: *zphysics.BoxShapeSettings = undefined,
-    boxShape: *zphysics.Shape = undefined,
+    primBoxSettings: *zphysics.BoxShapeSettings = undefined,
+    primBoxShape: *zphysics.Shape = undefined,
 
-    sphereSettings: *zphysics.SphereShapeSettings = undefined,
-    sphereShape: *zphysics.Shape = undefined,
+    primSphereSettings: *zphysics.SphereShapeSettings = undefined,
+    primSphereShape: *zphysics.Shape = undefined,
 
     floorShapeSettings: *zphysics.BoxShapeSettings = undefined,
     floorShape: *zphysics.Shape = undefined,
@@ -141,12 +141,18 @@ pub const PhysicsRuntime = struct {
 
         const bodyInterface = self.system.getBodyInterfaceMut();
 
-        // setup primitives for settings.
-        self.boxSettings = try zphysics.BoxShapeSettings.create(.{ 0.5, 0.5, 0.5 });
-        self.boxShape = try self.boxSettings.createShape();
+        // primBoxSettings: *zphysics.BoxShapeSettings = undefined,
+        // primBoxShape: *zphysics.Shape = undefined,
 
-        self.sphereSettings = try zphysics.SphereShapeSettings.create(0.5);
-        self.sphereShape = try self.sphereSettings.createShape();
+        // primSphereSettings: *zphysics.SphereShapeSettings = undefined,
+        // primSphereShape: *zphysics.Shape = undefined,
+
+        // setup primitives for settings.
+        self.primBoxSettings = try zphysics.BoxShapeSettings.create(.{ 2.0, 2.0, 2.0 });
+        self.primBoxShape = try self.primBoxSettings.createShape();
+
+        self.primSphereSettings = try zphysics.SphereShapeSettings.create(0.5);
+        self.primSphereShape = try self.primSphereSettings.createShape();
 
         self.floorShapeSettings = try zphysics.BoxShapeSettings.create(.{ 300, 1, 300 });
         self.floorShape = try self.floorShapeSettings.createShape();
@@ -206,9 +212,10 @@ pub const PhysicsRuntime = struct {
                 .{
                     .position = .{ 0, @as(f32, @floatFromInt(i)) * 0.1 + 1.0, 2, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.sphereShape,
+                    .shape = self.primSphereShape,
                     .motion_type = .dynamic,
                     .object_layer = ObjectLayers.moving,
+                    .restitution = 0.4,
                     .angular_velocity = .{ 0, 0, 0, 0 },
                 },
                 .activate,
@@ -217,8 +224,9 @@ pub const PhysicsRuntime = struct {
                 .{
                     .position = .{ 5, @as(f32, @floatFromInt(i)) * 0.1 + 1.0, 2, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.sphereShape,
+                    .shape = self.primSphereShape,
                     .motion_type = .dynamic,
+                    .restitution = 0.4,
                     .object_layer = ObjectLayers.moving,
                     .angular_velocity = .{ 0, 0, 0, 0 },
                 },
@@ -264,9 +272,10 @@ pub const PhysicsRuntime = struct {
                 .{
                     .position = .{ 0 + self.offset, 15, 0, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.sphereShape,
+                    .shape = self.primSphereShape,
                     .motion_type = .dynamic,
                     .object_layer = ObjectLayers.moving,
+                    .restitution = 0.4,
                     .angular_velocity = .{ 0, 0, 0, 0 },
                     .inertia_multiplier = 30,
                 },
@@ -280,14 +289,14 @@ pub const PhysicsRuntime = struct {
     pub fn deinit(self: *@This()) void {
         const allocator = self.allocator;
 
-        self.sphereShape.release();
-        self.sphereSettings.release();
+        self.primSphereShape.release();
+        self.primSphereSettings.release();
 
         self.floorShape.release();
         self.floorShapeSettings.release();
 
-        self.boxShape.release();
-        self.boxSettings.release();
+        self.primBoxShape.release();
+        self.primBoxSettings.release();
 
         self.system.destroy();
         self.sphereIds.deinit();

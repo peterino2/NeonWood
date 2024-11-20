@@ -3,12 +3,44 @@ const std = @import("std");
 pub const zphysics = @import("zphysics");
 pub const core = @import("core");
 
+pub const BodyId = zphysics.BodyId;
+
+pub const BodyCreationSettings = zphysics.BodyCreationSettings;
+pub const Activation = zphysics.Activation;
+
+pub const ObjectLayers = runtime.ObjectLayers;
+
 const runtime = @import("physicsSystem.zig");
 
-pub const Module: core.ModuleDescription = .{
-    .name = "physics",
-    .enabledByDefault = false,
+pub const PrimitiveType = enum {
+    box,
+    sphere,
 };
+
+pub fn addPrimitiveBody(primitive: PrimitiveType, settings: BodyCreationSettings, activationMode: Activation) !BodyId {
+    const interface = gPhysicsRuntime.system.getBodyInterfaceMut();
+    var s = settings;
+
+    switch (primitive) {
+        .box => {
+            s.shape = gPhysicsRuntime.primBoxShape;
+        },
+        .sphere => {
+            s.shape = gPhysicsRuntime.primSphereShape;
+        },
+    }
+
+    return try interface.createAndAddBody(s, activationMode);
+}
+
+pub fn setBodyPosition(id: BodyId, pos: core.Vectorf) void {
+    const interface = gPhysicsRuntime.system.getBodyInterfaceMut();
+    interface.setPosition(id, pos.toArr3(), .activate);
+}
+
+pub fn optimizeBroadPhase() void {
+    gPhysicsRuntime.system.optimizeBroadPhase();
+}
 
 pub var gPhysicsRuntime: *runtime.PhysicsRuntime = undefined;
 
@@ -23,3 +55,8 @@ pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
     zphysics.deinit();
 }
+
+pub const Module: core.ModuleDescription = .{
+    .name = "physics",
+    .enabledByDefault = false,
+};
