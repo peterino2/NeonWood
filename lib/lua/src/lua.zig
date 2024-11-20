@@ -240,7 +240,7 @@ pub const LuaState = struct {
 
     pub fn toUserdata(self: @This(), comptime T: type, index: i32) ?*T {
         if (debugEnabled) {
-            std.debug.print("toUserdata: {s}", .{@typeName(T)});
+            // std.debug.print("toUserdata: {s}", .{@typeName(T)});
         }
         return @ptrCast(@alignCast(c.lua_touserdata(self.l, index)));
     }

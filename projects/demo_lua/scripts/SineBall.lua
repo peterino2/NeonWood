@@ -20,18 +20,13 @@
 local function create(position)
     local ball = Entity.new()
 
-    print("creating sine ball")
-
     ballScene = ball:addComponent(Scene) -- todo make a getComponent function
     -- todo implement a custom argument type
     ballScene:setPosition(position)
-    print("scene component created")
 
     local sm = ball:addComponent(StaticMesh)
-    print("static mesh component created")
     sm:scriptInit()
     sm:setMesh("m_primitive_sphere")
-    print("static mesh set")
 
     Systems.registerTick(ball, tick)
     return ball

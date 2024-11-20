@@ -1,7 +1,7 @@
 
 local ball = SineBall.create(Vectorf.new(-2, 0,-5))
 
-local ball3 = SineBall.create(Vectorf.new(2, 2,-5))
+local ball3 = SineBall.create(Vectorf.new(0, -2,-5))
 
 local ball1 = SineBall.create(Vectorf.new(2, 0,-5))
 
