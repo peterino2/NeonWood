@@ -105,6 +105,9 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
 pub fn shutdown_module(_: std.mem.Allocator) void {
     logs("core module shutting down...");
+
+    MemoryTracker.MTPrintStatsDelta();
+
     logging.shutdownLogging();
     ecs.shutdown();
 
