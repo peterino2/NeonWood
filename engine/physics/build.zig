@@ -13,6 +13,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const core_dep = b.dependency("core", .{ .target = target, .optimize = optimize });
+
     const graphics_dep = b.dependency("graphics", .{ .target = target, .optimize = optimize });
     mod.addImport("graphics", graphics_dep.module("graphics"));
     const zphysics_dep = b.dependency("zphysics", .{ .target = target, .optimize = optimize });

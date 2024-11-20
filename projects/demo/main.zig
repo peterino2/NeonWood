@@ -3,6 +3,7 @@ pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
 const memory = core.MemoryTracker;
 const physicsDemo = @import("physics-demo.zig");
+const physics = neonwood.physics;
 
 const core = neonwood.core;
 const platform = neonwood.platform;
@@ -29,10 +30,10 @@ const AssetReferences = [_]assets.AssetImportReference{
             .path = "meshes/lost_empire.obj",
         },
     ),
-    // assets.MakeImportRefOptions("Texture", "t_empire", .{
-    //     .path = testimage1,
-    //     .textureUseBlockySampler = false,
-    // }),
+    assets.MakeImportRefOptions("Texture", "t_empire", .{
+        .path = testimage1,
+        .textureUseBlockySampler = false,
+    }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -50,12 +51,17 @@ pub const GameContext = struct {
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
 
+    spheres: [4096]core.ObjectHandle = undefined,
+
     cameraHorizontalRotationMat: core.Mat, // fp camera controls
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
     eulerX: f32 = 0, // camera controls
     eulerY: f32 = 0, // camera controls
 
     vulkanValidation: bool = true,
+
+    // add a box collider to the camera.
+    cameraPhysicsBody: physics.BodyId = undefined,
 
     time: f64 = 0,
     movingAverage: f64 = 0,
@@ -89,7 +95,7 @@ pub const GameContext = struct {
         // ig.igShowDemoWindow(&self.showDemo);
         if (!self.assetReady) {
             if (self.gc.textures.contains(texName.handle())) {
-                var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+                var obj = self.gc.staticMeshSet.get(self.objHandle).?;
                 obj.setTextureByName(self.gc, texName);
                 self.assetReady = true;
                 memory.MTPrintStatsDelta();
@@ -118,15 +124,6 @@ pub const GameContext = struct {
 
         self.camera.updateCamera();
         self.camera.resolve(self.cameraHorizontalRotationMat);
-
-        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position.x = @floatCast(std.math.sin(200 * self.time));
-        self.gc.renderObjectSet.get(self.sphere, .renderObject).?.applyScalars();
-
-        graphics.debugSphere(
-            self.gc.renderObjectSet.get(self.sphere, .renderObject).?.position,
-            1.0,
-            .{},
-        );
 
         var i: f32 = 0;
         while (i < 0) : (i += 1) {
@@ -191,27 +188,20 @@ pub const GameContext = struct {
             .init_transform = core.zm.translation(0, -15, 0),
         });
 
-        const objHandle2 = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_primitive_sphere"),
-            .material_name = core.MakeName("t_mesh"),
-            .init_transform = core.zm.translation(0, 0, 0),
-        });
-
-        self.sphere = objHandle2;
-
-        const objHandle3 = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_primitive_sphere"),
-            .material_name = core.MakeName("t_mesh"),
-            .init_transform = core.zm.translation(5, 0, 0),
-        });
-        _ = objHandle3;
-
-        const objHandle4 = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_primitive_line"),
-            .material_name = core.MakeName("t_mesh"),
-            .init_transform = core.zm.translation(5, 0, 0),
-        });
-        _ = objHandle4;
+        {
+            const meshName = core.MakeName("m_primitive_sphere");
+            const materialName = core.MakeName("t_mesh");
+            for (0..2048) |i| {
+                const oHandle = try self.gc.add_renderobject(.{
+                    .mesh_name = meshName,
+                    .material_name = materialName,
+                    .init_transform = core.zm.translation(0, 0, 0),
+                });
+                self.spheres[i] = oHandle;
+                var obj = self.gc.staticMeshSet.get(oHandle).?;
+                obj.visibility = false;
+            }
+        }
 
         var ctx = ui.getContext();
 
@@ -447,6 +437,7 @@ pub fn main() anyerror!void {
 
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
+    // const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 
@@ -460,7 +451,7 @@ pub fn main() anyerror!void {
 
     graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
-    platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });
+    platform.setWindowSettings(.{ .windowName = "Scratch space" });
 
     try neonwood.start_everything(@import("spec.zig").spec, allocator, args);
     defer neonwood.shutdown_everything(allocator);

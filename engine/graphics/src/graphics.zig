@@ -58,7 +58,7 @@ pub usingnamespace @import("vk_renderer/vk_renderer_types.zig");
 
 pub const render_objects = @import("render_objects.zig");
 pub const Camera = render_objects.Camera;
-pub const RenderObject = render_objects.RenderObject;
+pub const StaticMesh = render_objects.StaticMesh;
 
 pub fn registerRendererPlugin(value: anytype) !void {
     const ref = RendererInterfaceRef{

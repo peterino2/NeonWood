@@ -33,24 +33,25 @@ pub const DebugLine = struct {
 pub const DebugSphere = struct {
     position: core.Vectorf,
     radius: f32,
-
-    pub fn resolve(self: @This(), _: anytype) core.Transform {
-        return core.zm.mul(
-            core.zm.scaling(self.radius, self.radius, self.radius),
-            core.zm.translationV(self.position.toZm()),
-        );
-    }
-};
-
-pub const DebugBox = struct {
-    position: core.Vectorf,
-    scale: core.Vectorf,
     rotation: core.Quat,
 
     pub fn resolve(self: @This(), _: anytype) core.Transform {
         return core.zm.mul(core.zm.mul(
             core.zm.matFromQuat(self.rotation),
-            core.zm.scalingV(self.scale.toZm()),
+            core.zm.scaling(self.radius, self.radius, self.radius),
+        ), core.zm.translationV(self.position.toZm()));
+    }
+};
+
+pub const DebugBox = struct {
+    position: core.Vectorf,
+    extents: core.Vectorf,
+    rotation: core.Quat,
+
+    pub fn resolve(self: @This(), _: anytype) core.Transform {
+        return core.zm.mul(core.zm.mul(
+            core.zm.matFromQuat(self.rotation),
+            core.zm.scalingV(self.extents.toZm()),
         ), core.zm.translationV(self.position.toZm()));
     }
 };
@@ -404,21 +405,21 @@ pub fn init_debug_draw_subsystem() !void {
     gDebugDrawSys = try core.gEngine.createObject(DebugDrawSubsystem, .{ .can_tick = true });
     try gDebugDrawSys.prepareSubsystem(graphics.getContext());
     try graphics.registerRendererPlugin(gDebugDrawSys);
+
+    try core.installDebugDrawInterface(gDebugDrawSys.allocator, .{
+        .debugSphereFn = debugSphere,
+        .debugBoxFn = debugBox,
+        .debugLineFn = debugLine,
+    });
 }
 
 pub fn shutdown() void {}
 
-pub const DebugDrawParams = struct {
-    color: core.Vectorf = .{ .x = 0, .y = 1.0, .z = 0 },
-    duration: f32 = 0,
-};
+const DebugDrawParams = core.DebugDrawParams;
 
 pub fn debugSphere(position: core.Vectorf, radius: f32, params: DebugDrawParams) void {
     gDebugDrawSys.debugDraws.push(.{
-        .primitive = .{ .sphere = .{
-            .position = position,
-            .radius = radius,
-        } },
+        .primitive = .{ .sphere = .{ .position = position, .radius = radius, .rotation = params.rotation } },
         .color = params.color,
         .duration = params.duration,
     }) catch return;
@@ -430,6 +431,16 @@ pub fn debugLine(start: core.Vectorf, end: core.Vectorf, params: DebugDrawParams
             .start = start,
             .end = end,
         } },
+        .color = params.color,
+        .duration = params.duration,
+    }) catch return;
+}
+
+pub fn debugBox(position: core.Vectorf, extents: core.Vectorf, params: DebugDrawParams) void {
+    gDebugDrawSys.debugDraws.push(.{
+        .primitive = .{
+            .box = .{ .position = position, .extents = extents, .rotation = params.rotation },
+        },
         .color = params.color,
         .duration = params.duration,
     }) catch return;

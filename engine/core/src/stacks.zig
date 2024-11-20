@@ -1,6 +1,7 @@
 const std = @import("std");
 const core = @import("core.zig");
 const BumpArena = core.BumpArena;
+const builtin = @import("builtin");
 
 pub fn hashStackList(stack: []const usize) u32 {
     var c: u32 = 0;
@@ -122,11 +123,15 @@ pub const StackCompactor = struct {
     }
 
     pub fn getCallStack(self: *@This()) u32 {
+        if (builtin.os.tag != .windows) {
+            return 0;
+        }
+
         var context: std.debug.ThreadContext = undefined;
         const has_context = std.debug.getContext(&context);
 
         if (!has_context) {
-            return;
+            return 0;
         }
 
         var addr_buf: [1024]usize = undefined;

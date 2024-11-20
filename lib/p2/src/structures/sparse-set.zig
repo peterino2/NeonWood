@@ -295,17 +295,33 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         allocator: std.mem.Allocator,
         dense: ArrayListUnmanaged(struct {
             value: T,
-            sparseIndex: IndexType,
+            sparseIndex: SetHandle,
         }),
         sparse: []SetHandle,
 
         containerID: u32 = 0,
         containerListener: ?ContainerListener = null,
+        opCount: u32 = 0,
+
+        pub fn getStateCount(self: @This()) u32 {
+            return self.opCount;
+        }
 
         pub fn handleFromSparseIndex(self: @This(), sparseIndex: IndexType) SetHandle {
             var handle: SetHandle = self.sparse[@as(usize, @intCast(sparseIndex))];
             handle.index = sparseIndex;
             return handle;
+        }
+
+        pub fn create(allocator: std.mem.Allocator) !*@This() {
+            const self = try allocator.create(@This());
+            self.* = init(allocator);
+            return self;
+        }
+
+        pub fn destroy(self: *@This()) void {
+            self.deinit();
+            self.allocator.destroy(self);
         }
 
         pub fn init(allocator: std.mem.Allocator) @This() {
@@ -357,7 +373,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             return denseIndex;
         }
 
-        pub fn get(self: *@This(), handle: SetHandle) ?*T {
+        pub fn get(self: @This(), handle: SetHandle) ?*T {
             const denseIndex = self.sparseToDense(handle) orelse return null;
             return &self.dense.items[denseIndex].value;
         }
@@ -369,8 +385,9 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             const denseIndex = self.sparseToDense(handle) orelse return;
             const tailDenseIndex = self.dense.items.len - 1;
             const sparseIndexToSwap = self.dense.items[tailDenseIndex].sparseIndex;
+            self.opCount +%= 1;
 
-            self.sparse[@as(usize, @intCast(sparseIndexToSwap))].index = @as(IndexType, @intCast(denseIndex));
+            self.sparse[@as(usize, @intCast(sparseIndexToSwap.index))].index = @as(IndexType, @intCast(denseIndex));
 
             _ = self.dense.swapRemove(denseIndex);
             self.sparse[@as(usize, @intCast(handle.index))].alive = false;
@@ -395,6 +412,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         // highly stable.
         pub fn createObject(self: *@This(), initValue: T) !SetHandle {
             var newSparseIndex = newRandomIndex();
+            self.opCount +%= 1;
 
             var denseHandle = self.sparse[@as(usize, @intCast(newSparseIndex))];
 
@@ -403,19 +421,27 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 denseHandle = self.sparse[@as(usize, @intCast(newSparseIndex))];
             }
 
-            const newDenseIndex = self.dense.items.len;
-            try self.dense.append(self.allocator, .{
-                .value = initValue,
-                .sparseIndex = newSparseIndex,
-            });
-
             const generation = (denseHandle.generation + 1) % (std.math.maxInt(GenerationType));
+            const newDenseIndex = self.dense.items.len;
 
-            self.sparse[@as(usize, @intCast(newSparseIndex))] = SetHandle{
+            const sparseToDenseHandle = SetHandle{
                 .alive = true,
                 .generation = @as(GenerationType, @intCast(generation)),
                 .index = @as(IndexType, @intCast(newDenseIndex)),
             };
+
+            const denseToSparseHandle = SetHandle{
+                .alive = true,
+                .generation = @as(GenerationType, @intCast(generation)),
+                .index = @as(IndexType, @intCast(newSparseIndex)),
+            };
+
+            try self.dense.append(self.allocator, .{
+                .value = initValue,
+                .sparseIndex = denseToSparseHandle,
+            });
+
+            self.sparse[@as(usize, @intCast(newSparseIndex))] = sparseToDenseHandle;
 
             const setHandle = SetHandle{
                 .alive = true,
@@ -444,14 +470,18 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         }
 
         pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *T {
-            return (try self.createWithHandle(handle, .{})).ptr;
+            return (self.createWithHandle(handle, .{}) catch @panic("unable to create")).ptr;
         }
 
         fn createAndGetInternal(self: *@This(), denseHandle: SetHandle, sparseIndex: IndexType, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
             const newDenseIndex = self.dense.items.len;
             try self.dense.append(self.allocator, .{
                 .value = initValue,
-                .sparseIndex = sparseIndex,
+                .sparseIndex = .{
+                    .index = sparseIndex,
+                    .generation = denseHandle.generation,
+                    .alive = true,
+                },
             });
 
             var generation = denseHandle.generation;
@@ -678,7 +708,7 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
                 if (@hasDecl(TargetType, "getHandleRef")) {
                     return ptr.getHandleRef(handle);
                 }
-                return ptr.get(handle);
+                return @ptrCast(ptr.get(handle));
             }
 
             pub fn createWithHandle(p: *anyopaque, handle: SetHandle) *anyopaque {

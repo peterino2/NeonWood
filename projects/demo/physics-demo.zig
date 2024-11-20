@@ -19,9 +19,16 @@ pub fn preparePhysics(self: *GameContext) !void {
     {
         const btn = ctx.get(button);
         btn.setSize(.{ .x = 120, .y = 50 });
-        var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
         obj.visibility = !obj.visibility;
     }
+
+    self.cameraPhysicsBody = try physics.addPrimitiveBody(.box, .{
+        .motion_type = .kinematic,
+        .object_layer = physics.ObjectLayers.moving,
+    }, .activate);
+
+    physics.optimizeBroadPhase();
 }
 
 pub fn unpreparePhysics(self: *GameContext) void {
@@ -31,18 +38,30 @@ pub fn unpreparePhysics(self: *GameContext) void {
 fn swapToPhysics(_: ui.NodeHandle, _: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     if (context) |c| {
         const self: *GameContext = @alignCast(@ptrCast(c));
-        var obj = self.gc.renderObjectSet.get(self.objHandle, .renderObject).?;
+        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
         obj.visibility = !obj.visibility;
     }
 }
 
 pub fn tick(self: *GameContext, deltaTime: f64) void {
-    _ = self;
     _ = deltaTime;
 
     const physicsRuntime = physics.gPhysicsRuntime;
 
-    for (physicsRuntime.spherePositions.items) |position| {
-        graphics.debugSphere(position, 0.5, .{});
+    physics.setBodyPosition(self.cameraPhysicsBody, self.camera.position);
+
+    for (physicsRuntime.spherePositions.items, 0..) |position, i| {
+        const id = physicsRuntime.sphereIds.items[i];
+        if (id == self.cameraPhysicsBody) {
+            continue;
+        }
+        const rotation = physicsRuntime.sphereRotations.items[i];
+        const handle = self.spheres[i];
+        var obj = self.gc.staticMeshSet.get(handle).?;
+        obj.visibility = true;
+        obj.position = position;
+        obj.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
+        obj.rotation = rotation;
+        obj.applyScalars();
     }
 }

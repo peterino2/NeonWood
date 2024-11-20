@@ -1,3 +1,8 @@
+const luaRegLibs: []const lua.c.luaL_Reg = &.{
+    .{ .name = "registerTick", .func = lua.CWrap(registerTick) },
+    .{ .name = null, .func = null },
+};
+
 // register core types and subsystems into the scripting engine
 pub fn registerTypes() !void {
     // transform POD type
@@ -9,7 +14,15 @@ pub fn registerTypes() !void {
     try lua.pod.registerPodType(state, core.Vector2f);
     // try lua.pod.registerPodType(state, core.Transform);
 
-    //lua.pod.registerPodType(state, core.Vector4, "Vector4");
+    // lua.pod.registerPodType(state, core.Vector4, "Vector4");
+    try state.createLibrary("Systems", luaRegLibs);
+}
+
+pub fn registerTick(l: lua.LuaState) i32 {
+    // two arguments first one is going to be userdata entity
+    // second one is going to be a lua function.
+    _ = l;
+    return 0;
 }
 
 const lua = @import("lua");

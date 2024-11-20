@@ -2,6 +2,14 @@
 
 const std = @import("std");
 
+pub const debug_draw = @import("debug_draw.zig");
+pub const DebugDrawParams = debug_draw.DebugDrawParams;
+pub const DebugDrawInterface = debug_draw.DebugDrawInterface;
+pub const installDebugDrawInterface = debug_draw.installDebugDrawInterface;
+pub const debugSphere = debug_draw.debugSphere;
+pub const debugBox = debug_draw.debugBox;
+pub const debugLine = debug_draw.debugLine;
+
 pub usingnamespace @import("misc.zig");
 pub usingnamespace @import("logging.zig");
 pub usingnamespace @import("engineTime.zig");
@@ -53,6 +61,7 @@ pub const StackCompactor = stacks.StackCompactor;
 var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
+pub const Scene = scene.Scene;
 
 pub const ecs = @import("ecs.zig");
 pub usingnamespace ecs;
@@ -97,9 +106,13 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
 pub fn shutdown_module(_: std.mem.Allocator) void {
     logs("core module shutting down...");
+
+    MemoryTracker.MTPrintStatsDelta();
+
     logging.shutdownLogging();
     ecs.shutdown();
 
+    debug_draw.shutdownDrawInterface();
     algorithm.destroyNameRegistry();
     gEngine.deinit();
     gPackerFS.destroy();

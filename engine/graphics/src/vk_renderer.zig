@@ -71,7 +71,7 @@ const DeviceDispatch = vk_constants.DeviceDispatch;
 const BaseDispatch = vk_constants.BaseDispatch;
 const InstanceDispatch = vk_constants.InstanceDispatch;
 
-const RenderObject = render_objects.RenderObject;
+const StaticMesh = render_objects.StaticMesh;
 const Material = materials.Material;
 const Mesh = mesh.Mesh;
 const Texture = texture.Texture;
@@ -81,9 +81,7 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const CStr = core.CStr;
 
-const RenderObjectSet = core.SparseMultiSet(
-    struct { renderObject: RenderObject },
-);
+const StaticMeshSet = render_objects.StaticMeshSet;
 
 const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
 
@@ -271,7 +269,7 @@ pub const NeonVkContext = struct {
     cameraMovement: Vectorf,
 
     renderObjectsByMaterial: ArrayListUnmanaged(u32),
-    renderObjectSet: RenderObjectSet,
+    staticMeshSet: *StaticMeshSet,
 
     textureSets: std.AutoHashMapUnmanaged(u32, vk.DescriptorSet),
 
@@ -315,13 +313,13 @@ pub const NeonVkContext = struct {
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         const meshRef = self.meshes.get(meshName.handle()).?;
-        self.renderObjectSet.get(objectHandle, .renderObject).?.*.mesh = meshRef;
-        self.renderObjectSet.get(objectHandle, .renderObject).?.*.meshName = meshName;
+        self.staticMeshSet.get(objectHandle).?.*.mesh = meshRef;
+        self.staticMeshSet.get(objectHandle).?.*.meshName = meshName;
     }
 
     pub fn setRenderObjectTexture(self: *@This(), objectHandle: core.ObjectHandle, textureName: core.Name) void {
         const textureSet = self.textureSets.get(textureName.handle()).?;
-        self.renderObjectSet.get(objectHandle, .renderObject).?.texture = textureSet;
+        self.staticMeshSet.get(objectHandle).?.texture = textureSet;
     }
 
     pub fn getNormRayFromActiveCamera(
@@ -376,7 +374,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn setObjectVisibility(self: *Self, handle: core.ObjectHandle, visible: bool) void {
-        self.renderObjectSet.get(handle, .renderObject).?.*.visibility = visible;
+        self.staticMeshSet.get(handle).?.*.visibility = visible;
     }
 
     pub fn init_zig_data(self: *Self, allocator: std.mem.Allocator) !void {
@@ -402,7 +400,8 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
-        self.renderObjectSet = RenderObjectSet.init(self.allocator);
+        try core.defineComponent(render_objects.StaticMesh, self.allocator);
+        self.staticMeshSet = render_objects.StaticMesh.BaseContainer;
         self.requiredExtensions = .{};
         self.dynamicTextures = .{};
 
@@ -599,10 +598,18 @@ pub const NeonVkContext = struct {
         ssbo.len = self.maxObjectCount;
 
         var i: usize = 0;
-        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-            const object = self.renderObjectSet.dense.items(.renderObject)[i];
+        while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
+            const object = &self.staticMeshSet.dense.items[i].value;
+            var transform = self.staticMeshSet.dense.items[i].value.transform;
+
+            const entity = self.staticMeshSet.dense.items[i].sparseIndex;
+
+            if (core.Scene.BaseContainer.get(entity, .posRot)) |posRot| {
+                transform = posRot.toTransform();
+            }
+
             if (object.mesh != null) {
-                ssbo[i].modelMatrix = self.renderObjectSet.dense.items(.renderObject)[i].transform;
+                ssbo[i].modelMatrix = transform;
             }
         }
 
@@ -1216,21 +1223,29 @@ pub const NeonVkContext = struct {
         }
         shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
 
-        try shared.models.ensureTotalCapacity(self.renderObjectSet.dense.len);
+        try shared.models.ensureTotalCapacity(self.staticMeshSet.dense.items.len);
         shared.models.clearRetainingCapacity();
 
-        try shared.objectData.ensureTotalCapacity(self.renderObjectSet.dense.len);
+        try shared.objectData.ensureTotalCapacity(self.staticMeshSet.dense.items.len);
         shared.objectData.clearRetainingCapacity();
 
         var i: usize = 0;
-        while (i < self.maxObjectCount and i < self.renderObjectSet.dense.len) : (i += 1) {
-            const object = self.renderObjectSet.dense.items(.renderObject)[i];
+        while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
+            const object = &self.staticMeshSet.dense.items[i].value;
+            const objectId = self.staticMeshSet.dense.items[i].sparseIndex;
+
+            var transform = object.transform;
 
             if (object.mesh != null and object.material != null and object.visibility) {
+                core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
+                if (core.Scene.BaseContainer.get(objectId, .posRot)) |posRot| {
+                    transform = posRot.toTransform();
+                }
+
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
-                gpuData.modelMatrix = object.transform;
+                gpuData.modelMatrix = transform;
                 objectData.* = .{
                     .visibility = object.visibility,
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
@@ -1408,7 +1423,7 @@ pub const NeonVkContext = struct {
 
     fn draw_render_object(
         self: *Self,
-        render_object: RenderObject,
+        render_object: StaticMesh,
         cmd: vk.CommandBuffer,
         index: u32,
         deltaTime: f64,
@@ -1446,7 +1461,7 @@ pub const NeonVkContext = struct {
         }
         defer z1.End();
 
-        // if the renderobject has a textureset as an override use that instead of the default one on the material.
+        // if the StaticMesh has a textureset as an override use that instead of the default one on the material.
         if (render_object.texture) |textureSet| {
             self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
         } else {
@@ -1522,12 +1537,12 @@ pub const NeonVkContext = struct {
         self.lastMesh = null;
 
         var z2 = tracy.ZoneNC(@src(), "rendering objects", 0xBBAAFF);
-        for (self.renderObjectSet.dense.items(.renderObject), 0..) |dense, i| {
+        for (self.staticMeshSet.dense.items, 0..) |dense, i| {
             // holy moly i really should make a convenience function for this.
             // dense to sparse given a known dense index
-            var sparseHandle = self.renderObjectSet.sparse[self.renderObjectSet.denseIndices.items[i].index];
-            sparseHandle.index = self.renderObjectSet.denseIndices.items[i].index;
-            self.draw_render_object(dense, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
+            var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.dense.items[i].sparseIndex.index];
+            sparseHandle.index = self.staticMeshSet.dense.items[i].sparseIndex.index;
+            self.draw_render_object(dense.value, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
         }
         z2.End();
     }
@@ -2161,16 +2176,16 @@ pub const NeonVkContext = struct {
     // sorts renderObjects by material
     fn sortRenderObjects(self: *Self) !void {
         self.renderObjectsByMaterial.clearRetainingCapacity();
-        try self.renderObjectsByMaterial.resize(self.allocator, self.renderObjectSet.dense.len);
+        try self.renderObjectsByMaterial.resize(self.allocator, self.staticMeshSet.dense.items.len);
 
         var i: u32 = 0;
-        while (i < self.renderObjectSet.dense.len) : (i += 1) {
+        while (i < self.staticMeshSet.dense.items.len) : (i += 1) {
             self.renderObjectsByMaterial.items[i] = i;
         }
 
         const X = struct {
             pub fn lessThan(ctx: *NeonVkContext, lhs: u32, rhs: u32) bool {
-                return @intFromPtr(ctx.renderObjectSet.dense.items(.renderObject)[lhs].material) < @intFromPtr(ctx.renderObjectSet.dense.items(.renderObject)[rhs].material);
+                return @intFromPtr(ctx.staticMeshSet.dense.items[lhs].value.material) < @intFromPtr(ctx.staticMeshSet.dense.items[rhs].value.material);
             }
         };
 
@@ -2485,7 +2500,8 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_renderobjects(self: *Self) !void {
-        self.renderObjectSet.deinit();
+        _ = self;
+        core.undefineComponent(StaticMesh);
     }
 
     pub fn create_buffer(
@@ -2647,8 +2663,8 @@ pub const NeonVkContext = struct {
 
     // this one treats the renderer like any other subsystem
     //
-    fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !RenderObject {
-        var renderObject = RenderObject.fromTransform(params.init_transform);
+    fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
+        var renderObject = StaticMesh.fromTransform(params.init_transform);
 
         const findMesh = self.meshes.getEntry(params.mesh_name.handle());
         const findMat = self.materials.getEntry(params.material_name.handle());
@@ -2668,7 +2684,7 @@ pub const NeonVkContext = struct {
     pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle {
         const renderObject = try self.initRenderObject(params);
 
-        const rv = try self.renderObjectSet.createWithHandle(objectHandle, .{ .renderObject = renderObject });
+        const rv = try self.staticMeshSet.createWithHandle(objectHandle, renderObject);
         self.renderObjectsAreDirty = true;
 
         return rv;
@@ -2677,7 +2693,7 @@ pub const NeonVkContext = struct {
     pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
         const renderObject = try self.initRenderObject(params);
 
-        const rv = try self.renderObjectSet.createObject(.{ .renderObject = renderObject });
+        const rv = try self.staticMeshSet.createObject(renderObject);
         self.renderObjectsAreDirty = true;
 
         return rv;

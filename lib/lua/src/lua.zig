@@ -240,7 +240,7 @@ pub const LuaState = struct {
 
     pub fn toUserdata(self: @This(), comptime T: type, index: i32) ?*T {
         if (debugEnabled) {
-            std.debug.print("toUserdata: {s}", .{@typeName(T)});
+            // std.debug.print("toUserdata: {s}", .{@typeName(T)});
         }
         return @ptrCast(@alignCast(c.lua_touserdata(self.l, index)));
     }
@@ -360,5 +360,10 @@ pub const LuaState = struct {
 
     pub fn emitError(self: @This(), errorMessage: [:0]const u8) void {
         _ = c.luaL_error(self.l, errorMessage);
+    }
+
+    pub fn createLibrary(self: @This(), libName: []const u8, spec: LibSpec) !void {
+        try self.newLib(spec);
+        try self.setGlobal(libName);
     }
 };
