@@ -17,24 +17,32 @@
 --
 -- ok that works
 
-local function create()
+local function create(position)
     local ball = Entity.new()
 
     print("creating sine ball")
 
-    local scene = ball:addComponent(Scene)
+    ballScene = ball:addComponent(Scene) -- todo make a getComponent function
     -- todo implement a custom argument type
-    scene:setPosition(Vectorf.new(0, 1, 0))
+    ballScene:setPosition(position)
+    print("scene component created")
 
     local sm = ball:addComponent(StaticMesh)
+    print("static mesh component created")
+    sm:scriptInit()
     sm:setMesh("m_primitive_sphere")
+    print("static mesh set")
 
-    -- Systems.registerTick(ball, tick)
+    Systems.registerTick(ball, tick)
     return ball
 end
 
+ballTime = 0
+
 local function tick(ball, deltaTime)
+    ballTime = ballTime + deltaTime
     print("tick")
+    ballScene:setPosition(math.sin(time), 0, -5)
 end
 
 SineBall = {

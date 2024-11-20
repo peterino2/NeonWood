@@ -600,8 +600,16 @@ pub const NeonVkContext = struct {
         var i: usize = 0;
         while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
             const object = &self.staticMeshSet.dense.items[i].value;
+            var transform = self.staticMeshSet.dense.items[i].value.transform;
+
+            const entity = self.staticMeshSet.dense.items[i].sparseIndex;
+
+            if (core.Scene.BaseContainer.get(entity, .posRot)) |posRot| {
+                transform = posRot.toTransform();
+            }
+
             if (object.mesh != null) {
-                ssbo[i].modelMatrix = self.staticMeshSet.dense.items[i].value.transform;
+                ssbo[i].modelMatrix = transform;
             }
         }
 
@@ -1224,12 +1232,20 @@ pub const NeonVkContext = struct {
         var i: usize = 0;
         while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
             const object = &self.staticMeshSet.dense.items[i].value;
+            const objectId = self.staticMeshSet.dense.items[i].sparseIndex;
+
+            var transform = object.transform;
 
             if (object.mesh != null and object.material != null and object.visibility) {
+                core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
+                if (core.Scene.BaseContainer.get(objectId, .posRot)) |posRot| {
+                    transform = posRot.toTransform();
+                }
+
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
-                gpuData.modelMatrix = object.transform;
+                gpuData.modelMatrix = transform;
                 objectData.* = .{
                     .visibility = object.visibility,
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
@@ -1524,9 +1540,9 @@ pub const NeonVkContext = struct {
         for (self.staticMeshSet.dense.items, 0..) |dense, i| {
             // holy moly i really should make a convenience function for this.
             // dense to sparse given a known dense index
-            var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.denseIndices.items[i].index];
-            sparseHandle.index = self.staticMeshSet.denseIndices.items[i].index;
-            self.draw_render_object(dense, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
+            var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.dense.items[i].sparseIndex.index];
+            sparseHandle.index = self.staticMeshSet.dense.items[i].sparseIndex.index;
+            self.draw_render_object(dense.value, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
         }
         z2.End();
     }

@@ -361,4 +361,9 @@ pub const LuaState = struct {
     pub fn emitError(self: @This(), errorMessage: [:0]const u8) void {
         _ = c.luaL_error(self.l, errorMessage);
     }
+
+    pub fn createLibrary(self: @This(), libName: []const u8, spec: LibSpec) !void {
+        try self.newLib(spec);
+        try self.setGlobal(libName);
+    }
 };

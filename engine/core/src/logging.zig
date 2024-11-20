@@ -16,7 +16,7 @@ pub fn printRaw(comptime fmt: []const u8, args: anytype) void {
     }
 
     if (slow_logging) {
-        std.debug.print(args);
+        std.debug.print(fmt, args);
     } else {
         if (gLoggerSys) |loggerSys| {
             loggerSys.print(fmt, args) catch std.debug.print("!> " ++ fmt, args);

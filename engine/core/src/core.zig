@@ -61,6 +61,7 @@ pub const StackCompactor = stacks.StackCompactor;
 var gPackerFS: *PackerFS = undefined;
 
 pub var gScene: *SceneSystem = undefined;
+pub const Scene = scene.Scene;
 
 pub const ecs = @import("ecs.zig");
 pub usingnamespace ecs;

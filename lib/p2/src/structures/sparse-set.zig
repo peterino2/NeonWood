@@ -295,7 +295,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         allocator: std.mem.Allocator,
         dense: ArrayListUnmanaged(struct {
             value: T,
-            sparseIndex: IndexType,
+            sparseIndex: SetHandle,
         }),
         sparse: []SetHandle,
 
@@ -387,7 +387,7 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             const sparseIndexToSwap = self.dense.items[tailDenseIndex].sparseIndex;
             self.opCount +%= 1;
 
-            self.sparse[@as(usize, @intCast(sparseIndexToSwap))].index = @as(IndexType, @intCast(denseIndex));
+            self.sparse[@as(usize, @intCast(sparseIndexToSwap.index))].index = @as(IndexType, @intCast(denseIndex));
 
             _ = self.dense.swapRemove(denseIndex);
             self.sparse[@as(usize, @intCast(handle.index))].alive = false;
@@ -421,19 +421,27 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
                 denseHandle = self.sparse[@as(usize, @intCast(newSparseIndex))];
             }
 
-            const newDenseIndex = self.dense.items.len;
-            try self.dense.append(self.allocator, .{
-                .value = initValue,
-                .sparseIndex = newSparseIndex,
-            });
-
             const generation = (denseHandle.generation + 1) % (std.math.maxInt(GenerationType));
+            const newDenseIndex = self.dense.items.len;
 
-            self.sparse[@as(usize, @intCast(newSparseIndex))] = SetHandle{
+            const sparseToDenseHandle = SetHandle{
                 .alive = true,
                 .generation = @as(GenerationType, @intCast(generation)),
                 .index = @as(IndexType, @intCast(newDenseIndex)),
             };
+
+            const denseToSparseHandle = SetHandle{
+                .alive = true,
+                .generation = @as(GenerationType, @intCast(generation)),
+                .index = @as(IndexType, @intCast(newSparseIndex)),
+            };
+
+            try self.dense.append(self.allocator, .{
+                .value = initValue,
+                .sparseIndex = denseToSparseHandle,
+            });
+
+            self.sparse[@as(usize, @intCast(newSparseIndex))] = sparseToDenseHandle;
 
             const setHandle = SetHandle{
                 .alive = true,
@@ -469,7 +477,11 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
             const newDenseIndex = self.dense.items.len;
             try self.dense.append(self.allocator, .{
                 .value = initValue,
-                .sparseIndex = sparseIndex,
+                .sparseIndex = .{
+                    .index = sparseIndex,
+                    .generation = denseHandle.generation,
+                    .alive = true,
+                },
             });
 
             var generation = denseHandle.generation;

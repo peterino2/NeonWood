@@ -276,6 +276,7 @@ pub const Entity = struct {
         .newFuncOverride = lua.CWrap(CreateEntity_Lua),
         .luaDirectFuncs = &.{
             .{ .name = "addComponent", .func = "luaAddComponent" },
+            // .{ .name = "get", .func = "luaAddComponent" }, -- todo need to implement getcomponent
         },
     };
 

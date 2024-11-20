@@ -26,6 +26,20 @@ pub const SceneObjectPosRot = struct {
     position: core.Vectorf = .{ .x = 0, .y = 0, .z = 0 },
     rotation: core.Rotation = core.Rotation.init(),
     scale: core.Vectorf = core.Vectorf.new(1.0, 1.0, 1.0),
+
+    pub inline fn toTransform(self: @This()) core.Transform {
+        var transform = core.zm.mul(
+            core.zm.scalingV(self.scale.toZm()),
+            core.zm.matFromQuat(self.rotation.quat),
+        );
+
+        transform = core.zm.mul(
+            transform,
+            core.zm.translationV(self.position.toZm()),
+        );
+
+        return transform;
+    }
 };
 
 pub const SceneObjectSettings = struct {

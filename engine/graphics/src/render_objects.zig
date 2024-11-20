@@ -3,6 +3,7 @@ const vk = @import("vulkan");
 const resources = @import("resources");
 const core = @import("core");
 const VkConstants = @import("vk_constants.zig");
+const graphics = @import("graphics.zig");
 const meshes = @import("mesh.zig");
 const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 const materials = @import("materials.zig");
@@ -33,18 +34,41 @@ pub const StaticMesh = struct {
     rotation: Quat = .{ 0, 0, 0, 1 },
     scale: Vectorf = .{ .x = 1, .y = 1, .z = 1 },
 
-    // TODO factor this out into a metadata function
     textureName: core.Name = core.NameInvalid,
     meshName: core.Name = core.NameInvalid,
 
     pub var BaseContainer: *StaticMeshSet = undefined;
-    pub const ComponentName = "Mesh";
+    pub const ComponentName = "StaticMesh";
 
     pub const ScriptExports: []const []const u8 = &.{
         "applyRelativeRotationX",
         "applyRelativeRotationY",
         "applyRelativeRotationZ",
+        "setMesh",
+        "setMaterial",
+        "scriptInit", // todo.. sholdnt need this...
     };
+
+    pub fn scriptInit(self: *@This()) void {
+        self.setMaterial("t_mesh");
+    }
+
+    pub fn setMaterial(self: *@This(), materialName: []const u8) void {
+        const name = core.MakeName(materialName);
+        const mat = graphics.getContext().materials.getEntry(name.handle()).?;
+        self.material = mat.value_ptr.*;
+        graphics.getContext().renderObjectsAreDirty = true;
+    }
+
+    // script function
+    pub fn setMesh(self: *@This(), meshName: []const u8) void {
+        const name = core.MakeName(meshName);
+        const meshRef = graphics.getContext().meshes.get(name.handle());
+        self.mesh = meshRef;
+        self.meshName = name;
+
+        graphics.getContext().renderObjectsAreDirty = true;
+    }
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
@@ -60,10 +84,6 @@ pub const StaticMesh = struct {
         self.updateScalars();
 
         return self;
-    }
-
-    pub fn setMesh(self: *Self, mesh: Mesh) Self {
-        self.mesh = mesh;
     }
 
     pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
