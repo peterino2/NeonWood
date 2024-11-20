@@ -103,6 +103,7 @@ pub const PhysicsRuntime = struct {
     floorShape: *zphysics.Shape = undefined,
 
     spherePositions: std.ArrayList(core.Vectorf),
+    sphereRotations: std.ArrayList(core.Quat),
     sphereIds: std.ArrayList(zphysics.BodyId),
 
     newBallTime: f64 = 5,
@@ -119,6 +120,7 @@ pub const PhysicsRuntime = struct {
             .ovbplf = .{},
             .olpf = .{},
             .spherePositions = std.ArrayList(core.Vectorf).init(allocator),
+            .sphereRotations = std.ArrayList(core.Quat).init(allocator),
             .sphereIds = std.ArrayList(zphysics.BodyId).init(allocator),
             .max_bodies = 4096,
         };
@@ -232,6 +234,7 @@ pub const PhysicsRuntime = struct {
     pub fn updateSpherePositions(self: *@This()) !void {
         try self.system.getBodyIds(&self.sphereIds);
         try self.spherePositions.resize(self.sphereIds.items.len);
+        try self.sphereRotations.resize(self.sphereIds.items.len);
         const lockInterface = self.system.getBodyLockInterface();
 
         for (self.sphereIds.items, 0..) |bodyId, i| {
@@ -241,6 +244,7 @@ pub const PhysicsRuntime = struct {
 
             if (readLock.body) |body| {
                 self.spherePositions.items[i] = core.Vectorf.fromArray(body.position);
+                self.sphereRotations.items[i] = body.rotation;
             }
         }
     }
@@ -288,6 +292,7 @@ pub const PhysicsRuntime = struct {
         self.system.destroy();
         self.sphereIds.deinit();
         self.spherePositions.deinit();
+        self.sphereRotations.deinit();
         allocator.destroy(self);
     }
 };

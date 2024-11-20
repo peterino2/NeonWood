@@ -5,7 +5,10 @@ const std = @import("std");
 pub const debug_draw = @import("debug_draw.zig");
 pub const DebugDrawParams = debug_draw.DebugDrawParams;
 pub const DebugDrawInterface = debug_draw.DebugDrawInterface;
+pub const installDebugDrawInterface = debug_draw.installDebugDrawInterface;
 pub const debugSphere = debug_draw.debugSphere;
+pub const debugBox = debug_draw.debugBox;
+pub const debugLine = debug_draw.debugLine;
 
 pub usingnamespace @import("misc.zig");
 pub usingnamespace @import("logging.zig");
@@ -105,6 +108,7 @@ pub fn shutdown_module(_: std.mem.Allocator) void {
     logging.shutdownLogging();
     ecs.shutdown();
 
+    debug_draw.shutdownDrawInterface();
     algorithm.destroyNameRegistry();
     gEngine.deinit();
     gPackerFS.destroy();

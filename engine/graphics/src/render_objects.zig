@@ -122,8 +122,14 @@ pub const RenderObject = struct {
     }
 
     pub fn applyScalars(self: *RenderObject) void {
-        var newTransform = core.zm.translationV(self.position.toZm());
-        newTransform = core.zm.mul(newTransform, core.zm.matFromQuat(self.rotation));
+        var newTransform = core.zm.mul(
+            core.zm.scalingV(self.scale.toZm()),
+            core.zm.matFromQuat(self.rotation),
+        );
+        newTransform = core.zm.mul(
+            newTransform,
+            core.zm.translationV(self.position.toZm()),
+        );
         self.transform = newTransform;
     }
 };

@@ -50,6 +50,8 @@ pub const GameContext = struct {
     objHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
 
+    spheres: [4096]core.ObjectHandle = undefined,
+
     cameraHorizontalRotationMat: core.Mat, // fp camera controls
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
     eulerX: f32 = 0, // camera controls
@@ -212,6 +214,21 @@ pub const GameContext = struct {
             .init_transform = core.zm.translation(5, 0, 0),
         });
         _ = objHandle4;
+
+        {
+            const meshName = core.MakeName("m_primitive_sphere");
+            const materialName = core.MakeName("t_mesh");
+            for (0..2048) |i| {
+                const oHandle = try self.gc.add_renderobject(.{
+                    .mesh_name = meshName,
+                    .material_name = materialName,
+                    .init_transform = core.zm.translation(0, 0, 0),
+                });
+                self.spheres[i] = oHandle;
+                var obj = self.gc.renderObjectSet.get(oHandle, .renderObject).?;
+                obj.visibility = false;
+            }
+        }
 
         var ctx = ui.getContext();
 
@@ -445,8 +462,9 @@ pub fn main() anyerror!void {
     memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
-    var tracker = memory.MTGet().?;
-    const allocator = tracker.allocator();
+    //var tracker = memory.MTGet().?;
+    //const allocator = tracker.allocator();
+    const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 

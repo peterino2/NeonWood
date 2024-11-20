@@ -36,13 +36,22 @@ fn swapToPhysics(_: ui.NodeHandle, _: ui.PressedType, context: ?*anyopaque) ui.H
     }
 }
 
+var lolaBunny = core.MakeName("t_lolaBunny");
+
 pub fn tick(self: *GameContext, deltaTime: f64) void {
-    _ = self;
     _ = deltaTime;
 
     const physicsRuntime = physics.gPhysicsRuntime;
 
-    for (physicsRuntime.spherePositions.items) |position| {
-        graphics.debugSphere(position, 0.5, .{});
+    for (physicsRuntime.spherePositions.items, 0..) |position, i| {
+        // graphics.debugSphere(position, 0.5, .{ .rotation = physicsRuntime.sphereRotations.items[i] });
+        const rotation = physicsRuntime.sphereRotations.items[i];
+        const handle = self.spheres[i];
+        var obj = self.gc.renderObjectSet.get(handle, .renderObject).?;
+        obj.visibility = true;
+        obj.position = position;
+        obj.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
+        obj.rotation = rotation;
+        obj.applyScalars();
     }
 }
