@@ -462,9 +462,9 @@ pub fn main() anyerror!void {
     memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
-    //var tracker = memory.MTGet().?;
-    //const allocator = tracker.allocator();
-    const allocator = std.heap.c_allocator;
+    var tracker = memory.MTGet().?;
+    const allocator = tracker.allocator();
+    // const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 
