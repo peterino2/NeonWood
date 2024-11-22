@@ -20,7 +20,7 @@ end
 local ball  = SineBall.create(Vectorf.new(-2, 0, -5),  tick1, 1.0)
 local ball2 = SineBall.create(Vectorf.new( 2, 0, -5),  tick2, 1.0)
 GetProperty(ball).ballScene:printHandleIndex()
-local ball3 = SineBall.create(Vectorf.new( 0, 1, -5), tick1, 40.0)
+local ball3 = SineBall.create(Vectorf.new( 0, 1, -5), tick1, 4.0)
 
 
 -- local ballScene = ball:get(Scene)
