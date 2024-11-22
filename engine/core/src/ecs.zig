@@ -117,8 +117,17 @@ pub fn createEntity() !Entity {
 
 pub fn CreateEntity_Lua(state: lua.LuaState) i32 {
     const ud = state.newZigUserdata(Entity) catch return 0;
-    ud.* = createEntity() catch return 0;
+    ud.* = createEntity() catch {
+        std.debug.print("failed to create entity", .{});
+        return 0;
+    };
+    _ = state.getGlobal("__RegisterEntityProperty");
+    _ = state.pushValue(-2) catch return 0;
     core.engine_log("Entity created: 0x{x}", .{ud.handle.index});
+    _ = state.pcallStack(1) catch {
+        std.debug.print("faield to exectute registration function", .{});
+        return 0;
+    };
     return 1;
 }
 
@@ -276,12 +285,17 @@ pub const Entity = struct {
         .newFuncOverride = lua.CWrap(CreateEntity_Lua),
         .luaDirectFuncs = &.{
             .{ .name = "addComponent", .func = "luaAddComponent" },
-            // .{ .name = "get", .func = "luaAddComponent" }, -- todo need to implement getcomponent
+            //.{ .name = "get", .func = "luaAddComponent" },
         },
     };
 
     pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
-        return Component.BaseContainer.createWithHandle(self.handle, .{}) catch return null;
+        const rv = Component.BaseContainer.createWithHandle(self.handle, .{}) catch return null;
+
+        if (@hasDecl(Component, "init")) {
+            rv.init(self.handle);
+        }
+        return rv;
     }
 
     pub fn get(self: @This(), comptime Component: type) ?*Component {

@@ -16,28 +16,36 @@
 -- 4. do things.
 --
 -- ok that works
-
-local function create(position)
-    local ball = Entity.new()
-
-    ballScene = ball:addComponent(Scene) -- todo make a getComponent function
-    -- todo implement a custom argument type
-    ballScene:setPosition(position)
-
-    local sm = ball:addComponent(StaticMesh)
-    sm:scriptInit()
-    sm:setMesh("m_primitive_sphere")
-
-    Systems.registerTick(ball, tick)
-    return ball
+--
+local function tick(ball, deltaTime)
+    local properties = GetProperty(ball)
+    properties.ballTime = properties.ballTime + deltaTime
+    properties.ballScene:setPosition(
+        properties.rootPosition +
+        Vectorf.new(math.sin(properties.ballTime), math.cos(properties.ballTime), 0)
+    )
 end
 
-ballTime = 0
+local function create(position, tickFunction, timeDilation)
+    local ball = Entity.new()
+    print("entity:")
+    print(ball)
+    local properties = GetProperty(ball)
+    properties.dilation = timeDilation
+    properties.ballTime = 0.0
+    properties.rootPosition = position
+    properties.ballScene = ball:addComponent(Scene) -- todo make a getComponent function
+    properties.ballScene:printHandleIndex()
 
-local function tick(ball, deltaTime)
-    ballTime = ballTime + deltaTime
-    print("tick")
-    ballScene:setPosition(math.sin(time), 0, -5)
+    -- todo implement a custom argument type
+    properties.ballScene:setPosition(position)
+
+    properties.sm = ball:addComponent(StaticMesh)
+    properties.sm:scriptInit()
+    properties.sm:setMesh("m_primitive_box")
+
+    Core.registerTick(ball, tickFunction)
+    return ball
 end
 
 SineBall = {

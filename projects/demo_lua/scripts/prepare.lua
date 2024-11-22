@@ -1,9 +1,27 @@
 
-local ball = SineBall.create(Vectorf.new(-2, 0,-5))
+local function tick1(ball, deltaTime)
+    local properties = GetProperty(ball)
+    properties.ballTime = properties.ballTime + deltaTime * properties.dilation
+    properties.ballScene:setPosition(
+        properties.rootPosition +
+        Vectorf.new(math.sin(properties.ballTime), math.cos(properties.ballTime), 0)
+    )
+end
 
-local ball3 = SineBall.create(Vectorf.new(0, -2,-5))
+local function tick2(ball, deltaTime)
+    local properties = GetProperty(ball)
+    properties.ballTime = properties.ballTime + deltaTime * properties.dilation
+    properties.ballScene:setPosition(
+        properties.rootPosition +
+        Vectorf.new(math.cos(properties.ballTime), math.sin(properties.ballTime), 0)
+    )
+end
 
-local ball1 = SineBall.create(Vectorf.new(2, 0,-5))
+local ball  = SineBall.create(Vectorf.new(-2, 0, -5),  tick1, 1.0)
+local ball2 = SineBall.create(Vectorf.new( 2, 0, -5),  tick2, 1.0)
+GetProperty(ball).ballScene:printHandleIndex()
+local ball3 = SineBall.create(Vectorf.new( 0, 1, -5), tick1, 40.0)
+
 
 -- local ballScene = ball:get(Scene)
 -- ballScene:setPosition(0, 0, 5)

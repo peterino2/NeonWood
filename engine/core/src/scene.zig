@@ -5,7 +5,8 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const tracy = core.tracy;
 
 pub const Transform = core.Mat;
-const SceneSet = core.SparseMultiSet(SceneObject);
+const SceneObjectSet = core.SparseMultiSet(SceneObject);
+const SceneSet = core.SparseSet(Scene);
 
 pub const SceneAttachMode = enum {
     none, // default, parent attachment is irrelevant and not used
@@ -101,9 +102,10 @@ pub const SceneObject = struct {
 };
 
 pub const Scene = struct {
-    handle: core.ObjectHandle,
+    handle: core.ObjectHandle = .{ .generation = 0, .index = 0, .alive = false },
 
     pub var BaseContainer: *SceneSet = undefined;
+    pub var SceneObjectContainer: *SceneObjectSet = undefined;
     pub const ComponentName = "Scene";
 
     pub const ScriptExports: []const []const u8 = &.{
@@ -114,47 +116,61 @@ pub const Scene = struct {
         "getPosition",
         "getRotation",
         "getParent",
+        "printHandleIndex",
         // "getTransform", not implemented yet
         // "setMobility", gonna need special setup for this one
     };
 
+    pub fn initECS(self: *@This(), handle: core.ObjectHandle) void {
+        self.handle = handle;
+        _ = SceneObjectContainer.createWithHandleECS(handle);
+    }
+
+    pub fn printHandleIndex(self: @This()) void {
+        core.engine_log("handle.index = 0x{x} generation = {d} alive={any}", .{ self.handle.index, self.handle.generation, self.handle.alive });
+    }
+
     pub fn setPosition(self: @This(), position: core.Vectorf) void {
-        // core.engine_log("setPositon called p=0x{p}", .{@as(*const anyopaque, @ptrCast(&self.handle))});
-        BaseContainer.get(self.handle, .posRot).?.*.position = position;
+        if (SceneObjectContainer.get(self.handle, .posRot)) |posRot| {
+            posRot.*.position = position;
+            // core.engine_log("setposition scucess handle.index = 0x{x}", .{self.handle.index});
+        } else {
+            core.engine_log("setposition failed handle.index = 0x{x} generation = {d} alive={any}", .{ self.handle.index, self.handle.generation, self.handle.alive });
+        }
     }
 
     pub fn setRotation(self: @This(), rotation: core.Rotation) void {
-        BaseContainer.get(self.handle, .posRot).?.*.rotation = rotation;
+        SceneObjectContainer.get(self.handle, .posRot).?.*.rotation = rotation;
     }
 
     pub fn setScale(self: @This(), x: f32, y: f32, z: f32) void {
-        BaseContainer.get(self.handle, .posRot).?.*.scale = .{ .x = x, .y = y, .z = z };
+        SceneObjectContainer.get(self.handle, .posRot).?.*.scale = .{ .x = x, .y = y, .z = z };
     }
 
     pub fn setScaleV(self: @This(), scale: core.Vectorf) void {
-        BaseContainer.get(self.handle, .posRot).?.*.scale = scale;
+        SceneObjectContainer.get(self.handle, .posRot).?.*.scale = scale;
     }
 
     pub fn getPosition(self: @This()) core.Vectorf {
         // core.engine_logs("getPosition called");
-        return BaseContainer.get(self.handle, .posRot).?.position;
+        return SceneObjectContainer.get(self.handle, .posRot).?.position;
     }
 
     pub fn getRotation(self: @This()) core.Rotation {
-        return BaseContainer.get(self.handle, .posRot).?.rotation;
+        return SceneObjectContainer.get(self.handle, .posRot).?.rotation;
     }
 
     pub fn getParent(self: @This()) core.Entity {
-        return core.Entity{ .handle = BaseContainer.get(self.handle, ._repr).?.parent orelse .{} };
+        return core.Entity{ .handle = SceneObjectContainer.get(self.handle, ._repr).?.parent orelse .{} };
     }
 
     pub fn getTransform(self: @This()) core.Transform {
         // walk up the parent stack and resolve transforms?
-        return BaseContainer.get(self.handle, ._repr).?.transform;
+        return SceneObjectContainer.get(self.handle, ._repr).?.transform;
     }
 
     pub fn setMobility(self: @This(), mobility: SceneMobilityMode) !void {
-        const settings = Scene.BaseContainer.get(self.handle, .settings).?;
+        const settings = Scene.SceneObjectContainer.get(self.handle, .settings).?;
         if (settings.sceneMode == .static) {
             if (mobility == .moveable) {
                 try core.gScene.dynamicObjects.append(core.gScene.allocator, self.handle);
@@ -191,8 +207,8 @@ pub const SceneSystem = struct {
     allocator: std.mem.Allocator,
     dynamicObjects: ArrayListUnmanaged(core.ObjectHandle) = .{},
 
-    pub const Field = SceneSet.Field;
-    pub const FieldType = SceneSet.FieldType;
+    pub const Field = SceneObjectSet.Field;
+    pub const FieldType = SceneObjectSet.FieldType;
 
     // internal update transform function
     fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void {
@@ -212,10 +228,10 @@ pub const SceneSystem = struct {
         // vs static objects
         // if we have a small amount of movable vs static AND if we have > 1000 objects,
         // then iterate over dynamicObjects array instead
-        for (Scene.BaseContainer.denseItems(._repr), 0..) |*repr, i| {
-            const settings = Scene.BaseContainer.readDense(i, .settings);
+        for (Scene.SceneObjectContainer.denseItems(._repr), 0..) |*repr, i| {
+            const settings = Scene.SceneObjectContainer.readDense(i, .settings);
             if (settings.sceneMode == .moveable) {
-                const posRot = Scene.BaseContainer.readDense(i, .posRot);
+                const posRot = Scene.SceneObjectContainer.readDense(i, .posRot);
                 self.updateTransform(repr, posRot.*);
             }
         }
@@ -228,6 +244,7 @@ pub const SceneSystem = struct {
             .allocator = allocator,
         };
         try core.defineComponent(Scene, allocator);
+        Scene.SceneObjectContainer = try SceneObjectSet.create(allocator);
         return self;
     }
 
@@ -240,6 +257,7 @@ pub const SceneSystem = struct {
 
     pub fn deinit(self: *@This()) void {
         core.undefineComponent(Scene);
+        Scene.SceneObjectContainer.destroy();
         self.allocator.destroy(self);
     }
 };
@@ -256,6 +274,6 @@ pub const SceneSystem = struct {
 // then the pointer type shall be a pointer to the set handle.
 // and the component acquisition shall do absolutely nothing but grab the sparse index of the set handle
 //
-// custom component registration i think should be created
+// man... that shit sounds like so much work...
 
 // LUA_END

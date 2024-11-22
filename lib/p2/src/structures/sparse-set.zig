@@ -278,6 +278,7 @@ pub fn SparseMultiSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *SetHandle {
             _ = self.createWithHandle(handle, .{}) catch @panic("unable to create with handle");
+
             return self.getHandleRef(handle);
         }
 
@@ -470,7 +471,12 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
         }
 
         pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *T {
-            return (self.createWithHandle(handle, .{}) catch @panic("unable to create")).ptr;
+            const rv = (self.createWithHandle(handle, .{}) catch @panic("unable to create")).ptr;
+
+            if (@hasDecl(T, "initECS")) {
+                rv.initECS(handle);
+            }
+            return rv;
         }
 
         fn createAndGetInternal(self: *@This(), denseHandle: SetHandle, sparseIndex: IndexType, initValue: T, comptime bumpGeneration: bool) !ConstructResult {
@@ -629,7 +635,12 @@ pub fn SparseMap(comptime T: type) type {
         }
 
         pub fn createWithHandleECS(self: *@This(), handle: SetHandle) *T {
-            return self.createWithHandle(handle, .{}) catch @panic("Unable to create");
+            const rv = self.createWithHandle(handle, .{}) catch @panic("Unable to create");
+
+            if (@hasDecl(T, "initECS")) {
+                rv.initECS(handle);
+            }
+            return rv;
         }
 
         pub fn allocator(self: *@This()) std.mem.Allocator {
@@ -751,3 +762,31 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
         };
     }
 });
+
+test "sparse-multiset-recycle-handles" {
+    const testHandle: SetHandle = .{
+        .index = 420,
+        .alive = true,
+        .generation = 12,
+    };
+
+    const testHandle2: SetHandle = .{
+        .index = 421,
+        .alive = true,
+        .generation = 12,
+    };
+
+    const TestStruct = struct {
+        wutang: u32 = 0,
+        lmao: u32 = 0,
+    };
+
+    var testSet = SparseMultiSet(TestStruct).init(std.testing.allocator);
+    defer testSet.deinit();
+
+    _ = testSet.createWithHandleECS(testHandle);
+    _ = testSet.createWithHandleECS(testHandle2);
+
+    std.debug.assert(testSet.get(testHandle, .wutang) != null);
+    std.debug.assert(testSet.get(testHandle2, .wutang) != null);
+}

@@ -208,7 +208,8 @@ pub fn FuncWrapper(comptime baseFunc: anytype, comptime baseType: type) type {
                         //
                         lua.debugPrints(true);
                         args[index] = (state.toUserdata(field.type, index + 1) orelse {
-                            state.emitError("something's weird with this argument");
+                            std.debug.print("argument error in index: {d}\n", .{index});
+                            state.emitError("something's weird with this argument\n");
                             @panic("lmao");
                         }).*;
                         lua.debugPrints(false);
@@ -217,7 +218,8 @@ pub fn FuncWrapper(comptime baseFunc: anytype, comptime baseType: type) type {
             }
             state.pop(@intCast(args.len));
 
-            const rv = @call(.always_inline, baseFunc, args);
+            //const rv = @call(.always_inline, baseFunc, args);
+            const rv = @call(.auto, baseFunc, args);
             switch (@TypeOf(rv)) {
                 i32, u32, i64, u64 => {
                     state.pushNumber(@floatFromInt(rv));

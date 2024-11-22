@@ -4,11 +4,12 @@ const std = @import("std");
 const lua = @import("lua");
 const core = @import("core.zig");
 const startup_script = @embedFile("lua/startup.lua");
+const core_script = @embedFile("lua/core.lua");
 const ecs = @import("ecs.zig");
 const ComponentRef = @import("script/ComponentRef.zig");
 const ComponentRegistration = @import("script/ComponentRegistration.zig");
 
-const script_bindings = @import("script_bindings.zig");
+pub const script_bindings = @import("script_bindings.zig");
 
 const c = lua.c;
 
@@ -71,6 +72,9 @@ pub fn start_lua(allocator: std.mem.Allocator) !void {
     try script_bindings.registerTypes();
 
     try gLuaState.loadString(startup_script);
+    try gLuaState.pcall();
+
+    try gLuaState.loadString(core_script);
     try gLuaState.pcall();
 }
 
