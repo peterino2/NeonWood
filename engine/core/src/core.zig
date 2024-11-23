@@ -9,6 +9,7 @@ pub const installDebugDrawInterface = debug_draw.installDebugDrawInterface;
 pub const debugSphere = debug_draw.debugSphere;
 pub const debugBox = debug_draw.debugBox;
 pub const debugLine = debug_draw.debugLine;
+pub const script_bindings = script.script_bindings;
 
 pub usingnamespace @import("misc.zig");
 pub usingnamespace @import("logging.zig");
@@ -99,6 +100,8 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     gScene = try gEngine.createObject(scene.SceneSystem, .{ .can_tick = true });
 
     try algorithm.string_pool.setup(allocator);
+
+    _ = try gEngine.createObject(script_bindings.ScriptTicks, .{ .can_tick = true });
 
     logs("core module starting up... ");
     return;

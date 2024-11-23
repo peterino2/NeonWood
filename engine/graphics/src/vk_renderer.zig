@@ -1237,8 +1237,8 @@ pub const NeonVkContext = struct {
             var transform = object.transform;
 
             if (object.mesh != null and object.material != null and object.visibility) {
-                core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
-                if (core.Scene.BaseContainer.get(objectId, .posRot)) |posRot| {
+                // core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
+                if (core.Scene.SceneObjectContainer.get(objectId, .posRot)) |posRot| {
                     transform = posRot.toTransform();
                 }
 

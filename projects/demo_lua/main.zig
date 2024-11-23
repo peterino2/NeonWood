@@ -34,6 +34,8 @@ pub fn prepare_game(self: *@This()) !void {
     try core.fs().addContentPath("demo_lua");
     try script.loadTypes("scripts");
     try script.runScriptFile("scripts/prepare.lua");
+
+    ui.getContext().drawDebug = true;
 }
 
 pub fn tick(self: *@This(), _: f64) void {
@@ -54,5 +56,6 @@ const std = @import("std");
 const neonwood = @import("NeonWood");
 const graphics = neonwood.graphics;
 const core = neonwood.core;
+const ui = neonwood.ui;
 const assets = neonwood.assets;
 const script = core.script;

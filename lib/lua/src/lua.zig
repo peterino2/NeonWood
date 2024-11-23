@@ -151,8 +151,8 @@ pub const LuaState = struct {
         }
     }
 
-    pub fn pcall(self: @This()) !void {
-        const status = c.lua_pcallk(self.l, 0, 0, 0, 0, null);
+    pub fn pcallStack(self: @This(), argc: c_int) !void {
+        const status = c.lua_pcallk(self.l, argc, 0, 0, 0, null);
         if (status != c.LUA_OK) {
             const errorString = c.lua_tolstring(self.l, -1, 0);
             if (errorPrintFunc) |printFunc| {
@@ -162,6 +162,10 @@ pub const LuaState = struct {
             }
             return error.LuaRuntimeError;
         }
+    }
+
+    pub fn pcall(self: @This()) !void {
+        try self.pcallStack(0);
     }
 
     pub fn pushFunction(self: @This(), comptime func: LuaZigFunc) !void {
