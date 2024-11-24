@@ -739,6 +739,9 @@ pub const Context = struct {
     fn assembleDrawOrderListForNode(self: @This(), node: NodeHandle, list: *DrawOrderList) !void {
         var next: NodeHandle = self.getRead(node).child;
         while (next.index != 0) : (next = self.getRead(next).next) {
+            if (self.getRead(next).state != .Visible) {
+                continue;
+            }
             try list.append(next);
             try self.assembleDrawOrderListForNode(next, list);
         }
@@ -750,6 +753,9 @@ pub const Context = struct {
 
         var next: NodeHandle = self.getRead(.{}).child;
         while (next.index != 0) : (next = self.getRead(next).next) {
+            if (self.getRead(next).state != .Visible) {
+                continue;
+            }
             try rootNodes.append(next);
         }
 

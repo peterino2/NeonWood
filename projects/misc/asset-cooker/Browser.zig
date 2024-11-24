@@ -55,6 +55,7 @@ pub fn createLog(self: *@This()) !void {
     ctx.get(panelHandle).style.borderColor = .{ .r = 0.5, .g = 0.5, .b = 0.5, .a = 1.0 };
     ctx.get(panelHandle).pos = .{ .x = 5, .y = 5 };
     ctx.get(panelHandle).size = .{ .x = width, .y = height };
+    // ctx.get(panelHandle).state = .Collapsed;
     self.logText = try ctx.addText(panelHandle, "hello world");
     ctx.get(self.logText).size = .{ .x = width - 10, .y = height - 10 };
     ctx.get(self.logText).pos = .{ .x = 5, .y = 5 };
@@ -98,8 +99,10 @@ pub fn onGoButton(node: ui.NodeHandle, eventType: ui.PressedType, this: ?*anyopa
 
         self.logTextData.clearRetainingCapacity();
         var writer = self.logTextData.writer(self.allocator);
-
         writer.print("scanning directory: {s} ...", .{path}) catch unreachable;
+        {
+            // walk through all input
+        }
         ctx.get(self.logText).text = ui.papyrus.LocText.fromUtf8(self.logTextData.items);
     }
 }
