@@ -84,6 +84,16 @@ pub fn addToDrawList(dlb: DrawListBuilder) !void {
         } },
     });
 
+    // someday i need to re-implement this layout algorithm
+    // i was so lazy with it here.
+    //
+    // ugh i dont want to pay the performance cost of doing a two pass layout.
+    // but it doesnt seem like there's a better way
+    //
+    // I think the final resolved size of all the children should result in a bounding box that
+    // gets recorded for each parent.
+    //
+    // then in the final
     try dlb.ctx._layout.append(dlb.ctx.allocator, .{
         .baseSize = dlb.n.baseSize,
         .pos = dlb.resolvedPos,

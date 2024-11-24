@@ -98,7 +98,7 @@ pub fn destroy(self: *@This()) void {
 
 // ===== key events =====
 pub fn sendEscape(self: *@This()) !void {
-    core.ui_logs("escape recieved");
+    // core.ui_logs("escape recieved");
     self.maybeResetSelection();
 }
 
@@ -115,7 +115,7 @@ pub fn sendEnter(self: *@This()) !void {
 
 pub fn sendTab(self: *@This()) !void {
     _ = self;
-    core.ui_logs("tab recieved");
+    // core.ui_logs("tab recieved");
 }
 
 pub fn sendBackspace(self: *@This()) !void {
@@ -131,7 +131,7 @@ pub fn sendBackspace(self: *@This()) !void {
 }
 
 pub fn sendDelete(self: *@This()) !void {
-    core.ui_logs("delete recieved");
+    // core.ui_logs("delete recieved");
     if (self.selected) |te| {
         if (self.insertIndex >= te.editText.items.len) {
             return;
@@ -142,7 +142,7 @@ pub fn sendDelete(self: *@This()) !void {
 }
 
 pub fn sendRight(self: *@This()) !void {
-    core.ui_logs("right recieved");
+    // core.ui_logs("right recieved");
 
     if (self.selected) |te| {
         if (self.insertIndex < te.editText.items.len) {
@@ -154,7 +154,7 @@ pub fn sendRight(self: *@This()) !void {
 }
 
 pub fn sendLeft(self: *@This()) !void {
-    core.ui_logs("left recieved");
+    // core.ui_logs("left recieved");
     if (self.selected) |te| {
         _ = te;
         if (self.insertIndex > 0) {
@@ -181,7 +181,7 @@ fn cursorJumpRelative(self: *@This(), offset: core.Vector2f) !void {
 }
 
 pub fn sendUp(self: *@This()) !void {
-    core.ui_logs("up recieved");
+    // core.ui_logs("up recieved");
     if (self.cursorResults) |cr| {
         _ = cr;
         self.cursorJumpRelative(.{ .x = 1.0, .y = self.cursorResults.?.characterGeo.size.y * 1.5 }) catch unreachable;
@@ -190,7 +190,7 @@ pub fn sendUp(self: *@This()) !void {
 }
 
 pub fn sendDown(self: *@This()) !void {
-    core.ui_logs("down recieved");
+    // core.ui_logs("down recieved");
     if (self.cursorResults) |cr| {
         _ = cr;
         self.cursorJumpRelative(.{ .x = 1.0, .y = -self.cursorResults.?.characterGeo.size.y * 0.5 }) catch unreachable;
@@ -205,20 +205,20 @@ inline fn resetCursorBlink(self: *@This()) void {
 
 pub fn sendPageup(self: *@This()) !void {
     _ = self;
-    core.ui_logs("pageup recieved");
+    // core.ui_logs("pageup recieved");
 }
 
 pub fn sendPagedown(self: *@This()) !void {
     _ = self;
-    core.ui_logs("pagedown recieved");
+    // core.ui_logs("pagedown recieved");
 }
 
 pub fn sendHome(self: *@This()) !void {
     _ = self;
-    core.ui_logs("home recieved");
+    // core.ui_logs("home recieved");
 }
 
 pub fn sendEnd(self: *@This()) !void {
     _ = self;
-    core.ui_logs("end recieved");
+    // core.ui_logs("end recieved");
 }

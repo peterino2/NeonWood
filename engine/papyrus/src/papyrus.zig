@@ -194,6 +194,13 @@ pub const NodePadding = union(enum(u8)) {
     allSides: [2]Vector2f,
 };
 
+pub const StyleInvisible = NodeStyle{
+    .foregroundColor = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    .backgroundColor = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    .borderColor = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    .borderWidth = 0.0,
+};
+
 pub const NodeStyle = struct {
     foregroundColor: Color = BurnStyle.Normal,
     backgroundColor: Color = BurnStyle.SlateGrey,
@@ -237,8 +244,6 @@ pub const Node = struct {
 
     pos: Vector2f = .{ .x = 0, .y = 0 },
     anchor: AnchorNode = .TopLeft,
-    originAnchor: AnchorNode = .TopLeft, // This specifies where within this node is used for an anchor.
-    originOffset: Vector2f = .{}, // this specifies an offset from the chosen origin position
     fill: FillMode = .None,
     layoutPadding: f32 = 5.0,
 
@@ -271,6 +276,9 @@ pub const LayoutInfo = struct {
     size: Vector2f,
     childLayoutOffsets: Vector2f,
 };
+pub const HorizontalLayoutInfo = struct {
+    horizontalChildSize: f32 = 0,
+};
 
 pub const Context = struct {
     backingAllocator: std.mem.Allocator,
@@ -296,8 +304,8 @@ pub const Context = struct {
     _drawOrder: DrawOrderList,
     _layoutNodes: std.ArrayListUnmanaged(NodeHandle),
     _layout: std.ArrayListUnmanaged(LayoutInfo), // bad name, this is used for hittest, not display
-    _layoutPositions: std.AutoHashMapUnmanaged(NodeHandle, LayoutInfo),
     _displayLayout: std.ArrayListUnmanaged(LayoutInfo) = .{},
+    _horizontalLayout: std.AutoHashMapUnmanaged(NodeHandle, HorizontalLayoutInfo) = .{},
 
     debugText: std.ArrayList([]u8),
     debugTextCount: u32 = 0,
@@ -363,7 +371,7 @@ pub const Context = struct {
             ._drawOrder = DrawOrderList.init(allocator),
             ._layout = .{},
             ._layoutNodes = .{},
-            ._layoutPositions = .{},
+            ._horizontalLayout = .{},
             .debugText = std.ArrayList([]u8).init(allocator),
             .mousePick = Layout.init(allocator),
         };
@@ -442,7 +450,9 @@ pub const Context = struct {
         self._drawOrder.deinit();
         self._layout.deinit(self.allocator);
         self._layoutNodes.deinit(self.allocator);
-        self._layoutPositions.deinit(self.allocator);
+
+        self._horizontalLayout.deinit(self.allocator);
+        // self._layoutPositions.deinit(self.allocator);
         self._displayLayout.deinit(self.allocator);
 
         for (self.debugText.items) |text| {
@@ -845,14 +855,12 @@ pub const Context = struct {
                 var offsetX: f32 = 0.0;
 
                 switch (n.justify) {
-                    .Left => {
-                        offsetX = n.pos.x;
-                    },
+                    .Left => {},
                     .Center => {
-                        offsetX = n.pos.x + @divFloor(parentInfo.size.x - resolvedSize.x, 2);
+                        offsetX = @divFloor(parentInfo.size.x - resolvedSize.x, 2);
                     },
                     .Right => {
-                        offsetX = n.pos.x + parentInfo.size.x - resolvedSize.x + offsetX - 1;
+                        offsetX = parentInfo.size.x - resolvedSize.x + offsetX - 1;
                     },
                 }
 
@@ -863,7 +871,6 @@ pub const Context = struct {
                     }),
                     .size = resolvedSize,
                 };
-
                 // Make one more adjustment to the offsetX position based on the  justification.
                 // Justification is taken from the AnchorMode.
 
@@ -871,7 +878,35 @@ pub const Context = struct {
 
                 return rv;
             },
-            .Horizontal => {},
+            .Horizontal => {
+                const horizontalLayout = self._horizontalLayout.getPtr(n.parent).?;
+
+                var offsetX: f32 = 0.0;
+
+                switch (n.justify) {
+                    .Left => {},
+                    .Center => {
+                        offsetX = @divFloor(horizontalLayout.horizontalChildSize, 2);
+                    },
+                    .Right => {
+                        offsetX = horizontalLayout.horizontalChildSize + offsetX - 1;
+                    },
+                }
+
+                offsetX += parentInfo.childLayoutOffsets.x;
+
+                const rv = ChildLayoutRulesStruct{
+                    .position = parentInfo.pos.add(.{
+                        .x = offsetX,
+                        .y = parentInfo.childLayoutOffsets.y,
+                    }),
+                    .size = resolvedSize,
+                };
+                // std.debug.print("{any}\n", .{parentInfo.pos});
+
+                parentInfo.childLayoutOffsets.x += resolvedSize.x + self.get(n.parent).layoutPadding;
+                return rv;
+            },
             .Free => {},
         }
 
@@ -939,16 +974,21 @@ pub const Context = struct {
                         .childLayoutOffsets = .{},
                     });
                     try self._layoutNodes.append(self.allocator, node);
-                    try self._layoutPositions.put(
-                        self.allocator,
-                        node,
-                        .{
-                            .pos = dlb.resolvedPos,
-                            .size = dlb.resolvedSize,
-                            .baseSize = n.baseSize,
-                            .childLayoutOffsets = .{},
-                        },
-                    );
+
+                    if (panel.layoutMode == .Horizontal) {
+                        // walk through all children and add up their horizontal layout sizes and
+                        // this is a best guess for now, dont support flexible sizing here.
+                        var iter = n.child;
+                        var offset: f32 = 0;
+                        var next = self.nodes.get(iter).?;
+                        while (iter.index != 0) {
+                            offset += next.size.x + n.layoutPadding;
+                            iter = next.next;
+                            next = self.nodes.get(iter).?;
+                        }
+
+                        try self._horizontalLayout.put(self.allocator, node, .{ .horizontalChildSize = offset });
+                    }
 
                     if (panel.hasTitle) {
 

@@ -604,7 +604,8 @@ pub const NeonVkContext = struct {
 
             const entity = self.staticMeshSet.dense.items[i].sparseIndex;
 
-            if (core.Scene.BaseContainer.get(entity, .posRot)) |posRot| {
+            // todo.. use _repr instead of posroT
+            if (core.Scene.SceneObjectContainer.get(entity, .posRot)) |posRot| {
                 transform = posRot.toTransform();
             }
 

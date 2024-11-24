@@ -52,6 +52,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("misc/allocList.zig"),
     });
 
+    _ = nwbuild.addProgram(.{
+        .name = "asset-cooker",
+        .desc = "helper utility for cooking and managing assets",
+        .root_source_file = b.path("misc/asset-cooker.zig"),
+    });
+
     const cwd = std.fs.cwd().openDir("tests", .{ .iterate = true }) catch unreachable;
     var iterator = cwd.iterate();
 
