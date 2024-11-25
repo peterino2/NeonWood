@@ -119,18 +119,26 @@ pub fn onGoButton(node: ui.NodeHandle, eventType: ui.PressedType, this: ?*anyopa
                             continue;
                         }
 
+                        if (std.mem.endsWith(u8, ".cook", next.path)) {
+                            continue;
+                        }
+
                         cookFilePath.clearRetainingCapacity();
                         cookFilePath.appendSlice(next.path) catch unreachable;
                         cookFilePath.appendSlice(".cook") catch unreachable;
 
                         dir.access(cookFilePath.items, .{}) catch {
-                            writer.print(
-                                "asset file {s} has no .cook file associated with it. will not cook.\n",
-                                .{next.path},
-                            ) catch unreachable;
+                            // writer.print(
+                            //     "asset file {s} has no .cook file associated with it. will not cook.\n",
+                            //     .{next.path},
+                            // ) catch unreachable;
+
+                            assets.cook.generateCookFile(self.allocator, dir, next.path) catch unreachable;
+
                             continue;
                         };
-                        writer.print("file {s} associated cook file detected ", .{next.path}) catch unreachable;
+
+                        writer.print("  file {s} associated cook file detected \n", .{next.path}) catch unreachable;
                     },
                     else => {},
                 }
@@ -171,4 +179,5 @@ pub fn destroy(self: *@This()) void {
 const neonwood = @import("NeonWood");
 const core = neonwood.core;
 const ui = neonwood.ui;
+const assets = neonwood.assets;
 const std = @import("std");
