@@ -1,6 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
+const builtin = @import("builtin");
 pub const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
@@ -471,6 +472,14 @@ pub const NeonVkContext = struct {
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
         self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
+
+        switch (builtin.mode) {
+            .ReleaseSafe, .ReleaseFast, .ReleaseSmall => {
+                self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
+            },
+            .Debug => {},
+        }
+
         try self.init_zig_data(allocator);
 
         self.graph = try core.FileLog.init(allocator);

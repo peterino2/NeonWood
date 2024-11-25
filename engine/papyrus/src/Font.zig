@@ -36,26 +36,31 @@ pub const FontCreateOpts = struct {
 pub const FontAtlas = struct {
     font: c.stbtt_fontinfo = undefined,
     allocator: std.mem.Allocator,
-    isSDF: bool = false,
     fileContent: []const u8,
+    fromArchive: bool = false,
     filePath: []const u8,
-    atlasBuffer: ?[]u8,
+
+    rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
+    isEmbedded: bool = false,
+
+    isSDF: bool = false,
     fontSize: f32,
     atlasSize: Vector2i = .{},
     glyphMax: Vector2i = .{},
     glyphStride: i32 = 0,
+    scale: f32 = 0,
+    lineSize: f32 = 0,
+    isMonospace: bool = false,
     glyphMetrics: [256]Vector2i = undefined,
     glyphBox0: [256]Vector2i = undefined,
     glyphBox1: [256]Vector2i = undefined,
-    scale: f32 = 0,
-    lineSize: f32 = 0,
     hasGlyph: [256]bool = undefined,
-    rendererHash: u32 = 0, // optional field to associate this atlas with an identifier to the renderer implementation
-    isEmbedded: bool = false,
-    isMonospace: bool = false,
-
     meshes: [256][4]Vector2f = undefined,
     glyphCoordinates: [256][2]Vector2f = undefined,
+    atlasBuffer: ?[]u8,
+
+    const defaultFontEmbed = @embedFile("fonts/Roboto-Regular.ttf");
+    const defaultMonoEmbed = @embedFile("fonts/FiraMono-Medium.ttf");
 
     pub fn makeBitmapRGBA(self: @This(), allocator: std.mem.Allocator) ![]u8 {
         var buf = try allocator.alloc(u8, self.atlasBuffer.?.len * 4);
@@ -70,19 +75,45 @@ pub const FontAtlas = struct {
         return buf;
     }
 
-    const defaultFontEmbed = @embedFile("fonts/Roboto-Regular.ttf");
-    const defaultMonoEmbed = @embedFile("fonts/FiraMono-Medium.ttf");
+    pub fn initFontCacheEmbedded(allocator: std.mem.Allocator, fontName: []const u8, bytes: []const u8, fontSize: f32, opts: FontCreateOpts) !@This() {
+        const cacheFile = try std.fmt.allocPrint(allocator, ".fontcache/{s}.fontcache", .{fontName});
+        defer allocator.free(cacheFile);
+
+        std.fs.cwd().access(cacheFile, .{}) catch {
+            const rv = try initEmbeddedFont(allocator, bytes, fontSize, opts);
+
+            var cachedFontArchive = std.ArrayList(u8).init(allocator);
+            try rv.saveToArchive(&cachedFontArchive);
+
+            try std.fs.cwd().makePath(".fontcache");
+
+            const file = try std.fs.cwd().createFile(cacheFile, .{});
+            defer file.close();
+
+            try file.writeAll(cachedFontArchive.items);
+            return rv;
+        };
+
+        core.engine_log("[fontcache] creating font cache for {s} font", .{fontName});
+
+        const archiveBytes = try loadFileAlloc(cacheFile, 8, allocator);
+        defer allocator.free(archiveBytes);
+
+        var rv = try initFromArchive(allocator, archiveBytes);
+        rv.fromArchive = true;
+        return rv;
+    }
 
     pub fn initDefaultBitmapFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
-        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize, .{ .isSDF = false });
+        return try initFontCacheEmbedded(allocator, "bitmap", defaultFontEmbed, fontSize, .{ .isSDF = false });
     }
 
     pub fn initMonoFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
-        return try initEmbeddedFont(allocator, defaultMonoEmbed, fontSize, .{ .isMonospace = true });
+        return try initFontCacheEmbedded(allocator, "monospace", defaultMonoEmbed, fontSize, .{ .isMonospace = true });
     }
 
     pub fn initDefaultFont(allocator: std.mem.Allocator, fontSize: f32) !@This() {
-        return try initEmbeddedFont(allocator, defaultFontEmbed, fontSize, .{});
+        return try initFontCacheEmbedded(allocator, "default", defaultFontEmbed, fontSize, .{});
     }
 
     pub fn initEmbeddedFont(allocator: std.mem.Allocator, fontContent: []const u8, fontSize: f32, opts: FontCreateOpts) !@This() {
@@ -156,6 +187,112 @@ pub const FontAtlas = struct {
         try self.createAtlas();
 
         return self;
+    }
+
+    pub fn initFromArchive(allocator: std.mem.Allocator, archive: []const u8) !@This() {
+        var self = @This(){
+            .allocator = allocator,
+            .filePath = "from_archive",
+            .fileContent = undefined,
+            .fromArchive = true,
+            .atlasBuffer = null,
+            .fontSize = 0,
+            .isMonospace = false,
+        };
+
+        try self.loadFromBytes(archive);
+
+        return self;
+    }
+
+    pub fn saveToArchive(self: @This(), out: *std.ArrayList(u8)) !void {
+        var writer = out.writer();
+
+        try writer.writeInt(u8, @intFromBool(self.isSDF), .little); // isSDF
+        try writer.writeInt(u32, @bitCast(self.fontSize), .little); // fontSize: f32 = 0,
+        try writer.writeStruct(self.atlasSize); // atlasSize: Vector2i = .{},
+        try writer.writeStruct(self.glyphMax); // glyphMax: Vector2i = .{},
+        try writer.writeInt(i32, self.glyphStride, .little); // glyphStride: i32 = 0,
+        try writer.writeInt(u32, @bitCast(self.scale), .little); // scale: f32 = 0,
+        try writer.writeInt(u32, @bitCast(self.lineSize), .little); // lineSize: f32 = 0,
+        try writer.writeInt(u8, @intFromBool(self.isMonospace), .little); // isMonospace: bool = false,
+        for (self.glyphMetrics) |x| { // glyphMetrics: [256]Vector2i = undefined,
+            try writer.writeStruct(x);
+        }
+
+        for (self.glyphBox0) |x| { // glyphBox0: [256]Vector2i = undefined,
+            try writer.writeStruct(x);
+        }
+
+        for (self.glyphBox1) |x| { // glyphBox1: [256]Vector2i = undefined,
+            try writer.writeStruct(x);
+        }
+
+        for (self.hasGlyph) |x| { // hasGlyph: [256]bool = undefined,
+            try writer.writeInt(u8, @intFromBool(x), .little);
+        }
+
+        for (self.meshes) |x| { // meshes: [256][4]Vector2f = undefined,
+            for (x) |y| {
+                try writer.writeStruct(y);
+            }
+        }
+
+        for (self.glyphCoordinates) |x| { // glyphCoordinates: [256][2]Vector2f = undefined,
+            for (x) |y| {
+                try writer.writeStruct(y);
+            }
+        }
+
+        if (self.atlasBuffer) |buffer| { // atlasBuffer: ?[]u8,
+            try writer.writeInt(u32, @intCast(buffer.len), .little);
+            try writer.writeAll(buffer);
+        }
+    }
+
+    pub fn loadFromBytes(self: *@This(), archive: []const u8) !void {
+        var fbs = std.io.fixedBufferStream(archive);
+        var reader = fbs.reader();
+
+        self.isSDF = (try reader.readByte()) == 1; // isSDF: bool = false,
+        self.fontSize = @bitCast(try reader.readInt(u32, .little)); // fontSize: f32,
+        self.atlasSize = try reader.readStruct(Vector2i); // atlasSize: Vector2i = .{},
+        self.glyphMax = try reader.readStruct(Vector2i); // glyphMax: Vector2i = .{},
+        self.glyphStride = try reader.readInt(i32, .little); // glyphStride: i32 = 0,
+        self.scale = @bitCast(try reader.readInt(u32, .little)); // scale: f32 = 0,
+        self.lineSize = @bitCast(try reader.readInt(u32, .little)); // lineSize: f32 = 0,
+        self.isMonospace = (try reader.readByte()) == 1; // isMonospace: bool = false,
+        for (self.glyphMetrics, 0..) |_, i| { // glyphMetrics: [256]Vector2i = undefined,
+            self.glyphMetrics[i] = try reader.readStruct(Vector2i);
+        }
+
+        for (self.glyphBox0, 0..) |_, i| { // glyphBox0: [256]Vector2i = undefined,
+            self.glyphBox0[i] = try reader.readStruct(Vector2i);
+        }
+
+        for (self.glyphBox1, 0..) |_, i| { // glyphBox1: [256]Vector2i = undefined,
+            self.glyphBox1[i] = try reader.readStruct(Vector2i);
+        }
+
+        for (self.hasGlyph, 0..) |_, i| { // hasGlyph: [256]bool = undefined,
+            self.hasGlyph[i] = (try reader.readByte()) == 1;
+        }
+
+        // meshes: [256][4]Vector2f = undefined,
+        for (self.meshes, 0..) |_, i| { // meshes: [256]Vector2i = undefined,
+            self.meshes[i][0] = try reader.readStruct(Vector2f);
+            self.meshes[i][1] = try reader.readStruct(Vector2f);
+            self.meshes[i][2] = try reader.readStruct(Vector2f);
+            self.meshes[i][3] = try reader.readStruct(Vector2f);
+        }
+
+        for (self.glyphCoordinates, 0..) |_, i| { // glyphCoordinates: [256][2]Vector2f = undefined,
+            self.glyphCoordinates[i][0] = try reader.readStruct(Vector2f);
+            self.glyphCoordinates[i][1] = try reader.readStruct(Vector2f);
+        }
+
+        const size = try reader.readInt(u32, .little);
+        self.atlasBuffer = try reader.readAllAlloc(self.allocator, size); // atlasBuffer: ?[]u8,
     }
 
     fn createAtlas(self: *@This()) !void {
@@ -310,7 +447,7 @@ pub const FontAtlas = struct {
         if (self.atlasBuffer != null) {
             self.allocator.free(self.atlasBuffer.?);
         }
-        if (!self.isEmbedded)
+        if (!self.isEmbedded and !self.fromArchive)
             self.allocator.free(self.fileContent);
     }
 };
