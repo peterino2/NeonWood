@@ -4,13 +4,11 @@ pub const CookResultEnum = enum {
 };
 
 pub const CookResult = struct {
-    bytes: ?[]u8 = null,
+    bytes: std.ArrayList(u8),
     result: CookResultEnum = .Success,
 
-    pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-        if (self.bytes) |bytes| {
-            allocator.free(bytes);
-        }
+    pub fn deinit(self: *@This()) void {
+        self.bytes.deinit();
     }
 };
 
@@ -154,7 +152,7 @@ pub fn cookFile(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8)
             .cookFileName = cookFilePath.items,
             .fileName = path,
         });
-        defer results.deinit(allocator);
+        defer results.deinit();
 
         var outPath = std.ArrayList(u8).init(allocator);
         defer outPath.deinit();
@@ -172,10 +170,10 @@ pub fn cookFile(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8)
             try dir.makePath(basePath);
         }
 
-        if (results.bytes) |bytes| {
+        if (results.result == .Success) {
             const file = try dir.createFile(outPath.items, .{});
             defer file.close();
-            try file.writeAll(bytes);
+            try file.writeAll(results.bytes.items);
         }
         return;
     } else {
@@ -245,9 +243,10 @@ test "testing cooking" {
             _ = params;
             const rawFileBytes = loadFileAlloc(allocator, dir, path) catch unreachable;
             defer allocator.free(rawFileBytes);
+            const rv = std.ArrayList(u8).init(allocator);
 
             return .{
-                .bytes = allocator.dupe(u8, "placeholder") catch null,
+                .bytes = rv,
                 .result = .Success,
             };
         }

@@ -128,17 +128,14 @@ pub fn onGoButton(node: ui.NodeHandle, eventType: ui.PressedType, this: ?*anyopa
                         cookFilePath.appendSlice(".cook") catch unreachable;
 
                         dir.access(cookFilePath.items, .{}) catch {
-                            // writer.print(
-                            //     "asset file {s} has no .cook file associated with it. will not cook.\n",
-                            //     .{next.path},
-                            // ) catch unreachable;
-
                             assets.cook.generateCookFile(self.allocator, dir, next.path) catch unreachable;
-
                             continue;
                         };
 
-                        writer.print("  file {s} associated cook file detected \n", .{next.path}) catch unreachable;
+                        writer.print("  file {s} associated cook file detected.. \n", .{next.path}) catch unreachable;
+                        // should move this to a task or job
+                        assets.cook.cookFile(self.allocator, dir, next.path) catch unreachable;
+                        writer.print("  cook complete\n", .{}) catch unreachable;
                     },
                     else => {},
                 }

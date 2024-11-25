@@ -24,9 +24,15 @@ pub fn cookFunction(
 
     const rawFileBytes = cook.loadFileAlloc(allocator, dir, path) catch unreachable;
     defer allocator.free(rawFileBytes);
+    // 1. load the file, and create a bytes buffer
+    var contents = png.PngContents.initFromBytes(allocator, path, rawFileBytes) catch unreachable;
+    defer contents.deinit();
+
+    // png.PngContents.initFromBytes(allocator: std.mem.Allocator, pathName: []const u8, pngFileContents: []const u8)
+    // 2. use the PngContents function to cook it.
 
     return .{
-        .bytes = allocator.dupe(u8, "placeholder") catch null,
+        .bytes = contents.toBuffer() catch unreachable,
         .result = .Success,
     };
 }
@@ -50,3 +56,4 @@ const cook = assets.cook;
 const CookInfo = assets.cook.CookInfo;
 const GenerateError = assets.cook.GenerateError;
 const core = @import("core");
+const png = core.png;
