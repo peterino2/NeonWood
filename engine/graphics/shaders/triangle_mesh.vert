@@ -4,6 +4,7 @@ layout (location = 0) in vec3 vPosition;
 layout (location = 1) in vec3 vNormal;
 layout (location = 2) in vec4 vColor;
 layout (location = 3) in vec2 vTexCoord;
+layout (location = 4) in uint vSkeletal;
 
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
@@ -23,6 +24,7 @@ struct ObjectData {
 layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
     ObjectData objects[];
 } objectBuffer;
+
 
 void main()
 {

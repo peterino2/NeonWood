@@ -33,9 +33,7 @@ pub const NeonVkFrameData = struct {
     cameraBuffer: vk_allocator.NeonVkBuffer,
 };
 
-pub const NeonVkObjectDataGpu = struct {
-    modelMatrix: core.Mat,
-};
+pub const NeonVkObjectDataGpu = @import("triangle_mesh_vert").ObjectData;
 
 pub const NeonVkSceneDataGpu = struct {
     fogColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },

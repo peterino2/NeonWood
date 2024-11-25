@@ -5,4 +5,6 @@ test "helloWorld" {
     ozz.hello();
     ozz.startupOzz();
     defer ozz.shutdownOzz();
+
+    // load an ozz file
 }

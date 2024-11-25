@@ -949,7 +949,7 @@ pub const NeonVkContext = struct {
     }
 
     pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
-        const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
+        const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.MeshVertex);
         const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
@@ -1265,7 +1265,8 @@ pub const NeonVkContext = struct {
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
-                gpuData.modelMatrix = transform;
+                gpuData.model = transform;
+
                 objectData.* = .{
                     .visibility = object.visibility,
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,

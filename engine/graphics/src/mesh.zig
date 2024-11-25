@@ -23,11 +23,13 @@ const debug_struct = core.debug_struct;
 pub const DynamicMesh = vk_dynamic_mesh.DynamicMesh;
 pub const DynamicMeshManager = vk_dynamic_mesh.DynamicMeshManager;
 
-pub const Vertex = extern struct {
+pub const MeshVertex = extern struct {
     position: Vectorf = .{},
     normal: Vectorf = .{},
     color: Color = .{},
     uv: Vector2f = .{},
+    skeletal: u32 = 0,
+    pad: u32 = undefined,
 };
 
 pub const IndexBuffer = struct {
@@ -127,7 +129,7 @@ pub const IndexBuffer = struct {
     }
 };
 
-pub fn loadObjMeshVertices(vertices: *ArrayList(Vertex), mesh: ObjMesh) !void {
+pub fn loadObjMeshVertices(vertices: *ArrayList(MeshVertex), mesh: ObjMesh) !void {
     try mesh.validate_mesh();
 
     try vertices.ensureTotalCapacity(mesh.v_faces.items.len * 3);
@@ -140,7 +142,7 @@ pub fn loadObjMeshVertices(vertices: *ArrayList(Vertex), mesh: ObjMesh) !void {
                 try vertices.append(v);
             }
         } else if (face.count == 4) {
-            const vx = [_]Vertex{
+            const vx = [_]MeshVertex{
                 vertexFromFaceOffset(mesh, face, 0),
                 vertexFromFaceOffset(mesh, face, 1),
                 vertexFromFaceOffset(mesh, face, 2),
@@ -154,11 +156,11 @@ pub fn loadObjMeshVertices(vertices: *ArrayList(Vertex), mesh: ObjMesh) !void {
     }
 }
 
-fn vertexFromFaceOffset(mesh: ObjMesh, face: obj_loader.ObjFace, offset: u32) Vertex {
+fn vertexFromFaceOffset(mesh: ObjMesh, face: obj_loader.ObjFace, offset: u32) MeshVertex {
     const p = mesh.v_positions.items[face.vertex[offset] - 1];
     const n = mesh.v_normals.items[face.normal[offset] - 1];
     const u = mesh.v_uvs.items[face.texture[offset] - 1];
-    const v = Vertex{
+    const v = MeshVertex{
         .position = .{ .x = p.x, .y = p.y, .z = p.z },
         .normal = .{ .x = n.x, .y = n.y, .z = n.z },
         .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
@@ -169,13 +171,13 @@ fn vertexFromFaceOffset(mesh: ObjMesh, face: obj_loader.ObjFace, offset: u32) Ve
 }
 
 pub const Mesh = struct {
-    vertices: ArrayList(Vertex),
+    vertices: ArrayList(MeshVertex),
     buffer: NeonVkBuffer,
     allocator: std.mem.Allocator,
 
     pub fn init(context: *NeonVkContext, allocator: std.mem.Allocator) Mesh {
         const self = Mesh{
-            .vertices = ArrayList(Vertex).init(allocator),
+            .vertices = ArrayList(MeshVertex).init(allocator),
             .buffer = undefined,
             .allocator = allocator,
         };
@@ -190,13 +192,13 @@ pub const Mesh = struct {
     pub fn loadFromObjFileCooked(self: *Mesh, fileName: []const u8) !void {
         const mapping = try core.fs().loadFile(fileName);
         defer core.fs().unmap(mapping);
-        const s = @sizeOf(Vertex);
+        const s = @sizeOf(MeshVertex);
 
         var i: usize = 0;
         var vertexOffset: usize = 0;
         try self.vertices.resize(1 + mapping.bytes.len / s);
         while (i < mapping.bytes.len) : (i += s) {
-            self.vertices.items[vertexOffset] = @as(*const Vertex, @ptrCast(@alignCast(mapping.bytes.ptr + i))).*;
+            self.vertices.items[vertexOffset] = @as(*const MeshVertex, @ptrCast(@alignCast(mapping.bytes.ptr + i))).*;
             vertexOffset += 1;
         }
     }
@@ -235,7 +237,7 @@ pub const VertexInputDescription = struct {
 
         try self.bindings.append(.{
             .binding = 0,
-            .stride = @sizeOf(Vertex),
+            .stride = @sizeOf(MeshVertex),
             .input_rate = .vertex,
         });
 
@@ -246,7 +248,7 @@ pub const VertexInputDescription = struct {
             .binding = 0,
             .location = 0,
             .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(Vertex, "position"),
+            .offset = @offsetOf(MeshVertex, "position"),
         });
         //debug_struct("attributes 0", self.attributes.items[0]);
 
@@ -255,7 +257,7 @@ pub const VertexInputDescription = struct {
             .binding = 0,
             .location = 1,
             .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(Vertex, "normal"),
+            .offset = @offsetOf(MeshVertex, "normal"),
         });
 
         //debug_struct("attributes 0", self.attributes.items[1]);
@@ -264,7 +266,7 @@ pub const VertexInputDescription = struct {
             .binding = 0,
             .location = 2,
             .format = .r32g32b32a32_sfloat,
-            .offset = @offsetOf(Vertex, "color"),
+            .offset = @offsetOf(MeshVertex, "color"),
         });
 
         //debug_struct("attributes 0", self.attributes.items[2]);
@@ -272,7 +274,14 @@ pub const VertexInputDescription = struct {
             .binding = 0,
             .location = 3,
             .format = .r32g32_sfloat,
-            .offset = @offsetOf(Vertex, "uv"),
+            .offset = @offsetOf(MeshVertex, "uv"),
+        });
+
+        try self.attributes.append(.{
+            .binding = 0,
+            .location = 4,
+            .format = .r8_uint,
+            .offset = @offsetOf(MeshVertex, "skeletal"),
         });
 
         return self;
