@@ -40,6 +40,15 @@ pub const CookRegistry = struct {
         return self;
     }
 
+    pub fn install(self: *@This(), typeName: []const u8, generate: CookGenerateFunction, cook: CookFunction, extensions: []const []const u8) !void {
+        try self.generates.put(self.allocator, typeName, generate);
+        try self.cooks.put(self.allocator, typeName, cook);
+
+        for (extensions) |ext| {
+            try self.typesByExt.put(self.allocator, ext, typeName);
+        }
+    }
+
     pub fn destroy(self: *@This()) void {
         self.cooks.deinit(self.allocator);
         self.typesByExt.deinit(self.allocator);
@@ -50,6 +59,23 @@ pub const CookRegistry = struct {
 };
 
 var gCookRegistry: *CookRegistry = undefined;
+var gCooking: bool = false;
+
+pub fn getRegistry() *CookRegistry {
+    return gCookRegistry;
+}
+
+pub fn startup(allocator: std.mem.Allocator) !void {
+    gCooking = true;
+    _ = try CookRegistry.create(allocator);
+}
+
+pub fn shutdown() void {
+    if (gCooking) {
+        gCookRegistry.destroy();
+        gCooking = false;
+    }
+}
 
 pub const GenerateError = error{UnableToGenerate};
 pub const LoadError = error{BadFile};
@@ -113,14 +139,14 @@ pub fn cookFile(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8)
         return;
     }
 
+    var cookFilePath = std.ArrayList(u8).init(allocator);
+    defer cookFilePath.deinit();
+
+    try cookFilePath.appendSlice(path);
+    try cookFilePath.appendSlice(".cook");
+
     if (gCookRegistry.typesByExt.get(extension)) |assetType| {
-        var cookFilePath = std.ArrayList(u8).init(allocator);
-        defer cookFilePath.deinit();
-
         const cookFunction = gCookRegistry.cooks.get(assetType).?;
-
-        try cookFilePath.appendSlice(path);
-        try cookFilePath.appendSlice(".cook");
 
         dir.access(cookFilePath.items, .{}) catch return;
 
@@ -187,6 +213,11 @@ pub fn cookAllFiles(allocator: std.mem.Allocator, dir: std.fs.Dir) !void {
                 if (std.mem.startsWith(u8, next.path, "_cooked")) {
                     continue;
                 }
+
+                if (std.mem.startsWith(u8, next.path, ".gitignore")) {
+                    continue;
+                }
+
                 try cookFile(allocator, dir, next.path);
             },
             else => {},
@@ -199,13 +230,12 @@ test "testing cooking" {
 
     const Test = struct {
         const TestConfig = struct {
-            info: CookInfo = .{ .assetType = "Texture" }, // there must always be a CookInfo field, its asset type must match the type this is registered as
+            info: CookInfo = .{ .assetType = "Texture" }, // there must always be a CookInfo field
             sourceType: []const u8 = "png",
         };
 
         pub fn generateFunction(allocator: std.mem.Allocator, out: *std.ArrayList(u8)) GenerateError!void {
             _ = allocator;
-
             out.clearRetainingCapacity();
 
             std.json.stringify(TestConfig{}, .{ .whitespace = .indent_4 }, out.writer()) catch return GenerateError.UnableToGenerate;

@@ -1,6 +1,8 @@
 const core = @import("core");
+const assets = @import("assets");
 const std = @import("std");
 const memory = core.MemoryTracker;
+const texture_cooking = @import("textures/texture_cooking.zig");
 pub const vk_renderer = @import("vk_renderer.zig");
 const materials = @import("materials.zig");
 
@@ -68,10 +70,10 @@ pub fn registerRendererPlugin(value: anytype) !void {
     var gc = getContext();
     try gc.rendererPlugins.append(gc.allocator, ref);
 }
+var gCooking: bool = false;
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
-    _ = programSpec;
     engine_logs("graphics module starting up...");
 
     memory.MTPrintStatsDelta();
@@ -92,11 +94,20 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     if (core.fs().fileExists("meshes/primitive_sphere.obj")) {
         debug_draw.init_debug_draw_subsystem() catch unreachable;
     }
+
+    if (@hasField(@TypeOf(programSpec), "cooking")) {
+        gCooking = true;
+        try texture_cooking.initCooker(allocator);
+    }
+
     memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
+    if (gCooking) {
+        texture_cooking.deinitCooker();
+    }
     engine_logs("graphics module shutting down...");
     graphics_ecs.shutdownEcs();
     vk_renderer.gContext.shutdown();

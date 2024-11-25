@@ -99,9 +99,42 @@ pub fn onGoButton(node: ui.NodeHandle, eventType: ui.PressedType, this: ?*anyopa
 
         self.logTextData.clearRetainingCapacity();
         var writer = self.logTextData.writer(self.allocator);
-        writer.print("scanning directory: {s} ...", .{path}) catch unreachable;
+        writer.print("scanning directory: {s} ...\n", .{path}) catch unreachable;
+
+        var cookFilePath = std.ArrayList(u8).init(self.allocator);
+        defer cookFilePath.deinit();
+
         {
-            // walk through all input
+            // walk through all files and list out every single .cook file
+            var dir = std.fs.openDirAbsolute(path, .{ .iterate = true }) catch unreachable;
+            defer dir.close();
+
+            var walker = dir.walk(ctx.allocator) catch unreachable;
+            defer walker.deinit();
+
+            while (walker.next() catch unreachable) |next| {
+                switch (next.kind) {
+                    .file => {
+                        if (std.mem.startsWith(u8, "_cooked", next.path)) {
+                            continue;
+                        }
+
+                        cookFilePath.clearRetainingCapacity();
+                        cookFilePath.appendSlice(next.path) catch unreachable;
+                        cookFilePath.appendSlice(".cook") catch unreachable;
+
+                        dir.access(cookFilePath.items, .{}) catch {
+                            writer.print(
+                                "asset file {s} has no .cook file associated with it. will not cook.\n",
+                                .{next.path},
+                            ) catch unreachable;
+                            continue;
+                        };
+                        writer.print("file {s} associated cook file detected ", .{next.path}) catch unreachable;
+                    },
+                    else => {},
+                }
+            }
         }
         ctx.get(self.logText).text = ui.papyrus.LocText.fromUtf8(self.logTextData.items);
     }

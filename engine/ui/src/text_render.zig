@@ -190,7 +190,6 @@ pub const DisplayText = struct {
 
         const atlas = self.atlas.atlas;
         const ratio = (self.displaySize) / atlas.fontSize;
-        //const stride = @as(f32, @floatFromInt(atlas.glyphStride)) * ratio;
         const stride = @as(f32, @floatFromInt(atlas.glyphMetrics['l'].x)) * ratio;
 
         if (self.string.?.len <= 0) {
@@ -208,7 +207,7 @@ pub const DisplayText = struct {
         var largestXOffset: f32 = 0;
 
         for (self.string.?.*, 0..) |ch, i| {
-            if (i * 4 > self.mesh.maxVertexCount) {
+            if (i * 4 > self.mesh.maxVertexCount - 16) {
                 break;
             }
 

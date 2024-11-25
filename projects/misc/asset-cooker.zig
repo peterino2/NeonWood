@@ -27,7 +27,7 @@ pub fn deinit(self: *@This()) void {
 
 pub fn main() !void {
     core.stacks.initStackCompactor();
-    try neonwood.initializeAndRunStandardProgram(@This(), .{ .name = "cooking tool" });
+    try neonwood.initializeAndRunStandardProgram(@This(), .{ .name = "Cooking Tool", .cooking = true });
 }
 
 const neonwood = @import("NeonWood");

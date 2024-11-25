@@ -123,7 +123,7 @@ pub const DynamicMesh = struct {
             self.stagingVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
-                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32), .{
+                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, .{
                     .index_buffer_bit = true,
                 }, "DynamicMesh.init - gpu indexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
 
