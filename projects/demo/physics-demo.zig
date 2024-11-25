@@ -19,8 +19,8 @@ pub fn preparePhysics(self: *GameContext) !void {
     {
         const btn = ctx.get(button);
         btn.setSize(.{ .x = 120, .y = 50 });
-        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
-        obj.visibility = !obj.visibility;
+        // var obj = self.gc.staticMeshSet.get(self.objHandle).?;
+        // obj.visibility = !obj.visibility;
     }
 
     self.cameraPhysicsBody = try physics.addPrimitiveBody(.box, .{

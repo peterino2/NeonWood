@@ -923,7 +923,17 @@ pub const NeonVkContext = struct {
     pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
         var newMesh = try self.allocator.create(mesh.Mesh);
         newMesh.* = mesh.Mesh.init(self, self.allocator);
-        try newMesh.load_from_obj_file(filename);
+
+        var cookedPath = std.ArrayList(u8).init(self.allocator);
+        defer cookedPath.deinit();
+        try cookedPath.writer().print("_cooked/{s}.Mesh", .{filename});
+
+        if (core.fs().fileExists(cookedPath.items)) {
+            try newMesh.loadFromObjFileCooked(cookedPath.items);
+        } else {
+            try newMesh.load_from_obj_file(filename);
+        }
+
         try newMesh.upload(self);
         try self.meshes.put(self.allocator, meshName.handle(), newMesh);
         return newMesh;

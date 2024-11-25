@@ -2,7 +2,8 @@ const core = @import("core");
 const assets = @import("assets");
 const std = @import("std");
 const memory = core.MemoryTracker;
-const texture_cooking = @import("textures/texture_cooking.zig");
+const texture_cooking = @import("cooking/texture_cooking.zig");
+const mesh_cooking = @import("cooking/mesh_cooking.zig");
 pub const vk_renderer = @import("vk_renderer.zig");
 const materials = @import("materials.zig");
 
@@ -98,6 +99,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     if (@hasField(@TypeOf(programSpec), "cooking")) {
         gCooking = true;
         try texture_cooking.initCooker(allocator);
+        try mesh_cooking.initCooker(allocator);
     }
 
     memory.MTPrintStatsDelta();
@@ -106,6 +108,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
     if (gCooking) {
+        mesh_cooking.deinitCooker();
         texture_cooking.deinitCooker();
     }
     engine_logs("graphics module shutting down...");

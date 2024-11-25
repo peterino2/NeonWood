@@ -28,6 +28,11 @@ pub const FontCreateOpts = struct {
     isSDF: bool = true,
 };
 
+// this is going to be interesting... perhaps fonts aren't something that i need to actually make
+// a cooked format for.
+//
+// instead I should make something like a glyph cache
+
 pub const FontAtlas = struct {
     font: c.stbtt_fontinfo = undefined,
     allocator: std.mem.Allocator,
