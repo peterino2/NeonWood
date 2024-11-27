@@ -186,6 +186,9 @@ pub const GameContext = struct {
             const animation = ozz.Animation.create();
             defer animation.destroy();
             animation.loadFromFile("content/test_ozz/robot_animation.ozz");
+
+            const samplingJobContext = ozz.SamplingJobContext.createMaxTracks(420);
+            defer samplingJobContext.destroy();
         }
 
         self.gc = graphics.getContext();

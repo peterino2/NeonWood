@@ -105,4 +105,56 @@ void LoadAnimationFromFile_c(void* anim, const char* filename)
     archive >> *self;
 }
 
+// === SmplingJobContext ===
+
+    //pub extern fn CreateSamplingJobContextCount_c(c_int) callconv(.C) ?*anyopaque;
+void* CreateSamplingJobContext_c() 
+{
+    ozz::animation::SamplingJob::Context* rv = new(ozz::animation::SamplingJob::Context);
+    
+    return rv;
+}
+
+void* CreateSamplingJobContextCount_c(int count) 
+{
+    ozz::animation::SamplingJob::Context* rv = new ozz::animation::SamplingJob::Context(count);
+    
+    return rv;
+}
+
+void DestroySamplingJobContext_c(void* context) 
+{
+    ozz::animation::SamplingJob::Context* self = static_cast<ozz::animation::SamplingJob::Context*>(context);
+
+    delete self;
+}
+
+void SamplingJobContext_Resize_c(void* context, int maxSize) 
+{
+    ozz::animation::SamplingJob::Context* self = static_cast<ozz::animation::SamplingJob::Context*>(context);
+
+    self->Resize(maxSize);
+}
+
+void SamplingJobContext_Invalidate_c(void* context) 
+{
+    ozz::animation::SamplingJob::Context* self = static_cast<ozz::animation::SamplingJob::Context*>(context);
+
+    self->Invalidate();
+}
+
+int SamplingJobContext_MaxSoaTracks_c(void* context)
+{
+    ozz::animation::SamplingJob::Context* self = static_cast<ozz::animation::SamplingJob::Context*>(context);
+
+    return self->max_soa_tracks();
+}
+
+int SamplingJobContext_MaxTracks_c(void* context)
+{
+    ozz::animation::SamplingJob::Context* self = static_cast<ozz::animation::SamplingJob::Context*>(context);
+
+    return self->max_tracks();
+}
+
 }

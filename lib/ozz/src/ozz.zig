@@ -63,11 +63,43 @@ pub fn Span(comptime T: type) type {
 }
 
 pub const SamplingJobContext = opaque {
-    pub fn create() *@This() {}
+    pub fn create() *@This() {
+        return @ptrCast(CreateSamplingJobContext_c());
+    }
+
+    pub fn createMaxTracks(tracksCount: c_int) *@This() {
+        return @ptrCast(CreateSamplingJobContextCount_c(tracksCount));
+    }
+
+    pub fn resize(self: *@This(), tracksCount: u32) void {
+        SamplingJobContext_Resize_c(@ptrCast(self), tracksCount);
+    }
+
+    pub fn invalidate(self: *@This()) void {
+        SamplingJobContext_Invalidate_c(self);
+    }
+
+    pub fn maxTracks(self: *@This()) c_int {
+        return SamplingJobContext_MaxTracks_c(@ptrCast(self));
+    }
+
+    pub fn maxSoaTracks(self: *@This()) c_int {
+        return SamplingJobContext_MaxSoaTracks_c(@ptrCast(self));
+    }
 
     pub fn destroy(self: *@This()) void {
-        _ = self;
+        DestroySamplingJobContext_c(self);
     }
+
+    pub extern fn CreateSamplingJobContextCount_c(c_int) callconv(.C) ?*anyopaque;
+    pub extern fn CreateSamplingJobContext_c() callconv(.C) ?*anyopaque;
+    pub extern fn DestroySamplingJobContext_c(?*anyopaque) callconv(.C) void;
+
+    pub extern fn SamplingJobContext_Resize_c(?*anyopaque, c_int) callconv(.C) void;
+    pub extern fn SamplingJobContext_Invalidate_c(?*anyopaque) callconv(.C) void;
+
+    pub extern fn SamplingJobContext_MaxTracks_c(?*anyopaque) callconv(.C) c_int;
+    pub extern fn SamplingJobContext_MaxSoaTracks_c(?*anyopaque) callconv(.C) c_int;
 };
 
 pub extern fn testFunc() callconv(.C) void;
