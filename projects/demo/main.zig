@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
+const ozz = graphics.ozz;
 const memory = core.MemoryTracker;
 const physicsDemo = @import("physics-demo.zig");
 const physics = neonwood.physics;
@@ -176,6 +177,16 @@ pub const GameContext = struct {
     pub fn prepare_game(self: *Self) !void {
         try core.fs().addContentPath("demo");
         try core.script.runScriptFile("scripts/prepare.lua");
+
+        {
+            const skeleton = ozz.Skeleton.create();
+            defer skeleton.destroy();
+            skeleton.loadFromFile("content/test_ozz/robot_skeleton.ozz");
+
+            const animation = ozz.Animation.create();
+            defer animation.destroy();
+            animation.loadFromFile("content/test_ozz/robot_animation.ozz");
+        }
 
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);

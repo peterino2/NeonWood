@@ -41,5 +41,68 @@ void startupOzz()
 void shutdownOzz()
 {
 }
+
+void* CreateSkeleton_c()
+{
+    ozz::animation::Skeleton* rv = new(ozz::animation::Skeleton);
+    return rv;
+}
+
+void LoadSkeletonFromFile_c(void* skeleton, const char* filename)
+{
+    ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);
+
+    ozz::io::File file(filename, "rb");
+    if (!file.opened()) 
+    {
+        ozz::log::Err() << "Cannot open file " << filename << "." << std::endl;
+        return;
+    }
+
+    std::cout << "loading animation from " << filename << std::endl;
+    ozz::io::IArchive archive(&file);
+    archive >> *sk;
+}
+void DestroySkeleton_c(void* skeleton)
+{
+    ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);
     
+    delete sk;
+}
+
+void* CreateAnimation_c()
+{
+    ozz::animation::Animation* a = new(ozz::animation::Animation);
+    return a;
+}
+
+
+void DestroyAnimation_c(void* anim)
+{
+    ozz::animation::Animation* self = static_cast<ozz::animation::Animation*>(anim);
+    delete self;
+}
+
+void LoadAnimationFromFile_c(void* anim, const char* filename)
+{
+    ozz::animation::Animation* self = static_cast<ozz::animation::Animation*>(anim);
+
+    ozz::io::File file(filename, "rb");
+    if (!file.opened()) {
+      ozz::log::Err() << "Failed to open animation file " << filename << "."
+                      << std::endl;
+      return;
+    }
+    ozz::io::IArchive archive(&file);
+
+    if (!archive.TestTag<ozz::animation::Animation>()) {
+      ozz::log::Err() << "Failed to load animation instance from file "
+                      << filename << "." << std::endl;
+      return;
+    }
+
+    // Once the tag is validated, reading cannot fail.
+    archive >> *self;
+}
+
 }

@@ -11,7 +11,14 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
 
-    mod.addCSourceFiles(.{
+    const luac = b.addStaticLibrary(.{
+        .name = "luac",
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    luac.addCSourceFiles(.{
         .root = b.path("lua/src/"),
         .files = &.{
             "lapi.c",
@@ -49,10 +56,15 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    mod.addCSourceFile(.{ .file = b.path("src/limited_io.c") });
+    luac.addCSourceFile(.{ .file = b.path("src/limited_io.c") });
+
+    luac.addIncludePath(b.path("lua/src/"));
+    luac.addIncludePath(b.path("src/"));
 
     mod.addIncludePath(b.path("lua/src/"));
     mod.addIncludePath(b.path("src/"));
+
+    mod.linkLibrary(luac);
 
     const run_step = b.step("run-lua", "");
     const tests = b.addExecutable(.{

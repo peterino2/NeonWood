@@ -73,4 +73,4 @@ const core = @import("core");
 const obj = @import("objLoader");
 const mesh = @import("../mesh.zig");
 const Mesh = mesh.Mesh;
-const Vertex = mesh.Vertex;
+const Vertex = mesh.MeshVertex;

@@ -2,6 +2,7 @@ const core = @import("core");
 const assets = @import("assets");
 const std = @import("std");
 const memory = core.MemoryTracker;
+pub const ozz = @import("ozz");
 const texture_cooking = @import("cooking/texture_cooking.zig");
 const mesh_cooking = @import("cooking/mesh_cooking.zig");
 pub const vk_renderer = @import("vk_renderer.zig");

@@ -16,7 +16,20 @@ pub fn build(b: *std.Build) void {
     mod.addIncludePath(b.path("cimplot"));
     mod.addIncludePath(b.path("cimgui/imgui"));
     mod.addIncludePath(b.path("cimgui/imgui/backends"));
-    mod.addCSourceFiles(.{
+
+    const cimgui = b.addStaticLibrary(.{
+        .name = "cimgui",
+        .target = target,
+        .optimize = optimize,
+    });
+    cimgui.linkLibC();
+    cimgui.linkLibCpp();
+    cimgui.addIncludePath(b.path("cimgui"));
+    cimgui.addIncludePath(b.path("cimplot"));
+    cimgui.addIncludePath(b.path("cimgui/imgui"));
+    cimgui.addIncludePath(b.path("cimgui/imgui/backends"));
+
+    cimgui.addCSourceFiles(.{
         .root = b.path("cimgui/imgui"),
         .files = &[_][]const u8{
             "cimgui.cpp",
@@ -31,7 +44,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    mod.addCSourceFiles(.{
+    cimgui.addCSourceFiles(.{
         .root = b.path("cimplot"),
         .files = &[_][]const u8{
             "cimplot.cpp",
@@ -53,6 +66,8 @@ pub fn build(b: *std.Build) void {
         const depMod = dep.module(depName);
         mod.addImport(depName, depMod);
     }
+
+    mod.linkLibrary(cimgui);
 
     // I could've made cimgui a seperate lib,
     // I can seperate it out later if needed.

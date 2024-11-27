@@ -81,6 +81,7 @@ pub const FontAtlas = struct {
 
         std.fs.cwd().access(cacheFile, .{}) catch {
             const rv = try initEmbeddedFont(allocator, bytes, fontSize, opts);
+            core.engine_log("[Fontcache] creating font cache for {s} font", .{fontName});
 
             var cachedFontArchive = std.ArrayList(u8).init(allocator);
             try rv.saveToArchive(&cachedFontArchive);
@@ -94,8 +95,7 @@ pub const FontAtlas = struct {
             return rv;
         };
 
-        core.engine_log("[fontcache] creating font cache for {s} font", .{fontName});
-
+        core.engine_log("[Fontcache] loading font cache for {s} font", .{fontName});
         const archiveBytes = try loadFileAlloc(cacheFile, 8, allocator);
         defer allocator.free(archiveBytes);
 
