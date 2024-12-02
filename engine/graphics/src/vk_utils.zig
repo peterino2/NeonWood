@@ -187,8 +187,23 @@ pub fn load_and_stage_image_from_file(ctx: *NeonVkContext, filePath: []const u8)
     // but calling VkQueueSubmit is not going to be threadsafe unless we create a
     // seperate command pool for each thread.
 
-    var pngContents = try PngContents.initFromFS(core.fs(), ctx.allocator, filePath);
+    // 1. check if there is a cooked one.
+    var pngContents: PngContents = undefined;
+    const allocator = ctx.allocator;
+    var cookedPath = std.ArrayList(u8).init(allocator);
+    defer cookedPath.deinit();
+
+    try cookedPath.appendSlice("_cooked/");
+    try cookedPath.appendSlice(filePath);
+    try cookedPath.appendSlice(".Texture");
+
+    if (core.fs().fileExists(cookedPath.items)) {
+        pngContents = try PngContents.initFromFSCooked(core.fs(), ctx.allocator, cookedPath.items);
+    } else {
+        pngContents = try PngContents.initFromFS(core.fs(), ctx.allocator, filePath);
+    }
     defer pngContents.deinit();
+
     return try load_and_stage_image(ctx, pngContents);
 }
 

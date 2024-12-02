@@ -188,17 +188,7 @@ pub const PlatformInstance = struct {
             return error.GlfwInitFailed;
         }
 
-        //if (graphicsBackend.UseVulkan) {
         glfw3.glfwWindowHint(glfw3.GLFW_CLIENT_API, glfw3.GLFW_NO_API);
-        //} else if (graphicsBackend.UseGLES2) {
-        //    glfw3.glfwWindowHint(glfw3.GLFW_CLIENT_API, glfw3.GLFW_OPENGL_ES_API);
-        //    glfw3.glfwWindowHint(glfw3.GLFW_CONTEXT_VERSION_MAJOR, 2);
-        //    glfw3.glfwWindowHint(glfw3.GLFW_CONTEXT_VERSION_MINOR, 0);
-        //    glfw3.glfwWindowHint(glfw3.GLFW_OPENGL_PROFILE, glfw3.GLFW_OPENGL_ANY_PROFILE);
-        //} else {
-        //    @panic("Unknown graphics api configs");
-        //}
-
         glfw3.glfwWindowHint(glfw3.GLFW_DECORATED, if (gPlatformSettings.decoratedWindow) glfw3.GLFW_TRUE else glfw3.GLFW_FALSE);
         glfw3.glfwWindowHint(glfw3.GLFW_TRANSPARENT_FRAMEBUFFER, if (gPlatformSettings.transparentFrameBuffer) glfw3.GLFW_TRUE else glfw3.GLFW_FALSE);
 
@@ -216,20 +206,6 @@ pub const PlatformInstance = struct {
             glfw3.glfwSetInputMode(self.window, glfw3.GLFW_RAW_MOUSE_MOTION, glfw3.GLFW_TRUE);
 
         glfw3.glfwSetWindowAspectRatio(self.window, 16, 9);
-
-        //if (graphicsBackend.UseVulkan) {
-        // var extensionsCount: u32 = 0;
-        // const extensions = platform.glfw3.glfwGetRequiredInstanceExtensions(&extensionsCount);
-
-        // core.engine_log("glfw has requested the following vulkan extensions: {d}", .{extensionsCount});
-        // if (extensionsCount > 0) {
-        //     var i: usize = 0;
-        //     while (i < extensionsCount) : (i += 1) {
-        //         const x = @as([*]const core.CStr, @ptrCast(extensions));
-        //         core.engine_log("  glfw_extension: {s}", .{x[i]});
-        //     }
-        // }
-        // //}
 
         self.installHandlers();
     }

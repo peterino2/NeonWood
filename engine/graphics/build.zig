@@ -9,6 +9,7 @@ const dependencyList = [_][]const u8{
     "assets",
     "platform",
     "objLoader",
+    "ozz",
 };
 
 pub fn build(b: *std.Build) void {
@@ -32,6 +33,9 @@ pub fn build(b: *std.Build) void {
     for (dependencyList) |depName| {
         const dep = b.dependency(depName, .{ .target = target, .optimize = optimize });
         mod.addImport(depName, dep.module(depName));
+        if (std.mem.eql(u8, depName, "ozz")) {
+            mod.linkLibrary(dep.artifact("ozz_cpp"));
+        }
     }
 
     const spirvGen = SpirvReflect.SpirvGenerator2.init(b, .{ .optimize = optimize });

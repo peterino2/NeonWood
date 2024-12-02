@@ -8,6 +8,7 @@
         .glfw3 = .{ .path = "../../lib/glfw3" },
         .objLoader = .{ .path = "../../lib/objLoader" },
         .SpirvReflect = .{ .path = "../../lib/spirv-reflect-zig" },
+        .ozz = .{ .path = "../../lib/ozz" },
         // core
         .core = .{ .path = "../core" },
         .assets = .{ .path = "../assets" },

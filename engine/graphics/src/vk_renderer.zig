@@ -1,6 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
+const builtin = @import("builtin");
 pub const triangle_mesh_vert = @import("triangle_mesh_vert");
 const default_lit = @import("default_lit");
 
@@ -471,6 +472,14 @@ pub const NeonVkContext = struct {
     pub fn create_object(allocator: std.mem.Allocator) !*Self {
         var self: *Self = try allocator.create(Self);
         self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
+
+        switch (builtin.mode) {
+            .ReleaseSafe, .ReleaseFast, .ReleaseSmall => {
+                self.vulkanValidation = gGraphicsStartupSettings.vulkanValidation;
+            },
+            .Debug => {},
+        }
+
         try self.init_zig_data(allocator);
 
         self.graph = try core.FileLog.init(allocator);
@@ -604,7 +613,8 @@ pub const NeonVkContext = struct {
 
             const entity = self.staticMeshSet.dense.items[i].sparseIndex;
 
-            if (core.Scene.BaseContainer.get(entity, .posRot)) |posRot| {
+            // todo.. use _repr instead of posroT
+            if (core.Scene.SceneObjectContainer.get(entity, .posRot)) |posRot| {
                 transform = posRot.toTransform();
             }
 
@@ -922,14 +932,24 @@ pub const NeonVkContext = struct {
     pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
         var newMesh = try self.allocator.create(mesh.Mesh);
         newMesh.* = mesh.Mesh.init(self, self.allocator);
-        try newMesh.load_from_obj_file(filename);
+
+        var cookedPath = std.ArrayList(u8).init(self.allocator);
+        defer cookedPath.deinit();
+        try cookedPath.writer().print("_cooked/{s}.Mesh", .{filename});
+
+        if (core.fs().fileExists(cookedPath.items)) {
+            try newMesh.loadFromObjFileCooked(cookedPath.items);
+        } else {
+            try newMesh.load_from_obj_file(filename);
+        }
+
         try newMesh.upload(self);
         try self.meshes.put(self.allocator, meshName.handle(), newMesh);
         return newMesh;
     }
 
     pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
-        const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.Vertex);
+        const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.MeshVertex);
         const bci = vk.BufferCreateInfo{
             .flags = .{},
             .size = bufferSize,
@@ -1245,7 +1265,8 @@ pub const NeonVkContext = struct {
                 const gpuData = try shared.models.addOne();
                 const objectData = try shared.objectData.addOne();
 
-                gpuData.modelMatrix = transform;
+                gpuData.model = transform;
+
                 objectData.* = .{
                     .visibility = object.visibility,
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,

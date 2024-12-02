@@ -17,7 +17,7 @@ const LinearColor = core.colors.Color;
 const NeonVkContext = vk_renderer.NeonVkContext;
 
 const mesh = @import("mesh.zig");
-const Vertex = mesh.Vertex;
+const MeshVertex = mesh.MeshVertex;
 
 const debug_struct = core.debug_struct;
 
@@ -80,7 +80,7 @@ pub const DynamicMesh = struct {
     allocator: std.mem.Allocator,
     gc: *NeonVkContext,
 
-    vertices: []Vertex = undefined,
+    vertices: []MeshVertex = undefined,
     geometryMode: GeometryMode = .quads, // geometry elaboration mode
     indicesMaxCount: u32 = 0,
 
@@ -108,7 +108,7 @@ pub const DynamicMesh = struct {
         self.* = .{
             .maxVertexCount = opts.maxVertexCount,
             .allocator = allocator,
-            .vertices = try allocator.alloc(Vertex, opts.maxVertexCount),
+            .vertices = try allocator.alloc(MeshVertex, opts.maxVertexCount),
             .gc = gc,
             .geometryMode = opts.mode,
         };
@@ -120,14 +120,14 @@ pub const DynamicMesh = struct {
 
         {
             self.stagingIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
-            self.stagingVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(Vertex), "DynamicMesh.init - vertex staging");
+            self.stagingVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(MeshVertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
-                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32), .{
+                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, .{
                     .index_buffer_bit = true,
                 }, "DynamicMesh.init - gpu indexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
 
-                self.vertexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(Vertex), .{
+                self.vertexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(MeshVertex), .{
                     .vertex_buffer_bit = true,
                 }, "DynamicMesh.init - gpu vertexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
             }
@@ -197,7 +197,7 @@ pub const DynamicMesh = struct {
             .size = copy.size,
         };
 
-        copy.size = self.vertexCount * @as(u32, @intCast(@sizeOf(Vertex)));
+        copy.size = self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex)));
 
         // Insert Barrier for indexBuffer
         vkd.cmdPipelineBarrier(
@@ -264,7 +264,7 @@ pub const DynamicMesh = struct {
         const newSwapId = (self.swapId + 1) % 2;
         // map buffers
 
-        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
+        var slice = try self.gc.vkAllocator.mapMemorySlice(MeshVertex, self.stagingVertexBuffer, self.vertices.len);
         var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
 
         defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
@@ -309,7 +309,7 @@ pub const DynamicMesh = struct {
         const newSwapId = (self.swapId + 1) % 2;
         // map buffers
 
-        var slice = try self.gc.vkAllocator.mapMemorySlice(Vertex, self.stagingVertexBuffer, self.vertices.len);
+        var slice = try self.gc.vkAllocator.mapMemorySlice(MeshVertex, self.stagingVertexBuffer, self.vertices.len);
         var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
 
         defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
@@ -354,7 +354,7 @@ pub const DynamicMesh = struct {
         try uploader.addBufferUpload(
             self.stagingVertexBuffer,
             self.vertexBuffers[newSwapId],
-            self.vertexCount * @as(u32, @intCast(@sizeOf(Vertex))),
+            self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex))),
         );
     }
 
@@ -368,7 +368,7 @@ pub const DynamicMesh = struct {
         self.isDirty = true;
     }
 
-    pub fn addVertexList(self: *@This(), list: []const Vertex) void {
+    pub fn addVertexList(self: *@This(), list: []const MeshVertex) void {
         if (list.len > 0) {
             self.isDirty = true;
         }
@@ -395,7 +395,7 @@ pub const DynamicMesh = struct {
 
         const normal = Vectorf{ .x = 0, .y = 0, .z = -1 };
 
-        var vertices: [4]Vertex = undefined;
+        var vertices: [4]MeshVertex = undefined;
 
         vertices[0] = .{
             .position = topLeft,

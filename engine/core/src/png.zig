@@ -10,7 +10,39 @@ pub const PngContents = struct {
     size: core.Vector2u,
     allocator: std.mem.Allocator,
 
+    pub fn initFromFSCooked(fs: *core.FileSystem, allocator: std.mem.Allocator, path: []const u8) !@This() {
+        const mapping = try fs.loadFile(path);
+        defer fs.unmap(mapping);
+
+        core.engine_log("loading cooked version of file: {s}", .{path});
+
+        const rv: @This() = .{
+            .size = .{
+                .x = @as(u32, @bitCast(mapping.bytes[0..4].*)),
+                .y = @as(u32, @bitCast(mapping.bytes[4..8].*)),
+            },
+            .path = try allocator.dupe(u8, path),
+            .pixels = try allocator.dupe(u8, mapping.bytes[8..]),
+            .allocator = allocator,
+        };
+
+        return rv;
+    }
+
+    pub fn toBuffer(self: @This()) !std.ArrayList(u8) {
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        try buffer.appendSlice(&@as([4]u8, @bitCast(self.size.x)));
+        try buffer.appendSlice(&@as([4]u8, @bitCast(self.size.y)));
+        try buffer.appendSlice(self.pixels);
+
+        return buffer;
+    }
+
     pub fn initFromFS(fs: *core.FileSystem, allocator: std.mem.Allocator, path: []const u8) !@This() {
+        // 1. check the fs to see if a cooked version of the file exists
+        // 2. load that one if possible
+        // 3. otherwise, load the other one.
+
         const mapping = try fs.loadFile(path);
         defer fs.unmap(mapping);
 

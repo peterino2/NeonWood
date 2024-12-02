@@ -119,7 +119,7 @@ pub fn createGameOptions(b: *std.Build) *std.Build.Step.Options {
     opts.addOption(
         bool,
         "use_renderthread",
-        b.option(bool, "use_renderthread", "enables the use of renderthread") orelse false,
+        true,
     );
     return opts;
 }

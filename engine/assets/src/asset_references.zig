@@ -30,7 +30,7 @@ pub fn MakeImportRefOptions(assetType: []const u8, name: []const u8, properties:
 }
 
 // TODO, this needs to be replaced with some kind of polymorphic data bag I think,
-// some kind of transmute is probably in order, maybe allocate 64 bytes of data
+// some kind of transmute is probably in order, maybe allocate 256 bytes of data
 // for it.
 pub const AssetPropertiesBag = struct {
     path: []const u8 = "None",

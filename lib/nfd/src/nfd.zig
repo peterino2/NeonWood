@@ -68,6 +68,8 @@ pub const NFDRuntime = struct {
         },
         openFolder: struct {
             defaultPath: []const u8,
+            callback: ?NFDCallbackFn = null,
+            callbackContext: ?*anyopaque = null,
         },
     } = .{ .none = false },
 
@@ -110,6 +112,25 @@ pub const NFDRuntime = struct {
         self.blockUntilComplete();
 
         return self.outPath;
+    }
+
+    pub fn asyncOpenFolderDialog(self: *@This(), args: AsyncOpenFileDialogArgs) !void {
+        self.lock.lock();
+        defer self.lock.unlock();
+
+        switch (self.runtimeState) {
+            .none => {
+                self.runtimeState = .{ .openFolder = .{
+                    .defaultPath = args.defaultPath,
+                    .callback = args.callback,
+                    .callbackContext = args.callbackContext,
+                } };
+            },
+            .openDialog, .openDialogMultiple, .saveDialog, .openFolder => {
+                // return dialog already opened error. nfd would returl NFD_ERROR here
+                return error.DialogAlreadyOpen;
+            },
+        }
     }
 
     pub fn asyncOpenFileDialog(self: *@This(), args: AsyncOpenFileDialogArgs) !void {
@@ -189,6 +210,23 @@ pub const NFDRuntime = struct {
                 } else if (res == c.NFD_ERROR) {
                     return error.InvalidFileDialog;
                 }
+
+                if (args.callback) |callback| {
+                    if (self.outPath != null) {
+                        try self.callbackEvents.push(.{
+                            .path = try p2.dupeString(self.pathsArena.allocator(), std.mem.span(self.outPath)),
+                            .context = args.callbackContext,
+                            .func = callback,
+                        });
+                    } else {
+                        try self.callbackEvents.push(.{
+                            .path = null,
+                            .context = args.callbackContext,
+                            .func = callback,
+                        });
+                    }
+                }
+
                 self.runtimeState = .{ .none = false };
             },
         }

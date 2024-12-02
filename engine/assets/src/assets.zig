@@ -4,6 +4,7 @@ const memory = core.MemoryTracker;
 
 pub const asset_references = @import("asset_references.zig");
 pub const asset_jobs = @import("asset_jobs.zig");
+pub const cook = @import("cook.zig");
 
 pub const AssetRef = asset_references.AssetRef;
 pub const AssetReference = asset_references.AssetReference;
@@ -25,9 +26,17 @@ pub const Module = core.ModuleDescription{
     .enabledByDefault = true,
 };
 
+var cooking: bool = false;
+
 pub fn start_module(comptime spec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
-    _ = spec;
+
+    if (@hasField(@TypeOf(spec), "cooking")) {
+        core.engine_logs("Cooking Enabled");
+        cooking = true;
+        try cook.startup(allocator);
+    }
+
     gAssetSys = allocator.create(AssetReferenceSys) catch @panic("unable to initialize asset reference");
     gAssetSys.* = AssetReferenceSys.init(allocator);
 
@@ -35,8 +44,11 @@ pub fn start_module(comptime spec: anytype, args: anytype, allocator: std.mem.Al
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
-    gAssetSys.deinit();
+    if (cooking) {
+        cook.shutdown();
+    }
 
+    gAssetSys.deinit();
     allocator.destroy(gAssetSys);
 }
 
