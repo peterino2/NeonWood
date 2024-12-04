@@ -42,9 +42,33 @@ void shutdownOzz()
 {
 }
 
+bool SamplingJob_Run_c(void* context)
+{
+    ozz::animation::SamplingJob* self = static_cast<ozz::animation::SamplingJob*>(context);
+    return self->Run();
+}
+
+bool SamplingJob_Validate_c(void* context)
+{
+    ozz::animation::SamplingJob* self = static_cast<ozz::animation::SamplingJob*>(context);
+    return self->Validate();
+}
+
+int SkeletonNumJoints_c(void* context)
+{
+    ozz::animation::Skeleton* self = static_cast<ozz::animation::Skeleton*>(context);
+    return self->num_joints();
+}
+
+int SkeletonNumSoaJoints_c(void* context)
+{
+    ozz::animation::Skeleton* self = static_cast<ozz::animation::Skeleton*>(context);
+    return self->num_soa_joints();
+}
+
 void* CreateSkeleton_c()
 {
-    ozz::animation::Skeleton* rv = new(ozz::animation::Skeleton);
+    ozz::animation::Skeleton* rv = new ozz::animation::Skeleton();
     return rv;
 }
 
@@ -55,12 +79,20 @@ void LoadSkeletonFromFile_c(void* skeleton, const char* filename)
     ozz::io::File file(filename, "rb");
     if (!file.opened()) 
     {
-        ozz::log::Err() << "Cannot open file " << filename << "." << std::endl;
+        std::cout << "Cannot open file " << filename << "." << std::endl;
         return;
     }
 
-    std::cout << "loading animation from " << filename << std::endl;
+
+    std::cout << "loading skeleton from " << filename << std::endl;
     ozz::io::IArchive archive(&file);
+
+    if (!archive.TestTag<ozz::animation::Skeleton>()) {
+        std::cout << "Archive doesn't contain the expected object type." <<
+        std::endl;
+      return;
+    }
+
     archive >> *sk;
 }
 void DestroySkeleton_c(void* skeleton)
@@ -72,7 +104,7 @@ void DestroySkeleton_c(void* skeleton)
 
 void* CreateAnimation_c()
 {
-    ozz::animation::Animation* a = new(ozz::animation::Animation);
+    ozz::animation::Animation* a = new ozz::animation::Animation();
     return a;
 }
 
@@ -93,10 +125,12 @@ void LoadAnimationFromFile_c(void* anim, const char* filename)
                       << std::endl;
       return;
     }
+
+    std::cout << "loading skeleton from " << filename << std::endl;
     ozz::io::IArchive archive(&file);
 
     if (!archive.TestTag<ozz::animation::Animation>()) {
-      ozz::log::Err() << "Failed to load animation instance from file "
+        std::cout << "Failed to load animation instance from file "
                       << filename << "." << std::endl;
       return;
     }
@@ -110,7 +144,7 @@ void LoadAnimationFromFile_c(void* anim, const char* filename)
     //pub extern fn CreateSamplingJobContextCount_c(c_int) callconv(.C) ?*anyopaque;
 void* CreateSamplingJobContext_c() 
 {
-    ozz::animation::SamplingJob::Context* rv = new(ozz::animation::SamplingJob::Context);
+    ozz::animation::SamplingJob::Context* rv = new ozz::animation::SamplingJob::Context();
     
     return rv;
 }
@@ -156,5 +190,6 @@ int SamplingJobContext_MaxTracks_c(void* context)
 
     return self->max_tracks();
 }
+
 
 }

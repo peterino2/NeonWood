@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
+const AnimationDemo = @import("animation-demo.zig").AnimationDemo;
 const ozz = graphics.ozz;
 const memory = core.MemoryTracker;
 const physicsDemo = @import("physics-demo.zig");
@@ -73,6 +74,8 @@ pub const GameContext = struct {
 
     frameCount: u32 = 5,
 
+    animationDemo: *AnimationDemo = undefined,
+
     pub fn init(allocator: std.mem.Allocator) !*Self {
         var self = try allocator.create(@This());
         self.* = Self{
@@ -93,6 +96,7 @@ pub const GameContext = struct {
     var texName = core.MakeName("t_empire");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
+        self.animationDemo.tick(deltaTime) catch unreachable;
         // ig.igShowDemoWindow(&self.showDemo);
         if (!self.assetReady) {
             if (self.gc.textures.contains(texName.handle())) {
@@ -178,18 +182,7 @@ pub const GameContext = struct {
         try core.fs().addContentPath("demo");
         try core.script.runScriptFile("scripts/prepare.lua");
 
-        {
-            const skeleton = ozz.Skeleton.create();
-            defer skeleton.destroy();
-            skeleton.loadFromFile("content/test_ozz/robot_skeleton.ozz");
-
-            const animation = ozz.Animation.create();
-            defer animation.destroy();
-            animation.loadFromFile("content/test_ozz/robot_animation.ozz");
-
-            const samplingJobContext = ozz.SamplingJobContext.createMaxTracks(420);
-            defer samplingJobContext.destroy();
-        }
+        self.animationDemo = try AnimationDemo.create(self.allocator);
 
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
@@ -282,6 +275,7 @@ pub const GameContext = struct {
 
     pub fn deinit(self: *Self) void {
         physicsDemo.unpreparePhysics(self);
+        self.animationDemo.destroy();
         if (self.panelText != null)
             self.allocator.free(self.panelText.?);
         self.allocator.destroy(self);
