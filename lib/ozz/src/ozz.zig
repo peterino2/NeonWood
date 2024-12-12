@@ -70,10 +70,10 @@ pub const SamplingJob = extern struct {
 };
 
 pub fn spanFromArrayList(list: anytype) Span(@TypeOf(list.items[0])) {
-    return spanFromSlice(list.items);
+    return makeSpan(list.items);
 }
 
-pub fn spanFromSlice(slice: anytype) Span(@TypeOf(slice[0])) {
+pub fn makeSpan(slice: anytype) Span(@TypeOf(slice[0])) {
     return .{ .start = slice.ptr, .end = slice.ptr + slice.len };
 }
 
@@ -190,6 +190,10 @@ pub const SoaTransform = extern struct {
     scale: SoaFloat3 = SoaFloat3.one(),
 };
 
+pub const kNoParent = -1;
+pub const kMaxJoints = 1024;
+pub const kMaxSoAJoints = (kMaxJoints + 3) / 4;
+
 pub const LocalToModelJob = extern struct {
     // The Skeleton object describing the joint hierarchy used for local to
     // model space conversion.
@@ -198,7 +202,7 @@ pub const LocalToModelJob = extern struct {
     // The root matrix will multiply to every model space matrices, default nullptr
     // means an identity matrix. This can be used to directly compute world-space
     // transforms for example.
-    root: ?*Float4x4,
+    root: ?*Float4x4 = null,
 
     // Defines "from" which joint the local-to-model conversion should start.
     // Default value is ozz::Skeleton::kNoParent, meaning the whole hierarchy is
@@ -206,14 +210,14 @@ pub const LocalToModelJob = extern struct {
     // conversion to part of the joint hierarchy. Note that "from" parent should
     // be a valid matrix, as it is going to be used as part of "from" joint
     // hierarchy update.
-    from: c_int,
+    from: c_int = kNoParent,
 
     // Defines "to" which joint the local-to-model conversion should go, "to"
     // included. Update will end before "to" joint is reached if "to" is not part
     // of the hierarchy starting from "from". Default value is
     // ozz::animation::Skeleton::kMaxJoints, meaning the hierarchy (starting from
     // "from") is updated to the last joint.
-    to: c_int,
+    to: c_int = kMaxJoints,
 
     // If true, "from" joint is not updated during job execution. Update starts
     // with all children of "from". This can be used to update a model-space
@@ -221,15 +225,19 @@ pub const LocalToModelJob = extern struct {
     // joint model-space transform matrix, and run this Job with "from_excluded"
     // to update all "from" children.
     // Default value is false.
-    from_excluded: bool,
+    from_excluded: bool = false,
 
     // The input range that store local transforms.
     input: Span(SoaTransform),
 
     // Job output.
-
     // The output range to be filled with model-space matrices.
     output: Span(Float4x4),
+
+    pub fn run(self: *@This()) bool {
+        return LocalToModelJob_Run_c(@ptrCast(self));
+    }
+    pub extern fn LocalToModelJob_Run_c(?*anyopaque) callconv(.C) bool;
 };
 
 pub const std = @import("std");

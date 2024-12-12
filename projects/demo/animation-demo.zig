@@ -9,6 +9,7 @@ pub const AnimationDemo = struct {
     samplingJobContext: *ozz.SamplingJobContext = undefined,
     locals: std.ArrayListUnmanaged(ozz.SoaTransform),
     models: std.ArrayListUnmanaged(ozz.Float4x4),
+    ratio: f64 = 0.0,
 
     allocator: std.mem.Allocator,
 
@@ -37,16 +38,36 @@ pub const AnimationDemo = struct {
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) !void {
-        _ = deltaTime;
+        self.ratio += deltaTime / 6;
+        if (self.ratio > 1.0) {
+            self.ratio = 0;
+        }
         var samplingJob: ozz.SamplingJob = .{
-            .ratio = 0.5,
+            .ratio = @floatCast(self.ratio),
             .animation = self.animation,
             .context = self.samplingJobContext,
-            .output = ozz.spanFromSlice(self.locals.items),
+            .output = ozz.makeSpan(self.locals.items),
         };
 
         if (!samplingJob.run()) {
             core.engine_logs("sampling job failed");
+        }
+
+        var ltmJob: ozz.LocalToModelJob = .{
+            .skeleton = self.skeleton,
+            .input = ozz.makeSpan(self.locals.items),
+            .output = ozz.makeSpan(self.models.items),
+        };
+
+        if (!ltmJob.run()) {
+            core.engine_logs("local to model job failed");
+        }
+
+        for (self.models.items) |x| {
+            const transform: core.Mat = @bitCast(x);
+            const offset = core.zm.mul(core.zm.Vec{ 0, 0, 0, 1 }, transform);
+            core.debugSphere(core.Vectorf.fromZm(offset), 0.04, .{});
+            // core.engine_log("count = {any} ", .{transform});
         }
     }
 

@@ -85,6 +85,7 @@ pub const BumpArena = struct {
         _ = ret_addr;
     }
 
+    // do not support resize in place.
     pub fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
         _ = ctx;
         _ = buf;

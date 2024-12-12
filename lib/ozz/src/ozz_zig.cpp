@@ -191,5 +191,11 @@ int SamplingJobContext_MaxTracks_c(void* context)
     return self->max_tracks();
 }
 
+bool LocalToModelJob_Run_c(void* context)
+{
+    ozz::animation::LocalToModelJob* self = static_cast<ozz::animation::LocalToModelJob*>(context);
+
+    return self->Run();
+}
 
 }
