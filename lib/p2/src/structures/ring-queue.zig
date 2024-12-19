@@ -45,7 +45,7 @@ pub fn RingQueue(comptime T: type) type {
         }
 
         pub fn popFromLocked(self: *@This()) ?T {
-            try self.mutex.lock();
+            self.mutex.lock();
             defer self.mutex.unlock();
             const val = self.queue.pop();
             return val;

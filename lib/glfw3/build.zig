@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // ======== tests ============
-    const test_step = b.step("test-glfw3", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

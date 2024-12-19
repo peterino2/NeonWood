@@ -7,19 +7,19 @@ pub fn build(b: *std.Build) void {
     const cgltf = b.addModule("cgltf", .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/cgltf.zig" },
+        .root_source_file = b.path("src/cgltf.zig"),
     });
 
-    const test_step = b.step("test-cgltf", "run unit tests for cgltf");
+    const test_step = b.step("test", "run unit tests for cgltf");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "src/cgltf.zig" },
+        .root_source_file = b.path("src/cgltf.zig"),
         .link_libc = true,
     });
 
     tests.root_module.addImport("cgltf", cgltf);
-    tests.root_module.addIncludePath(.{ .path = "src" });
+    tests.root_module.addIncludePath(b.path("src"));
     const runArtifact = b.addRunArtifact(tests);
     test_step.dependOn(&runArtifact.step);
 }
