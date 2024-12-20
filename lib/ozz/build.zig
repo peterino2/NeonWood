@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(tests);
 
-    const test_step = b.step("test-ozz", "run some ozz-runtime tests");
+    const test_step = b.step("test", "run some ozz-runtime tests");
     tests.root_module.addImport("ozz", ozz);
     tests.linkLibrary(ozz_cpp);
 

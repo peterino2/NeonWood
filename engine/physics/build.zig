@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("zphysics", zphysics_dep.module("root"));
     mod.linkLibrary(zphysics_dep.artifact("joltc"));
 
-    const test_step = b.step("test-physics", "run unit tests for core");
+    const test_step = b.step("test", "run unit tests for physics");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

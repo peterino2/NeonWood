@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/obj_loader.zig"),
     });
 
-    const test_step = b.step("test-objLoader", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

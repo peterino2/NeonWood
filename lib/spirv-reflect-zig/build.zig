@@ -120,6 +120,15 @@ pub const SpirvGenerator2 = struct {
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
-    _ = optimize;
-    _ = target;
+
+    const test_step = b.step("test", "");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/test.zig"),
+        .link_libc = true,
+    });
+
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
 }

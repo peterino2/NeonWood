@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
     mod.addIncludePath(b.path("./include"));
 
     // ======== tests ============
-    const test_step = b.step("test-miniaudio", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

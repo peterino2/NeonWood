@@ -104,7 +104,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("vulkan", vulkan);
 
     // ========== tests =============
-    const test_step = b.step("test-vma", "run unit tests for vma");
+    const test_step = b.step("test", "run unit tests for vma");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

@@ -26,12 +26,15 @@ r: BmpWriter,
 outFile: []const u8 = "Saved/frame.bmp",
 baseColor: ColorRGBA8 = ColorRGBA8.fromHex(0x080808ff),
 
+arena: std.heap.ArenaAllocator,
+
 pub fn init(allocator: std.mem.Allocator, ui: *Context, extent: Vector2i) !@This() {
     return .{
         .allocator = allocator,
         .ui = ui,
         .extent = extent,
         .r = try BmpWriter.init(allocator, extent),
+        .arena = std.heap.ArenaAllocator.init(allocator),
     };
 }
 
@@ -40,6 +43,7 @@ pub fn setRenderFile(self: *@This(), outFile: []const u8) void {
 }
 
 pub fn deinit(self: *@This()) void {
+    self.arena.deinit();
     self.r.deinit();
 }
 
@@ -50,7 +54,7 @@ pub fn render(self: *@This()) !void {
     const tstart = timer.read();
 
     var drawList = papyrus.DrawList.init(self.ui.allocator);
-    try self.ui.makeDrawList(&drawList);
+    try self.ui.makeDrawList(&drawList, &self.arena);
     defer drawList.deinit();
 
     const tend = timer.read();

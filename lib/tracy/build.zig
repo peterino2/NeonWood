@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     // if (b.graph.env_map.hash_map.get("WITH_TRACY")) |with_tracy| {
     //     tracy_enabled = with_tracy;
     // }
-    std.debug.print("tracy enabled {s}\n", .{if (tracy_enabled) "true" else "false"});
+    // std.debug.print("tracy enabled {s}\n", .{if (tracy_enabled) "true" else "false"});
 
     const mod = b.addModule("tracy", .{
         .target = target,
@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) void {
     mod.addOptions("build_options", opts);
 
     // ========== tests =============
-    const test_step = b.step("test-tracy", "run unit tests for tracy");
+    const test_step = b.step("test", "run unit tests for tracy");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

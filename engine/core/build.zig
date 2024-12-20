@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) void {
         mod.addImport(depName, dep.module(depName));
     }
 
-    const test_step = b.step("test-core", "run unit tests for core");
+    const test_step = b.step("test", "run unit tests for core");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

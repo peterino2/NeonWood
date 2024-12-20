@@ -1,4 +1,4 @@
-[ENGINE   ]: Component container created scene.Scene  @1febb1e0380
+[ENGINE   ]: Component container created scene.Scene  @2070f640380
 [ENGINE   ]: creating lua metatable Scene
 [ENGINE   ]: core module starting up... 
 [ENGINE   ]: module started >>>> core <<<<
@@ -8,137 +8,32 @@
 [ENGINE   ]: skipping module [cimgui] because missing build.zig.zon 
 [ENGINE   ]: skipping module [ozz] because missing build.zig.zon 
 [ENGINE   ]: engine loop started
-[ENGINE   ]: ERROR!! test module [packer] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\packer\.zig-cache\o\1afcea9481b8c335a7c61639fabc419f\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\packer D:\uproj\NeonWood\lib\packer\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x5af828ce -Z6af7a48d25dd0215 test
-: 
-[ENGINE   ]: ERROR!! test module [spirv-reflect-zig] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\spirv-reflect-zig\.zig-cache\o\495f0a84c2d617c0992aa8c121abf379\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\spirv-reflect-zig D:\uproj\NeonWood\lib\spirv-reflect-zig\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xa641efdb -Z77b08fa3d0d9f2d6 test
-: 
-[ENGINE   ]: ERROR!! test module [spng] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\spng\.zig-cache\o\0305f90b5e7f2582c0c5f36f2137291c\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\spng D:\uproj\NeonWood\lib\spng\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xe79930c1 -Z98451cadff48154b test
-: 
-[ENGINE   ]: ERROR!! test module [tracy] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\tracy\.zig-cache\o\5819e7c46f36abe94c389aa85d411ad4\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\tracy D:\uproj\NeonWood\lib\tracy\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xc0361a46 -Zc07e9a726bd07558 test
-: 
-[ENGINE   ]: test module [p2] passed!
-[ENGINE   ]: ERROR!! test module [vma] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\vma\.zig-cache\o\1552e5d144f3655bff218c4c1a029fe6\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\vma D:\uproj\NeonWood\lib\vma\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xd7a338a5 -Z26416eb093681e4a test
-: 
-[ENGINE   ]: ERROR!! test module [vulkan] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\vulkan\.zig-cache\o\0cee7f47e4df1e090c7f63f06bcb877b\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\vulkan D:\uproj\NeonWood\lib\vulkan\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x39ea5530 -Z998aea16d03ee0de test
-: 
-[ENGINE   ]: ERROR!! test module [assets] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\assets\.zig-cache\o\9b737bb72699bc6c4ef83d5132a3243c\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\assets D:\uproj\NeonWood\engine\assets\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x9d4f9988 -Ze5c44a1c71281b32 test
-: 
-[ENGINE   ]: ERROR!! test module [audio] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\audio\.zig-cache\o\3383e75dc8a55da3873bb4635dc3ac75\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\audio D:\uproj\NeonWood\engine\audio\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x93ea19ea -Z347f869f649ac61d test
-: 
-[ENGINE   ]: ERROR!! test module [graphics] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\graphics\.zig-cache\o\a9d1c27f4085364cc42d2b3c8a2626f1\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\graphics D:\uproj\NeonWood\engine\graphics\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x11e05f00 -Z28ac21f144ede84f test
-: 
-[ENGINE   ]: ERROR!! test module [core] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\core\.zig-cache\o\5fd87a9792b950f5942d9ca33e0ec685\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\core D:\uproj\NeonWood\engine\core\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xe9f8fcc8 -Z7476bba924a9e23e test
-: 
-[ENGINE   ]: ERROR!! test module [papyrus] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\papyrus\.zig-cache\o\c0de158ffc0636784230c7eb3b604461\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\papyrus D:\uproj\NeonWood\engine\papyrus\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x56e029b3 -Z5e855f9cbae3e075 test
-: 
-[ENGINE   ]: ERROR!! test module [platform] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\platform\.zig-cache\o\5503b88f9a7b149a5d7f87351f4df604\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\platform D:\uproj\NeonWood\engine\platform\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xc9128158 -Zd08d3f843f23f1c8 test
-: 
-[ENGINE   ]: ERROR!! test module [physics] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\physics\.zig-cache\o\7c60f38d82f0c2ac7235905ce3a20156\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\physics D:\uproj\NeonWood\engine\physics\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x6757e0bd -Z7e2bc46b5fd0b0e9 test
-: 
-[ENGINE   ]: ERROR!! test module [ui] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\ui\.zig-cache\o\ca02f3a766c5e5d428c44caaf5242bda\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\ui D:\uproj\NeonWood\engine\ui\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xda43fae -Z700ed2ceaf72be81 test
-: 
-[ENGINE   ]: ERROR!! test module [vkImgui] failed!
-[ENGINE   ]: ERROR!! failure tracy enabled false
-no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\engine\vkImgui\.zig-cache\o\2df8b8a60e841688551e8ef5b0f26a3b\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\engine\vkImgui D:\uproj\NeonWood\engine\vkImgui\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xabfb093f -Z6b4284e079c47da5 test
-: 
-[ENGINE   ]: ERROR!! test module [zmath] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\zmath\.zig-cache\o\2a04bfcccfd357a83127b1fc8b344828\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\zmath D:\uproj\NeonWood\lib\zmath\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x6dabc79a -Z35cb7ec20841a03a test
-: 
-[ENGINE   ]: test module [zphysics] passed!
-[ENGINE   ]: test module [cgltf] passed!
-[ENGINE   ]: ERROR!! test module [nfd] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\nfd\.zig-cache\o\7415d4da212e985ac81656595e79bd1d\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\nfd D:\uproj\NeonWood\lib\nfd\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0x78eb79d8 -Zf825e1caaddca8cd test
-: 
-[ENGINE   ]: ERROR!! test module [miniaudio] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\miniaudio\.zig-cache\o\d5647cc003ada70eb0e94f1aa0321052\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\miniaudio D:\uproj\NeonWood\lib\miniaudio\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xb189a5b3 -Zd48f04c236e4cb1a test
-: 
+[ENGINE   ]: test module [spirv-reflect-zig] passed!
+[ENGINE   ]: test module [tracy] passed!
 [ENGINE   ]: test module [glfw3] passed!
-[ENGINE   ]: ERROR!! test module [objLoader] failed!
-[ENGINE   ]: ERROR!! failure no step named 'test'
-  access the help menu with 'zig build -h'
-error: the following build command failed with exit code 1:
-D:\uproj\NeonWood\lib\objLoader\.zig-cache\o\a52969ba7eb7029cf99396b4354a2c57\build.exe C:\app\zig-windows-x86_64-0.13.0\zig.exe D:\uproj\NeonWood\lib\objLoader D:\uproj\NeonWood\lib\objLoader\.zig-cache C:\Users\peter\AppData\Local\zig --seed 0xe253c7dc -Zba84c74265645927 test
-: 
 [ENGINE   ]: test module [gl] passed!
+[ENGINE   ]: test module [miniaudio] passed!
+[ENGINE   ]: test module [nfd] passed!
+[ENGINE   ]: test module [objLoader] passed!
+[ENGINE   ]: test module [cgltf] passed!
+[ENGINE   ]: test module [packer] passed!
+[ENGINE   ]: test module [p2] passed!
 [ENGINE   ]: test module [lua] passed!
+[ENGINE   ]: test module [vma] passed!
+[ENGINE   ]: test module [zphysics] passed!
+[ENGINE   ]: test module [spng] passed!
+[ENGINE   ]: test module [zmath] passed!
+[ENGINE   ]: test module [vulkan] passed!
+[ENGINE   ]: test module [audio] passed!
+[ENGINE   ]: test module [core] passed!
+[ENGINE   ]: test module [assets] passed!
+[ENGINE   ]: test module [graphics] passed!
+[ENGINE   ]: test module [platform] passed!
+[ENGINE   ]: test module [ui] passed!
+[ENGINE   ]: test module [vkImgui] passed!
+[ENGINE   ]: test module [papyrus] passed!
+[ENGINE   ]: test module [physics] passed!
 [ENGINE   ]: Processing exit signals
 [ENGINE   ]: core module shutting down...
-[ENGINE   ]: allocated size: 2473986 (2.359 MiB)
-[ENGINE   ]: peak allocated size size: 5878259 (5.606 MiB) (220 peak allocations)
+[ENGINE   ]: allocated size: 2464258 (2.350 MiB)
+[ENGINE   ]: peak allocated size size: 5869217 (5.597 MiB) (241 peak allocations)

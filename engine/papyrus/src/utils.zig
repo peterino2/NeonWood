@@ -1,5 +1,5 @@
 const std = @import("std");
-const core = @import("root").neonwood.core;
+const core = @import("core");
 
 const Name = core.Name;
 const MakeName = core.Name;
@@ -19,7 +19,7 @@ pub fn grapvizDotToPng(allocator: std.mem.Allocator, vizFile: []const u8, pngFil
     const imageFile = try std.fmt.allocPrint(allocator, core.DefaultSavePath ++ "/{s}", .{pngFile});
     defer allocator.free(imageFile);
 
-    var childProc = std.ChildProcess.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
+    var childProc = std.process.Child.init(&.{ "dot", "-Tpng", sourceFile, "-o", imageFile }, allocator);
     try childProc.spawn();
 }
 
@@ -54,7 +54,7 @@ pub const FileLog = struct {
         const ofile = try std.fmt.allocPrint(self.allocator, core.DefaultSavePath ++ "/{s}", .{self.fileName});
         defer self.allocator.free(ofile);
         try cwd.makePath(core.DefaultSavePath);
-        try cwd.writeFile(ofile, self.buffer.items);
+        try cwd.writeFile(.{ .sub_path = ofile, .data = self.buffer.items });
     }
 
     pub fn deinit(self: *@This()) void {

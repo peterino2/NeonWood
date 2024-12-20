@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("vulkan", .{});
     }
 
-    const test_step = b.step("test-vulkan-integration", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

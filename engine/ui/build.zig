@@ -37,4 +37,16 @@ pub fn build(b: *std.Build) void {
 
     spirvGen.addShader(mod, b.path("shaders/FontSDF.vert"), "FontSDF_vert");
     spirvGen.addShader(mod, b.path("shaders/FontSDF.frag"), "FontSDF_frag");
+
+    const test_step = b.step("test", "run unit tests for ui");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("tests/tests.zig"),
+    });
+
+    tests.root_module.addImport("ui", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
+    b.installArtifact(tests);
 }

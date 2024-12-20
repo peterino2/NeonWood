@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) void {
         tests.root_module.addImport(depName, dep_mod);
     }
 
-    const test_step = b.step("test-platform", "run unit tests for platform");
+    const test_step = b.step("test", "run unit tests for platform");
 
     tests.root_module.addImport("platform", mod);
     const runArtifact = b.addRunArtifact(tests);
