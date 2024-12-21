@@ -21,4 +21,7 @@ pub fn build(b: *std.Build) void {
     tests.root_module.addImport("p2", mod);
     const runArtifact = b.addRunArtifact(tests);
     test_step.dependOn(&runArtifact.step);
+    if (b.args) |args| {
+        runArtifact.addArgs(args);
+    }
 }

@@ -84,6 +84,7 @@ pub const FontAtlas = struct {
             core.engine_log("[Fontcache] creating font cache for {s} font", .{fontName});
 
             var cachedFontArchive = std.ArrayList(u8).init(allocator);
+            defer cachedFontArchive.deinit();
             try rv.saveToArchive(&cachedFontArchive);
 
             try std.fs.cwd().makePath(".fontcache");

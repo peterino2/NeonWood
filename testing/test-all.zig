@@ -111,9 +111,9 @@ pub fn prepare(self: *@This()) !void {
                 }
 
                 if (success) {
-                    core.engine_log("test module [{s}] passed!", .{ctx.module.name});
+                    core.engine_log("tests for module [{s}] passed!", .{ctx.module.name});
                 } else {
-                    core.engine_err("test module [{s}] failed!", .{ctx.module.name});
+                    core.engine_err("tests for module [{s}] failed!", .{ctx.module.name});
                     core.engine_err("failure {s}: ", .{result.stderr});
                 }
 
@@ -136,12 +136,20 @@ pub fn prepare(self: *@This()) !void {
 
 pub fn tick(self: *@This(), _: f64) void {
     std.time.sleep(10_000_000);
+
+    var successCount: u32 = 0;
     if (self.testResultsQueue.count() == self.modules.items.len) {
         // all tests complete, tear it down boys.
         while (self.testResultsQueue.popFromUnlocked()) |t| {
             var copy = t;
             copy.deinit(self.allocator);
+
+            if (t.success) {
+                successCount += 1;
+            }
         }
+
+        core.engine_log("[{d} of {d} tests passed]", .{ successCount, self.modules.items.len });
         core.exitNow();
     }
 }
@@ -164,6 +172,7 @@ pub fn main() anyerror!void {
             .ui = false,
             .papyrus = false,
             .vkImgui = false,
+            .assets = false,
         },
     });
 }

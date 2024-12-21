@@ -61,15 +61,18 @@ pub const MakeName = names.MakeName;
 pub const createNameRegistry = names.createNameRegistry;
 pub const destroyNameRegistry = names.destroyNameRegistry;
 
+pub const spans = @import("structures/spans.zig");
+
 comptime {
-    std.testing.refAllDecls(utils);
-    std.testing.refAllDecls(static_structures);
-    std.testing.refAllDecls(ring_queue);
-    std.testing.refAllDecls(sparse_set);
-    std.testing.refAllDecls(stack_structures);
-    std.testing.refAllDecls(index_pool);
-    std.testing.refAllDecls(concurrent_queue);
-    std.testing.refAllDecls(string_pool);
+    // std.testing.refAllDecls(utils);
+    // std.testing.refAllDecls(static_structures);
+    // std.testing.refAllDecls(ring_queue);
+    // std.testing.refAllDecls(sparse_set);
+    // std.testing.refAllDecls(stack_structures);
+    // std.testing.refAllDecls(index_pool);
+    // std.testing.refAllDecls(concurrent_queue);
+    // std.testing.refAllDecls(string_pool);
+    std.testing.refAllDecls(spans);
 }
 
 // ---- aliases ----

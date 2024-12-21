@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     });
 
     _ = nwbuild.addProgram(.{
-        .name = "testAll",
+        .name = "tests",
         .desc = "a test runner that runs every single module test",
         .root_source_file = b.path("test-all.zig"),
     });

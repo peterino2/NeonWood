@@ -173,12 +173,18 @@ pub fn PagedVector(comptime T: type) type {
             try self.vector.append(self.allocator, value);
         }
 
+        pub fn appendAndGet(self: *@This(), value: T) !*T {
+            const index = self.len();
+            try self.append(value);
+            return self.getMutable(index);
+        }
+
         pub fn get(self: *const @This(), index: usize) *const T {
             return self.vector.get(index);
         }
 
         pub fn getMutable(self: *@This(), index: usize) *T {
-            self.vector.getMutable(index);
+            return self.vector.getMutable(index);
         }
 
         pub fn len(self: @This()) usize {
