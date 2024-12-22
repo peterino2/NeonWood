@@ -54,9 +54,9 @@ maxObjectCount: u32,
 
 plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
-listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
+meshPool: *MeshPool = undefined,
 
-// meshPool: *MeshPool = undefined,
+listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
 
 const ProcessEventListener = struct {
     ptr: *anyopaque,
@@ -147,6 +147,8 @@ const FrameSyncs = struct {
 
 pub fn setup(self: *@This()) !void {
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
+    self.meshPool = try MeshPool.create(self.allocator, 4e6, 16e6);
+
     try self.createSyncs();
     try self.initCommandBuffers();
     try self.initOrRecycleSwapchain();
@@ -205,6 +207,7 @@ fn processExitSignal(self: *@This()) void {
     self.displayTarget.deinit(self);
     self.deinitExtras();
     self.listeners.deinit(self.allocator);
+    self.meshPool.destroy();
 
     self.exitConfirmed.store(true, .seq_cst);
 }
@@ -884,6 +887,9 @@ const vk_renderer_interface = @import("vk_renderer_interface.zig");
 const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 const mesh = @import("../mesh.zig");
+
+const vk_mesh_pool = @import("vk_mesh_pool.zig");
+const MeshPool = vk_mesh_pool.MeshPool;
 
 // const vk_mesh_pool = @import("vk_mesh_pool.zig");
 // const MeshPool = vk_mesh_pool.MeshPool;

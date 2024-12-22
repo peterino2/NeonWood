@@ -17,16 +17,38 @@ const MeshPoolBuffers = struct {
     indexBuffer: NeonVkBuffer, // gpu sided index buffer
 
     allocator: std.mem.Allocator,
+    vkAllocator: *NeonVkAllocator,
+
+    gc: *NeonVkContext,
 
     uploader: NeonVkUploader,
     updateRequests: core.RingQueue(MeshUpdate),
 
     const Requests = core.RingQueue(MeshUpdate);
 
-    pub fn create(allocator: std.mem.Allocator) !*@This() {
+    pub fn create(
+        allocator: std.mem.Allocator,
+        gc: *NeonVkContext,
+        opt: struct {
+            vertexCount: u32 = 4_000_000,
+            indexCount: u32 = 16_000_000,
+
+            vertexStagingCount: u32 = 100_000,
+            indexStagingCount: u32 = 400_000,
+        },
+    ) !*@This() {
         const self = try allocator.create(@This());
         self.allocator = allocator;
-        self.updateRequests = try Requests.init(allocator);
+        self.updateRequests = try Requests.init(allocator, 4096);
+
+        self.vertexStaging = try gc.vkAllocator.createStagingBuffer(opt.vertexStagingCount * @sizeOf(MeshVertex), "Mesh Pool staging vertex buffer");
+        self.vertexBuffer = try gc.vkAllocator.createStagingBuffer(opt.vertexCount * @sizeOf(MeshVertex), "Mesh Pool gpu vertex buffer");
+
+        self.indexStaging = try gc.vkAllocator.createStagingBuffer(opt.indexStagingCount * @sizeOf(u32), "Mesh Pool staging index buffer");
+        self.indexBuffer = try gc.vkAllocator.createStagingBuffer(opt.indexCount * @sizeOf(u32), "Mesh Pool gpu vertex buffer");
+
+        self.gc = gc;
+        self.uploader = try NeonVkUploader.init(gc, "Mesh Pool uploader");
 
         return self;
     }
@@ -40,7 +62,7 @@ const MeshPoolBuffers = struct {
         {
             self.updateRequests.lock();
             defer self.updateRequests.unlock();
-            while (self.updateRequests.popUnlocked()) |x| {
+            while (self.updateRequests.popFromUnlocked()) |x| {
                 x.deinit(self.allocator);
             }
         }
@@ -50,7 +72,7 @@ const MeshPoolBuffers = struct {
     }
 };
 
-pub const MeshUpdate = union(u8) {
+pub const MeshUpdate = union(enum(u8)) {
     new: struct {
         vertices: []MeshVertex,
         indices: []u32,
@@ -142,6 +164,9 @@ const MergedSpans = core.MergedSpans;
 
 const vk_utils = @import("../vk_utils.zig");
 const NeonVkUploader = vk_utils.NeonVkUploader;
+
+const vk_renderer = @import("../vk_renderer.zig");
+const NeonVkContext = vk_renderer.NeonVkContext;
 
 const vk_constants = @import("../vk_constants.zig");
 const vk_api = @import("../vk_api.zig");

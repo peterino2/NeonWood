@@ -62,6 +62,8 @@ pub const createNameRegistry = names.createNameRegistry;
 pub const destroyNameRegistry = names.destroyNameRegistry;
 
 pub const spans = @import("structures/spans.zig");
+pub const MergedSpans = spans.MergedSpans;
+pub const Span = spans.Span;
 
 comptime {
     // std.testing.refAllDecls(utils);

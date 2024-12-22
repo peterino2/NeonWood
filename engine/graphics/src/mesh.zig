@@ -216,6 +216,8 @@ pub const Mesh = struct {
             // try self.load_from_obj_mesh(fileObjs.meshes.items[0]);
             try loadObjMeshVertices(&self.vertices, fileObjs.meshes.items[0]);
         }
+
+        core.graphics_log("mesh loaded with {d} vertices size {d}", .{ self.vertices.items.len, self.vertices.items.len * @sizeOf(MeshVertex) });
     }
 
     pub fn deinit(self: *Mesh, ctx: *NeonVkContext) void {
