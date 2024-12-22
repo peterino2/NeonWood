@@ -56,6 +56,8 @@ plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
 
+// meshPool: *MeshPool = undefined,
+
 const ProcessEventListener = struct {
     ptr: *anyopaque,
     func: *const fn (*anyopaque) void,
@@ -244,6 +246,8 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
         frameIndex: u32,
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
+            // check for mesh pool updates
+            // self.meshPool.checkUpdates();
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
         }
@@ -323,6 +327,8 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         };
         try self.preFrameUpdate(fi);
         const cmd = try self.startFrameCommands(fi);
+
+        // try self.meshPool.updateRequests(cmd);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const time = core.getEngineTime();
         try self.beginMainRenderpass(cmd, syncIndex);
@@ -347,7 +353,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
             std.time.sleep(300 * 1000 * 1000);
         }
     }
-    self.dynamicMeshManager.finishUpload() catch unreachable;
+    // self.dynamicMeshManager.finishUpload() catch unreachable;
 }
 
 fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
@@ -878,6 +884,9 @@ const vk_renderer_interface = @import("vk_renderer_interface.zig");
 const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 const mesh = @import("../mesh.zig");
+
+// const vk_mesh_pool = @import("vk_mesh_pool.zig");
+// const MeshPool = vk_mesh_pool.MeshPool;
 
 // todo and documentation
 //

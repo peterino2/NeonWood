@@ -152,9 +152,6 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     return error.FileNotFound;
 }
 
-pub const rend = @import("rend_core.zig");
-pub usingnamespace @import("rend_core.zig");
-
 pub const gles_renderer = @import("gles_renderer.zig");
 
 pub fn start_gles(allocator: std.mem.Allocator) void {

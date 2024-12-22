@@ -102,6 +102,7 @@ pub const DynamicMesh = struct {
 
     pub fn init(gc: *NeonVkContext, allocator: std.mem.Allocator, opts: struct {
         maxVertexCount: u32 = 4096,
+        maxIndexCount: u32 = 4096 * 6 / 4,
         mode: GeometryMode = .quads,
     }) !*@This() {
         var self = try allocator.create(@This());
@@ -119,11 +120,11 @@ pub const DynamicMesh = struct {
         self.gc = gc;
 
         {
-            self.stagingIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, "DynamicMesh.init - index staging");
+            self.stagingIndexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxIndexCount * @sizeOf(u32), "DynamicMesh.init - index staging");
             self.stagingVertexBuffer = try gc.vkAllocator.createStagingBuffer(opts.maxVertexCount * @sizeOf(MeshVertex), "DynamicMesh.init - vertex staging");
 
             inline for (0..2) |i| {
-                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxVertexCount * @sizeOf(u32) * 6 / 4, .{
+                self.indexBuffers[i] = try gc.vkAllocator.createGpuBuffer(opts.maxIndexCount * @sizeOf(u32), .{
                     .index_buffer_bit = true,
                 }, "DynamicMesh.init - gpu indexBuffer" ++ std.fmt.comptimePrint("[{d}]", .{i}));
 
@@ -184,13 +185,8 @@ pub const DynamicMesh = struct {
 
         var indexMemoryBarrier = vk.BufferMemoryBarrier{
             .buffer = self.indexBuffers[self.swapId].buffer,
-            .src_access_mask = .{
-                .transfer_read_bit = true,
-            },
-            .dst_access_mask = .{
-                //.transfer_write_bit = true,
-                .index_read_bit = true,
-            },
+            .src_access_mask = .{ .transfer_read_bit = true },
+            .dst_access_mask = .{ .index_read_bit = true },
             .src_queue_family_index = 0,
             .dst_queue_family_index = 0,
             .offset = 0,
@@ -202,12 +198,8 @@ pub const DynamicMesh = struct {
         // Insert Barrier for indexBuffer
         vkd.cmdPipelineBarrier(
             cmd,
-            .{
-                .transfer_bit = true,
-            },
-            .{
-                .vertex_input_bit = true,
-            },
+            .{ .transfer_bit = true },
+            .{ .vertex_input_bit = true },
             .{},
             0,
             undefined,
@@ -244,12 +236,8 @@ pub const DynamicMesh = struct {
 
         vkd.cmdPipelineBarrier(
             cmd,
-            .{
-                .transfer_bit = true,
-            },
-            .{
-                .vertex_input_bit = true,
-            },
+            .{ .transfer_bit = true },
+            .{ .vertex_input_bit = true },
             .{},
             0,
             undefined,
@@ -299,64 +287,64 @@ pub const DynamicMesh = struct {
     }
 
     // a stream-like interface for creating vertices
-    pub fn uploadVertices(self: *@This(), uploader: *NeonVkUploader) !void {
-        if (!self.isDirty) {
-            return;
-        }
+    // pub fn uploadVertices(self: *@This(), uploader: *NeonVkUploader) !void {
+    //     if (!self.isDirty) {
+    //         return;
+    //     }
 
-        self.dirty = false;
+    //     self.dirty = false;
 
-        const newSwapId = (self.swapId + 1) % 2;
-        // map buffers
+    //     const newSwapId = (self.swapId + 1) % 2;
+    //     // map buffers
 
-        var slice = try self.gc.vkAllocator.mapMemorySlice(MeshVertex, self.stagingVertexBuffer, self.vertices.len);
-        var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
+    //     var slice = try self.gc.vkAllocator.mapMemorySlice(MeshVertex, self.stagingVertexBuffer, self.vertices.len);
+    //     var indexSlice = try self.gc.vkAllocator.mapMemorySlice(u32, self.stagingIndexBuffer, self.vertices.len * 6 / 4);
 
-        defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
-        defer self.gc.vkAllocator.unmapMemory(self.stagingIndexBuffer);
+    //     defer self.gc.vkAllocator.unmapMemory(self.stagingVertexBuffer);
+    //     defer self.gc.vkAllocator.unmapMemory(self.stagingIndexBuffer);
 
-        // copy over vertices to mapped buffer
-        // so... this right here would need to lock.. actually this would be a try-lock
-        // if we fail to lock it... that's ok. we can just try again at the end of the frame.
-        // what happens if we always fail to lock it?
+    //     // copy over vertices to mapped buffer
+    //     // so... this right here would need to lock.. actually this would be a try-lock
+    //     // if we fail to lock it... that's ok. we can just try again at the end of the frame.
+    //     // what happens if we always fail to lock it?
 
-        for (0..self.vertexCount) |i| {
-            slice[i] = self.vertices[i];
-        }
-        self.vertexBufferLen[newSwapId] = self.vertexCount;
+    //     for (0..self.vertexCount) |i| {
+    //         slice[i] = self.vertices[i];
+    //     }
+    //     self.vertexBufferLen[newSwapId] = self.vertexCount;
 
-        // interpret vertices as quads.
-        if (self.geometryMode == .quads) {
-            var index: u32 = 0;
-            var vertex: u32 = 0;
-            while (vertex < self.vertexCount) {
-                indexSlice[index + 0] = vertex + 0;
-                indexSlice[index + 1] = vertex + 1;
-                indexSlice[index + 2] = vertex + 2;
+    //     // interpret vertices as quads.
+    //     if (self.geometryMode == .quads) {
+    //         var index: u32 = 0;
+    //         var vertex: u32 = 0;
+    //         while (vertex < self.vertexCount) {
+    //             indexSlice[index + 0] = vertex + 0;
+    //             indexSlice[index + 1] = vertex + 1;
+    //             indexSlice[index + 2] = vertex + 2;
 
-                indexSlice[index + 3] = vertex + 2;
-                indexSlice[index + 4] = vertex + 3;
-                indexSlice[index + 5] = vertex + 0;
+    //             indexSlice[index + 3] = vertex + 2;
+    //             indexSlice[index + 4] = vertex + 3;
+    //             indexSlice[index + 5] = vertex + 0;
 
-                vertex += 4;
-                index += 6;
-            }
-            self.indexBufferLen[newSwapId] = index;
-        }
+    //             vertex += 4;
+    //             index += 6;
+    //         }
+    //         self.indexBufferLen[newSwapId] = index;
+    //     }
 
-        // upload index and vertex buffers
-        try uploader.addBufferUpload(
-            self.stagingIndexBuffer,
-            self.indexBuffers[newSwapId],
-            self.indexBufferLen[newSwapId] * @as(u32, @intCast(@sizeOf(u32))),
-        );
+    //     // upload index and vertex buffers
+    //     try uploader.addBufferUpload(
+    //         self.stagingIndexBuffer,
+    //         self.indexBuffers[newSwapId],
+    //         self.indexBufferLen[newSwapId] * @as(u32, @intCast(@sizeOf(u32))),
+    //     );
 
-        try uploader.addBufferUpload(
-            self.stagingVertexBuffer,
-            self.vertexBuffers[newSwapId],
-            self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex))),
-        );
-    }
+    //     try uploader.addBufferUpload(
+    //         self.stagingVertexBuffer,
+    //         self.vertexBuffers[newSwapId],
+    //         self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex))),
+    //     );
+    // }
 
     pub fn bumpSwapId(self: *@This()) void {
         self.swapId = (self.swapId + 1) % 2;
