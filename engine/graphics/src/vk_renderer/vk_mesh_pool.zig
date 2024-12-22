@@ -2,12 +2,24 @@ const std = @import("std");
 const vk = @import("vulkan");
 const core = @import("core");
 
+pub const MeshPoolCreationSettings = struct {
+    vertexCount: u32 = 4_000_000,
+    indexCount: u32 = 16_000_000,
+
+    vertexStagingCount: u32 = 100_000,
+    indexStagingCount: u32 = 400_000,
+};
+
 // should be owned by renderthread
 //
 // operation per frame
 //
 // 1. async loading of vertices push model load results into a queue
 // 2. these results ar ethen installe dinto the vertex pool
+
+var gMeshPoolBuffer: *MeshPoolBuffers = undefined;
+
+const MeshVertexTransmute = extern struct { data: [@sizeOf(MeshVertex)]u8 };
 
 const MeshPoolBuffers = struct {
     vertexStaging: NeonVkBuffer, // cpu sided vertex staging buffer
@@ -29,13 +41,7 @@ const MeshPoolBuffers = struct {
     pub fn create(
         allocator: std.mem.Allocator,
         gc: *NeonVkContext,
-        opt: struct {
-            vertexCount: u32 = 4_000_000,
-            indexCount: u32 = 16_000_000,
-
-            vertexStagingCount: u32 = 100_000,
-            indexStagingCount: u32 = 400_000,
-        },
+        opt: MeshPoolCreationSettings,
     ) !*@This() {
         const self = try allocator.create(@This());
         self.allocator = allocator;
@@ -49,6 +55,8 @@ const MeshPoolBuffers = struct {
 
         self.gc = gc;
         self.uploader = try NeonVkUploader.init(gc, "Mesh Pool uploader");
+
+        gMeshPoolBuffer = self;
 
         return self;
     }
@@ -67,6 +75,13 @@ const MeshPoolBuffers = struct {
             }
         }
 
+        self.vertexStaging.deinit(self.gc.vkAllocator);
+        self.vertexBuffer.deinit(self.gc.vkAllocator);
+
+        self.indexStaging.deinit(self.gc.vkAllocator);
+        self.indexBuffer.deinit(self.gc.vkAllocator);
+        self.uploader.deinit();
+
         self.updateRequests.deinit();
         self.allocator.destroy(self);
     }
@@ -76,7 +91,6 @@ pub const MeshUpdate = union(enum(u8)) {
     new: struct {
         vertices: []MeshVertex,
         indices: []u32,
-        name: core.Name,
     },
     free: struct {
         vertices: Span,
@@ -93,6 +107,7 @@ pub const MeshUpdate = union(enum(u8)) {
         }
     }
 };
+
 pub const MeshPool = struct {
     buffers: *MeshPoolBuffers,
 
@@ -101,12 +116,13 @@ pub const MeshPool = struct {
 
     allocator: std.mem.Allocator,
 
-    pub fn create(allocator: std.mem.Allocator, vertexCapacity: u32, indexCapacity: u32) !*@This() {
+    pub fn create(allocator: std.mem.Allocator, gc: *NeonVkContext, opts: MeshPoolCreationSettings) !*@This() {
         const self = try allocator.create(@This());
+
         self.* = .{
-            .indices = try MergedSpans.init(allocator, indexCapacity),
-            .vertices = try MergedSpans.init(allocator, vertexCapacity),
-            .buffers = try MeshPoolBuffers.create(allocator),
+            .indices = try MergedSpans.init(allocator, opts.indexCount),
+            .vertices = try MergedSpans.init(allocator, opts.vertexCount),
+            .buffers = try MeshPoolBuffers.create(allocator, gc, opts),
             .allocator = allocator,
         };
         return self;
@@ -151,6 +167,63 @@ pub const PoolMesh = struct {
     vertexSpan: Span,
     indexSpan: Span,
 };
+
+pub fn loadIndexedMeshForPooling(path: []const u8) !void {
+    const file = try core.fs().loadFile(path);
+    defer core.fs().unmap(file);
+
+    const allocator = gMeshPoolBuffer.allocator;
+
+    var Objs = try objLoader.loadObjBytes(file.bytes, allocator);
+    defer Objs.deinit();
+
+    var vertexMap = std.AutoHashMap(MeshVertexTransmute, u32).init(allocator);
+    defer vertexMap.deinit();
+    var vertexList = std.ArrayList(MeshVertex).init(allocator);
+    var indexList = std.ArrayList(u32).init(allocator);
+
+    const m: *objLoader.ObjMesh = &Objs.meshes.items[0];
+
+    //  only thing i care about right now is normal and position
+    for (m.v_faces.items) |f| {
+        const face: objLoader.ObjFace = f;
+        for (0..face.count) |i| {
+            const p = m.v_positions.items[face.vertex[i] - 1];
+            const n = m.v_normals.items[face.normal[i] - 1];
+            const u = m.v_uvs.items[face.texture[i] - 1];
+            const meshVertex: MeshVertex = .{
+                .position = .{ .x = p.x, .y = p.y, .z = p.z },
+                .normal = .{ .x = n.x, .y = n.y, .z = n.z },
+                .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
+                .uv = .{ .x = u.x, .y = 1 - u.y },
+            };
+
+            var index: u32 = @intCast(vertexList.items.len);
+
+            const transmute: MeshVertexTransmute = @bitCast(meshVertex);
+            if (vertexMap.get(transmute)) |cachedIndex| {
+                index = cachedIndex;
+            } else {
+                try vertexMap.put(transmute, index);
+                try vertexList.append(meshVertex);
+            }
+            try indexList.append(index);
+        }
+    }
+
+    const rv: MeshUpdate = .{
+        .new = .{
+            .vertices = try vertexList.toOwnedSlice(),
+            .indices = try indexList.toOwnedSlice(),
+        },
+    };
+
+    core.graphics_log("[{s}] vertex count vertices={d} indices={d}", .{ path, rv.new.vertices.len, rv.new.indices.len });
+
+    try gMeshPoolBuffer.updateRequests.pushLocked(rv);
+}
+
+const objLoader = @import("objLoader");
 
 const vk_allocator = @import("../vk_allocator.zig");
 const NeonVkAllocator = vk_allocator.NeonVkAllocator;

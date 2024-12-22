@@ -182,6 +182,8 @@ pub const GameContext = struct {
         try core.fs().addContentPath("demo");
         try core.script.runScriptFile("scripts/prepare.lua");
 
+        try graphics.loadIndexedMeshForPooling("meshes/lost_empire.obj");
+
         self.animationDemo = try AnimationDemo.create(self.allocator);
 
         self.gc = graphics.getContext();

@@ -145,9 +145,9 @@ const FrameSyncs = struct {
     }
 };
 
-pub fn setup(self: *@This()) !void {
+pub fn setup(self: *@This(), gc: *NeonVkContext) !void {
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
-    self.meshPool = try MeshPool.create(self.allocator, 4e6, 16e6);
+    self.meshPool = try MeshPool.create(self.allocator, gc, .{});
 
     try self.createSyncs();
     try self.initCommandBuffers();
@@ -890,6 +890,9 @@ const mesh = @import("../mesh.zig");
 
 const vk_mesh_pool = @import("vk_mesh_pool.zig");
 const MeshPool = vk_mesh_pool.MeshPool;
+
+const graphics = @import("../graphics.zig");
+const NeonVkContext = graphics.NeonVkContext;
 
 // const vk_mesh_pool = @import("vk_mesh_pool.zig");
 // const MeshPool = vk_mesh_pool.MeshPool;

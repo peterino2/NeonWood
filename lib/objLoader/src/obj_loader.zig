@@ -470,3 +470,8 @@ test "parse_monkey" {
         faces_count,
     });
 }
+
+test "ObjIndexMesh" {
+    const monkey_obj_path = "./content/monkey.obj";
+    _ = monkey_obj_path;
+}

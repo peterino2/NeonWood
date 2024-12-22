@@ -592,7 +592,7 @@ pub const NeonVkContext = struct {
             .plugins = &self.rendererPlugins,
         };
 
-        try self.renderthread.setup();
+        try self.renderthread.setup(self);
     }
 
     pub fn init_dynamic_mesh(self: *@This()) !void {
