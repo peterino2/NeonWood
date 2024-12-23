@@ -66,9 +66,6 @@ const ProcessEventListener = struct {
 pub const ObjectSharedData = struct {
     textureSet: vk.DescriptorSet,
     indexedMesh: mesh_pool.IndexedMesh,
-    // pipeline: vk.Pipeline,
-    // pipelineLayout: vk.PipelineLayout,
-    // vertexCount: u32,
 };
 
 pub const SharedData = struct {
@@ -308,9 +305,6 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 
         const meshBuffer = object.indexedMesh;
         vkd.cmdDrawIndexed(cmd, meshBuffer.index.size, 1, meshBuffer.index.start, 0, @as(u32, @intCast(i)));
-
-        //vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
-        //vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
     }
 }
 
@@ -435,15 +429,6 @@ fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
         ssbo[i] = model;
     }
 
-    // var i: usize = 0;
-    // while (i < self.maxobjectcount and i < self.renderobjectset.dense.len) : (i += 1) {
-    //     const object = self.renderobjectset.dense.items(.renderobject)[i];
-    //     if (object.mesh != null) {
-    //         ssbo[i].modelmatrix = self.renderobjectset.dense.items(.renderobject)[i].transform;
-    //     }
-    // }
-
-    // unmapping every frame might actually be quite unessecary.
     self.vkAllocator.vmaAllocator.unmapMemory(allocation);
 }
 
@@ -527,7 +512,6 @@ fn finishFrame(self: *@This(), frameIndex: u32, syncIndex: u32) !void {
     var presentInfo = vk.PresentInfoKHR{
         .p_swapchains = @as([*]const vk.SwapchainKHR, @ptrCast(&self.displayTarget.swapchain)),
         .swapchain_count = 1,
-        //.p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[syncIndex])),
         .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[syncIndex].renderComplete)),
         .wait_semaphore_count = 1,
         .p_image_indices = @as([*]const u32, @ptrCast(&syncIndex)),

@@ -17,17 +17,6 @@ var gEcs: GraphicsEcs = undefined;
 
 pub fn registerEcs(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    // const container = core.makeEcsContainerRef(&graphics.getContext().staticMeshSet);
-    //
-    // try core.registerEcsContainer(container, core.MakeName("RenderObjects"));
-
-    // gEcs.allocator = allocator;
-    // gEcs.cameras = try CameraContainer.create(allocator);
-
-    // try core.registerEcsContainer(core.makeEcsContainerRef(gEcs.cameras), core.MakeName("Cameras"));
-    // const setHandle = try core.createEntity();
-    // _ = try gEcs.cameras.createWithHandle(setHandle, graphics.Camera.init());
-    // gEcs.cameras.destroyObject(setHandle);
 }
 
 pub fn shutdownEcs() void {

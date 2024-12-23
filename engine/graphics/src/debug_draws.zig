@@ -9,8 +9,6 @@ const debug_frag = @import("debug_frag");
 const tracy = core.tracy;
 const gpd = graphics.gpu_pipe_data;
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 pub const DebugLine = struct {
     start: core.Vectorf,
     end: core.Vectorf,
@@ -147,9 +145,6 @@ pub const DebugDrawSubsystem = struct {
         try assets.loadList(Primitives);
 
         // assign debug meshes
-        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").handle()).?;
-        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").handle()).?;
-        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").handle()).?;
         self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = core.MakeName("m_primitive_sphere");
         self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = core.MakeName("m_primitive_box");
         self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = core.MakeName("m_primitive_line");
@@ -168,11 +163,6 @@ pub const DebugDrawSubsystem = struct {
 
     pub fn createMaterial(self: *@This()) !void {
         var gc: *graphics.NeonVkContext = self.gc;
-
-        // const vert_spv = try graphics.loadSpv(gc.allocator, "debug_vert.spv");
-        // defer gc.allocator.free(vert_spv);
-        // const frag_spv = try graphics.loadSpv(gc.allocator, "debug_frag.spv");
-        // defer gc.allocator.free(frag_spv);
 
         const vert_spv = debug_vert.spv();
         const frag_spv = debug_frag.spv();
@@ -224,20 +214,6 @@ pub const DebugDrawSubsystem = struct {
             object.*.color = color;
             object.*.model = transform;
         }
-    }
-
-    pub fn onBindObject(
-        self: *@This(),
-        objectHandle: core.ObjectHandle,
-        drawIndex: usize,
-        cmd: vk.CommandBuffer,
-        frameIndex: usize,
-    ) void {
-        _ = self;
-        _ = objectHandle;
-        _ = cmd;
-        _ = drawIndex;
-        _ = frameIndex;
     }
 
     pub fn tick(self: *@This(), dt: f64) void {

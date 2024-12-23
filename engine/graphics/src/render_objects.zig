@@ -25,9 +25,7 @@ pub const StaticMeshSet = core.SparseSet(StaticMesh);
 pub const StaticMesh = struct {
     const Self = @This();
 
-    //mesh: ?*Mesh = null,
     mesh: ?IndexedMesh = null,
-    // material: ?*Material = null,
     texture: ?vk.DescriptorSet = null,
     transform: core.Mat = core.zm.translation(0, 0, 0),
     visibility: bool = true,
@@ -49,27 +47,16 @@ pub const StaticMesh = struct {
         "applyRelativeRotationZ",
         "setMesh",
         "setTextureByName",
-        // "setMaterial",
         "scriptInit", // todo.. sholdnt need this...
     };
 
     pub fn scriptInit(self: *@This()) void {
         _ = self;
-        // self.setMaterial("t_mesh");
     }
-
-    //pub fn setMaterial(self: *@This(), materialName: []const u8) void {
-    //    const name = core.MakeName(materialName);
-    //    const mat = graphics.getContext().materials.getEntry(name.handle()).?;
-    //    self.material = mat.value_ptr.*;
-    //    graphics.getContext().renderObjectsAreDirty = true;
-    //}
 
     // script function
     pub fn setMesh(self: *@This(), meshName: []const u8) void {
         const name = core.MakeName(meshName);
-        //const meshRef = graphics.getContext().meshes.get(name.handle());
-        //self.mesh = meshRef;
         self.mesh = graphics.getIndexedMeshByName(core.MakeName(meshName));
         self.meshName = name;
 

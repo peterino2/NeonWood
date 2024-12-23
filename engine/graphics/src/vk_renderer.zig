@@ -31,7 +31,6 @@ const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
 
-const use_renderthread = core.BuildOption("use_renderthread");
 const force_mailbox = core.BuildOption("force_mailbox");
 
 const vk_renderer_camera_gpu = @import("vk_renderer/vk_renderer_camera_gpu.zig");
@@ -90,7 +89,6 @@ const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
 pub const CreateRenderObjectParams = struct {
     mesh_name: Name,
     texture_name: Name = core.MakeName("missing_texture"),
-    // material_name: Name,
     init_transform: Transform = core.zm.identity(),
 };
 
@@ -299,9 +297,6 @@ pub const NeonVkContext = struct {
     objectDescriptorLayout: vk.DescriptorSetLayout,
 
     frameData: [NumFrames]NeonVkFrameData,
-    // lastMaterial: ?*Material,
-    // lastMesh: ?*Mesh,
-    // lastTextureSet: ?vk.DescriptorSet,
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
@@ -365,7 +360,6 @@ pub const NeonVkContext = struct {
             .y = ((2.0 / height) * sy) - 1.0,
             .z = 1.0,
         };
-        //var zmvec = vec.toZm();
 
         var eye = core.Vectorf.fromZm(core.zm.mul(i, vec.toZm()));
         eye.z = -1;
@@ -400,14 +394,11 @@ pub const NeonVkContext = struct {
         self.rendererPlugins = .{};
         self.isMinimized = false;
         self.textures = .{};
-        // self.meshes = .{};
         self.materials = .{};
         self.deferredTextureDestroy = .{};
         self.deferredDescriptorsDestroy = .{};
-        // self.lastMaterial = null;
         self.cameraRef = null;
         self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
-        // self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         try core.defineComponent(render_objects.StaticMesh, self.allocator);
@@ -535,21 +526,6 @@ pub const NeonVkContext = struct {
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
         // this stuff should be controlled by renderthread
-        if (!use_renderthread) {
-            // command buffer initialization
-            try self.graph.write("  root->init_command_buffers\n", .{});
-            try self.init_command_buffers();
-
-            try self.graph.write("  root->init_syncs\n", .{});
-            try self.init_syncs();
-
-            try self.graph.write("  root->init_or_recycle_swapchain\n", .{});
-            try self.init_or_recycle_swapchain();
-
-            try self.graph.write("  root->init_framebuffers\n", .{});
-            try self.init_framebuffers();
-        }
-
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut("renderer_graph.viz");
 
@@ -558,9 +534,7 @@ pub const NeonVkContext = struct {
 
     pub fn postInit(self: *@This()) core.EngineDataEventError!void {
         self.init_dynamic_mesh() catch return core.EngineDataEventError.UnknownStatePanic;
-        if (use_renderthread) {
-            self.init_renderthread() catch return core.EngineDataEventError.UnknownStatePanic;
-        }
+        self.init_renderthread() catch return core.EngineDataEventError.UnknownStatePanic;
     }
 
     pub fn init_uploader(self: *@This()) !void {
@@ -685,8 +659,6 @@ pub const NeonVkContext = struct {
     }
 
     pub fn create_mesh_image_for_texture(self: *@This(), inTexture: Texture, params: ImageSamplerParams) !vk.DescriptorSet {
-
-        // var textureSet = try self.allocator.create(vk.DescriptorSet);
         var textureSet: vk.DescriptorSet = undefined;
         var allocInfo = vk.DescriptorSetAllocateInfo{
             .descriptor_pool = self.descriptorPool,
@@ -697,7 +669,6 @@ pub const NeonVkContext = struct {
         try self.vkd.allocateDescriptorSets(self.dev, &allocInfo, @as([*]vk.DescriptorSet, @ptrCast(&textureSet)));
 
         var imageBufferInfo = vk.DescriptorImageInfo{
-            //.sampler = self.blockySampler,
             .sampler = if (params.useBlocky) self.blockySampler else self.linearSampler,
             .image_view = inTexture.imageView,
             .image_layout = .shader_read_only_optimal,
@@ -826,10 +797,8 @@ pub const NeonVkContext = struct {
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
-        //core.graphics_log("padded scene size = {d}", .{paddedSceneSize});
 
         const sceneParamBufferSize = NumFrames * paddedSceneSize;
-        //core.graphics_log("NumFrames = {d}", .{NumFrames});
 
         self.sceneParameterBuffer = try self.create_buffer(
             sceneParamBufferSize,
@@ -911,26 +880,6 @@ pub const NeonVkContext = struct {
             self.vkd.updateDescriptorSets(self.dev, 2, &setWrites, 0, undefined);
         }
     }
-
-    // we need a content filing system
-    // pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
-    //     var newMesh = try self.allocator.create(mesh.Mesh);
-    //     newMesh.* = mesh.Mesh.init(self, self.allocator);
-
-    //     var cookedPath = std.ArrayList(u8).init(self.allocator);
-    //     defer cookedPath.deinit();
-    //     try cookedPath.writer().print("_cooked/{s}.Mesh", .{filename});
-
-    //     if (core.fs().fileExists(cookedPath.items)) {
-    //         try newMesh.loadFromObjFileCooked(cookedPath.items);
-    //     } else {
-    //         try newMesh.load_from_obj_file(filename);
-    //     }
-
-    //     try newMesh.upload(self);
-    //     try self.meshes.put(self.allocator, meshName.handle(), newMesh);
-    //     return newMesh;
-    // }
 
     pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
         const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.MeshVertex);
@@ -1029,10 +978,6 @@ pub const NeonVkContext = struct {
 
         // Initialize the pipeline with the default triangle mesh shader
         // and the default lighting shader
-        // const vert_spv = try graphics.loadSpv(self.allocator, "triangle_mesh_vert.spv");
-        // defer self.allocator.free(vert_spv);
-        // const frag_spv = try graphics.loadSpv(self.allocator, "default_lit.spv");
-        // defer self.allocator.free(frag_spv);
         const vert_spv = triangle_mesh_vert.spv();
         const frag_spv = default_lit.spv();
 
@@ -1119,8 +1064,6 @@ pub const NeonVkContext = struct {
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
         try self.create_mesh_material();
-
-        // core.graphics_logs("Finishing up pipeline creation");
     }
 
     pub fn getNextSwapImage(self: *Self) !u32 {
@@ -1173,34 +1116,26 @@ pub const NeonVkContext = struct {
 
         core.gScene.updateTransforms();
 
-        // unreachable instead of panic so releasefast
-        // self.sceneManager.update(self) catch unreachable;
+        var frameIndex: u32 = 0;
 
-        if (use_renderthread) {
-            var frameIndex: u32 = 0;
-
-            if (!self.renderthread.minimized()) {
-                frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
-            }
-
-            var z2 = tracy.ZoneN(@src(), "renderer tick");
-            self.sendSharedData(frameIndex) catch unreachable;
-            self.sendSharedDataPlugins(frameIndex);
-
-            if (!self.renderthread.minimized()) {
-                self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
-            } else {
-                if (checkIfResized()) {
-                    std.debug.print("dispatching frame for resize\n", .{});
-                    self.renderthread.dispatchNextFrame(dt, 0) catch unreachable;
-                }
-            }
-
-            defer z2.End();
-        } else {
-            self.draw(dt) catch unreachable;
-            self.dynamicMeshManager.finishUpload() catch unreachable;
+        if (!self.renderthread.minimized()) {
+            frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
         }
+
+        var z2 = tracy.ZoneN(@src(), "renderer tick");
+        self.sendSharedData(frameIndex) catch unreachable;
+        self.sendSharedDataPlugins(frameIndex);
+
+        if (!self.renderthread.minimized()) {
+            self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
+        } else {
+            if (checkIfResized()) {
+                std.debug.print("dispatching frame for resize\n", .{});
+                self.renderthread.dispatchNextFrame(dt, 0) catch unreachable;
+            }
+        }
+
+        defer z2.End();
     }
 
     pub fn tick(self: *Self, dt: f64) void {
@@ -1268,403 +1203,6 @@ pub const NeonVkContext = struct {
         }
     }
 
-    // convert game state into some intermediate graphics data.
-    pub fn pre_frame_update(self: *Self) !void {
-        var z1 = tracy.ZoneN(@src(), "pre frame update");
-        defer z1.End();
-
-        if (self.renderObjectsAreDirty) {
-            var z11 = tracy.ZoneN(@src(), "sorting renderObjects");
-            try self.sortRenderObjects();
-            self.renderObjectsAreDirty = false;
-            z11.End();
-        }
-
-        // ---- upload global push constants ----
-        var z2 = tracy.ZoneN(@src(), "mapping memory");
-        const data = try self.vkAllocator.vmaAllocator.mapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation, u8);
-        z2.End();
-
-        // ==== upload camera data ====
-        if (self.cameraRef != null) {
-            vk_renderer_camera_gpu.memcpyCameraDataToStagedBuffer(self.cameraRef.?, data);
-        } else {
-            vk_renderer_camera_gpu.uploadNullCameraToBuffer(data);
-        }
-
-        var z4 = tracy.ZoneN(@src(), "unmapping");
-        self.vkAllocator.vmaAllocator.unmapMemory(self.frameData[self.nextFrameIndex].cameraBuffer.allocation);
-        z4.End();
-    }
-
-    // resume here ---
-    //
-    // go through draw() step by step and filter out everything
-    // needed in this thing to encode into vkrendererstate and vkrenderersystem
-    //
-    // also seperate a system such as papyrussystem and papyrus text renderer
-    // into what they are right now, and split out all the vulkan
-    // specific stuff into a seperate object type and double buffer vulkan
-    // commands.
-    pub fn acquire_next_frame(self: *Self) !void {
-        var z1 = tracy.Zone(@src());
-        z1.Name("waiting for frame");
-        defer z1.End();
-        self.nextFrameIndex = try self.getNextSwapImage();
-
-        _ = try self.vkd.waitForFences(
-            self.dev,
-            1,
-            @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])),
-            1,
-            1000000000,
-        );
-        try self.vkd.resetFences(self.dev, 1, @as([*]const vk.Fence, @ptrCast(&self.commandBufferFences.items[self.nextFrameIndex])));
-    }
-
-    pub fn start_frame_command_buffer(self: *Self) !vk.CommandBuffer {
-        const cmd = self.commandBuffers.items[self.nextFrameIndex];
-        try self.vkd.resetCommandBuffer(cmd, .{});
-
-        var cbi = vk.CommandBufferBeginInfo{
-            .p_inheritance_info = null,
-            .flags = .{ .one_time_submit_bit = true },
-        };
-        try self.vkd.beginCommandBuffer(cmd, &cbi);
-
-        return cmd;
-    }
-
-    pub fn begin_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
-        var z = tracy.ZoneNC(@src(), "Begin RenderPass", 0xFFBBBB);
-        defer z.End();
-        var clearValues = [2]vk.ClearValue{
-            .{
-                .color = .{ .float_32 = [4]f32{ 0.005, 0.005, 0.005, 1.0 } },
-            },
-            .{
-                .depth_stencil = .{
-                    .depth = 1.0,
-                    .stencil = 0.0,
-                },
-            },
-        };
-
-        var rpbi = vk.RenderPassBeginInfo{
-            .render_area = .{
-                .extent = self.actual_extent,
-                .offset = .{ .x = 0, .y = 0 },
-            },
-            .framebuffer = self.framebuffers.items[self.nextFrameIndex],
-            .render_pass = self.renderPass,
-            .clear_value_count = 2,
-            .p_clear_values = @as([*]const vk.ClearValue, @ptrCast(&clearValues)),
-        };
-
-        self.vkd.cmdBeginRenderPass(cmd, &rpbi, .@"inline");
-
-        self.vkd.cmdSetViewport(cmd, 0, 1, @ptrCast(&self.viewport));
-        self.vkd.cmdSetScissor(cmd, 0, 1, @ptrCast(&self.scissor));
-    }
-
-    pub fn finish_main_renderpass(self: *Self, cmd: vk.CommandBuffer) !void {
-        self.vkd.cmdEndRenderPass(cmd);
-    }
-
-    pub fn draw(self: *Self, deltaTime: f64) !void {
-        if (!self.isMinimized) {
-            try self.acquire_next_frame();
-
-            try self.pre_frame_update();
-            var z2 = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
-            const cmd = try self.start_frame_command_buffer();
-
-            try self.uploadDynamicMeshes(cmd);
-
-            try self.begin_main_renderpass(cmd);
-            try self.render_meshes(deltaTime);
-
-            for (self.rendererPlugins.items) |*interface| {
-                if (interface.vtable.postDraw) |postDraw| {
-                    postDraw(interface.ptr, cmd, self.nextFrameIndex, deltaTime);
-                }
-            }
-            try self.finish_main_renderpass(cmd);
-            try self.dynamicMeshManager.updateMeshes(cmd);
-            try self.vkd.endCommandBuffer(cmd);
-            z2.End();
-
-            var x = tracy.ZoneN(@src(), "End of Frame");
-            try self.finish_frame();
-            x.End();
-
-            self.destroyDeferredDestroyTextures();
-        } else {
-            var w: c_int = undefined;
-            var h: c_int = undefined;
-            platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
-
-            if ((self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
-                (w > 0 and h > 0))
-            {
-                self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
-
-                self.isMinimized = false;
-                try self.vkd.deviceWaitIdle(self.dev);
-                try self.destroy_framebuffers();
-
-                try self.init_or_recycle_swapchain();
-                try self.init_framebuffers();
-            }
-
-            if (w <= 0 or h <= 0) {
-                self.isMinimized = true;
-                self.extent.width = @as(u32, @intCast(w));
-                self.extent.height = @as(u32, @intCast(h));
-            }
-
-            self.firstFrame = false;
-
-            std.time.sleep(32 * 1000 * 1000);
-        }
-
-        self.firstFrame = false;
-    }
-
-    // fn draw_render_object(
-    //     self: *Self,
-    //     render_object: StaticMesh,
-    //     cmd: vk.CommandBuffer,
-    //     index: u32,
-    //     deltaTime: f64,
-    //     objectHandle: core.ObjectHandle,
-    // ) void {
-    //     _ = deltaTime;
-
-    //     if (!render_object.visibility)
-    //         return;
-
-    //     if (render_object.mesh == null)
-    //         return;
-
-    //     if (render_object.material == null)
-    //         return;
-
-    //     var z = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
-    //     defer z.End();
-
-    //     const pipeline = render_object.material.?.pipeline;
-    //     const layout = render_object.material.?.layout;
-    //     const object_mesh = render_object.mesh.?.*;
-
-    //     var offset: vk.DeviceSize = 0;
-
-    //     const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
-    //     var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
-
-    //     var z1 = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
-    //     if (self.lastMaterial != render_object.material) {
-    //         self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-    //         self.lastMaterial = render_object.material;
-    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
-    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
-    //     }
-    //     defer z1.End();
-
-    //     // if the StaticMesh has a textureset as an override use that instead of the default one on the material.
-    //     if (render_object.texture) |textureSet| {
-    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-    //     } else {
-    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&render_object.material.?.textureSet), 0, undefined);
-    //     }
-
-    //     // let plugins bind the render object.
-    //     for (self.rendererPlugins.items) |*plugin| {
-    //         if (plugin.vtable.onBindObject) |onBindObject| {
-    //             onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
-    //         }
-    //     }
-
-    //     if (self.lastMesh != render_object.mesh) {
-    //         self.lastMesh = render_object.mesh;
-    //         self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
-    //     }
-
-    //     // if (self.lastMesh != render_object.mesh) {
-    //     //     self.lastMesh = render_object.mesh;
-    //     //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
-    //     // }
-
-    //     self.vkd.cmdDraw(cmd, @as(u32, @intCast(object_mesh.vertices.items.len)), 1, 0, index);
-    // }
-
-    fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
-        _ = deltaTime;
-        const data = try self.vkAllocator.vmaAllocator.mapMemory(self.sceneParameterBuffer.allocation, u8);
-        const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
-        const startOffset = paddedSceneSize * self.nextFrameIndex;
-
-        self.sceneDataGpu.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
-
-        var dataSlice: []u8 = undefined;
-        dataSlice.ptr = data + startOffset;
-        dataSlice.len = @sizeOf(@TypeOf(self.sceneDataGpu));
-
-        var inputSlice: []const u8 = undefined;
-        inputSlice.ptr = @as([*]const u8, @ptrCast(&self.sceneDataGpu));
-        inputSlice.len = dataSlice.len;
-
-        @memcpy(dataSlice, inputSlice);
-
-        self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
-    }
-
-    // fn uploadDynamicMeshes(self: *Self, cmd: vk.CommandBuffer) !void {
-    //     for (self.dynamicTextures.items) |dynTex| {
-    //         try dynTex.issueUpload(cmd);
-    //     }
-    // }
-
-    // fn render_meshes(self: *Self, deltaTime: f64) !void {
-    //     var z = tracy.ZoneNC(@src(), "render meshes", 0xAAFFFF);
-    //     defer z.End();
-    //     const cmd = self.commandBuffers.items[self.nextFrameIndex];
-    //     var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
-    //     try self.upload_object_data();
-    //     z1.End();
-
-    //     // activate predraw plugins here.
-
-    //     var z10 = tracy.ZoneNC(@src(), "renderer plugins - preDraw", 0xAAFFFF);
-    //     for (self.rendererPlugins.items) |*interface| {
-    //         if (interface.vtable.preDraw) |preDraw| {
-    //             preDraw(interface.ptr, self.nextFrameIndex);
-    //         }
-    //     }
-    //     defer z10.End();
-
-    //     self.lastMaterial = null;
-    //     self.lastMesh = null;
-
-    //     var z2 = tracy.ZoneNC(@src(), "rendering objects", 0xBBAAFF);
-    //     for (self.staticMeshSet.dense.items, 0..) |dense, i| {
-    //         // holy moly i really should make a convenience function for this.
-    //         // dense to sparse given a known dense index
-    //         var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.dense.items[i].sparseIndex.index];
-    //         sparseHandle.index = self.staticMeshSet.dense.items[i].sparseIndex.index;
-    //         self.draw_render_object(dense.value, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
-    //     }
-    //     z2.End();
-    // }
-
-    fn finish_frame(self: *Self) !void {
-        if (use_renderthread) {
-            return error.BannedFunctionInRenderThreadMode;
-        }
-        var waitStage = vk.PipelineStageFlags{ .color_attachment_output_bit = true };
-
-        var submit = vk.SubmitInfo{
-            .p_wait_dst_stage_mask = @as([*]const vk.PipelineStageFlags, @ptrCast(&waitStage)),
-            .wait_semaphore_count = 1,
-            .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.acquireSemaphores.items[self.nextFrameIndex])),
-            .signal_semaphore_count = 1,
-            .p_signal_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[self.nextFrameIndex])),
-            .command_buffer_count = 1,
-            .p_command_buffers = @as([*]const vk.CommandBuffer, @ptrCast(&self.commandBuffers.items[self.nextFrameIndex])),
-        };
-
-        var z1 = tracy.ZoneNC(@src(), "submitting", 0xBBAAFF);
-        try self.vkd.queueSubmit(
-            self.graphicsQueue.handle,
-            1,
-            @as([*]const vk.SubmitInfo, @ptrCast(&submit)),
-            self.commandBufferFences.items[self.nextFrameIndex],
-        );
-        z1.End();
-
-        var presentInfo = vk.PresentInfoKHR{
-            .p_swapchains = @as([*]const vk.SwapchainKHR, @ptrCast(&self.swapchain)),
-            .swapchain_count = 1,
-            .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[self.nextFrameIndex])),
-            .wait_semaphore_count = 1,
-            .p_image_indices = @as([*]const u32, @ptrCast(&self.nextFrameIndex)),
-            .p_results = null,
-        };
-
-        var outOfDate: bool = false;
-        //_ = self.vkd.queuePresentKHR(self.presentQueue.handle, &presentInfo) catch |err| switch (err) {
-        _ = self.vkd.queuePresentKHR(self.graphicsQueue.handle, &presentInfo) catch |err| switch (err) {
-            error.OutOfDateKHR => {
-                outOfDate = true;
-            },
-            else => |narrow| return narrow,
-        };
-
-        var w: c_int = undefined;
-        var h: c_int = undefined;
-        platform.glfw3.glfwGetWindowSize(self.platformInstance.window, &w, &h);
-
-        if ((outOfDate or self.extent.width != @as(u32, @intCast(w)) or self.extent.height != @as(u32, @intCast(h))) and
-            (w > 0 and h > 0))
-        {
-            self.extent = .{ .width = @as(u32, @intCast(w)), .height = @as(u32, @intCast(h)) };
-            platform.getInstance().updateExtent(.{ .x = w, .y = h });
-
-            self.isMinimized = false;
-            try self.vkd.deviceWaitIdle(self.dev);
-            try self.destroy_framebuffers();
-
-            try self.init_or_recycle_swapchain();
-            try self.init_framebuffers();
-        }
-
-        if (w <= 0 or h <= 0) {
-            self.isMinimized = true;
-        }
-
-        self.firstFrame = false;
-    }
-
-    fn destroy_framebuffers(self: *Self) !void {
-        self.vkd.destroyImageView(self.dev, self.depthImageView, null);
-        self.depthImage.deinit(self.vkAllocator);
-        for (self.framebuffers.items) |framebuffer| {
-            self.vkd.destroyFramebuffer(self.dev, framebuffer, null);
-        }
-        self.framebuffers.deinit();
-        for (self.swapImages.items, 0..) |_, i| {
-            self.swapImages.items[i].deinit(self.vkd, self.dev);
-        }
-        self.swapImages.deinit();
-    }
-
-    fn init_framebuffers(self: *Self) !void {
-        self.framebuffers = ArrayList(vk.Framebuffer).init(self.allocator);
-        try self.framebuffers.resize(self.swapImages.items.len);
-
-        var attachments = try self.allocator.alloc(vk.ImageView, 2);
-        defer self.allocator.free(attachments);
-        attachments[1] = self.depthImageView; // slot 0 is going to be the current image view, slot 1 is the depth image view
-
-        var fbci = vk.FramebufferCreateInfo{
-            .flags = .{},
-            .render_pass = self.renderPass,
-            .attachment_count = 2,
-            .p_attachments = attachments.ptr,
-            .width = self.actual_extent.width,
-            .height = self.actual_extent.height,
-            .layers = 1,
-        };
-
-        core.graphics_log("swapImages count = {d}", .{self.swapImages.items.len});
-
-        for (self.swapImages.items, 0..) |image, i| {
-            attachments[0] = image.view;
-            //debug_struct("fbci.p_attachment[0]", fbci.p_attachments[0]);
-            self.framebuffers.items[i] = try self.vkd.createFramebuffer(self.dev, &fbci, null);
-        }
-    }
-
     fn init_depthFormat(self: *Self) !void {
         var formats = [_]vk.Format{
             .d32_sfloat,
@@ -1676,7 +1214,6 @@ pub const NeonVkContext = struct {
             .optimal,
             .{ .depth_stencil_attachment_bit = true },
         );
-        // core.graphics_log("created depth format: {any}", .{self.depthFormat});
     }
 
     fn init_renderpasses(self: *Self) !void {
@@ -1804,101 +1341,6 @@ pub const NeonVkContext = struct {
         }
     }
 
-    pub fn init_or_recycle_swapchain(self: *Self) !void {
-        self.caps = try self.vki.getPhysicalDeviceSurfaceCapabilitiesKHR(self.physicalDevice, self.surface);
-
-        try self.find_surface_format();
-        // debug_struct("selected surface format", self.surfaceFormat);
-
-        try self.find_present_mode();
-        // debug_struct("selected present mode", self.presentMode);
-
-        try self.find_actual_extent();
-        // debug_struct("actual extent", self.actual_extent);
-
-        if (self.actual_extent.width == 0 or self.actual_extent.height == 0) {
-            return error.InvalidSurfaceDimensions;
-        }
-
-        var image_count = @as(u32, @intCast(NumFrames));
-        if (self.caps.max_image_count > 0) {
-            image_count = @min(image_count, self.caps.max_image_count);
-        }
-
-        const qfi = [_]u32{ self.graphicsQueue.family, self.presentQueue.family };
-
-        const sharing_mode: vk.SharingMode = if (self.graphicsQueue.family != self.presentQueue.family)
-            .concurrent
-        else
-            .exclusive;
-
-        var scci = vk.SwapchainCreateInfoKHR{
-            .flags = .{},
-            .surface = self.surface,
-            .min_image_count = image_count,
-            .image_format = self.surfaceFormat.format,
-            .image_color_space = self.surfaceFormat.color_space,
-            .image_extent = self.actual_extent,
-            .image_array_layers = 1,
-            .image_usage = .{ .color_attachment_bit = true, .transfer_dst_bit = true },
-            .image_sharing_mode = sharing_mode,
-            .queue_family_index_count = qfi.len,
-            .p_queue_family_indices = &qfi,
-            .pre_transform = self.caps.current_transform,
-            .composite_alpha = .{ .opaque_bit_khr = true },
-            .present_mode = self.presentMode,
-            .clipped = vk.TRUE,
-            .old_swapchain = self.swapchain,
-        };
-
-        const newSwapchain = try self.vkd.createSwapchainKHR(self.dev, &scci, null);
-        errdefer self.vkd.destroySwapchainKHR(self.dev, newSwapchain, null);
-
-        if (self.swapchain != .null_handle) {
-            self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
-        }
-
-        self.swapchain = newSwapchain;
-        try self.create_swapchain_images_and_views();
-
-        self.viewport = vk.Viewport{
-            .x = 0,
-            .y = 0,
-            .width = @as(f32, @floatFromInt(self.actual_extent.width)),
-            .height = @as(f32, @floatFromInt(self.actual_extent.height)),
-            .min_depth = 0.0,
-            .max_depth = 1.0,
-        };
-
-        self.scissor = .{
-            .offset = .{ .x = 0, .y = 0 },
-            .extent = self.actual_extent,
-        };
-    }
-
-    pub fn init_syncs(self: *Self) !void {
-        if (use_renderthread) {
-            return;
-        }
-
-        self.acquireSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
-        self.renderCompleteSemaphores = try ArrayList(vk.Semaphore).initCapacity(self.allocator, NumFrames);
-
-        try self.acquireSemaphores.resize(NumFrames);
-        try self.renderCompleteSemaphores.resize(NumFrames);
-
-        var sci = vk.SemaphoreCreateInfo{
-            .flags = .{},
-        };
-
-        for (core.count(NumFrames), 0..) |_, i| {
-            self.acquireSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
-            self.renderCompleteSemaphores.items[i] = try self.vkd.createSemaphore(self.dev, &sci, null);
-        }
-
-        self.extraSemaphore = try self.vkd.createSemaphore(self.dev, &sci, null);
-    }
-
     fn create_swapchain_images_and_views(self: *Self) !void {
         self.swapImages = ArrayList(NeonVkSwapImage).init(self.allocator);
 
@@ -1978,14 +1420,6 @@ pub const NeonVkContext = struct {
             .usage = .gpuOnly,
         };
 
-        // var result = try self.vmaAllocator.createImage(dimg_create, dimg_vma_alloc_info);
-        // self.depthImage = .{
-        //     .image = result.image,
-        //     .allocation = result.allocation,
-        //     .pixelWidth = self.actual_extent.width,
-        //     .pixelHeight = self.actual_extent.height,
-        // };
-
         self.depthImage = try self.vkAllocator.createImage(dimg_ici, dimg_aci, @src().fn_name);
 
         var imageViewCreate = vk.ImageViewCreateInfo{
@@ -2006,30 +1440,6 @@ pub const NeonVkContext = struct {
         };
 
         self.depthImageView = try self.vkd.createImageView(self.dev, &imageViewCreate, null);
-    }
-
-    pub fn init_command_buffers(self: *Self) !void {
-        self.commandBuffers = ArrayList(vk.CommandBuffer).init(self.allocator);
-        self.commandBufferFences = ArrayList(vk.Fence).init(self.allocator);
-        try self.commandBuffers.resize(NumFrames);
-        try self.commandBufferFences.resize(NumFrames);
-
-        var cbai = vk.CommandBufferAllocateInfo{
-            .command_pool = self.commandPool,
-            .level = vk.CommandBufferLevel.primary,
-            .command_buffer_count = NumFrames,
-        };
-
-        try self.vkd.allocateCommandBuffers(self.dev, &cbai, self.commandBuffers.items.ptr);
-
-        // then create fences for the command buffers
-        var fci = vk.FenceCreateInfo{
-            .flags = .{ .signaled_bit = true },
-        };
-
-        for (core.count(NumFrames), 0..) |_, i| {
-            self.commandBufferFences.items[i] = try self.vkd.createFence(self.dev, &fci, null);
-        }
     }
 
     pub fn init_command_pools(self: *Self) !void {
@@ -2476,36 +1886,11 @@ pub const NeonVkContext = struct {
         return data;
     }
 
-    pub fn destroy_syncs(self: *Self) !void {
-        for (self.acquireSemaphores.items) |x| {
-            self.vkd.destroySemaphore(self.dev, x, null);
-        }
-
-        for (self.renderCompleteSemaphores.items) |x| {
-            self.vkd.destroySemaphore(self.dev, x, null);
-        }
-        self.vkd.destroySemaphore(self.dev, self.extraSemaphore, null);
-        self.acquireSemaphores.deinit();
-        self.renderCompleteSemaphores.deinit();
-
-        for (self.commandBufferFences.items) |x| {
-            self.vkd.destroyFence(self.dev, x, null);
-        }
-        self.commandBufferFences.deinit();
-    }
-
     pub fn destroy_renderpass(self: *Self) !void {
         self.vkd.destroyRenderPass(self.dev, self.renderPass, null);
     }
 
     pub fn destroy_meshes(self: *Self) !void {
-        // var iter = self.meshes.iterator();
-        // while (iter.next()) |i| {
-        //     i.value_ptr.*.deinit(self);
-        //     self.allocator.destroy(i.value_ptr.*);
-        // }
-        // self.meshes.deinit(self.allocator);
-
         self.dynamicMeshManager.deinit();
     }
 
@@ -2548,7 +1933,6 @@ pub const NeonVkContext = struct {
     pub fn destroy_descriptors(self: *Self) void {
         for (self.frameData, 0..) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vkAllocator);
-            // self.frameData[i].spriteBuffer.deinit(self.vmaAllocator);
             self.frameData[i].objectBuffer.deinit(self.vkAllocator);
         }
         self.sceneParameterBuffer.deinit(self.vkAllocator);
@@ -2587,8 +1971,6 @@ pub const NeonVkContext = struct {
         core.engine_logs("Tearing down renderer");
         core.forceFlush();
 
-        if (use_renderthread) {}
-
         for (self.rendererPlugins.items) |*interface| {
             if (interface.vtable.onRendererTeardown) |onRendererTeardown| {
                 onRendererTeardown(interface.ptr);
@@ -2607,8 +1989,6 @@ pub const NeonVkContext = struct {
 
         self.dynamicTextures.deinit(self.allocator);
 
-        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
-
         self.destroy_textures() catch {
             core.engine_errs("unable to destroy textures");
         };
@@ -2625,18 +2005,7 @@ pub const NeonVkContext = struct {
         self.destroy_renderobjects() catch {
             core.engine_errs("unable to destroy renderObjects");
         };
-        if (!use_renderthread) {
-            self.destroy_syncs() catch {
-                core.engine_errs("unable to destroy syncs");
-            };
-            self.destroy_framebuffers() catch {
-                core.engine_errs("unable to destroy framebuffers");
-            };
 
-            self.commandBuffers.deinit();
-        }
-
-        // self.vkd.deviceWaitIdle(self.dev) catch unreachable;
         self.vkd.destroySwapchainKHR(self.dev, self.swapchain, null);
 
         self.destroy_uploaders();
@@ -2677,14 +2046,8 @@ pub const NeonVkContext = struct {
         _ = self;
         var renderObject = StaticMesh.fromTransform(params.init_transform);
 
-        //const findMesh = self.meshes.getEntry(params.mesh_name.handle());
         const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
-        // const findMat = self.materials.getEntry(.material_name.handle());
 
-        //if (findMat == null)
-        //return error.NoMaterialFound;
-
-        // renderObject.material = findMat.?.value_ptr.*;
         renderObject.mesh = findMesh;
         renderObject.meshName = params.mesh_name;
         return renderObject;
@@ -2709,20 +2072,15 @@ pub const NeonVkContext = struct {
     }
 
     pub fn readyToExit(self: *@This()) bool {
-        if (use_renderthread) {
-            while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {
-                self.renderthread.spinProcessExitSignal();
-            }
+        while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {
+            self.renderthread.spinProcessExitSignal();
         }
         return true;
     }
 
     pub fn onExitSignal(self: *@This()) core.EngineDataEventError!void {
         core.engine_logs("Renderer exit signaled");
-        // self.vkd.deviceWaitIdle(self.dev) catch return error.UnknownStatePanic;
-        if (use_renderthread) {
-            self.renderthread.onExitSignal();
-        }
+        self.renderthread.onExitSignal();
     }
 };
 

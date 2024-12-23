@@ -11,8 +11,6 @@ const tracy = @import("tracy");
 const p2 = @import("p2");
 const nfd = @import("nfd");
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 const Atomic = std.atomic.Value;
 const EngineDataEventError = engineObject.EngineDataEventError;
 

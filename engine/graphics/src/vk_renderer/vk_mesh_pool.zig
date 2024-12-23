@@ -52,7 +52,6 @@ const UploadList = struct {
         try core.assert(uploader.isActive);
 
         const upload = self.uploads.items[index];
-        std.debug.print("issuing copy start {d} size {d}\n", .{ upload.destination.start, upload.destination.size });
         var copy = vk.BufferCopy{
             .dst_offset = upload.destination.start * elementSize,
             .src_offset = 0,
@@ -245,7 +244,6 @@ pub const MeshPoolBuffers = struct {
             .buffer = self.vertexBuffer.buffer,
             .src_access_mask = .{ .transfer_read_bit = true },
             .dst_access_mask = .{
-                // .transfer_write_bit = true,
                 .vertex_attribute_read_bit = true,
             },
             .src_queue_family_index = 0,
@@ -351,7 +349,6 @@ pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
         }
 
         if (face.count == 4) {
-            // 0 1 2 2 3 0
             const il: []const usize = &.{ 0, 1, 2, 2, 3, 0 };
             for (il) |i| {
                 const p = m.v_positions.items[face.vertex[i] - 1];

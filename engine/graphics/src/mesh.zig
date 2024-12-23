@@ -170,6 +170,7 @@ fn vertexFromFaceOffset(mesh: ObjMesh, face: obj_loader.ObjFace, offset: u32) Me
     return v;
 }
 
+// legacy, don't use
 pub const Mesh = struct {
     vertices: ArrayList(MeshVertex),
     buffer: NeonVkBuffer,

@@ -158,16 +158,6 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     return error.FileNotFound;
 }
 
-pub const gles_renderer = @import("gles_renderer.zig");
-
-pub fn start_gles(allocator: std.mem.Allocator) void {
-    gles_renderer.start(allocator);
-}
-
-pub fn shutdown_gles(allocator: std.mem.Allocator) void {
-    gles_renderer.shutdown(allocator);
-}
-
 pub const Module = core.ModuleDescription{
     .name = "graphics",
     .enabledByDefault = true,

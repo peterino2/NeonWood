@@ -59,8 +59,6 @@ const DisplayText = text_render.DisplayText;
 const FontAtlasVk = text_render.FontAtlasVk;
 const Key = papyrus.Event.Key;
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 pub const RawInputListenerVTable = platform.windowing.RawInputListenerInterface.from(@This());
 
 pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
@@ -86,9 +84,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
         .defaultTextureSet = undefined,
     };
 
-    if (use_renderthread) {
-        self.initShared();
-    }
+    self.initShared();
 
     self.onDebugInfoBinding = try core.addEngineDelegateBinding("onFrameDebugInfoEmitted", onFrameDebugInfo, self);
     // core.engine_logs("PapyrusSystem init");
@@ -701,9 +697,7 @@ pub fn shutdown(self: *@This()) void {
     self.drawList.deinit();
     self.papyrusCtx.deinit();
 
-    if (use_renderthread) {
-        self.deinitShared();
-    }
+    self.deinitShared();
 
     core.ui_logs("finished shutting down ui");
 }

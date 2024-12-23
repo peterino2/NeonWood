@@ -13,8 +13,6 @@ const vk_renderer = @import("vk_renderer.zig");
 const mesh = @import("mesh.zig");
 const texture = @import("texture.zig");
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 const NeonVkContext = vk_renderer.NeonVkContext;
 const Material = materials.Material;
 const Mesh = mesh.Mesh;
@@ -139,15 +137,11 @@ pub const TextureLoader = struct {
                     sampler,
                 ) catch return error.UnknownStatePanic;
 
-                if (!use_renderthread) {
-                    gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
-                } else {
-                    self.rtAssetsReady.pushLocked(.{
-                        .name = assetReady.name,
-                        .texture = newTexture,
-                        .textureSet = textureSet,
-                    }) catch return error.UnknownStatePanic;
-                }
+                self.rtAssetsReady.pushLocked(.{
+                    .name = assetReady.name,
+                    .texture = newTexture,
+                    .textureSet = textureSet,
+                }) catch return error.UnknownStatePanic;
                 z1.End();
             }
         }
@@ -156,15 +150,11 @@ pub const TextureLoader = struct {
     // processing events, some should really be processing events rather than
     pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
         _ = frameNumber;
-        if (!use_renderthread) {
-            try self.processEventInner();
-        } else {
-            if (self.rtAssetsReady.count() > 0) {
-                self.rtAssetsReady.lock();
-                defer self.rtAssetsReady.unlock();
-                while (self.rtAssetsReady.popFromUnlocked()) |a| {
-                    self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet) catch return error.UnknownStatePanic;
-                }
+        if (self.rtAssetsReady.count() > 0) {
+            self.rtAssetsReady.lock();
+            defer self.rtAssetsReady.unlock();
+            while (self.rtAssetsReady.popFromUnlocked()) |a| {
+                self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet) catch return error.UnknownStatePanic;
             }
         }
     }
@@ -191,9 +181,7 @@ pub const TextureLoader = struct {
             .rtAssetsReady = core.RingQueue(RTAssetsReady).init(allocator, 1024) catch unreachable,
         };
 
-        if (use_renderthread) {
-            try self.gc.renderthread.installListener(self, processRenderThreadEvents);
-        }
+        try self.gc.renderthread.installListener(self, processRenderThreadEvents);
 
         return self;
     }
