@@ -1546,6 +1546,7 @@ pub const NeonVkContext = struct {
         desiredFeatures.depth_clamp = vk.TRUE;
         desiredFeatures.depth_bias_clamp = vk.TRUE;
         desiredFeatures.fill_mode_non_solid = vk.TRUE;
+        desiredFeatures.multi_draw_indirect = vk.TRUE;
 
         var shaderDrawFeatures = vk.PhysicalDeviceShaderDrawParametersFeatures{
             .shader_draw_parameters = vk.TRUE,

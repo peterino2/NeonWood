@@ -334,6 +334,8 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         // try self.meshPool.updateRequests(cmd);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const time = core.getEngineTime();
+
+        self.preDrawPlugins(cmd, fi);
         try self.beginMainRenderpass(cmd, syncIndex);
 
         self.renderMeshes(cmd, fi);
@@ -357,6 +359,14 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         }
     }
     // self.dynamicMeshManager.finishUpload() catch unreachable;
+}
+
+fn preDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    for (self.plugins.items) |interface| {
+        if (interface.vtable.rtPreDraw) |rtPreDraw| {
+            rtPreDraw(interface.ptr, self, cmd, fi);
+        }
+    }
 }
 
 fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {

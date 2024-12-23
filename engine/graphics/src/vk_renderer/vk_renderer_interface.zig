@@ -20,7 +20,7 @@ pub const RendererInterface = struct {
     onRendererTeardown: ?*const fn (*anyopaque) void,
 
     sendShared: ?*const fn (*anyopaque, u32) void,
-    rtPreDraw: ?*const fn (*anyopaque, vk.CommandBuffer, u32) void,
+    rtPreDraw: ?*const fn (*anyopaque, *RenderThread, vk.CommandBuffer, u32) void,
     rtPostDraw: ?*const fn (*anyopaque, *RenderThread, vk.CommandBuffer, u32) void,
 
     pub fn from(comptime TargetType: type) @This() {
@@ -32,9 +32,9 @@ pub const RendererInterface = struct {
                 ptr.sendShared(frameIndex);
             }
 
-            pub fn rtPreDraw(p: *anyopaque, cmd: vk.CommandBuffer, frameIndex: u32) void {
+            pub fn rtPreDraw(p: *anyopaque, rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
                 var ptr = @as(*TargetType, @ptrCast(@alignCast(p)));
-                ptr.rtPreDraw(cmd, frameIndex);
+                ptr.rtPreDraw(rt, cmd, frameIndex);
             }
 
             pub fn rtPostDraw(p: *anyopaque, rt: *RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {

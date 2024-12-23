@@ -1,6 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 
+const vkd_utils = @import("vk_renderer/vkd_utils.zig");
 const core = @import("core");
 const graphics = @import("graphics.zig");
 const assets = @import("assets");
@@ -133,6 +134,9 @@ pub const DebugDrawSubsystem = struct {
 
     sharedData: [graphics.NumFrames]DebugSharedData = .{ .{}, .{} },
 
+    indirectStaging: graphics.NeonVkBuffer = undefined,
+    indirectGpu: graphics.NeonVkBuffer = undefined,
+
     const Primitives = [_]assets.AssetImportReference{
         assets.MakeImportRef("Mesh", "m_primitive_sphere", "meshes/primitive_sphere.obj"),
         assets.MakeImportRef("Mesh", "m_primitive_box", "meshes/primitive_box.obj"),
@@ -150,6 +154,18 @@ pub const DebugDrawSubsystem = struct {
         self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = core.MakeName("m_primitive_line");
         try self.createPipeData();
         try self.createMaterial();
+
+        // create indirect command buffers
+        self.indirectStaging = try gc.vkAllocator.createStagingBuffer(4096 * @sizeOf(vk.DrawIndexedIndirectCommand), "debug draw indirect staging buffer");
+        self.indirectGpu = try gc.vkAllocator.createIndirectCommandBuffer(4096 * @sizeOf(vk.DrawIndexedIndirectCommand), "debug draw indirect command buffer");
+    }
+
+    pub fn uploadIndirectCommands(self: *@This(), cmd: vk.CommandBuffer, count: u32) void {
+        vkd_utils.copyStagingSlice(vk.DrawIndexedIndirectCommand, cmd, .{
+            .src = &self.indirectStaging,
+            .dst = &self.indirectGpu,
+            .size = count,
+        });
     }
 
     pub fn createPipeData(self: *@This()) !void {
@@ -244,6 +260,44 @@ pub const DebugDrawSubsystem = struct {
         }
     }
 
+    pub fn rtPreDraw(self: *@This(), rt: *graphics.RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
+        _ = rt;
+        const shared: *DebugSharedData = &self.sharedData[frameIndex];
+        var offset: usize = 0;
+        shared.lock.lock();
+        defer shared.lock.unlock();
+        const count: usize = shared.drawsThisFrame.items.len;
+        const mapped = self.gc.vkAllocator.mapBuffer(vk.DrawIndexedIndirectCommand, self.indirectStaging) catch unreachable;
+        defer self.gc.vkAllocator.unmapMemory(self.indirectStaging);
+
+        while (offset < count) : (offset += 1) {
+            const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
+
+            var mesh: core.Name = undefined;
+            switch (primitive.primitive) {
+                .box => {
+                    mesh = self.meshes[2];
+                },
+                .sphere => {
+                    mesh = self.meshes[1];
+                },
+                .line => {
+                    mesh = self.meshes[0];
+                },
+            }
+
+            const indexedMesh = graphics.getIndexedMeshByName(mesh).?;
+            mapped[offset] = .{
+                .index_count = indexedMesh.index.size,
+                .instance_count = 1,
+                .first_index = indexedMesh.index.start,
+                .vertex_offset = 0,
+                .first_instance = @intCast(offset),
+            };
+        }
+        self.uploadIndirectCommands(cmd, @intCast(count));
+    }
+
     pub fn rtPostDraw(self: *@This(), rt: *graphics.RenderThread, cmd: vk.CommandBuffer, frameIndex: u32) void {
         _ = rt;
         var zone = tracy.ZoneN(@src(), "Debug draw renderer");
@@ -268,7 +322,6 @@ pub const DebugDrawSubsystem = struct {
         vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
         var bindOffset: usize = 0;
 
-        var offset: usize = 0;
         const count: usize = shared.drawsThisFrame.items.len;
 
         const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.NeonVkSceneDataGpu))));
@@ -283,26 +336,8 @@ pub const DebugDrawSubsystem = struct {
         vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&buffers.vertex.buffer), @ptrCast(&bindOffset));
         vkd.cmdBindIndexBuffer(cmd, buffers.index.buffer, 0, .uint32);
         vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+        vkd.cmdDrawIndexedIndirect(cmd, self.indirectGpu.buffer, 0, @intCast(count), @sizeOf(vk.DrawIndexedIndirectCommand));
 
-        while (offset < count) : (offset += 1) {
-            const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
-
-            var mesh: core.Name = undefined;
-            switch (primitive.primitive) {
-                .box => {
-                    mesh = self.meshes[2];
-                },
-                .sphere => {
-                    mesh = self.meshes[1];
-                },
-                .line => {
-                    mesh = self.meshes[0];
-                },
-            }
-
-            const indexedMesh = graphics.getIndexedMeshByName(mesh).?;
-            vkd.cmdDrawIndexed(cmd, indexedMesh.index.size, 1, indexedMesh.index.start, 0, @as(u32, @intCast(offset)));
-        }
         z3.End();
     }
 
@@ -322,6 +357,8 @@ pub const DebugDrawSubsystem = struct {
             mapped.unmap(self.gc);
         }
         self.gc.allocator.free(self.mappedBuffers);
+        self.gc.vkAllocator.destroyBuffer(&self.indirectGpu);
+        self.gc.vkAllocator.destroyBuffer(&self.indirectStaging);
         self.pipeData.deinit(self.allocator, self.gc);
         self.debugDraws.deinit(self.allocator);
         for (&self.sharedData) |*shared| {

@@ -1,36 +1,36 @@
-[ENGINE   ]: Component container created scene.Scene  @1a815c00380
+[ENGINE   ]: Component container created scene.Scene  @2d8ede60380
 [ENGINE   ]: creating lua metatable Scene
 [ENGINE   ]: core module starting up... 
 [ENGINE   ]: module started >>>> core <<<<
 [ENGINE   ]: skipping module [ozz] because missing build.zig.zon 
 [ENGINE   ]: engine loop started
-[ENGINE   ]: tests for module [spirv-reflect-zig] passed!
-[ENGINE   ]: tests for module [p2] passed!
-[ENGINE   ]: tests for module [zmath] passed!
-[ENGINE   ]: tests for module [tracy] passed!
 [ENGINE   ]: tests for module [spng] passed!
+[ENGINE   ]: tests for module [p2] passed!
+[ENGINE   ]: tests for module [spirv-reflect-zig] passed!
+[ENGINE   ]: tests for module [zmath] passed!
 [ENGINE   ]: tests for module [vulkan] passed!
+[ENGINE   ]: tests for module [tracy] passed!
 [ENGINE   ]: tests for module [vma] passed!
-[ENGINE   ]: tests for module [gl] passed!
 [ENGINE   ]: tests for module [miniaudio] passed!
-[ENGINE   ]: tests for module [objLoader] passed!
+[ENGINE   ]: tests for module [gl] passed!
 [ENGINE   ]: tests for module [lua] passed!
 [ENGINE   ]: tests for module [glfw3] passed!
 [ENGINE   ]: tests for module [cgltf] passed!
 [ENGINE   ]: tests for module [nfd] passed!
-[ENGINE   ]: tests for module [packer] passed!
+[ENGINE   ]: tests for module [objLoader] passed!
 [ENGINE   ]: tests for module [zphysics] passed!
 [ENGINE   ]: tests for module [assets] passed!
 [ENGINE   ]: tests for module [audio] passed!
-[ENGINE   ]: tests for module [core] passed!
-[ENGINE   ]: tests for module [physics] passed!
+[ENGINE   ]: tests for module [packer] passed!
 [ENGINE   ]: tests for module [ui] passed!
+[ENGINE   ]: tests for module [physics] passed!
 [ENGINE   ]: tests for module [vkImgui] passed!
+[ENGINE   ]: tests for module [core] passed!
 [ENGINE   ]: tests for module [platform] passed!
 [ENGINE   ]: tests for module [graphics] passed!
 [ENGINE   ]: tests for module [papyrus] passed!
 [ENGINE   ]: [25 of 25 tests passed]
 [ENGINE   ]: Processing exit signals
 [ENGINE   ]: core module shutting down...
-[ENGINE   ]: allocated size: 2471938 (2.357 MiB)
-[ENGINE   ]: peak allocated size size: 5868787 (5.597 MiB) (240 peak allocations)
+[ENGINE   ]: allocated size: 2473474 (2.359 MiB)
+[ENGINE   ]: peak allocated size size: 5871347 (5.599 MiB) (236 peak allocations)

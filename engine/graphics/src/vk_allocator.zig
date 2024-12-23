@@ -146,6 +146,7 @@ pub const NeonVkAllocator = struct {
                 .vertex_buffer_bit = options.vertex_buffer_bit,
                 .uniform_buffer_bit = options.uniform_buffer_bit,
                 .storage_buffer_bit = options.storage_buffer_bit,
+                .indirect_buffer_bit = options.indirect_buffer_bit,
             },
             .sharing_mode = .exclusive,
             .queue_family_index_count = 0,
@@ -227,6 +228,14 @@ pub const NeonVkAllocator = struct {
             .alloc = @intFromEnum(allocation),
             .tag = live.tag,
         } }) catch unreachable;
+    }
+
+    pub fn createIndirectCommandBuffer(
+        self: *@This(),
+        bufferSize: u32,
+        comptime tag: []const u8,
+    ) !NeonVkBuffer {
+        return try self.createGpuBuffer(bufferSize, .{ .indirect_buffer_bit = true }, tag);
     }
 
     pub fn createBuffer(

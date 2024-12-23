@@ -108,4 +108,5 @@ pub const DeviceDispatch = vk.DeviceWrapper(.{
     .cmdCopyBufferToImage = true,
     .createSampler = true,
     .destroySampler = true,
+    .cmdDrawIndexedIndirect = true,
 });
