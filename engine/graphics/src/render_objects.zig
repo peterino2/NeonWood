@@ -27,7 +27,7 @@ pub const StaticMesh = struct {
 
     //mesh: ?*Mesh = null,
     mesh: ?IndexedMesh = null,
-    material: ?*Material = null,
+    // material: ?*Material = null,
     texture: ?vk.DescriptorSet = null,
     transform: core.Mat = core.zm.translation(0, 0, 0),
     visibility: bool = true,
@@ -48,20 +48,22 @@ pub const StaticMesh = struct {
         "applyRelativeRotationY",
         "applyRelativeRotationZ",
         "setMesh",
-        "setMaterial",
+        "setTextureByName",
+        // "setMaterial",
         "scriptInit", // todo.. sholdnt need this...
     };
 
     pub fn scriptInit(self: *@This()) void {
-        self.setMaterial("t_mesh");
+        _ = self;
+        // self.setMaterial("t_mesh");
     }
 
-    pub fn setMaterial(self: *@This(), materialName: []const u8) void {
-        const name = core.MakeName(materialName);
-        const mat = graphics.getContext().materials.getEntry(name.handle()).?;
-        self.material = mat.value_ptr.*;
-        graphics.getContext().renderObjectsAreDirty = true;
-    }
+    //pub fn setMaterial(self: *@This(), materialName: []const u8) void {
+    //    const name = core.MakeName(materialName);
+    //    const mat = graphics.getContext().materials.getEntry(name.handle()).?;
+    //    self.material = mat.value_ptr.*;
+    //    graphics.getContext().renderObjectsAreDirty = true;
+    //}
 
     // script function
     pub fn setMesh(self: *@This(), meshName: []const u8) void {
@@ -77,7 +79,7 @@ pub const StaticMesh = struct {
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
             .mesh = null,
-            .material = null,
+            // .material = null,
             .texture = null,
             .transform = transform,
             .position = undefined,

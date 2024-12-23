@@ -324,9 +324,6 @@ pub const DebugDrawSubsystem = struct {
                 },
             }
 
-            //vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
-            //vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
-
             const indexedMesh = graphics.getIndexedMeshByName(mesh).?;
             vkd.cmdDrawIndexed(cmd, indexedMesh.index.size, 1, indexedMesh.index.start, 0, @as(u32, @intCast(offset)));
         }

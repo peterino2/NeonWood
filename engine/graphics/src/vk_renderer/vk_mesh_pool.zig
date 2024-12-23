@@ -154,8 +154,6 @@ pub const MeshPoolBuffers = struct {
         return self;
     }
 
-    var gDebug: u32 = 3;
-
     pub fn checkUpdates(self: *@This()) !void {
         if (self.updateRequests.count() <= 0) {
             return;
@@ -194,14 +192,8 @@ pub const MeshPoolBuffers = struct {
                         defer self.vkAllocator.unmapMemory(stagingIndex);
                         for (new.indices, 0..) |index, i| {
                             stagingMapped[i] = index + vertexSpan.start;
-                            if (gDebug > 0)
-                                std.debug.print("uploading staging index {d}\n", .{index + vertexSpan.start});
                         }
-
-                        if (gDebug > 0)
-                            gDebug -= 1;
                     }
-                    std.debug.print("VERTEX SPAN start{d} size{d} indexStart{d} indexSize{d}\n", .{ vertexSpan.start, vertexSpan.size, indexSpan.start, indexSpan.size });
                     try vertexUploadList.uploads.append(.{ .staging = stagingVertex, .destination = vertexSpan });
                     try indexUploadList.uploads.append(.{ .staging = stagingIndex, .destination = indexSpan });
 

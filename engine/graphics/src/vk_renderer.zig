@@ -8,6 +8,7 @@ const default_lit = @import("default_lit");
 const vk_api = @import("vk_api.zig");
 
 const graphics = @import("graphics.zig");
+const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
 const vma = @import("vma");
 const core = @import("core");
 const memory = core.MemoryTracker;
@@ -88,7 +89,8 @@ const NeonVkUploadContext = vk_utils.NeonVkUploadContext;
 
 pub const CreateRenderObjectParams = struct {
     mesh_name: Name,
-    material_name: Name,
+    texture_name: Name = core.MakeName("missing_texture"),
+    // material_name: Name,
     init_transform: Transform = core.zm.identity(),
 };
 
@@ -191,6 +193,11 @@ pub const NeonVkPhysicalDeviceInfo = struct {
     }
 };
 
+pub const MeshEntry = struct {
+    name: core.Name,
+    indexedMesh: ?mesh_pool.IndexedMesh,
+};
+
 pub const NeonVkContext = struct {
     const Self = @This();
     const NumFrames = vk_constants.NUM_FRAMES;
@@ -275,7 +282,7 @@ pub const NeonVkContext = struct {
     textureSets: std.AutoHashMapUnmanaged(u32, vk.DescriptorSet),
 
     materials: std.AutoHashMapUnmanaged(u32, *Material),
-    meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
+    // meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
     textures: std.AutoHashMapUnmanaged(u32, *Texture),
     cameraRef: ?*render_objects.Camera,
 
@@ -292,9 +299,9 @@ pub const NeonVkContext = struct {
     objectDescriptorLayout: vk.DescriptorSetLayout,
 
     frameData: [NumFrames]NeonVkFrameData,
-    lastMaterial: ?*Material,
-    lastMesh: ?*Mesh,
-    lastTextureSet: ?vk.DescriptorSet,
+    // lastMaterial: ?*Material,
+    // lastMesh: ?*Mesh,
+    // lastTextureSet: ?vk.DescriptorSet,
 
     sceneDataGpu: NeonVkSceneDataGpu,
     sceneParameterBuffer: NeonVkBuffer,
@@ -308,12 +315,14 @@ pub const NeonVkContext = struct {
     uploader: vk_utils.NeonVkUploader,
     vulkanValidation: bool,
 
+    meshMaterial: *Material,
+
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
     renderthread: RenderThread,
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
-        const meshRef = self.meshes.get(meshName.handle()).?;
+        const meshRef = graphics.getIndexedMeshByName(meshName);
         self.staticMeshSet.get(objectHandle).?.*.mesh = meshRef;
         self.staticMeshSet.get(objectHandle).?.*.meshName = meshName;
     }
@@ -391,14 +400,14 @@ pub const NeonVkContext = struct {
         self.rendererPlugins = .{};
         self.isMinimized = false;
         self.textures = .{};
-        self.meshes = .{};
+        // self.meshes = .{};
         self.materials = .{};
         self.deferredTextureDestroy = .{};
         self.deferredDescriptorsDestroy = .{};
-        self.lastMaterial = null;
+        // self.lastMaterial = null;
         self.cameraRef = null;
         self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
-        self.lastMesh = null;
+        // self.lastMesh = null;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
         try core.defineComponent(render_objects.StaticMesh, self.allocator);
@@ -522,7 +531,7 @@ pub const NeonVkContext = struct {
         try self.init_pipelines();
 
         try self.graph.write("  root->init_primitive_meshes\n", .{});
-        try self.init_primitive_meshes();
+        // try self.init_primitive_meshes();
         try self.create_white_material(.{ .x = 128, .y = 128 });
 
         // this stuff should be controlled by renderthread
@@ -903,50 +912,25 @@ pub const NeonVkContext = struct {
         }
     }
 
-    pub fn init_primitive_meshes(self: *Self) !void {
-        var quadMesh = try self.allocator.create(mesh.Mesh);
-        quadMesh.* = mesh.Mesh.init(self, self.allocator);
-
-        try quadMesh.vertices.resize(6);
-        quadMesh.*.vertices.items[0].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
-        quadMesh.*.vertices.items[1].position = .{ .x = 0.5, .y = -0.5, .z = 0.0 };
-        quadMesh.*.vertices.items[2].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
-
-        quadMesh.*.vertices.items[3].position = .{ .x = -0.5, .y = -0.5, .z = 0.0 };
-        quadMesh.*.vertices.items[4].position = .{ .x = -0.5, .y = 0.5, .z = 0.0 };
-        quadMesh.*.vertices.items[5].position = .{ .x = 0.5, .y = 0.5, .z = 0.0 };
-
-        quadMesh.*.vertices.items[0].uv = .{ .x = 1.0, .y = 0.0 };
-        quadMesh.*.vertices.items[1].uv = .{ .x = 1.0, .y = 1.0 };
-        quadMesh.*.vertices.items[2].uv = .{ .x = 0.0, .y = 1.0 };
-
-        quadMesh.*.vertices.items[3].uv = .{ .x = 0.0, .y = 1.0 };
-        quadMesh.*.vertices.items[4].uv = .{ .x = 0.0, .y = 0.0 };
-        quadMesh.*.vertices.items[5].uv = .{ .x = 1.0, .y = 0.0 };
-
-        try quadMesh.upload(self);
-        try self.meshes.put(self.allocator, core.MakeName("mesh_quad").handle(), quadMesh);
-    }
-
     // we need a content filing system
-    pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
-        var newMesh = try self.allocator.create(mesh.Mesh);
-        newMesh.* = mesh.Mesh.init(self, self.allocator);
+    // pub fn new_mesh_from_obj(self: *Self, meshName: core.Name, filename: []const u8) !*mesh.Mesh {
+    //     var newMesh = try self.allocator.create(mesh.Mesh);
+    //     newMesh.* = mesh.Mesh.init(self, self.allocator);
 
-        var cookedPath = std.ArrayList(u8).init(self.allocator);
-        defer cookedPath.deinit();
-        try cookedPath.writer().print("_cooked/{s}.Mesh", .{filename});
+    //     var cookedPath = std.ArrayList(u8).init(self.allocator);
+    //     defer cookedPath.deinit();
+    //     try cookedPath.writer().print("_cooked/{s}.Mesh", .{filename});
 
-        if (core.fs().fileExists(cookedPath.items)) {
-            try newMesh.loadFromObjFileCooked(cookedPath.items);
-        } else {
-            try newMesh.load_from_obj_file(filename);
-        }
+    //     if (core.fs().fileExists(cookedPath.items)) {
+    //         try newMesh.loadFromObjFileCooked(cookedPath.items);
+    //     } else {
+    //         try newMesh.load_from_obj_file(filename);
+    //     }
 
-        try newMesh.upload(self);
-        try self.meshes.put(self.allocator, meshName.handle(), newMesh);
-        return newMesh;
-    }
+    //     try newMesh.upload(self);
+    //     try self.meshes.put(self.allocator, meshName.handle(), newMesh);
+    //     return newMesh;
+    // }
 
     pub fn stage_and_push_mesh(self: *Self, uploadedMesh: *mesh.Mesh) !void {
         const bufferSize = uploadedMesh.vertices.items.len * @sizeOf(mesh.MeshVertex);
@@ -1097,6 +1081,7 @@ pub const NeonVkContext = struct {
             .image_layout = .shader_read_only_optimal,
         };
         try self.materials.put(self.allocator, materialName.handle(), material);
+        self.meshMaterial = material;
 
         var descriptorSet = vkinit.writeDescriptorImage(
             .combined_image_sampler,
@@ -1249,6 +1234,9 @@ pub const NeonVkContext = struct {
         try shared.objectData.ensureTotalCapacity(self.staticMeshSet.dense.items.len);
         shared.objectData.clearRetainingCapacity();
 
+        shared.pipeline = self.meshMaterial.pipeline;
+        shared.pipelineLayout = self.meshMaterial.layout;
+
         var i: usize = 0;
         while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
             const object = &self.staticMeshSet.dense.items[i].value;
@@ -1260,7 +1248,7 @@ pub const NeonVkContext = struct {
                 object.mesh = graphics.getIndexedMeshByName(object.meshName);
             }
 
-            if (object.mesh != null and object.material != null and object.visibility) {
+            if (object.mesh != null and object.visibility) {
                 // core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
                 if (core.Scene.SceneObjectContainer.get(objectId, .posRot)) |posRot| {
                     transform = posRot.toTransform();
@@ -1272,11 +1260,8 @@ pub const NeonVkContext = struct {
                 gpuData.model = transform;
 
                 objectData.* = .{
-                    .visibility = object.visibility,
-                    .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
-                    .pipeline = object.material.?.pipeline,
-                    .pipelineLayout = object.material.?.layout,
-                    .meshBuffer = object.mesh.?,
+                    .textureSet = if (object.texture != null) object.texture.? else self.meshMaterial.textureSet,
+                    .indexedMesh = object.mesh.?,
                     // .vertexCount = @intCast(object.mesh.?.vertices.items.len),
                 };
             }
@@ -1446,72 +1431,72 @@ pub const NeonVkContext = struct {
         self.firstFrame = false;
     }
 
-    fn draw_render_object(
-        self: *Self,
-        render_object: StaticMesh,
-        cmd: vk.CommandBuffer,
-        index: u32,
-        deltaTime: f64,
-        objectHandle: core.ObjectHandle,
-    ) void {
-        _ = deltaTime;
+    // fn draw_render_object(
+    //     self: *Self,
+    //     render_object: StaticMesh,
+    //     cmd: vk.CommandBuffer,
+    //     index: u32,
+    //     deltaTime: f64,
+    //     objectHandle: core.ObjectHandle,
+    // ) void {
+    //     _ = deltaTime;
 
-        if (!render_object.visibility)
-            return;
+    //     if (!render_object.visibility)
+    //         return;
 
-        if (render_object.mesh == null)
-            return;
+    //     if (render_object.mesh == null)
+    //         return;
 
-        if (render_object.material == null)
-            return;
+    //     if (render_object.material == null)
+    //         return;
 
-        var z = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
-        defer z.End();
+    //     var z = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
+    //     defer z.End();
 
-        const pipeline = render_object.material.?.pipeline;
-        const layout = render_object.material.?.layout;
-        const object_mesh = render_object.mesh.?.*;
+    //     const pipeline = render_object.material.?.pipeline;
+    //     const layout = render_object.material.?.layout;
+    //     const object_mesh = render_object.mesh.?.*;
 
-        var offset: vk.DeviceSize = 0;
+    //     var offset: vk.DeviceSize = 0;
 
-        const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
-        var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
+    //     const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
+    //     var startOffset: u32 = paddedSceneSize * self.nextFrameIndex;
 
-        var z1 = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
-        if (self.lastMaterial != render_object.material) {
-            self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-            self.lastMaterial = render_object.material;
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
-        }
-        defer z1.End();
+    //     var z1 = tracy.ZoneNC(@src(), "draw render object", 0xBB44BB);
+    //     if (self.lastMaterial != render_object.material) {
+    //         self.vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+    //         self.lastMaterial = render_object.material;
+    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&self.frameData[self.nextFrameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
+    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&self.frameData[self.nextFrameIndex].objectDescriptorSet), 0, undefined);
+    //     }
+    //     defer z1.End();
 
-        // if the StaticMesh has a textureset as an override use that instead of the default one on the material.
-        if (render_object.texture) |textureSet| {
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-        } else {
-            self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&render_object.material.?.textureSet), 0, undefined);
-        }
+    //     // if the StaticMesh has a textureset as an override use that instead of the default one on the material.
+    //     if (render_object.texture) |textureSet| {
+    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+    //     } else {
+    //         self.vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&render_object.material.?.textureSet), 0, undefined);
+    //     }
 
-        // let plugins bind the render object.
-        for (self.rendererPlugins.items) |*plugin| {
-            if (plugin.vtable.onBindObject) |onBindObject| {
-                onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
-            }
-        }
+    //     // let plugins bind the render object.
+    //     for (self.rendererPlugins.items) |*plugin| {
+    //         if (plugin.vtable.onBindObject) |onBindObject| {
+    //             onBindObject(plugin.ptr, objectHandle, index, cmd, self.nextFrameIndex);
+    //         }
+    //     }
 
-        if (self.lastMesh != render_object.mesh) {
-            self.lastMesh = render_object.mesh;
-            self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
-        }
+    //     if (self.lastMesh != render_object.mesh) {
+    //         self.lastMesh = render_object.mesh;
+    //         self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
+    //     }
 
-        // if (self.lastMesh != render_object.mesh) {
-        //     self.lastMesh = render_object.mesh;
-        //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
-        // }
+    //     // if (self.lastMesh != render_object.mesh) {
+    //     //     self.lastMesh = render_object.mesh;
+    //     //     self.vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&object_mesh.buffer.buffer), @ptrCast(&offset));
+    //     // }
 
-        self.vkd.cmdDraw(cmd, @as(u32, @intCast(object_mesh.vertices.items.len)), 1, 0, index);
-    }
+    //     self.vkd.cmdDraw(cmd, @as(u32, @intCast(object_mesh.vertices.items.len)), 1, 0, index);
+    // }
 
     fn upload_scene_global_data(self: *Self, deltaTime: f64) !void {
         _ = deltaTime;
@@ -1534,43 +1519,43 @@ pub const NeonVkContext = struct {
         self.vkAllocator.vmaAllocator.unmapMemory(self.sceneParameterBuffer.allocation);
     }
 
-    fn uploadDynamicMeshes(self: *Self, cmd: vk.CommandBuffer) !void {
-        for (self.dynamicTextures.items) |dynTex| {
-            try dynTex.issueUpload(cmd);
-        }
-    }
+    // fn uploadDynamicMeshes(self: *Self, cmd: vk.CommandBuffer) !void {
+    //     for (self.dynamicTextures.items) |dynTex| {
+    //         try dynTex.issueUpload(cmd);
+    //     }
+    // }
 
-    fn render_meshes(self: *Self, deltaTime: f64) !void {
-        var z = tracy.ZoneNC(@src(), "render meshes", 0xAAFFFF);
-        defer z.End();
-        const cmd = self.commandBuffers.items[self.nextFrameIndex];
-        var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
-        try self.upload_object_data();
-        z1.End();
+    // fn render_meshes(self: *Self, deltaTime: f64) !void {
+    //     var z = tracy.ZoneNC(@src(), "render meshes", 0xAAFFFF);
+    //     defer z.End();
+    //     const cmd = self.commandBuffers.items[self.nextFrameIndex];
+    //     var z1 = tracy.ZoneNC(@src(), "uploading global and object data", 0xAAFFAA);
+    //     try self.upload_object_data();
+    //     z1.End();
 
-        // activate predraw plugins here.
+    //     // activate predraw plugins here.
 
-        var z10 = tracy.ZoneNC(@src(), "renderer plugins - preDraw", 0xAAFFFF);
-        for (self.rendererPlugins.items) |*interface| {
-            if (interface.vtable.preDraw) |preDraw| {
-                preDraw(interface.ptr, self.nextFrameIndex);
-            }
-        }
-        defer z10.End();
+    //     var z10 = tracy.ZoneNC(@src(), "renderer plugins - preDraw", 0xAAFFFF);
+    //     for (self.rendererPlugins.items) |*interface| {
+    //         if (interface.vtable.preDraw) |preDraw| {
+    //             preDraw(interface.ptr, self.nextFrameIndex);
+    //         }
+    //     }
+    //     defer z10.End();
 
-        self.lastMaterial = null;
-        self.lastMesh = null;
+    //     self.lastMaterial = null;
+    //     self.lastMesh = null;
 
-        var z2 = tracy.ZoneNC(@src(), "rendering objects", 0xBBAAFF);
-        for (self.staticMeshSet.dense.items, 0..) |dense, i| {
-            // holy moly i really should make a convenience function for this.
-            // dense to sparse given a known dense index
-            var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.dense.items[i].sparseIndex.index];
-            sparseHandle.index = self.staticMeshSet.dense.items[i].sparseIndex.index;
-            self.draw_render_object(dense.value, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
-        }
-        z2.End();
-    }
+    //     var z2 = tracy.ZoneNC(@src(), "rendering objects", 0xBBAAFF);
+    //     for (self.staticMeshSet.dense.items, 0..) |dense, i| {
+    //         // holy moly i really should make a convenience function for this.
+    //         // dense to sparse given a known dense index
+    //         var sparseHandle = self.staticMeshSet.sparse[self.staticMeshSet.dense.items[i].sparseIndex.index];
+    //         sparseHandle.index = self.staticMeshSet.dense.items[i].sparseIndex.index;
+    //         self.draw_render_object(dense.value, cmd, @as(u32, @intCast(i)), deltaTime, sparseHandle);
+    //     }
+    //     z2.End();
+    // }
 
     fn finish_frame(self: *Self) !void {
         if (use_renderthread) {
@@ -2514,12 +2499,12 @@ pub const NeonVkContext = struct {
     }
 
     pub fn destroy_meshes(self: *Self) !void {
-        var iter = self.meshes.iterator();
-        while (iter.next()) |i| {
-            i.value_ptr.*.deinit(self);
-            self.allocator.destroy(i.value_ptr.*);
-        }
-        self.meshes.deinit(self.allocator);
+        // var iter = self.meshes.iterator();
+        // while (iter.next()) |i| {
+        //     i.value_ptr.*.deinit(self);
+        //     self.allocator.destroy(i.value_ptr.*);
+        // }
+        // self.meshes.deinit(self.allocator);
 
         self.dynamicMeshManager.deinit();
     }
@@ -2689,16 +2674,17 @@ pub const NeonVkContext = struct {
     // this one treats the renderer like any other subsystem
     //
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
+        _ = self;
         var renderObject = StaticMesh.fromTransform(params.init_transform);
 
         //const findMesh = self.meshes.getEntry(params.mesh_name.handle());
         const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
-        const findMat = self.materials.getEntry(params.material_name.handle());
+        // const findMat = self.materials.getEntry(.material_name.handle());
 
-        if (findMat == null)
-            return error.NoMaterialFound;
+        //if (findMat == null)
+        //return error.NoMaterialFound;
 
-        renderObject.material = findMat.?.value_ptr.*;
+        // renderObject.material = findMat.?.value_ptr.*;
         renderObject.mesh = findMesh;
         renderObject.meshName = params.mesh_name;
         return renderObject;

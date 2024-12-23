@@ -64,11 +64,10 @@ const ProcessEventListener = struct {
 };
 
 pub const ObjectSharedData = struct {
-    visibility: bool,
     textureSet: vk.DescriptorSet,
-    pipeline: vk.Pipeline,
-    pipelineLayout: vk.PipelineLayout,
-    meshBuffer: mesh_pool.IndexedMesh,
+    indexedMesh: mesh_pool.IndexedMesh,
+    // pipeline: vk.Pipeline,
+    // pipelineLayout: vk.PipelineLayout,
     // vertexCount: u32,
 };
 
@@ -76,6 +75,8 @@ pub const SharedData = struct {
     lock: std.Thread.Mutex,
     cameraData: vk_renderer_camera_gpu.NeonVkCameraDataGpu,
     sceneData: NeonVkSceneDataGpu,
+    pipeline: vk.Pipeline,
+    pipelineLayout: vk.PipelineLayout,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
     objectData: std.ArrayList(ObjectSharedData) = .{},
     extent: core.Vector2f,
@@ -283,32 +284,34 @@ pub fn pad_uniform_buffer_size(self: @This(), originalSize: usize) usize {
 }
 
 pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
-    _ = self;
-    _ = cmd;
-    _ = fi;
-    // const shared = self.getShared(fi);
+    const shared = self.getShared(fi);
 
-    // const offset: vk.DeviceSize = 0;
-    // const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
-    // const startOffset: u32 = paddedSceneSize * fi;
+    const offset: vk.DeviceSize = 0;
+    const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
+    const startOffset: u32 = paddedSceneSize * fi;
 
-    // const frameData = self.getFrameData(fi);
+    const frameData = self.getFrameData(fi);
+    const layout = shared.pipelineLayout;
+    const pipeline = shared.pipeline;
 
-    // for (shared.objectData.items, 0..) |object, i| {
-    //     const pipeline = object.pipeline;
-    //     const layout = object.pipelineLayout;
-    //     const meshBuffer = object.meshBuffer;
-    //     const textureSet = object.textureSet;
-    //     const vertexCount = object.vertexCount;
+    var buffers = graphics.getMeshPoolBuffers();
 
-    //     vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
-    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
-    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-    //     vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
+    vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+    vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&buffers.vertex.buffer), @ptrCast(&offset));
+    vkd.cmdBindIndexBuffer(cmd, buffers.index.buffer, 0, .uint32);
+    vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+    vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
 
-    //     vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
-    // }
+    for (shared.objectData.items, 0..) |object, i| {
+        const textureSet = object.textureSet;
+        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+
+        const meshBuffer = object.indexedMesh;
+        vkd.cmdDrawIndexed(cmd, meshBuffer.index.size, 1, meshBuffer.index.start, 0, @as(u32, @intCast(i)));
+
+        //vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
+        //vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
+    }
 }
 
 // fi = frameIndex

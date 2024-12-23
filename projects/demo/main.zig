@@ -129,7 +129,7 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 10000) : (i += 1) {
+        while (i < 0) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
                 .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
@@ -193,17 +193,17 @@ pub const GameContext = struct {
         self.gc.activateCamera(&self.camera);
         self.objHandle = try self.gc.add_renderobject(.{
             .mesh_name = core.MakeName("m_empire"),
-            .material_name = core.MakeName("t_mesh"),
+            // .material_name = core.MakeName("t_mesh"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
 
         {
             const meshName = core.MakeName("m_primitive_sphere");
-            const materialName = core.MakeName("t_mesh");
+            // const materialName = core.MakeName("t_mesh");
             for (0..2048) |i| {
                 const oHandle = try self.gc.add_renderobject(.{
                     .mesh_name = meshName,
-                    .material_name = materialName,
+                    // .material_name = materialName,
                     .init_transform = core.zm.translation(0, 0, 0),
                 });
                 self.spheres[i] = oHandle;
