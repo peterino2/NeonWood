@@ -221,8 +221,10 @@ pub const MeshLoader = struct {
     }
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
+        _ = self;
         core.engine_log("loading mesh asset {s}", .{propertiesBag.?.path});
-        _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
+        // _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
+        graphics.loadIndexedMeshForPooling(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
     }
 
     pub fn discardAll(self: *@This()) void {

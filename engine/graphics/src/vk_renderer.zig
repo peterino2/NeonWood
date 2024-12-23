@@ -1256,6 +1256,10 @@ pub const NeonVkContext = struct {
 
             var transform = object.transform;
 
+            if (object.mesh == null and !object.meshName.eql(&core.NameInvalid)) {
+                object.mesh = graphics.getIndexedMeshByName(object.meshName);
+            }
+
             if (object.mesh != null and object.material != null and object.visibility) {
                 // core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
                 if (core.Scene.SceneObjectContainer.get(objectId, .posRot)) |posRot| {
@@ -1272,8 +1276,8 @@ pub const NeonVkContext = struct {
                     .textureSet = if (object.texture != null) object.texture.? else object.material.?.textureSet,
                     .pipeline = object.material.?.pipeline,
                     .pipelineLayout = object.material.?.layout,
-                    .meshBuffer = object.mesh.?.buffer.buffer,
-                    .vertexCount = @intCast(object.mesh.?.vertices.items.len),
+                    .meshBuffer = object.mesh.?,
+                    // .vertexCount = @intCast(object.mesh.?.vertices.items.len),
                 };
             }
         }
@@ -2687,17 +2691,15 @@ pub const NeonVkContext = struct {
     fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
         var renderObject = StaticMesh.fromTransform(params.init_transform);
 
-        const findMesh = self.meshes.getEntry(params.mesh_name.handle());
+        //const findMesh = self.meshes.getEntry(params.mesh_name.handle());
+        const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
         const findMat = self.materials.getEntry(params.material_name.handle());
-
-        if (findMesh == null)
-            return error.NoMeshFound;
 
         if (findMat == null)
             return error.NoMaterialFound;
 
         renderObject.material = findMat.?.value_ptr.*;
-        renderObject.mesh = findMesh.?.value_ptr.*;
+        renderObject.mesh = findMesh;
         renderObject.meshName = params.mesh_name;
         return renderObject;
     }

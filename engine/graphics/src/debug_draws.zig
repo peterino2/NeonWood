@@ -124,7 +124,7 @@ pub const DebugDrawSubsystem = struct {
     // Member functions
     allocator: std.mem.Allocator,
     debugDraws: core.RingQueueU(DebugPrimitive),
-    meshes: [@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box) + 1))]*graphics.Mesh = .{ undefined, undefined, undefined },
+    meshes: [@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box) + 1))]core.Name = .{ undefined, undefined, undefined },
     gc: *graphics.NeonVkContext = undefined,
     pipeData: gpd.GpuPipeData = undefined,
     mappedBuffers: []gpd.GpuMappingData(DebugPrimitiveGpu) = undefined,
@@ -147,9 +147,12 @@ pub const DebugDrawSubsystem = struct {
         try assets.loadList(Primitives);
 
         // assign debug meshes
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").handle()).?;
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").handle()).?;
-        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").handle()).?;
+        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = gc.meshes.get(core.MakeName("m_primitive_sphere").handle()).?;
+        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = gc.meshes.get(core.MakeName("m_primitive_box").handle()).?;
+        // self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = gc.meshes.get(core.MakeName("m_primitive_line").handle()).?;
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = core.MakeName("m_primitive_sphere");
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.box)))] = core.MakeName("m_primitive_box");
+        self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.line)))] = core.MakeName("m_primitive_line");
         try self.createPipeData();
         try self.createMaterial();
     }
@@ -300,11 +303,15 @@ pub const DebugDrawSubsystem = struct {
         z2.End();
 
         var z3 = tracy.ZoneN(@src(), "Debug draw - render");
+        var buffers = graphics.getMeshPoolBuffers();
+        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&buffers.vertex.buffer), @ptrCast(&bindOffset));
+        vkd.cmdBindIndexBuffer(cmd, buffers.index.buffer, 0, .uint32);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
+
         while (offset < count) : (offset += 1) {
             const primitive: DebugPrimitive = shared.drawsThisFrame.items[offset];
-            vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
 
-            var mesh: *graphics.Mesh = undefined;
+            var mesh: core.Name = undefined;
             switch (primitive.primitive) {
                 .box => {
                     mesh = self.meshes[2];
@@ -317,56 +324,13 @@ pub const DebugDrawSubsystem = struct {
                 },
             }
 
-            vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
-            vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
+            // vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
+            //vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
+
+            const indexedMesh = graphics.getIndexedMeshByName(mesh).?;
+            vkd.cmdDrawIndexed(cmd, indexedMesh.index.size, 1, indexedMesh.index.start, 0, @as(u32, @intCast(offset)));
         }
         z3.End();
-    }
-
-    pub fn postDraw(
-        self: *@This(),
-        cmd: vk.CommandBuffer,
-        frameIndex: usize,
-        deltaTime: f64,
-    ) void {
-        var vkd = self.gc.vkd;
-
-        var offset: usize = 0;
-        vkd.cmdBindPipeline(cmd, .graphics, self.material.pipeline);
-        var bindOffset: usize = 0;
-        const count: usize = self.debugDraws.count();
-
-        const paddedSceneSize = @as(u32, @intCast(self.gc.pad_uniform_buffer_size(@sizeOf(graphics.NeonVkSceneDataGpu))));
-        var startOffset: u32 = paddedSceneSize * @as(u32, @intCast(frameIndex));
-
-        vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 0, 1, @ptrCast(&self.gc.frameData[frameIndex].globalDescriptorSet), 1, @ptrCast(&startOffset));
-        while (offset < count) {
-            var primitive: DebugPrimitive = self.debugDraws.pop().?;
-            vkd.cmdBindDescriptorSets(cmd, .graphics, self.material.layout, 1, 1, self.pipeData.getDescriptorSet(frameIndex), 0, undefined);
-
-            var mesh: *graphics.Mesh = undefined;
-            switch (primitive.primitive) {
-                .box => {
-                    mesh = self.meshes[2];
-                },
-                .sphere => {
-                    mesh = self.meshes[1];
-                },
-                .line => {
-                    mesh = self.meshes[0];
-                },
-            }
-
-            vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&mesh.buffer.buffer), @ptrCast(&bindOffset));
-            vkd.cmdDraw(cmd, @as(u32, @intCast(mesh.vertices.items.len)), 1, 0, @as(u32, @intCast(offset)));
-
-            offset += 1;
-            primitive.duration -= @as(f32, @floatCast(deltaTime));
-            if (primitive.duration >= 0) {
-                // push this primitive so that it goes to the next frame
-                self.debugDraws.push(primitive) catch continue;
-            }
-        }
     }
 
     // NeonObject Interface Implementation

@@ -17,13 +17,16 @@ const zm = core.zm;
 const mul = zm.mul;
 
 const Mesh = meshes.Mesh;
+const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
+const IndexedMesh = mesh_pool.IndexedMesh;
 
 pub const StaticMeshSet = core.SparseSet(StaticMesh);
 
 pub const StaticMesh = struct {
     const Self = @This();
 
-    mesh: ?*Mesh = null,
+    //mesh: ?*Mesh = null,
+    mesh: ?IndexedMesh = null,
     material: ?*Material = null,
     texture: ?vk.DescriptorSet = null,
     transform: core.Mat = core.zm.translation(0, 0, 0),
@@ -63,8 +66,9 @@ pub const StaticMesh = struct {
     // script function
     pub fn setMesh(self: *@This(), meshName: []const u8) void {
         const name = core.MakeName(meshName);
-        const meshRef = graphics.getContext().meshes.get(name.handle());
-        self.mesh = meshRef;
+        //const meshRef = graphics.getContext().meshes.get(name.handle());
+        //self.mesh = meshRef;
+        self.mesh = graphics.getIndexedMeshByName(core.MakeName(meshName));
         self.meshName = name;
 
         graphics.getContext().renderObjectsAreDirty = true;

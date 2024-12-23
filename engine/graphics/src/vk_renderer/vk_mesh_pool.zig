@@ -98,7 +98,7 @@ pub const IndexedMesh = struct {
 pub fn getIndexedMeshByName(name: core.Name) ?IndexedMesh {
     gMeshPoolBuffer.vertexMapLock.lock();
     defer gMeshPoolBuffer.vertexMapLock.unlock();
-    return gMeshPoolBuffer.vertexMap.get(name);
+    return gMeshPoolBuffer.vertexMap.get(name.handle());
 }
 
 pub const MeshPoolBuffers = struct {
@@ -169,8 +169,8 @@ pub const MeshPoolBuffers = struct {
         while (self.updateRequests.popFromUnlocked()) |update| {
             switch (update) {
                 .new => |new| {
-                    const indexSpan = try self.indexSpans.allocate(@intCast(new.vertices.len));
-                    const vertexSpan = try self.indexSpans.allocate(@intCast(new.indices.len));
+                    const indexSpan = try self.indexSpans.allocate(@intCast(new.indices.len));
+                    const vertexSpan = try self.vertexSpans.allocate(@intCast(new.vertices.len));
 
                     const stagingVertex = try self.vkAllocator.createStagingBuffer(
                         @intCast(new.vertices.len * @sizeOf(MeshVertex)),
@@ -189,6 +189,7 @@ pub const MeshPoolBuffers = struct {
                     {
                         const stagingMapped = try self.vkAllocator.mapBuffer(u32, stagingIndex);
                         defer self.vkAllocator.unmapMemory(stagingIndex);
+                        std.debug.print("VERTEX SPAN START{d}\n", .{vertexSpan.start});
                         for (new.indices, 0..) |index, i| {
                             stagingMapped[i] = index + vertexSpan.start;
                         }
@@ -299,6 +300,10 @@ pub const PoolMesh = struct {
     vertexSpan: Span,
     indexSpan: Span,
 };
+
+pub fn getMeshPoolBuffers() struct { index: NeonVkBuffer, vertex: NeonVkBuffer } {
+    return .{ .index = gMeshPoolBuffer.indexBuffer, .vertex = gMeshPoolBuffer.vertexBuffer };
+}
 
 pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
     const file = try core.fs().loadFile(path);

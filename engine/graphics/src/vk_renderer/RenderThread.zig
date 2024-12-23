@@ -68,8 +68,8 @@ pub const ObjectSharedData = struct {
     textureSet: vk.DescriptorSet,
     pipeline: vk.Pipeline,
     pipelineLayout: vk.PipelineLayout,
-    meshBuffer: vk.Buffer,
-    vertexCount: u32,
+    meshBuffer: mesh_pool.IndexedMesh,
+    // vertexCount: u32,
 };
 
 pub const SharedData = struct {
@@ -283,29 +283,32 @@ pub fn pad_uniform_buffer_size(self: @This(), originalSize: usize) usize {
 }
 
 pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
-    const shared = self.getShared(fi);
+    _ = self;
+    _ = cmd;
+    _ = fi;
+    // const shared = self.getShared(fi);
 
-    const offset: vk.DeviceSize = 0;
-    const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
-    const startOffset: u32 = paddedSceneSize * fi;
+    // const offset: vk.DeviceSize = 0;
+    // const paddedSceneSize = @as(u32, @intCast(self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu))));
+    // const startOffset: u32 = paddedSceneSize * fi;
 
-    const frameData = self.getFrameData(fi);
+    // const frameData = self.getFrameData(fi);
 
-    for (shared.objectData.items, 0..) |object, i| {
-        const pipeline = object.pipeline;
-        const layout = object.pipelineLayout;
-        const meshBuffer = object.meshBuffer;
-        const textureSet = object.textureSet;
-        const vertexCount = object.vertexCount;
+    // for (shared.objectData.items, 0..) |object, i| {
+    //     const pipeline = object.pipeline;
+    //     const layout = object.pipelineLayout;
+    //     const meshBuffer = object.meshBuffer;
+    //     const textureSet = object.textureSet;
+    //     const vertexCount = object.vertexCount;
 
-        vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
+    //     vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
+    //     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+    //     vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
 
-        vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
-    }
+    //     vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
+    // }
 }
 
 // fi = frameIndex
@@ -888,8 +891,8 @@ const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 const mesh = @import("../mesh.zig");
 
-const vk_mesh_pool = @import("vk_mesh_pool.zig");
-const MeshPoolBuffers = vk_mesh_pool.MeshPoolBuffers;
+const mesh_pool = @import("vk_mesh_pool.zig");
+const MeshPoolBuffers = mesh_pool.MeshPoolBuffers;
 
 const graphics = @import("../graphics.zig");
 const NeonVkContext = graphics.NeonVkContext;
