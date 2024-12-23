@@ -129,7 +129,7 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 0) : (i += 1) {
+        while (i < 10000) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
                 .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },

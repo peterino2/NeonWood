@@ -48,14 +48,15 @@ const UploadList = struct {
         };
     }
 
-    pub fn issueCopy(self: *@This(), uploader: *NeonVkUploader, index: u32) !void {
+    pub fn issueCopy(self: *@This(), uploader: *NeonVkUploader, index: u32, elementSize: u32) !void {
         try core.assert(uploader.isActive);
 
         const upload = self.uploads.items[index];
+        std.debug.print("issuing copy start {d} size {d}\n", .{ upload.destination.start, upload.destination.size });
         var copy = vk.BufferCopy{
-            .dst_offset = upload.destination.start,
+            .dst_offset = upload.destination.start * elementSize,
             .src_offset = 0,
-            .size = upload.destination.size,
+            .size = upload.destination.size * elementSize,
         };
 
         const cmd = uploader.commandBuffer;
@@ -153,6 +154,8 @@ pub const MeshPoolBuffers = struct {
         return self;
     }
 
+    var gDebug: u32 = 3;
+
     pub fn checkUpdates(self: *@This()) !void {
         if (self.updateRequests.count() <= 0) {
             return;
@@ -189,11 +192,16 @@ pub const MeshPoolBuffers = struct {
                     {
                         const stagingMapped = try self.vkAllocator.mapBuffer(u32, stagingIndex);
                         defer self.vkAllocator.unmapMemory(stagingIndex);
-                        std.debug.print("VERTEX SPAN START{d}\n", .{vertexSpan.start});
                         for (new.indices, 0..) |index, i| {
                             stagingMapped[i] = index + vertexSpan.start;
+                            if (gDebug > 0)
+                                std.debug.print("uploading staging index {d}\n", .{index + vertexSpan.start});
                         }
+
+                        if (gDebug > 0)
+                            gDebug -= 1;
                     }
+                    std.debug.print("VERTEX SPAN start{d} size{d} indexStart{d} indexSize{d}\n", .{ vertexSpan.start, vertexSpan.size, indexSpan.start, indexSpan.size });
                     try vertexUploadList.uploads.append(.{ .staging = stagingVertex, .destination = vertexSpan });
                     try indexUploadList.uploads.append(.{ .staging = stagingIndex, .destination = indexSpan });
 
@@ -214,10 +222,9 @@ pub const MeshPoolBuffers = struct {
         // iterate over both upload lists and isssue uploads.
 
         for (indexUploadList.uploads.items, 0..) |_, i| {
-            try indexUploadList.issueCopy(&self.uploader, @intCast(i));
-            try vertexUploadList.issueCopy(&self.uploader, @intCast(i));
+            try indexUploadList.issueCopy(&self.uploader, @intCast(i), @sizeOf(u32));
+            try vertexUploadList.issueCopy(&self.uploader, @intCast(i), @sizeOf(MeshVertex));
         }
-
         // Insert Barrier for indexBuffer
         var indexMemoryBarrier = vk.BufferMemoryBarrier{
             .buffer = self.indexBuffer.buffer,
@@ -226,7 +233,7 @@ pub const MeshPoolBuffers = struct {
             .src_queue_family_index = 0,
             .dst_queue_family_index = 0,
             .offset = 0,
-            .size = self.indexSpans.capacity,
+            .size = vk.WHOLE_SIZE,
         };
         vkd.cmdPipelineBarrier(
             self.uploader.commandBuffer, //
@@ -244,9 +251,7 @@ pub const MeshPoolBuffers = struct {
         // Insert Barrier for vertexBuffer
         var vertexMemoryBarrier = vk.BufferMemoryBarrier{
             .buffer = self.vertexBuffer.buffer,
-            .src_access_mask = .{
-                .transfer_read_bit = true,
-            },
+            .src_access_mask = .{ .transfer_read_bit = true },
             .dst_access_mask = .{
                 // .transfer_write_bit = true,
                 .vertex_attribute_read_bit = true,
@@ -254,7 +259,7 @@ pub const MeshPoolBuffers = struct {
             .src_queue_family_index = 0,
             .dst_queue_family_index = 0,
             .offset = 0,
-            .size = self.vertexSpans.capacity,
+            .size = vk.WHOLE_SIZE,
         };
 
         vkd.cmdPipelineBarrier(
@@ -302,7 +307,10 @@ pub const PoolMesh = struct {
 };
 
 pub fn getMeshPoolBuffers() struct { index: NeonVkBuffer, vertex: NeonVkBuffer } {
-    return .{ .index = gMeshPoolBuffer.indexBuffer, .vertex = gMeshPoolBuffer.vertexBuffer };
+    return .{
+        .index = gMeshPoolBuffer.indexBuffer,
+        .vertex = gMeshPoolBuffer.vertexBuffer,
+    };
 }
 
 pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
@@ -324,27 +332,57 @@ pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
     //  only thing i care about right now is normal and position
     for (m.v_faces.items) |f| {
         const face: objLoader.ObjFace = f;
-        for (0..face.count) |i| {
-            const p = m.v_positions.items[face.vertex[i] - 1];
-            const n = m.v_normals.items[face.normal[i] - 1];
-            const u = m.v_uvs.items[face.texture[i] - 1];
-            const meshVertex: MeshVertex = .{
-                .position = .{ .x = p.x, .y = p.y, .z = p.z },
-                .normal = .{ .x = n.x, .y = n.y, .z = n.z },
-                .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
-                .uv = .{ .x = u.x, .y = 1 - u.y },
-            };
 
-            var index: u32 = @intCast(vertexList.items.len);
+        if (face.count == 3) {
+            for (0..face.count) |i| {
+                const p = m.v_positions.items[face.vertex[i] - 1];
+                const n = m.v_normals.items[face.normal[i] - 1];
+                const u = m.v_uvs.items[face.texture[i] - 1];
+                const meshVertex: MeshVertex = .{
+                    .position = .{ .x = p.x, .y = p.y, .z = p.z },
+                    .normal = .{ .x = n.x, .y = n.y, .z = n.z },
+                    .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
+                    .uv = .{ .x = u.x, .y = 1 - u.y },
+                };
 
-            const transmute: MeshVertexTransmute = @bitCast(meshVertex);
-            if (vertexMap.get(transmute)) |cachedIndex| {
-                index = cachedIndex;
-            } else {
-                try vertexMap.put(transmute, index);
-                try vertexList.append(meshVertex);
+                var index: u32 = @intCast(vertexList.items.len);
+
+                const transmute: MeshVertexTransmute = @bitCast(meshVertex);
+                if (vertexMap.get(transmute)) |cachedIndex| {
+                    index = cachedIndex;
+                } else {
+                    try vertexMap.put(transmute, index);
+                    try vertexList.append(meshVertex);
+                }
+                try indexList.append(index);
             }
-            try indexList.append(index);
+        }
+
+        if (face.count == 4) {
+            // 0 1 2 2 3 0
+            const il: []const usize = &.{ 0, 1, 2, 2, 3, 0 };
+            for (il) |i| {
+                const p = m.v_positions.items[face.vertex[i] - 1];
+                const n = m.v_normals.items[face.normal[i] - 1];
+                const u = m.v_uvs.items[face.texture[i] - 1];
+                const meshVertex: MeshVertex = .{
+                    .position = .{ .x = p.x, .y = p.y, .z = p.z },
+                    .normal = .{ .x = n.x, .y = n.y, .z = n.z },
+                    .color = .{ .r = n.x, .g = n.y, .b = n.z, .a = 1.0 },
+                    .uv = .{ .x = u.x, .y = 1 - u.y },
+                };
+
+                var index: u32 = @intCast(vertexList.items.len);
+
+                const transmute: MeshVertexTransmute = @bitCast(meshVertex);
+                if (vertexMap.get(transmute)) |cachedIndex| {
+                    index = cachedIndex;
+                } else {
+                    try vertexMap.put(transmute, index);
+                    try vertexList.append(meshVertex);
+                }
+                try indexList.append(index);
+            }
         }
     }
 
