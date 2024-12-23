@@ -54,7 +54,7 @@ maxObjectCount: u32,
 
 plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
-meshPool: *MeshPool = undefined,
+meshPool: *MeshPoolBuffers = undefined,
 
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
 
@@ -147,7 +147,7 @@ const FrameSyncs = struct {
 
 pub fn setup(self: *@This(), gc: *NeonVkContext) !void {
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
-    self.meshPool = try MeshPool.create(self.allocator, gc, .{});
+    self.meshPool = try MeshPoolBuffers.create(self.allocator, gc, .{});
 
     try self.createSyncs();
     try self.initCommandBuffers();
@@ -250,7 +250,7 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
             // check for mesh pool updates
-            // self.meshPool.checkUpdates();
+            ctx.r.meshPool.checkUpdates() catch unreachable;
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
         }
@@ -889,7 +889,7 @@ const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 const mesh = @import("../mesh.zig");
 
 const vk_mesh_pool = @import("vk_mesh_pool.zig");
-const MeshPool = vk_mesh_pool.MeshPool;
+const MeshPoolBuffers = vk_mesh_pool.MeshPoolBuffers;
 
 const graphics = @import("../graphics.zig");
 const NeonVkContext = graphics.NeonVkContext;

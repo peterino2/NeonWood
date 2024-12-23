@@ -5,96 +5,18 @@ const core = @import("core");
 pub const MeshPoolCreationSettings = struct {
     vertexCount: u32 = 4_000_000,
     indexCount: u32 = 16_000_000,
-
-    vertexStagingCount: u32 = 100_000,
-    indexStagingCount: u32 = 400_000,
-};
-
-// should be owned by renderthread
-//
-// operation per frame
-//
-// 1. async loading of vertices push model load results into a queue
-// 2. these results ar ethen installe dinto the vertex pool
-
-var gMeshPoolBuffer: *MeshPoolBuffers = undefined;
-
-const MeshVertexTransmute = extern struct { data: [@sizeOf(MeshVertex)]u8 };
-
-const MeshPoolBuffers = struct {
-    vertexStaging: NeonVkBuffer, // cpu sided vertex staging buffer
-    vertexBuffer: NeonVkBuffer, // gpu sided vertex buffer
-
-    indexStaging: NeonVkBuffer, // cpu sided staging buffer
-    indexBuffer: NeonVkBuffer, // gpu sided index buffer
-
-    allocator: std.mem.Allocator,
-    vkAllocator: *NeonVkAllocator,
-
-    gc: *NeonVkContext,
-
-    uploader: NeonVkUploader,
-    updateRequests: core.RingQueue(MeshUpdate),
-
-    const Requests = core.RingQueue(MeshUpdate);
-
-    pub fn create(
-        allocator: std.mem.Allocator,
-        gc: *NeonVkContext,
-        opt: MeshPoolCreationSettings,
-    ) !*@This() {
-        const self = try allocator.create(@This());
-        self.allocator = allocator;
-        self.updateRequests = try Requests.init(allocator, 4096);
-
-        self.vertexStaging = try gc.vkAllocator.createStagingBuffer(opt.vertexStagingCount * @sizeOf(MeshVertex), "Mesh Pool staging vertex buffer");
-        self.vertexBuffer = try gc.vkAllocator.createStagingBuffer(opt.vertexCount * @sizeOf(MeshVertex), "Mesh Pool gpu vertex buffer");
-
-        self.indexStaging = try gc.vkAllocator.createStagingBuffer(opt.indexStagingCount * @sizeOf(u32), "Mesh Pool staging index buffer");
-        self.indexBuffer = try gc.vkAllocator.createStagingBuffer(opt.indexCount * @sizeOf(u32), "Mesh Pool gpu vertex buffer");
-
-        self.gc = gc;
-        self.uploader = try NeonVkUploader.init(gc, "Mesh Pool uploader");
-
-        gMeshPoolBuffer = self;
-
-        return self;
-    }
-
-    pub fn checkUpdates(self: @This()) !void {
-        _ = self;
-        // if there is anything in the mesh, upload everything to the uploader and call it a day.
-    }
-
-    pub fn destroy(self: *@This()) void {
-        {
-            self.updateRequests.lock();
-            defer self.updateRequests.unlock();
-            while (self.updateRequests.popFromUnlocked()) |x| {
-                x.deinit(self.allocator);
-            }
-        }
-
-        self.vertexStaging.deinit(self.gc.vkAllocator);
-        self.vertexBuffer.deinit(self.gc.vkAllocator);
-
-        self.indexStaging.deinit(self.gc.vkAllocator);
-        self.indexBuffer.deinit(self.gc.vkAllocator);
-        self.uploader.deinit();
-
-        self.updateRequests.deinit();
-        self.allocator.destroy(self);
-    }
 };
 
 pub const MeshUpdate = union(enum(u8)) {
     new: struct {
         vertices: []MeshVertex,
         indices: []u32,
+        name: core.Name,
     },
     free: struct {
         vertices: Span,
         indices: Span,
+        name: core.Name,
     },
 
     pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
@@ -108,58 +30,268 @@ pub const MeshUpdate = union(enum(u8)) {
     }
 };
 
-pub const MeshPool = struct {
-    buffers: *MeshPoolBuffers,
+const UploadList = struct {
+    ctx: *MeshPoolBuffers,
+    uploads: std.ArrayList(Transfer),
+    destination: NeonVkBuffer,
 
-    indices: MergedSpans, // spans list of allocated indices
-    vertices: MergedSpans, // spans list of allocated vertices
+    pub const Transfer = struct {
+        staging: NeonVkBuffer,
+        destination: Span,
+    };
+
+    pub fn init(ctx: *MeshPoolBuffers, destination: NeonVkBuffer) @This() {
+        return .{
+            .ctx = ctx,
+            .uploads = std.ArrayList(Transfer).init(ctx.allocator),
+            .destination = destination,
+        };
+    }
+
+    pub fn issueCopy(self: *@This(), uploader: *NeonVkUploader, index: u32) !void {
+        try core.assert(uploader.isActive);
+
+        const upload = self.uploads.items[index];
+        var copy = vk.BufferCopy{
+            .dst_offset = upload.destination.start,
+            .src_offset = 0,
+            .size = upload.destination.size,
+        };
+
+        const cmd = uploader.commandBuffer;
+
+        vkd.cmdCopyBuffer(
+            cmd,
+            upload.staging.buffer,
+            self.destination.buffer,
+            1,
+            @as([*]const vk.BufferCopy, @ptrCast(&copy)),
+        );
+    }
+
+    pub fn deinit(self: *@This()) void {
+        for (self.uploads.items) |*up| {
+            up.staging.deinit(self.ctx.vkAllocator);
+        }
+
+        self.uploads.deinit();
+    }
+};
+
+// should be owned by renderthread
+//
+// operation per frame
+//
+// 1. async loading of vertices push model load results into a queue
+// 2. these results ar ethen installe dinto the vertex pool
+
+var gMeshPoolBuffer: *MeshPoolBuffers = undefined;
+
+const MeshVertexTransmute = extern struct { data: [@sizeOf(MeshVertex)]u8 };
+
+pub const IndexedMesh = struct {
+    vertex: Span,
+    index: Span,
+    name: core.Name,
+};
+
+pub fn getIndexedMeshByName(name: core.Name) ?IndexedMesh {
+    gMeshPoolBuffer.vertexMapLock.lock();
+    defer gMeshPoolBuffer.vertexMapLock.unlock();
+    return gMeshPoolBuffer.vertexMap.get(name);
+}
+
+pub const MeshPoolBuffers = struct {
+    vertexBuffer: NeonVkBuffer, // gpu sided vertex buffer
+    indexBuffer: NeonVkBuffer, // gpu sided vertex buffer
 
     allocator: std.mem.Allocator,
+    vkAllocator: *NeonVkAllocator,
 
-    pub fn create(allocator: std.mem.Allocator, gc: *NeonVkContext, opts: MeshPoolCreationSettings) !*@This() {
+    gc: *NeonVkContext,
+
+    uploader: NeonVkUploader,
+    updateRequests: Requests,
+
+    indexSpans: MergedSpans,
+    vertexSpans: MergedSpans,
+
+    vertexMapLock: std.Thread.Mutex,
+    vertexMap: std.AutoHashMapUnmanaged(u32, IndexedMesh),
+
+    const Requests = core.RingQueue(MeshUpdate);
+
+    pub fn create(
+        allocator: std.mem.Allocator,
+        gc: *NeonVkContext,
+        opt: MeshPoolCreationSettings,
+    ) !*@This() {
         const self = try allocator.create(@This());
+        self.allocator = allocator;
+        self.updateRequests = try Requests.init(allocator, 4096);
 
-        self.* = .{
-            .indices = try MergedSpans.init(allocator, opts.indexCount),
-            .vertices = try MergedSpans.init(allocator, opts.vertexCount),
-            .buffers = try MeshPoolBuffers.create(allocator, gc, opts),
-            .allocator = allocator,
-        };
+        self.vertexMap = .{};
+        self.vertexMapLock = .{};
+
+        self.indexSpans = try MergedSpans.init(allocator, opt.indexCount);
+        self.vertexSpans = try MergedSpans.init(allocator, opt.vertexCount);
+
+        self.vertexBuffer = try gc.vkAllocator.createGpuBuffer(opt.vertexCount * @sizeOf(MeshVertex), .{
+            .vertex_buffer_bit = true,
+        }, "Mesh Pool gpu vertex buffer");
+
+        self.indexBuffer = try gc.vkAllocator.createGpuBuffer(opt.indexCount * @sizeOf(u32), .{
+            .index_buffer_bit = true,
+        }, "Mesh Pool gpu vertex buffer");
+
+        self.gc = gc;
+        self.vkAllocator = gc.vkAllocator;
+        self.uploader = try NeonVkUploader.init(gc, "Mesh Pool uploader");
+
+        gMeshPoolBuffer = self;
+
         return self;
     }
 
+    pub fn checkUpdates(self: *@This()) !void {
+        if (self.updateRequests.count() <= 0) {
+            return;
+        }
+
+        self.updateRequests.lock();
+        defer self.updateRequests.unlock();
+
+        var vertexUploadList = UploadList.init(self, self.vertexBuffer);
+        defer vertexUploadList.deinit();
+        var indexUploadList = UploadList.init(self, self.indexBuffer);
+        defer indexUploadList.deinit();
+
+        while (self.updateRequests.popFromUnlocked()) |update| {
+            switch (update) {
+                .new => |new| {
+                    const indexSpan = try self.indexSpans.allocate(@intCast(new.vertices.len));
+                    const vertexSpan = try self.indexSpans.allocate(@intCast(new.indices.len));
+
+                    const stagingVertex = try self.vkAllocator.createStagingBuffer(
+                        @intCast(new.vertices.len * @sizeOf(MeshVertex)),
+                        "staging vertex buffer",
+                    );
+                    {
+                        const stagingVertexMapped = try self.vkAllocator.mapBuffer(MeshVertex, stagingVertex);
+                        defer self.vkAllocator.unmapMemory(stagingVertex);
+                        std.mem.copyForwards(MeshVertex, stagingVertexMapped, new.vertices);
+                    }
+
+                    const stagingIndex = try self.vkAllocator.createStagingBuffer(
+                        @intCast(new.indices.len * @sizeOf(u32)),
+                        "staging index buffer",
+                    );
+                    {
+                        const stagingMapped = try self.vkAllocator.mapBuffer(u32, stagingIndex);
+                        defer self.vkAllocator.unmapMemory(stagingIndex);
+                        for (new.indices, 0..) |index, i| {
+                            stagingMapped[i] = index + vertexSpan.start;
+                        }
+                    }
+                    try vertexUploadList.uploads.append(.{ .staging = stagingVertex, .destination = vertexSpan });
+                    try indexUploadList.uploads.append(.{ .staging = stagingIndex, .destination = indexSpan });
+
+                    gMeshPoolBuffer.vertexMapLock.lock();
+                    try gMeshPoolBuffer.vertexMap.put(self.allocator, new.name.handle(), .{ .index = indexSpan, .vertex = vertexSpan, .name = new.name });
+                    gMeshPoolBuffer.vertexMapLock.unlock();
+                },
+                .free => |free| {
+                    self.vertexSpans.removeSpan(free.vertices);
+                    self.indexSpans.removeSpan(free.indices);
+                },
+            }
+
+            update.deinit(self.allocator);
+        }
+
+        try self.uploader.startUploadContext();
+        // iterate over both upload lists and isssue uploads.
+
+        for (indexUploadList.uploads.items, 0..) |_, i| {
+            try indexUploadList.issueCopy(&self.uploader, @intCast(i));
+            try vertexUploadList.issueCopy(&self.uploader, @intCast(i));
+        }
+
+        // Insert Barrier for indexBuffer
+        var indexMemoryBarrier = vk.BufferMemoryBarrier{
+            .buffer = self.indexBuffer.buffer,
+            .src_access_mask = .{ .transfer_read_bit = true },
+            .dst_access_mask = .{ .index_read_bit = true },
+            .src_queue_family_index = 0,
+            .dst_queue_family_index = 0,
+            .offset = 0,
+            .size = self.indexSpans.capacity,
+        };
+        vkd.cmdPipelineBarrier(
+            self.uploader.commandBuffer, //
+            .{ .transfer_bit = true }, //
+            .{ .vertex_input_bit = true }, //
+            .{}, //
+            0,
+            undefined,
+            1,
+            @ptrCast(&indexMemoryBarrier),
+            0,
+            undefined,
+        );
+
+        // Insert Barrier for vertexBuffer
+        var vertexMemoryBarrier = vk.BufferMemoryBarrier{
+            .buffer = self.vertexBuffer.buffer,
+            .src_access_mask = .{
+                .transfer_read_bit = true,
+            },
+            .dst_access_mask = .{
+                // .transfer_write_bit = true,
+                .vertex_attribute_read_bit = true,
+            },
+            .src_queue_family_index = 0,
+            .dst_queue_family_index = 0,
+            .offset = 0,
+            .size = self.vertexSpans.capacity,
+        };
+
+        vkd.cmdPipelineBarrier(
+            self.uploader.commandBuffer,
+            .{ .transfer_bit = true },
+            .{ .vertex_input_bit = true },
+            .{},
+            0,
+            undefined,
+            1,
+            @ptrCast(&vertexMemoryBarrier),
+            0,
+            undefined,
+        );
+
+        try self.uploader.finishUploadContext();
+    }
+
     pub fn destroy(self: *@This()) void {
-        self.indices.deinit();
-        self.vertices.deinit();
-        self.buffers.destroy();
+        {
+            self.updateRequests.lock();
+            defer self.updateRequests.unlock();
+            while (self.updateRequests.popFromUnlocked()) |x| {
+                x.deinit(self.allocator);
+            }
+        }
 
+        self.vertexMap.deinit(self.allocator);
+        self.indexSpans.deinit();
+        self.vertexSpans.deinit();
+
+        self.vertexBuffer.deinit(self.gc.vkAllocator);
+
+        self.indexBuffer.deinit(self.gc.vkAllocator);
+        self.uploader.deinit();
+
+        self.updateRequests.deinit();
         self.allocator.destroy(self);
-    }
-
-    pub fn installMesh(self: *@This(), vertices: []MeshVertex, indices: []u32) !PoolMesh {
-        const indexSpan = self.indices.allocate(indices.len);
-        const vertexSpan = self.vertices.allocate(indices.len);
-
-        const indexSlice = self.getVertexSlice(indexSpan);
-        const vertexSlice = self.getVertexSlice(vertexSpan);
-
-        std.mem.copyForwards(MeshVertex, vertexSlice, vertices);
-        std.mem.copyForwards(u32, indexSlice, indices);
-    }
-
-    // should only ever be updated through the rendering thread.
-    pub fn getIndexSlice(self: *@This(), span: Span) []MeshVertex {
-        _ = self;
-        _ = span;
-    }
-
-    pub fn getVertexSlice(self: *@This(), span: Span) []MeshVertex {
-        _ = self;
-        _ = span;
-    }
-
-    pub fn checkUpdates(self: *@This()) void {
-        _ = self;
     }
 };
 
@@ -168,7 +300,7 @@ pub const PoolMesh = struct {
     indexSpan: Span,
 };
 
-pub fn loadIndexedMeshForPooling(path: []const u8) !void {
+pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
     const file = try core.fs().loadFile(path);
     defer core.fs().unmap(file);
 
@@ -215,6 +347,7 @@ pub fn loadIndexedMeshForPooling(path: []const u8) !void {
         .new = .{
             .vertices = try vertexList.toOwnedSlice(),
             .indices = try indexList.toOwnedSlice(),
+            .name = meshName,
         },
     };
 

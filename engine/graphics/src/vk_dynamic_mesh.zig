@@ -193,8 +193,6 @@ pub const DynamicMesh = struct {
             .size = copy.size,
         };
 
-        copy.size = self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex)));
-
         // Insert Barrier for indexBuffer
         vkd.cmdPipelineBarrier(
             cmd,
@@ -208,6 +206,8 @@ pub const DynamicMesh = struct {
             0,
             undefined,
         );
+
+        copy.size = self.vertexCount * @as(u32, @intCast(@sizeOf(MeshVertex)));
 
         // submit vertex Buffer
         self.gc.vkd.cmdCopyBuffer(
