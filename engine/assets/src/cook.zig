@@ -78,7 +78,7 @@ pub fn shutdown() void {
 pub const GenerateError = error{UnableToGenerate};
 pub const LoadError = error{BadFile};
 
-pub const CookGenerateFunction = *const fn (allocator: std.mem.Allocator, out: *std.ArrayList(u8)) GenerateError!void;
+pub const CookGenerateFunction = *const fn (allocator: std.mem.Allocator, filePath: []const u8, out: *std.ArrayList(u8)) GenerateError!void;
 pub const CookFunction = *const fn (allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8, params: CookParams) CookResult;
 
 pub fn loadFileAlloc(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8) ![]align(8) u8 {
@@ -119,7 +119,7 @@ pub fn generateCookFile(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []c
             try outPath.appendSlice(allocator, path);
             try outPath.appendSlice(allocator, ".cook");
 
-            try generateFunction(allocator, &cookFilePath);
+            try generateFunction(allocator, path, &cookFilePath);
 
             const file = try dir.createFile(outPath.items, .{});
             defer file.close();
@@ -232,8 +232,9 @@ test "testing cooking" {
             sourceType: []const u8 = "png",
         };
 
-        pub fn generateFunction(allocator: std.mem.Allocator, out: *std.ArrayList(u8)) GenerateError!void {
+        pub fn generateFunction(allocator: std.mem.Allocator, path: []const u8, out: *std.ArrayList(u8)) GenerateError!void {
             _ = allocator;
+            _ = path;
             out.clearRetainingCapacity();
 
             std.json.stringify(TestConfig{}, .{ .whitespace = .indent_4 }, out.writer()) catch return GenerateError.UnableToGenerate;

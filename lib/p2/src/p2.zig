@@ -1,6 +1,7 @@
 // ---- ----
 const std = @import("std");
 const utils = @import("structures/utils.zig");
+pub const getFileExtension = utils.getFileExtension;
 
 pub const BumpArena = @import("structures/bump-arena.zig").BumpArena;
 

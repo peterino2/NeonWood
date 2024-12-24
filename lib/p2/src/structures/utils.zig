@@ -96,3 +96,12 @@ pub fn assert(eval: anytype) !void {
         return error.AssertFailure;
     }
 }
+
+pub fn getFileExtension(path: []const u8) []const u8 {
+    for (path, 0..) |c, i| {
+        if (c == '.') {
+            return path[i..];
+        }
+    }
+    return path;
+}

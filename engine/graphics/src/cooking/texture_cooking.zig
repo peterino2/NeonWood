@@ -3,8 +3,9 @@ const TextureConfig = struct {
     sourceType: []const u8 = "png",
 };
 
-pub fn generateFunction(allocator: std.mem.Allocator, out: *std.ArrayList(u8)) GenerateError!void {
+pub fn generateFunction(allocator: std.mem.Allocator, path: []const u8, out: *std.ArrayList(u8)) GenerateError!void {
     _ = allocator;
+    _ = path;
 
     out.clearRetainingCapacity();
     std.json.stringify(

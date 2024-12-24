@@ -3,25 +3,28 @@ const MeshConfig = struct {
     sourceType: []const u8 = "obj",
 };
 
-pub fn generateFunction(allocator: std.mem.Allocator, out: *std.ArrayList(u8)) GenerateError!void {
+const extList = [_][]const u8{ "gltf", "obj" };
+pub fn generateFunction(allocator: std.mem.Allocator, path: []const u8, out: *std.ArrayList(u8)) GenerateError!void {
     _ = allocator;
     out.clearRetainingCapacity();
+    const ext = core.getFileExtension(path)[1..];
+
+    var config: MeshConfig = .{};
+
+    for (extList) |e| {
+        if (std.mem.eql(u8, e, ext)) {
+            config.sourceType = e;
+        }
+    }
 
     std.json.stringify(
-        MeshConfig{},
+        config,
         .{ .whitespace = .indent_4 },
         out.writer(),
     ) catch return GenerateError.UnableToGenerate;
 }
 
-pub fn cookFunction(
-    allocator: std.mem.Allocator,
-    dir: std.fs.Dir,
-    path: []const u8,
-    params: cook.CookParams,
-) cook.CookResult {
-    _ = params;
-
+fn cookObj(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8) cook.CookResult {
     const rawFileBytes = cook.loadFileAlloc(allocator, dir, path) catch unreachable;
     defer allocator.free(rawFileBytes);
 
@@ -51,12 +54,41 @@ pub fn cookFunction(
     }
 }
 
+fn cookGltf(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8) cook.CookResult {
+    _ = dir;
+    _ = path;
+    core.engine_logs("gltf cooking not implemeted");
+    const out = std.ArrayList(u8).init(allocator);
+    return .{ .bytes = out, .result = .Failure };
+}
+
+pub fn cookFunction(
+    allocator: std.mem.Allocator,
+    dir: std.fs.Dir,
+    path: []const u8,
+    params: cook.CookParams,
+) cook.CookResult {
+    core.engine_log("{s}", .{params.cookFileName});
+    const fc = cook.loadFileAlloc(allocator, dir, params.cookFileName) catch unreachable;
+    defer allocator.free(fc);
+
+    const config = std.json.parseFromSlice(MeshConfig, allocator, fc[0 .. fc.len - 1], .{}) catch unreachable;
+    defer config.deinit();
+
+    if (std.mem.eql(u8, config.value.sourceType, "obj")) {
+        return cookObj(allocator, dir, path);
+    } else {
+        return cookGltf(allocator, dir, path);
+    }
+}
+
 pub fn initCooker(allocator: std.mem.Allocator) !void {
     _ = allocator;
     const registry = assets.cook.getRegistry();
 
     try registry.install("Mesh", generateFunction, cookFunction, &.{
         ".obj",
+        ".gltf",
     });
 }
 
