@@ -267,6 +267,8 @@ pub const DebugDrawSubsystem = struct {
         shared.lock.lock();
         defer shared.lock.unlock();
         const count: usize = shared.drawsThisFrame.items.len;
+        if (count == 0)
+            return;
         const mapped = self.gc.vkAllocator.mapBuffer(vk.DrawIndexedIndirectCommand, self.indirectStaging) catch unreachable;
         defer self.gc.vkAllocator.unmapMemory(self.indirectStaging);
 

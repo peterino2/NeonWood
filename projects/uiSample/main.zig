@@ -321,7 +321,7 @@ pub fn main() anyerror!void {
     nw.graphics.setStartupSettings("vulkanValidation", args.vulkanValidation);
 
     const memory = nw.core.MemoryTracker;
-    memory.MTSetup(gpa.allocator());
+    memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
