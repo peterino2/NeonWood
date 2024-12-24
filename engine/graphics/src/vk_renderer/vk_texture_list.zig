@@ -96,6 +96,14 @@ pub const TextureList = struct {
         };
 
         self.dsl = try vkd.createDescriptorSetLayout(self.gc.dev, &dsci, null);
+
+        const dsai = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = self.descriptorPool,
+            .descriptor_set_count = 1,
+            .p_set_layouts = @ptrCast(&self.dsl),
+        };
+
+        try vkd.allocateDescriptorSets(self.gc.dev, &dsai, @ptrCast(&self.listSet));
     }
 
     pub fn destroy(self: *@This()) void {
