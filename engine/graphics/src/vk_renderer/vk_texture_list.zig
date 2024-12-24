@@ -2,6 +2,8 @@
 
 const gTextureList: *TextureList = undefined;
 
+pub const ArrayedTexture = struct {};
+
 pub const TextureList = struct {
     allocator: std.mem.Allocator,
 
@@ -13,6 +15,14 @@ pub const TextureList = struct {
         };
 
         return self;
+    }
+
+    pub fn createTextureList(: []*Texture) void
+    {
+    }
+
+    pub fn destroy(self: *@This()) void {
+        self.allocator.destroy(self);
     }
 };
 
