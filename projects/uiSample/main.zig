@@ -7,8 +7,6 @@ const core = nw.core;
 const colors = core.colors;
 const graphics = nw.graphics;
 
-const DynamicTexture = graphics.DynamicTexture;
-
 const assets = nw.assets;
 const c = nw.graphics.c;
 const NodeHandle = ui.NodeHandle;
@@ -24,9 +22,6 @@ pub const GameContext = struct {
     panel: NodeHandle = .{},
     time: f64 = 0,
     testTime: f64 = 0,
-
-    dynTex: *DynamicTexture = undefined,
-    dynamicPixelBuffer: []core.colors.ColorRGBA8 = undefined,
 
     fpsText: ?[]u8 = null,
 
@@ -49,9 +44,6 @@ pub const GameContext = struct {
             self.allocator.free(text);
         }
 
-        self.dynTex.debug_removeMapping();
-        self.dynTex.destroy(graphics.getContext().vkAllocator);
-        self.pixelBuffer.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -64,12 +56,6 @@ pub const GameContext = struct {
                 core.engine_logs("shutting down everything");
                 core.signalShutdown();
             }
-        }
-
-        const color: u8 = @intCast(128 + @as(i32, @intFromFloat(@floor(32 * std.math.sin(self.time)))));
-
-        for (self.dynamicPixelBuffer) |*d| {
-            d.* = .{ .g = color };
         }
 
         if (self.time > 5.0) {
@@ -85,20 +71,10 @@ pub const GameContext = struct {
         ctx.get(self.fps).text = ui.papyrus.LocText.fromUtf8(self.fpsText.?);
     }
 
-    var t_dynamicImage = core.MakeName("t_dynamicImage");
-
     pub fn prepare_game(self: *@This()) !void {
         if (gAutomaticTest) {
             self.testTime = 10.0;
         }
-
-        self.dynTex = try graphics.DynamicTexture.create(graphics.getContext(), .{
-            .width = 300,
-            .height = 300,
-        });
-
-        try self.dynTex.debug_installToContext(t_dynamicImage);
-        self.dynamicPixelBuffer = try self.dynTex.debug_getBufferMapping();
 
         try assets.load(assets.MakeImportRef("Texture", "t_sampleImage", "textures/singleSpriteTest.png"));
 
@@ -211,7 +187,7 @@ pub const GameContext = struct {
         ctx.get(image).size = .{ .x = 100, .y = 100 };
 
         const imageChangeBtn = try ctx.addButton(unk, "dump timeline");
-        try ctx.events.installOnPressedEvent(imageChangeBtn, .onPressed, .Mouse1, &self.pixelBuffer, &changeImage);
+        _ = imageChangeBtn;
 
         const btn = try ctx.addButton(unk, "select file...");
         ctx.setFont(btn, "bitmap");
@@ -232,14 +208,6 @@ pub const GameContext = struct {
         ctx.get(te3).size = .{ .x = 600, .y = 200 };
     }
 };
-
-fn changeImage(node: ui.NodeHandle, eventType: ui.PressedType, pixelBufferPtr: ?*anyopaque) ui.HandlerError!void {
-    _ = node;
-    if (eventType == .onPressed) {
-        const pixelBuffer = @as(*const graphics.PixelBufferRGBA8, @alignCast(@ptrCast(pixelBufferPtr)));
-        graphics.getContext().updateTextureFromPixelsSync(core.MakeName("t_sampleImage"), pixelBuffer.*, true) catch unreachable;
-    }
-}
 
 const BurnStyle = ui.papyrus.BurnStyle;
 fn openDialog(node: ui.NodeHandle, eventType: ui.PressedType, _: ?*anyopaque) ui.HandlerError!void {

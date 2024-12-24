@@ -37,7 +37,7 @@ pub const loadIndexedMeshForPooling = mesh_pool.loadIndexedMeshForPooling;
 pub const getMeshPoolBuffers = mesh_pool.getMeshPoolBuffers;
 pub const getIndexedMeshByName = mesh_pool.getIndexedMeshByName;
 
-pub const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
+// pub const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
 
 pub const vk_util = @import("vk_utils.zig");
 pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;

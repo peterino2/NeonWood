@@ -30,7 +30,7 @@ const materials = @import("materials.zig");
 const build_opts = @import("game_build_opts");
 const platform = @import("platform");
 const vk_allocator = @import("vk_allocator.zig");
-const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
+// const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
 const vk_renderer_interface = @import("vk_renderer/vk_renderer_interface.zig");
 pub usingnamespace @import("vk_renderer/vk_renderer_interface.zig");
 
@@ -310,7 +310,7 @@ pub const NeonVkContext = struct {
 
     singleTextureSetLayout: vk.DescriptorSetLayout,
     dynamicMeshManager: *mesh.DynamicMeshManager,
-    dynamicTextures: std.ArrayListUnmanaged(*DynamicTexture),
+    //dynamicTextures: std.ArrayListUnmanaged(*DynamicTexture),
     shouldShowDebug: bool,
     platformInstance: *platform.PlatformInstance,
     uploader: vk_utils.NeonVkUploader,
@@ -415,7 +415,7 @@ pub const NeonVkContext = struct {
         try core.defineComponent(render_objects.StaticMesh, self.allocator);
         self.staticMeshSet = render_objects.StaticMesh.BaseContainer;
         self.requiredExtensions = .{};
-        self.dynamicTextures = .{};
+        // self.dynamicTextures = .{};
 
         for (required_device_extensions) |required| {
             try self.requiredExtensions.append(self.allocator, required);
@@ -2053,7 +2053,7 @@ pub const NeonVkContext = struct {
         // self.textureList.destroy();
 
         self.newMeshImages.deinit();
-        self.dynamicTextures.deinit(self.allocator);
+        // self.dynamicTextures.deinit(self.allocator);
 
         self.destroy_textures() catch {
             core.engine_errs("unable to destroy textures");
