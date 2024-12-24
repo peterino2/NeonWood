@@ -55,7 +55,6 @@ maxObjectCount: u32,
 plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
 meshPool: *MeshPoolBuffers = undefined,
-textureList: *TextureList = undefined,
 
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
 
@@ -147,7 +146,6 @@ const FrameSyncs = struct {
 pub fn setup(self: *@This(), gc: *NeonVkContext) !void {
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
     self.meshPool = try MeshPoolBuffers.create(self.allocator, gc, .{});
-    self.textureList = try TextureList.create(gc);
 
     try self.createSyncs();
     try self.initCommandBuffers();
@@ -208,7 +206,6 @@ fn processExitSignal(self: *@This()) void {
     self.deinitExtras();
     self.listeners.deinit(self.allocator);
     self.meshPool.destroy();
-    self.textureList.destroy();
 
     self.exitConfirmed.store(true, .seq_cst);
 }

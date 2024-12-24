@@ -1,9 +1,12 @@
 //glsl version 4.5
 #version 450
 
+#extension GL_EXT_nonuniform_qualifier : require
+
 layout (location = 0) in vec3 in_color;
 layout (location = 1) in vec2 texCoord;
 layout (location = 2) in vec3 worldPosition;
+layout (location = 3) flat in uint textureId;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -22,6 +25,10 @@ layout(set = 0, binding = 1) uniform  SceneData{
 	vec4 sunlightColor;
 } sceneData;
 
+#include "sharedSsbo.glsl"
+
+layout(set = 0, binding = 2) uniform sampler2D[] gTex;
+
 layout(set = 2, binding = 0) uniform sampler2D tex1;
 
 
@@ -31,6 +38,7 @@ void main()
 	// outFragColor = vec4(texCoord.x, texCoord.y, 0.5f, 1.0f);
 
     vec4 color = texture(tex1, texCoord).xyzw;
+    // vec4 color = texture(gTex[textureId], texCoord).xyzw;
 
     if(color.w < 0.05f)
     {

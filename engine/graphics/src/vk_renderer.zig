@@ -7,6 +7,9 @@ const default_lit = @import("default_lit");
 
 const vk_api = @import("vk_api.zig");
 
+const texture_list = @import("vk_renderer/vk_texture_list.zig");
+const TextureList = texture_list.TextureList;
+
 const graphics = @import("graphics.zig");
 const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
 const vma = @import("vma");
@@ -271,6 +274,8 @@ pub const NeonVkContext = struct {
     firstFrame: bool,
     isMinimized: bool,
 
+    // textureList: *TextureList,
+
     renderObjectsAreDirty: bool,
     cameraMovement: Vectorf,
 
@@ -529,6 +534,8 @@ pub const NeonVkContext = struct {
         try self.graph.write("}}\n", .{});
         try self.graph.writeOut("renderer_graph.viz");
 
+        // self.textureList = try TextureList.create(self);
+
         return self;
     }
 
@@ -776,10 +783,13 @@ pub const NeonVkContext = struct {
 
         const cameraBufferBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer, .{ .vertex_bit = true, .fragment_bit = true }, 0);
         const sceneBinding = vkinit.descriptorSetLayoutBinding(.uniform_buffer_dynamic, .{ .vertex_bit = true, .fragment_bit = true }, 1);
-        var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding };
+        var globalTextureBinding = vkinit.descriptorSetLayoutBinding(.combined_image_sampler, .{ .vertex_bit = true, .fragment_bit = true }, 2);
+        globalTextureBinding.descriptor_count = 800;
 
-        var setInfo = vk.DescriptorSetLayoutCreateInfo{
-            .binding_count = 2,
+        var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding, globalTextureBinding };
+
+        var globalSetInfo = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = 3,
             .flags = .{},
             .p_bindings = @as([*]const @TypeOf(sceneBinding), @ptrCast(&bindings)),
         };
@@ -793,7 +803,7 @@ pub const NeonVkContext = struct {
             .p_bindings = @as([*]const @TypeOf(objectBinding), @ptrCast(&objectBindings)),
         };
 
-        self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &setInfo, null);
+        self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &globalSetInfo, null);
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
@@ -1193,6 +1203,7 @@ pub const NeonVkContext = struct {
                 const objectData = try shared.objectData.addOne();
 
                 gpuData.model = transform;
+                gpuData.textureId = 0;
 
                 objectData.* = .{
                     .textureSet = if (object.texture != null) object.texture.? else self.meshMaterial.textureSet,
@@ -1996,6 +2007,8 @@ pub const NeonVkContext = struct {
 
         // clean out any existing assets in the assets ready queue
         vk_assetLoaders.discardAll();
+
+        // self.textureList.destroy();
 
         self.dynamicTextures.deinit(self.allocator);
 

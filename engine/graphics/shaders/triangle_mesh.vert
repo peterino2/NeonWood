@@ -9,6 +9,7 @@ layout (location = 4) in uint vSkeletal;
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
 layout (location = 2) out vec3 worldPosition;
+layout (location = 3) flat out uint textureId;
 
 layout (set = 0, binding = 0) uniform CameraBuffer{
     mat4 view;
@@ -17,14 +18,7 @@ layout (set = 0, binding = 0) uniform CameraBuffer{
     vec4 position;
 } cameraData;
 
-struct ObjectData {
-    mat4 model;
-};
-
-layout(std140, set = 1, binding = 0) readonly buffer ObjectBuffer{ 
-    ObjectData objects[];
-} objectBuffer;
-
+#include "sharedSsbo.glsl"
 
 void main()
 {
@@ -32,6 +26,7 @@ void main()
     mat4 final = (cameraData.viewproj * modelMatrix);
     vec4 position = final * vec4(vPosition, 1.0f);
 	gl_Position = position;
+    textureId = objectBuffer.objects[gl_BaseInstance].textureId;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
     texCoord = vTexCoord;
     worldPosition = (modelMatrix * vec4(vPosition, 1.0f)).xyz;
