@@ -47,7 +47,7 @@ pub const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
     .{ .type = .uniform_buffer, .descriptor_count = 1000 },
     .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
     .{ .type = .storage_buffer, .descriptor_count = 1000 },
-    .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+    .{ .type = .combined_image_sampler, .descriptor_count = 2000 },
     .{ .type = .sampler, .descriptor_count = 1000 },
     .{ .type = .sampled_image, .descriptor_count = 1000 },
     .{ .type = .storage_image, .descriptor_count = 1000 },

@@ -1,4 +1,5 @@
 //!
+// MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 -- use this if you're getting that odd crash on mac
 b: *std.Build,
 nw_builder: *std.Build,
 target: std.Build.ResolvedTarget,
