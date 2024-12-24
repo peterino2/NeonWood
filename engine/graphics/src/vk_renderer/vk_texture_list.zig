@@ -10,14 +10,14 @@ pub const TextureList = struct {
     gc: *NeonVkContext,
     listSet: vk.DescriptorSet = undefined,
     dsl: vk.DescriptorSetLayout = undefined,
-    descriptorPool: vk.DescriptorPool = undefined,
+    // descriptorPool: vk.DescriptorPool = undefined,
 
-    const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
-        .{ .type = .sampler, .descriptor_count = 1000 },
-        .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
-        .{ .type = .sampled_image, .descriptor_count = 1000 },
-        .{ .type = .storage_image, .descriptor_count = 1000 },
-    };
+    // const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
+    //     .{ .type = .sampler, .descriptor_count = 1000 },
+    //     .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+    //     .{ .type = .sampled_image, .descriptor_count = 1000 },
+    //     .{ .type = .storage_image, .descriptor_count = 1000 },
+    // };
 
     pub fn create(gc: *NeonVkContext) !*@This() {
         const self = try gc.allocator.create(@This());
@@ -34,20 +34,20 @@ pub const TextureList = struct {
     }
 
     pub fn initTextureList(self: *@This()) !void {
-        var poolInfo = vk.DescriptorPoolCreateInfo{
-            .flags = .{},
-            .max_sets = 1000,
-            .pool_size_count = @intCast(descriptorPoolSizes.len),
-            .p_pool_sizes = &descriptorPoolSizes,
-        };
+        // var poolInfo = vk.DescriptorPoolCreateInfo{
+        //     .flags = .{},
+        //     .max_sets = 1000,
+        //     .pool_size_count = @intCast(descriptorPoolSizes.len),
+        //     .p_pool_sizes = &descriptorPoolSizes,
+        // };
 
-        self.descriptorPool = try vkd.createDescriptorPool(self.gc.dev, &poolInfo, null);
+        // self.descriptorPool = try vkd.createDescriptorPool(self.gc.dev, &poolInfo, null);
 
         const bindings = [_]vk.DescriptorSetLayoutBinding{
             .{
                 .binding = 0,
                 .descriptor_type = .storage_buffer,
-                .descriptor_count = 1000,
+                .descriptor_count = 500,
                 .stage_flags = .{
                     .vertex_bit = true,
                     .geometry_bit = true,
@@ -59,7 +59,7 @@ pub const TextureList = struct {
             .{
                 .binding = 1,
                 .descriptor_type = .combined_image_sampler,
-                .descriptor_count = 1000,
+                .descriptor_count = 500,
                 .stage_flags = .{
                     .vertex_bit = true,
                     .geometry_bit = true,
@@ -71,7 +71,7 @@ pub const TextureList = struct {
             .{
                 .binding = 2,
                 .descriptor_type = .storage_image,
-                .descriptor_count = 1000,
+                .descriptor_count = 500,
                 .stage_flags = .{
                     .vertex_bit = true,
                     .geometry_bit = true,
@@ -98,7 +98,7 @@ pub const TextureList = struct {
         self.dsl = try vkd.createDescriptorSetLayout(self.gc.dev, &dsci, null);
 
         const dsai = vk.DescriptorSetAllocateInfo{
-            .descriptor_pool = self.descriptorPool,
+            .descriptor_pool = self.gc.descriptorPool,
             .descriptor_set_count = 1,
             .p_set_layouts = @ptrCast(&self.dsl),
         };
@@ -108,7 +108,7 @@ pub const TextureList = struct {
 
     pub fn destroy(self: *@This()) void {
         vkd.destroyDescriptorSetLayout(self.gc.dev, self.dsl, null);
-        vkd.destroyDescriptorPool(self.gc.dev, self.descriptorPool, null);
+        // vkd.destroyDescriptorPool(self.gc.dev, self.descriptorPool, null);
         self.textures.deinit(self.allocator);
         self.allocator.destroy(self);
     }

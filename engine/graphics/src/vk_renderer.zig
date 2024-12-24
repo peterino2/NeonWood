@@ -767,7 +767,7 @@ pub const NeonVkContext = struct {
             .flags = .{
                 .free_descriptor_set_bit = true,
             },
-            .max_sets = 100,
+            .max_sets = 5000,
             .pool_size_count = @as(u32, @intCast(descriptorPoolSizes.len)),
             .p_pool_sizes = &descriptorPoolSizes,
         };
