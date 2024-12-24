@@ -37,6 +37,7 @@ pub const TextureLoader = struct {
         name: core.Name,
         texture: *Texture,
         textureSet: vk.DescriptorSet,
+        textureId: u32,
     };
 
     gc: *NeonVkContext,
@@ -129,7 +130,7 @@ pub const TextureLoader = struct {
                 };
 
                 const sampler = if (assetReady.properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
-                const textureSet = vk_utils.createDescriptorSetForImage(
+                const rv = vk_utils.createDescriptorSetForImage(
                     gc.dev,
                     gc.descriptorPool,
                     gc.singleTextureSetLayout,
@@ -140,7 +141,8 @@ pub const TextureLoader = struct {
                 self.rtAssetsReady.pushLocked(.{
                     .name = assetReady.name,
                     .texture = newTexture,
-                    .textureSet = textureSet,
+                    .textureSet = rv.textureSet,
+                    .textureId = rv.textureId,
                 }) catch return error.UnknownStatePanic;
                 z1.End();
             }
@@ -154,7 +156,7 @@ pub const TextureLoader = struct {
             self.rtAssetsReady.lock();
             defer self.rtAssetsReady.unlock();
             while (self.rtAssetsReady.popFromUnlocked()) |a| {
-                self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet) catch return error.UnknownStatePanic;
+                self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet, a.textureId) catch return error.UnknownStatePanic;
             }
         }
     }

@@ -38,6 +38,9 @@ actual_extent: vk.Extent2D = undefined, // actual_extent is the base extent used
 commandBuffers: [NumFrames]vk.CommandBuffer = undefined,
 frameSync: [NumFrames]FrameSyncs = undefined,
 
+indirectStaging: graphics.NeonVkBuffer = undefined,
+indirectGpu: graphics.NeonVkBuffer = undefined,
+
 isMinimized: std.atomic.Value(bool),
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
@@ -64,7 +67,8 @@ const ProcessEventListener = struct {
 };
 
 pub const ObjectSharedData = struct {
-    textureSet: vk.DescriptorSet,
+    //textureSet: vk.DescriptorSet,
+    // textureId: u32,
     indexedMesh: mesh_pool.IndexedMesh,
 };
 
@@ -151,7 +155,21 @@ pub fn setup(self: *@This(), gc: *NeonVkContext) !void {
     try self.initCommandBuffers();
     try self.initOrRecycleSwapchain();
     try self.initFramebuffers();
+    try self.initIndirectBuffers();
     try self.initShared();
+}
+
+pub fn uploadIndirectCommands(self: *@This(), cmd: vk.CommandBuffer, count: u32) void {
+    vkd_utils.copyStagingSlice(vk.DrawIndexedIndirectCommand, cmd, .{
+        .src = &self.indirectStaging,
+        .dst = &self.indirectGpu,
+        .size = count,
+    });
+}
+
+pub fn initIndirectBuffers(self: *@This()) !void {
+    self.indirectStaging = try self.vkAllocator.createStagingBuffer(8192 * @sizeOf(vk.DrawIndexedIndirectCommand), "main systems indirect staging buffer");
+    self.indirectGpu = try self.vkAllocator.createIndirectCommandBuffer(8192 * @sizeOf(vk.DrawIndexedIndirectCommand), "main systems indirect command buffer");
 }
 
 fn deinitExtras(self: *@This()) void {
@@ -196,6 +214,9 @@ fn processExitSignal(self: *@This()) void {
 
     core.engine_logs("RT - Process Exit Signal");
 
+    self.vkAllocator.destroyBuffer(&self.indirectGpu);
+    self.vkAllocator.destroyBuffer(&self.indirectStaging);
+
     vkd.queueWaitIdle(self.graphicsQueue.handle) catch {};
 
     self.deinitShared();
@@ -235,6 +256,26 @@ pub fn spinProcessExitSignal(self: *@This()) void {
     return;
 }
 
+pub fn updateMeshImages(self: *@This()) !void {
+    if (graphics.getContext().newMeshImages.count() > 0) {
+        graphics.getContext().newMeshImages.lock();
+        defer graphics.getContext().newMeshImages.unlock();
+        while (graphics.getContext().newMeshImages.popFromUnlocked()) |new| {
+            var imageBufferInfo = new.bufferInfo;
+            for (0..self.frameData.len) |i| {
+                var writeDescriptorSet = vkinit.writeDescriptorImage(
+                    .combined_image_sampler,
+                    self.frameData[i].globalDescriptorSet,
+                    &imageBufferInfo,
+                    2,
+                );
+                writeDescriptorSet.dst_array_element = new.textureId;
+                vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
+            }
+        }
+    }
+}
+
 // can be called from any thread.
 // queues up a render job for the next frame
 pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void {
@@ -248,6 +289,7 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
             // check for mesh pool updates
+            ctx.r.updateMeshImages() catch unreachable;
             ctx.r.meshPool.checkUpdates() catch unreachable;
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
@@ -299,13 +341,36 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
 
-    for (shared.objectData.items, 0..) |object, i| {
-        const textureSet = object.textureSet;
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
+    const count = shared.objectData.items.len;
+    vkd.cmdDrawIndexedIndirect(cmd, self.indirectGpu.buffer, 0, @intCast(count), @sizeOf(vk.DrawIndexedIndirectCommand));
+    // for (shared.objectData.items, 0..) |object, i| {
+    //     const meshBuffer = object.indexedMesh;
+    //     vkd.cmdDrawIndexed(cmd, meshBuffer.index.size, 1, meshBuffer.index.start, 0, @as(u32, @intCast(i)));
+    // }
+}
 
+pub fn updateIndirectBuffers(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
+    const shared = self.getShared(fi);
+
+    const count = shared.objectData.items.len;
+    if (count == 0)
+        return;
+
+    const mapped = self.vkAllocator.mapBuffer(vk.DrawIndexedIndirectCommand, self.indirectStaging) catch unreachable;
+    defer self.vkAllocator.unmapMemory(self.indirectStaging);
+
+    for (shared.objectData.items, 0..) |object, i| {
         const meshBuffer = object.indexedMesh;
-        vkd.cmdDrawIndexed(cmd, meshBuffer.index.size, 1, meshBuffer.index.start, 0, @as(u32, @intCast(i)));
+        mapped[i] = .{
+            .index_count = meshBuffer.index.size,
+            .instance_count = 1,
+            .first_index = meshBuffer.index.start,
+            .vertex_offset = 0,
+            .first_instance = @intCast(i),
+        };
     }
+
+    self.uploadIndirectCommands(cmd, @intCast(count));
 }
 
 // fi = frameIndex
@@ -335,6 +400,7 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const time = core.getEngineTime();
 
+        try self.updateIndirectBuffers(cmd, fi);
         self.preDrawPlugins(cmd, fi);
         try self.beginMainRenderpass(cmd, syncIndex);
 
@@ -897,6 +963,8 @@ const NeonVkContext = graphics.NeonVkContext;
 const texture_list = @import("vk_texture_list.zig");
 const TextureList = texture_list.TextureList;
 
+const vkd_utils = @import("vkd_utils.zig");
+const vkinit = @import("../vk_init.zig");
 // const vk_mesh_pool = @import("vk_mesh_pool.zig");
 // const MeshPool = vk_mesh_pool.MeshPool;
 

@@ -37,8 +37,8 @@ void main()
 	// outFragColor = vec4(in_color + 0.25 * sceneData.ambientColor.xyz,1.0f);
 	// outFragColor = vec4(texCoord.x, texCoord.y, 0.5f, 1.0f);
 
-    vec4 color = texture(tex1, texCoord).xyzw;
-    // vec4 color = texture(gTex[textureId], texCoord).xyzw;
+    // vec4 color = texture(tex1, texCoord).xyzw;
+    vec4 color = texture(gTex[textureId], texCoord).xyzw;
 
     if(color.w < 0.05f)
     {

@@ -26,7 +26,8 @@ pub const StaticMesh = struct {
     const Self = @This();
 
     mesh: ?IndexedMesh = null,
-    texture: ?vk.DescriptorSet = null,
+    // texture: ?vk.DescriptorSet = null,
+    textureId: ?u32 = null,
     transform: core.Mat = core.zm.translation(0, 0, 0),
     visibility: bool = true,
 
@@ -67,7 +68,7 @@ pub const StaticMesh = struct {
         var self = Self{
             .mesh = null,
             // .material = null,
-            .texture = null,
+            // .texture = null,
             .transform = transform,
             .position = undefined,
             .rotation = undefined,
@@ -80,8 +81,12 @@ pub const StaticMesh = struct {
     }
 
     pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.texture = gc.textureSets.get(name.handle()).?;
+        self.textureId = gc.textureIds.get(name.handle());
         self.textureName = name;
+    }
+
+    pub fn updateTexture(self: *@This(), gc: *NeonVkContext) void {
+        self.textureId = gc.textureIds.get(self.textureName.handle());
     }
 
     pub fn applyTransform(self: *StaticMesh, transform: core.Mat) void {

@@ -215,22 +215,22 @@ pub const DebugDrawSubsystem = struct {
     }
 
     // Renderer Ineterface Implementation
-    pub fn preDraw(self: *@This(), frameId: usize) void {
-        var zone = tracy.ZoneN(@src(), "Debug draw renderer");
-        defer zone.End();
+    // pub fn preDraw(self: *@This(), frameId: usize) void {
+    //     var zone = tracy.ZoneN(@src(), "Debug draw renderer");
+    //     defer zone.End();
 
-        const count: usize = self.debugDraws.count();
-        var offset: usize = 0;
-        while (offset < count) : (offset += 1) {
-            const primitive = self.debugDraws.at(offset).?;
-            const transform = primitive.resolve();
-            const color = primitive.color;
+    //     const count: usize = self.debugDraws.count();
+    //     var offset: usize = 0;
+    //     while (offset < count) : (offset += 1) {
+    //         const primitive = self.debugDraws.at(offset).?;
+    //         const transform = primitive.resolve();
+    //         const color = primitive.color;
 
-            const object = &self.mappedBuffers[frameId].objects[offset];
-            object.*.color = color;
-            object.*.model = transform;
-        }
-    }
+    //         const object = &self.mappedBuffers[frameId].objects[offset];
+    //         object.*.color = color;
+    //         object.*.model = transform;
+    //     }
+    // }
 
     pub fn tick(self: *@This(), dt: f64) void {
         self.deltaTime = dt;

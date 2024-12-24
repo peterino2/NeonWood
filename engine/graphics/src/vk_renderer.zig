@@ -283,6 +283,7 @@ pub const NeonVkContext = struct {
     staticMeshSet: *StaticMeshSet,
 
     textureSets: std.AutoHashMapUnmanaged(u32, vk.DescriptorSet),
+    textureIds: std.AutoHashMapUnmanaged(u32, u32),
 
     materials: std.AutoHashMapUnmanaged(u32, *Material),
     // meshes: std.AutoHashMapUnmanaged(u32, *Mesh),
@@ -316,10 +317,14 @@ pub const NeonVkContext = struct {
     vulkanValidation: bool,
 
     meshMaterial: *Material,
+    newMeshImages: NewMeshImageQueue = undefined,
+    newTextureId: u32,
 
     msaaSettings: enum { none, msaa_2x, msaa_4x, msaa_8x, msaa_16x },
 
     renderthread: RenderThread,
+
+    pub const NewMeshImageQueue = core.RingQueue(struct { bufferInfo: vk.DescriptorImageInfo, textureId: u32 });
 
     pub fn setRenderObjectMesh(self: *@This(), objectHandle: core.ObjectHandle, meshName: core.Name) void {
         const meshRef = graphics.getIndexedMeshByName(meshName);
@@ -396,6 +401,7 @@ pub const NeonVkContext = struct {
         self.mode = 0;
         self.firstFrame = true;
         self.textureSets = .{};
+        self.textureIds = .{};
         self.rendererPlugins = .{};
         self.isMinimized = false;
         self.textures = .{};
@@ -417,6 +423,8 @@ pub const NeonVkContext = struct {
 
         self.outstandingJobsCount = std.atomic.Value(u32).init(0);
 
+        self.newMeshImages = try NewMeshImageQueue.init(self.allocator, 128);
+        self.newTextureId = 0;
         self.platformInstance = platform.getInstance();
     }
 
@@ -665,7 +673,10 @@ pub const NeonVkContext = struct {
         return newTexture;
     }
 
-    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: Texture, params: ImageSamplerParams) !vk.DescriptorSet {
+    pub fn create_mesh_image_for_texture(self: *@This(), inTexture: Texture, params: ImageSamplerParams) !struct {
+        textureSet: vk.DescriptorSet,
+        textureId: u32,
+    } {
         var textureSet: vk.DescriptorSet = undefined;
         var allocInfo = vk.DescriptorSetAllocateInfo{
             .descriptor_pool = self.descriptorPool,
@@ -690,7 +701,12 @@ pub const NeonVkContext = struct {
 
         self.vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
 
-        return textureSet;
+        const newTextureId = self.newTextureId;
+        try self.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
+
+        self.newTextureId += 1;
+
+        return .{ .textureSet = textureSet, .textureId = newTextureId };
     }
 
     pub fn destroyDeferredDestroyTextures(self: *@This()) void {
@@ -709,9 +725,10 @@ pub const NeonVkContext = struct {
         self.deferredTextureDestroy.clearRetainingCapacity();
     }
 
-    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet) !void {
+    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet, textureId: u32) !void {
         try self.textures.put(self.allocator, name.handle(), textureRef);
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
+        try self.textureIds.put(self.allocator, name.handle(), textureId);
     }
 
     const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");
@@ -788,10 +805,19 @@ pub const NeonVkContext = struct {
 
         var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding, globalTextureBinding };
 
+        const flags = [_]vk.DescriptorBindingFlags{
+            .{},
+            .{},
+            .{ .partially_bound_bit = true },
+        };
+
+        const fci = vk.DescriptorSetLayoutBindingFlagsCreateInfo{ .binding_count = 3, .p_binding_flags = @ptrCast(&flags) };
+
         var globalSetInfo = vk.DescriptorSetLayoutCreateInfo{
             .binding_count = 3,
             .flags = .{},
             .p_bindings = @as([*]const @TypeOf(sceneBinding), @ptrCast(&bindings)),
+            .p_next = &fci,
         };
 
         const objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
@@ -1045,6 +1071,11 @@ pub const NeonVkContext = struct {
             0,
         );
 
+        const newTextureId = self.newTextureId;
+        try self.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
+        self.newTextureId += 1;
+        try self.textureIds.put(self.allocator, core.MakeName("missing_texture").handle(), newTextureId);
+
         self.vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&descriptorSet), 0, undefined);
         // ---------------
     }
@@ -1161,6 +1192,8 @@ pub const NeonVkContext = struct {
         }
     }
 
+    var missingTextureName: core.Name = core.MakeName("missing_texture");
+
     fn sendSharedData(self: *@This(), frameIndex: u32) !void {
         var z1 = tracy.ZoneN(@src(), "sending shared data");
         defer z1.End();
@@ -1193,6 +1226,10 @@ pub const NeonVkContext = struct {
                 object.mesh = graphics.getIndexedMeshByName(object.meshName);
             }
 
+            if (object.textureId == null) {
+                object.updateTexture(self);
+            }
+
             if (object.mesh != null and object.visibility) {
                 // core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
                 if (core.Scene.SceneObjectContainer.get(objectId, .posRot)) |posRot| {
@@ -1203,10 +1240,14 @@ pub const NeonVkContext = struct {
                 const objectData = try shared.objectData.addOne();
 
                 gpuData.model = transform;
-                gpuData.textureId = 0;
+                if (object.textureId) |id| {
+                    gpuData.textureId = id;
+                } else {
+                    gpuData.textureId = self.textureIds.get(missingTextureName.handle()).?;
+                }
 
                 objectData.* = .{
-                    .textureSet = if (object.texture != null) object.texture.? else self.meshMaterial.textureSet,
+                    // .textureSet = if (object.textureId != null) object.texture.? else self.meshMaterial.textureSet,
                     .indexedMesh = object.mesh.?,
                     // .vertexCount = @intCast(object.mesh.?.vertices.items.len),
                 };
@@ -2008,8 +2049,10 @@ pub const NeonVkContext = struct {
         // clean out any existing assets in the assets ready queue
         vk_assetLoaders.discardAll();
 
+        self.textureIds.deinit(self.allocator);
         // self.textureList.destroy();
 
+        self.newMeshImages.deinit();
         self.dynamicTextures.deinit(self.allocator);
 
         self.destroy_textures() catch {
