@@ -122,7 +122,7 @@ pub const PhysicsRuntime = struct {
             .spherePositions = std.ArrayList(core.Vectorf).init(allocator),
             .sphereRotations = std.ArrayList(core.Quat).init(allocator),
             .sphereIds = std.ArrayList(zphysics.BodyId).init(allocator),
-            .max_bodies = 4096,
+            .max_bodies = 8192,
         };
 
         const system = try zphysics.PhysicsSystem.create(
@@ -132,8 +132,8 @@ pub const PhysicsRuntime = struct {
             .{
                 .max_bodies = self.max_bodies,
                 .num_body_mutexes = 0,
-                .max_body_pairs = 8192,
-                .max_contact_constraints = 8192,
+                .max_body_pairs = 8192 * 2,
+                .max_contact_constraints = 8192 * 2,
             },
         );
 
@@ -258,32 +258,32 @@ pub const PhysicsRuntime = struct {
     }
 
     pub fn tick(self: *@This(), dt: f64) void {
-        self.system.update(1.0 / @as(f32, @floatFromInt(60)), .{}) catch unreachable;
+        self.system.update(@floatCast(dt), .{}) catch unreachable;
         self.updateSpherePositions() catch unreachable;
 
-        self.newBallTime -= dt;
+        // self.newBallTime -= dt;
 
-        if (self.newBallTime < 0) {
-            const bodyInterface = self.system.getBodyInterfaceMut();
-            self.newBallTime = 5.0;
-            self.offset += 0.01;
+        // if (self.newBallTime < 0) {
+        //     const bodyInterface = self.system.getBodyInterfaceMut();
+        //     self.newBallTime = 5.0;
+        //     self.offset += 0.01;
 
-            _ = bodyInterface.createAndAddBody(
-                .{
-                    .position = .{ 0 + self.offset, 15, 0, 1 },
-                    .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.primSphereShape,
-                    .motion_type = .dynamic,
-                    .object_layer = ObjectLayers.moving,
-                    .restitution = 0.4,
-                    .angular_velocity = .{ 0, 0, 0, 0 },
-                    .inertia_multiplier = 30,
-                },
-                .activate,
-            ) catch unreachable;
+        //     _ = bodyInterface.createAndAddBody(
+        //         .{
+        //             .position = .{ 0 + self.offset, 15, 0, 1 },
+        //             .rotation = .{ 0, 0, 0, 1 },
+        //             .shape = self.primSphereShape,
+        //             .motion_type = .dynamic,
+        //             .object_layer = ObjectLayers.moving,
+        //             .restitution = 0.4,
+        //             .angular_velocity = .{ 0, 0, 0, 0 },
+        //             .inertia_multiplier = 30,
+        //         },
+        //         .activate,
+        //     ) catch unreachable;
 
-            self.system.optimizeBroadPhase();
-        }
+        //     self.system.optimizeBroadPhase();
+        // }
     }
 
     pub fn deinit(self: *@This()) void {
