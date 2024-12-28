@@ -207,10 +207,10 @@ pub const PhysicsRuntime = struct {
             }, .activate);
         }
 
-        for (0..240) |i| {
+        for (0..1024) |i| {
             _ = try bodyInterface.createAndAddBody(
                 .{
-                    .position = .{ 0, @as(f32, @floatFromInt(i)) * 0.1 + 1.0, 2, 1 },
+                    .position = .{ 0, @as(f32, @floatFromInt(i)) * 1.1 + 1.0, 2, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
                     .shape = self.primSphereShape,
                     .motion_type = .dynamic,
@@ -222,7 +222,7 @@ pub const PhysicsRuntime = struct {
             );
             _ = try bodyInterface.createAndAddBody(
                 .{
-                    .position = .{ 5, @as(f32, @floatFromInt(i)) * 0.1 + 1.0, 2, 1 },
+                    .position = .{ 5, @as(f32, @floatFromInt(i)) * 1.1 + 1.0, 2, 1 },
                     .rotation = .{ 0, 0, 0, 1 },
                     .shape = self.primSphereShape,
                     .motion_type = .dynamic,

@@ -200,7 +200,7 @@ pub const GameContext = struct {
         {
             const meshName = core.MakeName("m_primitive_sphere");
             // const materialName = core.MakeName("t_mesh");
-            for (0..2048) |i| {
+            for (0..self.spheres.len) |i| {
                 const oHandle = try self.gc.add_renderobject(.{
                     .mesh_name = meshName,
                     // .material_name = materialName,
@@ -442,13 +442,12 @@ pub fn main() anyerror!void {
 
     const args = try neonwood.getArgs();
 
-    memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
-    //memory.MTSetup(std.heap.c_allocator, .{ .timeline = args.dmt });
+    //memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
+    memory.MTSetup(std.heap.c_allocator, .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
-    // const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 
