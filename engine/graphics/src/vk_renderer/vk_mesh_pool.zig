@@ -1,6 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const core = @import("core");
+const cgltf = @import("cgltf");
 
 pub const MeshPoolCreationSettings = struct {
     vertexCount: u32 = 4_000_000,
@@ -303,7 +304,45 @@ pub fn getMeshPoolBuffers() struct { index: NeonVkBuffer, vertex: NeonVkBuffer }
     };
 }
 
-pub fn loadIndexedMeshForPooling(meshName: core.Name, path: []const u8) !void {
+pub const MeshSourceType = enum { obj, gltf };
+
+pub const LoadMeshSettings = struct {
+    path: []const u8,
+    sourceType: ?MeshSourceType = null,
+};
+
+pub fn loadIndexedMeshForPooling(meshName: core.Name, opt: LoadMeshSettings) !void {
+    var sourceType = MeshSourceType.gltf;
+    if (opt.sourceType) |st| {
+        sourceType = st;
+    }
+
+    // check if we have a cooked version of that file, if so just load that instead.
+
+    // otherwise, load the file
+    switch (sourceType) {
+        .obj => {
+            try loadIndexedMeshForPoolingObj(meshName, opt.path);
+        },
+        .gltf => {
+            try loadIndexedMeshForPoolingGltf(meshName, opt.path);
+        },
+    }
+}
+
+pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !void {
+    const file = try core.fs().loadFile(path);
+    defer core.fs().unmap(file);
+
+    _ = meshName;
+
+    const allocator = gMeshPoolBuffer.allocator;
+    _ = allocator;
+
+    return error.NotImplementedYet;
+}
+
+pub fn loadIndexedMeshForPoolingObj(meshName: core.Name, path: []const u8) !void {
     const file = try core.fs().loadFile(path);
     defer core.fs().unmap(file);
 

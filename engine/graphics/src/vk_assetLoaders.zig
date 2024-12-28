@@ -212,9 +212,33 @@ pub const MeshLoader = struct {
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
         _ = self;
-        core.engine_log("loading mesh asset {s}", .{propertiesBag.?.path});
-        // _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
-        graphics.loadIndexedMeshForPooling(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
+        const sourceType = getSourceType(propertiesBag);
+        core.engine_log("loading mesh asset {s} [{s}]", .{ propertiesBag.?.path, if (sourceType) |s| @tagName(s) else "default" });
+        graphics.loadIndexedMeshForPooling(assetRef.name, .{ .path = propertiesBag.?.path, .sourceType = getSourceType(propertiesBag) }) catch return error.UnableToLoad;
+    }
+
+    fn getSourceType(propertiesBag: ?assets.AssetPropertiesBag) ?graphics.MeshSourceType {
+        if (propertiesBag) |bag| {
+            if (bag.meshType) |meshType| {
+                if (std.mem.eql(u8, meshType, "obj")) {
+                    return graphics.MeshSourceType.obj;
+                }
+                if (std.mem.eql(u8, meshType, "gltf")) {
+                    return graphics.MeshSourceType.gltf;
+                }
+            }
+
+            // try to deduce it by file name, if nothing is set.
+            const ext = core.getFileExtension(bag.path);
+            if (std.mem.eql(u8, ext, ".obj")) {
+                return graphics.MeshSourceType.obj;
+            }
+            if (std.mem.eql(u8, ext, ".gltf")) {
+                return graphics.MeshSourceType.gltf;
+            }
+        }
+
+        return null;
     }
 
     pub fn discardAll(self: *@This()) void {

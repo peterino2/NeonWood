@@ -19,15 +19,39 @@ layout (set = 0, binding = 0) uniform CameraBuffer{
 } cameraData;
 
 #include "sharedSsbo.glsl"
+#include "skeletalBuffers.glsl"
 
 void main()
 {
+    vec3 vertexPos = vec3(0.0);
+
+    if(vSkeletal == -1)
+    {
+        vertexPos = vPosition;
+    }
+    else 
+    {
+        uint animation = objectBuffer.objects[gl_BaseInstance].animation;
+
+        for(int i = 0; i < 4; i += 1)
+        {
+            uint boneIndex = vbd.buf[gl_BaseInstance].bones[i];
+            float weight = vbd.buf[gl_BaseInstance].weights[i] / 255;
+
+            // this will depend on ozz's finals format
+            mat4 boneTransform = animationBuffer.finals[vSkeletal + animation] * inverseRestPose.bones[boneIndex];
+
+            vertexPos += weight * (boneTransform * vec4(vPosition, 1.0)).xyz;
+        }
+    }
+
 	mat4 modelMatrix = objectBuffer.objects[gl_BaseInstance].model;
     mat4 final = (cameraData.viewproj * modelMatrix);
-    vec4 position = final * vec4(vPosition, 1.0f);
+    vec4 position = final * vec4(vertexPos, 1.0f);
+
 	gl_Position = position;
     textureId = objectBuffer.objects[gl_BaseInstance].textureId;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
     texCoord = vTexCoord;
-    worldPosition = (modelMatrix * vec4(vPosition, 1.0f)).xyz;
+    worldPosition = (modelMatrix * position).xyz;
 }

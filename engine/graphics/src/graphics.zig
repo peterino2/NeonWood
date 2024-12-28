@@ -32,7 +32,7 @@ pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
 const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
-
+pub const MeshSourceType = mesh_pool.MeshSourceType;
 pub const loadIndexedMeshForPooling = mesh_pool.loadIndexedMeshForPooling;
 pub const getMeshPoolBuffers = mesh_pool.getMeshPoolBuffers;
 pub const getIndexedMeshByName = mesh_pool.getIndexedMeshByName;
