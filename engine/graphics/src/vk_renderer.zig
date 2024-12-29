@@ -1602,6 +1602,7 @@ pub const NeonVkContext = struct {
 
         var desiredFeatures12 = vk.PhysicalDeviceVulkan12Features{};
 
+        desiredFeatures12.storage_buffer_8_bit_access = vk.TRUE;
         desiredFeatures12.descriptor_binding_partially_bound = vk.TRUE;
         desiredFeatures12.runtime_descriptor_array = vk.TRUE;
         desiredFeatures12.shader_sampled_image_array_non_uniform_indexing = vk.FALSE;

@@ -45,9 +45,6 @@ pub const SpirvGenerator2 = struct {
             .spirv_build = spirv_build,
             .reflect = reflect,
             .glslTypes = dep.module("glslTypes"),
-            //spirv_build.addModule("glslTypes", .{
-            //.root_source_file = .{ .path = "src/glslTypes.zig" },
-            //}),
         };
     }
 

@@ -6,9 +6,20 @@ target: std.Build.ResolvedTarget,
 optimize: std.builtin.Mode,
 nw_mod: *std.Build.Module,
 spirvReflect: SpirvReflect.SpirvGenerator2,
+gltf2ozz: ozz.GltfToOzz,
 options: *std.Build.Step.Options,
 
-const engineDepList = [_][]const u8{ "assets", "audio", "core", "graphics", "papyrus", "platform", "physics", "ui", "vkImgui" };
+const engineDepList = [_][]const u8{
+    "assets",
+    "audio",
+    "core",
+    "graphics",
+    "papyrus",
+    "platform",
+    "physics",
+    "ui",
+    "vkImgui",
+};
 
 const BuildSystem = @This();
 const std = @import("std");
@@ -16,6 +27,7 @@ const Build = std.Build;
 const LazyPath = Build.LazyPath;
 
 const SpirvReflect = @import("SpirvReflect");
+const ozz = @import("ozz");
 
 pub const InitOptions = struct {
     import_name: []const u8 = "NeonWood",
@@ -29,7 +41,7 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
         .optimize = opts.optimize,
     });
 
-    return .{
+    const self = BuildSystem{
         .b = b,
         .nw_builder = nwdep.builder,
         .target = opts.target,
@@ -37,7 +49,13 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
         .nw_mod = nwdep.module("NeonWood"),
         .spirvReflect = SpirvReflect.SpirvGenerator2.init(nwdep.builder, .{}),
         .options = createGameOptions(b),
+        .gltf2ozz = ozz.GltfToOzz.init(nwdep.builder, .{}),
     };
+
+    b.installArtifact(self.spirvReflect.reflect);
+    b.installArtifact(self.gltf2ozz.exe);
+
+    return self;
 }
 
 pub const AddProgramOptions = struct {

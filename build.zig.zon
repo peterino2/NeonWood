@@ -13,6 +13,7 @@
         .vkImgui = .{ .path = "engine/vkImgui" },
 
         .SpirvReflect = .{ .path = "lib/spirv-reflect-zig" },
+        .ozz = .{ .path = "lib/ozz" },
     },
     .paths = .{
         "",
