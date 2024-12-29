@@ -1,7 +1,6 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const core = @import("core");
-const cgltf = @import("cgltf");
 
 pub const MeshPoolCreationSettings = struct {
     vertexCount: u32 = 4_000_000,

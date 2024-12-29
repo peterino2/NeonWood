@@ -6,6 +6,7 @@
         .vulkan = .{ .path = "../../lib/vulkan" },
         .vma = .{ .path = "../../lib/vma" },
         .glfw3 = .{ .path = "../../lib/glfw3" },
+        .cgltf = .{ .path = "../../lib/cgltf" },
         .objLoader = .{ .path = "../../lib/objLoader" },
         .SpirvReflect = .{ .path = "../../lib/spirv-reflect-zig" },
         .ozz = .{ .path = "../../lib/ozz" },
