@@ -9,7 +9,7 @@
         .zmath = .{ .path = "../../lib/zmath" },
         .packer = .{ .path = "../../lib/packer" },
         .lua = .{ .path = "../../lib/lua" },
-        .cgltf = .{ .path = "../../lib/cgltf" },
+        .zgltf = .{ .path = "../../lib/zgltf" },
     },
     .paths = .{
         "",
