@@ -55,7 +55,9 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
     b.installArtifact(self.spirvReflect.reflect);
     b.installArtifact(self.gltf2ozz.exe);
 
-    const toolsInstall = b.addInstallArtifact(self.gltf2ozz.exe, .{});
+    const toolsInstall = b.addInstallArtifact(self.gltf2ozz.exe, .{
+        .dest_dir = .{ .override = .{ .custom = "tools" } },
+    });
 
     const runArtifact = b.addRunArtifact(self.gltf2ozz.exe);
     if (b.args) |args| {
