@@ -1,6 +1,7 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const core = @import("core");
+const zgltf = core.zgltf;
 
 pub const MeshPoolCreationSettings = struct {
     vertexCount: u32 = 4_000_000,
@@ -333,12 +334,216 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
     const file = try core.fs().loadFile(path);
     defer core.fs().unmap(file);
 
-    _ = meshName;
-
     const allocator = gMeshPoolBuffer.allocator;
-    _ = allocator;
 
-    return error.NotImplementedYet;
+    var parser = zgltf.init(allocator);
+    defer parser.deinit();
+
+    const ext = core.getFileExtension(path);
+    if (std.mem.eql(u8, ".gltf", ext)) {
+        try parser.parse(@alignCast(file.bytes[0 .. file.bytes.len - 1]));
+    } else {
+        try parser.parse(@alignCast(file.bytes));
+    }
+
+    std.debug.print("\n", .{});
+    parser.debugPrint();
+
+    if (parser.data.meshes.items.len > 1) {
+        return error.OnlyOneMeshPerGltfImplemented;
+    }
+
+    if (parser.data.skins.items.len > 1) {
+        return error.TooManySkins;
+    }
+
+    var binaryFile: ?core.packer.PackerBytesMapping = null;
+    var binaryBytes: []const u8 = undefined;
+
+    if (std.mem.eql(u8, ext, ".glb")) {
+        binaryBytes = parser.glb_binary.?;
+    } else {
+        const binaryPath = try std.fmt.allocPrint(allocator, "{s}bin", .{path[0 .. path.len - 4]});
+        defer allocator.free(binaryPath);
+        core.engine_log("{s}", .{binaryPath});
+        binaryFile = try core.fs().loadFile(binaryPath);
+        binaryBytes = binaryFile.?.bytes;
+    }
+
+    defer if (binaryFile) |f| core.fs().unmap(f);
+
+    const m = parser.data.meshes.items[0];
+    core.engine_log("mesh name {s} number of primitives = {d}", .{ m.name, m.primitives.items.len });
+
+    var positions = std.ArrayList(f32).init(allocator);
+    defer positions.deinit();
+
+    var texcoords = std.ArrayList(f32).init(allocator);
+    defer texcoords.deinit();
+
+    var normals = std.ArrayList(f32).init(allocator);
+    defer normals.deinit();
+
+    var joints = std.ArrayList(u16).init(allocator);
+    defer joints.deinit();
+
+    var weights = std.ArrayList(f32).init(allocator);
+    defer weights.deinit();
+
+    var weightCount: usize = 4;
+
+    var indexList = std.ArrayList(u32).init(allocator);
+    for (m.primitives.items) |primitive| {
+        if (primitive.indices) |indices| {
+            const accessor = parser.data.accessors.items[indices];
+            core.engine_log("index accessor info: {any}", .{accessor});
+
+            if (accessor.component_type == .unsigned_short) {
+                var temp = std.ArrayList(u16).init(allocator);
+                defer temp.deinit();
+                parser.getDataFromBufferView(u16, &temp, accessor, @alignCast(binaryBytes));
+                for (temp.items) |t| {
+                    try indexList.append(@intCast(t));
+                }
+            } else if (accessor.component_type == .unsigned_integer) {
+                parser.getDataFromBufferView(u32, &indexList, accessor, @alignCast(binaryBytes));
+            }
+        }
+
+        for (primitive.attributes.items) |attribute| {
+            core.engine_log("attribute: {any}", .{attribute});
+
+            switch (attribute) {
+                .position => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any}", .{accessor});
+
+                    parser.getDataFromBufferView(f32, &positions, accessor, @alignCast(binaryBytes));
+                    core.engine_log("positions loaded: {d}", .{positions.items.len});
+                },
+                .normal => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any}", .{accessor});
+
+                    parser.getDataFromBufferView(f32, &normals, accessor, @alignCast(binaryBytes));
+                    core.engine_log("normals loaded: {d}", .{normals.items.len});
+                },
+                .texcoord => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any}", .{accessor});
+
+                    parser.getDataFromBufferView(f32, &texcoords, accessor, @alignCast(binaryBytes));
+                    core.engine_log("texcoords loaded: {d}", .{texcoords.items.len});
+                },
+                .joints => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any}", .{accessor});
+
+                    parser.getDataFromBufferView(u16, &joints, accessor, @alignCast(binaryBytes));
+                    core.engine_log("joints loaded: {d} - {d} {d} {d} {d}", .{
+                        joints.items.len,
+                        joints.items[0],
+                        joints.items[1],
+                        joints.items[2],
+                        joints.items[3],
+                    });
+                },
+                .weights => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any}", .{accessor});
+
+                    parser.getDataFromBufferView(f32, &weights, accessor, @alignCast(binaryBytes));
+
+                    if (accessor.type == .vec3) {
+                        weightCount = 3;
+                    }
+
+                    core.engine_log("weights loaded: {d} - {d} {d} {d} {d}", .{
+                        weights.items.len,
+                        weights.items[0],
+                        weights.items[1],
+                        weights.items[2],
+                        weights.items[3],
+                    });
+                },
+                .tangent => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any} NOT PARSED", .{accessor});
+                },
+                .color => |x| {
+                    const accessor = parser.data.accessors.items[x];
+                    core.engine_log("accessor info: {any} NOT PARSED", .{accessor});
+                },
+            }
+        }
+    }
+
+    var vertexList = std.ArrayList(MeshVertex).init(allocator);
+
+    var i: usize = 0;
+    const vertexCount = positions.items.len / 3;
+    while (i < vertexCount) : (i += 1) {
+        const normalIndex = i * 3;
+        const positionIndex = i * 3;
+        const uvIndex = i * 2;
+
+        const uv: core.Vector2f = if (uvIndex < texcoords.items.len) .{
+            .x = texcoords.items[uvIndex],
+            .y = texcoords.items[uvIndex + 1],
+        } else core.Vector2f{};
+
+        const normal = if (normalIndex < normals.items.len) core.Vectorf{
+            .x = normals.items[i],
+            .y = normals.items[i + 1],
+            .z = normals.items[i + 2],
+        } else core.Vectorf{};
+
+        try vertexList.append(.{
+            .position = .{
+                .x = positions.items[positionIndex],
+                .y = positions.items[positionIndex + 1],
+                .z = positions.items[positionIndex + 2],
+            },
+            .normal = normal,
+            .color = .{},
+            .uv = uv,
+        });
+    }
+
+    if (indexList.items.len == 0) {
+        for (0..vertexList.items.len) |x| {
+            try indexList.append(@intCast(x));
+        }
+    }
+
+    const rv: MeshUpdate = .{
+        .new = .{
+            .vertices = try vertexList.toOwnedSlice(),
+            .indices = try indexList.toOwnedSlice(),
+            .name = meshName,
+        },
+    };
+
+    core.graphics_log("[{s}] gltf loaded vertex count vertices={d} indices={d}", .{ path, rv.new.vertices.len, rv.new.indices.len });
+
+    try gMeshPoolBuffer.updateRequests.pushLocked(rv);
+
+    // return error.NotImplementedYet;
+
+    // var vertexList = std.ArrayList(MeshVertex).init(allocator);
+    // var indexList = std.ArrayList(u32).init(allocator);
+
+    // const rv: MeshUpdate = .{
+    //     .new = .{
+    //         .vertices = try vertexList.toOwnedSlice(),
+    //         .indices = try indexList.toOwnedSlice(),
+    //         .name = meshName,
+    //     },
+    // };
+
+    // core.graphics_log("[{s}] vertex count vertices={d} indices={d}", .{ path, rv.new.vertices.len, rv.new.indices.len });
+
+    // try gMeshPoolBuffer.updateRequests.pushLocked(rv);
 }
 
 pub fn loadIndexedMeshForPoolingObj(meshName: core.Name, path: []const u8) !void {

@@ -22,6 +22,8 @@ var gGame: *GameContext = undefined;
 
 const testimage1 = "textures/lost_empire-RGBA.png";
 const testimage2 = "textures/texture_sample.png";
+const helmet = "gltf-samples/DamagedHelmet/glTF/Default_albedo.png";
+const foxTexture = "gltf-samples/Fox/glTF/Texture.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
@@ -30,8 +32,26 @@ const AssetReferences = [_]assets.AssetImportReference{
         "m_empire",
         .{ .path = "meshes/lost_empire.obj" },
     ),
+    assets.MakeImportRefOptions(
+        "Mesh",
+        "m_helmet",
+        .{ .path = "gltf-samples/DamagedHelmet/glTF-Binary/DamagedHelmet.glb" },
+    ),
+    assets.MakeImportRefOptions(
+        "Mesh",
+        "m_fox",
+        .{ .path = "gltf-samples/Fox/glTF/Fox.gltf" },
+    ),
     assets.MakeImportRefOptions("Texture", "t_empire", .{
         .path = testimage1,
+        .textureUseBlockySampler = false,
+    }),
+    assets.MakeImportRefOptions("Texture", "t_helmet", .{
+        .path = helmet,
+        .textureUseBlockySampler = false,
+    }),
+    assets.MakeImportRefOptions("Texture", "t_fox", .{
+        .path = foxTexture,
         .textureUseBlockySampler = false,
     }),
 };
@@ -49,6 +69,7 @@ pub const GameContext = struct {
     sphere: core.ObjectHandle = undefined,
     gc: *graphics.NeonVkContext = undefined,
     objHandle: core.ObjectHandle = .{},
+    foxHandle: core.ObjectHandle = .{},
     assetReady: bool = false,
 
     spheres: [4096]core.ObjectHandle = undefined,
@@ -91,7 +112,7 @@ pub const GameContext = struct {
         return self;
     }
 
-    var texName = core.MakeName("t_empire");
+    var texName = core.MakeName("t_helmet");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
         self.animationDemo.tick(deltaTime) catch unreachable;
@@ -189,21 +210,28 @@ pub const GameContext = struct {
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
-        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
+        self.camera.translate(.{ .x = 40.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
         self.objHandle = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_empire"),
-            // .material_name = core.MakeName("t_mesh"),
+            .mesh_name = core.MakeName("m_helmet"),
             .init_transform = core.zm.translation(0, -15, 0),
         });
 
+        self.foxHandle = try self.gc.add_renderobject(.{
+            .mesh_name = core.MakeName("m_fox"),
+            .init_transform = core.zm.translation(50, 0, 0),
+        });
+
+        {
+            var obj = self.gc.staticMeshSet.get(self.foxHandle).?;
+            obj.setTextureByName(self.gc, core.MakeName("t_fox"));
+        }
+
         {
             const meshName = core.MakeName("m_primitive_sphere");
-            // const materialName = core.MakeName("t_mesh");
             for (0..self.spheres.len) |i| {
                 const oHandle = try self.gc.add_renderobject(.{
                     .mesh_name = meshName,
-                    // .material_name = materialName,
                     .init_transform = core.zm.translation(0, 0, 0),
                 });
                 self.spheres[i] = oHandle;

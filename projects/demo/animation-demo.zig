@@ -25,20 +25,20 @@ pub const AnimationDemo = struct {
             .models = .{},
         };
 
-        self.skeleton.loadFromFile("content/test_ozz/pab_skeleton.ozz");
+        self.skeleton.loadFromFile("content/gltf-samples/Fox/glTF/skeleton.ozz");
         try self.locals.resize(self.allocator, self.skeleton.numSoaJoints());
         try self.models.resize(self.allocator, self.skeleton.numJoints());
         std.debug.assert(self.locals.items.len > 0);
         std.debug.assert(self.models.items.len > 0);
 
-        self.animation.loadFromFile("content/test_ozz/pab_crossarms.ozz");
+        self.animation.loadFromFile("content/gltf-samples/Fox/glTF/Run.ozz");
         self.samplingJobContext.resize(self.skeleton.numJoints());
 
         return self;
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) !void {
-        self.ratio += deltaTime / 6;
+        self.ratio += deltaTime;
         if (self.ratio > 1.0) {
             self.ratio = 0;
         }
@@ -66,7 +66,7 @@ pub const AnimationDemo = struct {
         for (self.models.items) |x| {
             const transform: core.Mat = @bitCast(x);
             const offset = core.zm.mul(core.zm.Vec{ 0, 0, 0, 1 }, transform);
-            core.debugSphere(core.Vectorf.fromZm(offset), 0.04, .{});
+            core.debugSphere(core.Vectorf.fromZm(offset), 5, .{});
             // core.engine_log("count = {any} ", .{transform});
         }
     }
