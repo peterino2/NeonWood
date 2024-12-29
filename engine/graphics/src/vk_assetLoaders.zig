@@ -236,6 +236,10 @@ pub const MeshLoader = struct {
             if (std.mem.eql(u8, ext, ".gltf")) {
                 return graphics.MeshSourceType.gltf;
             }
+
+            if (std.mem.eql(u8, ext, ".glb")) {
+                return graphics.MeshSourceType.gltf;
+            }
         }
 
         return null;

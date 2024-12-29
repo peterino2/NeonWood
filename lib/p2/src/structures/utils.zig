@@ -97,6 +97,50 @@ pub fn assert(eval: anytype) !void {
     }
 }
 
+pub fn getBasePath(path: []const u8) []const u8 {
+    if (path.len == 0) {
+        return "";
+    }
+
+    if (path[path.len - 1] == '/' or path[path.len - 1] == '\\') {
+        return getBasePath(path[0 .. path.len - 1]);
+    }
+
+    var i: i32 = @intCast(path.len - 1);
+
+    while (i >= 0) : (i -= 1) {
+        const c = path[@intCast(i)];
+
+        if (c == '/' or c == '\\') {
+            return path[@intCast(i + 1)..];
+        }
+    }
+
+    return path;
+}
+
+pub fn getFolder(path: []const u8) []const u8 {
+    if (path.len == 0) {
+        unreachable;
+    }
+
+    if (path[path.len - 1] == '/' or path[path.len - 1] == '\\') {
+        return getBasePath(path[0 .. path.len - 1]);
+    }
+
+    var i: i32 = @intCast(path.len - 1);
+
+    while (i >= 0) : (i -= 1) {
+        const c = path[@intCast(i)];
+
+        if (c == '/' or c == '\\') {
+            return path[0..@intCast(i)];
+        }
+    }
+
+    return path;
+}
+
 pub fn getFileExtension(path: []const u8) []const u8 {
     for (path, 0..) |c, i| {
         if (c == '.') {

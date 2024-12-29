@@ -3,9 +3,17 @@ pub const CookResultEnum = enum {
     Failure,
 };
 
+pub const FileBytes = struct {
+    path: []const u8,
+    bytes: []u8,
+};
+
+pub const ExtraFiles = std.ArrayList(FileBytes);
+
 pub const CookResult = struct {
     bytes: std.ArrayList(u8),
     result: CookResultEnum = .Success,
+    extraFiles: ?ExtraFiles = null,
 
     pub fn deinit(self: *@This()) void {
         self.bytes.deinit();
