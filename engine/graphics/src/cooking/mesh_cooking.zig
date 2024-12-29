@@ -1,6 +1,7 @@
 const MeshConfig = struct {
     info: CookInfo = .{ .assetType = "Mesh" }, // there must always be a CookInfo field
     sourceType: []const u8 = "obj",
+    animated: bool = false,
 };
 
 const extList = [_][]const u8{ "gltf", "obj" };
@@ -54,11 +55,16 @@ fn cookObj(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8) cook
     }
 }
 
-fn cookGltf(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8) cook.CookResult {
+fn cookGltf(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u8, config: MeshConfig) cook.CookResult {
     _ = dir;
     _ = path;
     core.engine_logs("gltf cooking not implemeted");
     const out = std.ArrayList(u8).init(allocator);
+
+    // check if it's animated. if it's animated, then invoke gltf2ozz and create a .ozzconfig file
+
+    if (config.animated) {}
+
     return .{ .bytes = out, .result = .Failure };
 }
 
@@ -78,7 +84,7 @@ pub fn cookFunction(
     if (std.mem.eql(u8, config.value.sourceType, "obj")) {
         return cookObj(allocator, dir, path);
     } else {
-        return cookGltf(allocator, dir, path);
+        return cookGltf(allocator, dir, path, config);
     }
 }
 

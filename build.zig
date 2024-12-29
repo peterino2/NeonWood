@@ -55,6 +55,18 @@ pub fn init(b: *std.Build, opts: InitOptions) BuildSystem {
     b.installArtifact(self.spirvReflect.reflect);
     b.installArtifact(self.gltf2ozz.exe);
 
+    const toolsInstall = b.addInstallArtifact(self.gltf2ozz.exe, .{});
+
+    const runArtifact = b.addRunArtifact(self.gltf2ozz.exe);
+    if (b.args) |args| {
+        runArtifact.addArgs(args);
+    }
+    const run_exe = b.step("gltf2ozz", "runs the gltf animation converter.");
+    run_exe.dependOn(&runArtifact.step);
+
+    const install_tools = b.step("tools", "installs tools needed to run the engine");
+    install_tools.dependOn(&toolsInstall.step);
+
     return self;
 }
 
