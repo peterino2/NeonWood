@@ -24,7 +24,6 @@ pub const SkeletalBuffers = struct {
         const vkAllocator: *NeonVkAllocator = self.vkAllocator;
 
         // 100k animated skeletal mesh vertices ought to be enough for anyone right?
-
         for (0..2) |i| {
             self.finalsBuffer[i] = try vkAllocator.createSsboBuffer(@sizeOf(core.Mat) * 100_000, "bones buffer.");
         }

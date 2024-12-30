@@ -2115,37 +2115,6 @@ pub const NeonVkContext = struct {
         self.materials.deinit(self.allocator);
     }
 
-    /// ---------- renderObject functions
-
-    // this one treats the renderer like any other subsystem
-    //
-    //fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
-    //    _ = self;
-    //    var renderObject = StaticMesh.fromTransform(params.init_transform);
-
-    //    const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
-
-    //    renderObject.mesh = findMesh;
-    //    renderObject.meshName = params.mesh_name;
-    //    return renderObject;
-    //}
-
-    // pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle {
-    //     const renderObject = try self.initRenderObject(params);
-
-    //     const rv = try self.staticMeshSet.createWithHandle(objectHandle, renderObject);
-    //     return rv;
-    // }
-
-    // pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
-    //     const renderObject = try self.initRenderObject(params);
-
-    //     const rv = try self.staticMeshSet.createObject(renderObject);
-    //     self.renderObjectsAreDirty = true;
-
-    //     return rv;
-    // }
-
     pub fn readyToExit(self: *@This()) bool {
         while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {
             self.renderthread.spinProcessExitSignal();
