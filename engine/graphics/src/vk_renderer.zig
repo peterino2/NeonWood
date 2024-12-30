@@ -412,8 +412,11 @@ pub const NeonVkContext = struct {
         self.maxObjectCount = gGraphicsStartupSettings.maxObjectCount;
         self.showDemo = true;
         self.renderObjectsByMaterial = .{};
+
+        // init ecs
         try core.defineComponent(render_objects.StaticMesh, self.allocator);
         self.staticMeshSet = render_objects.StaticMesh.BaseContainer;
+
         self.requiredExtensions = .{};
         // self.dynamicTextures = .{};
 
@@ -2116,34 +2119,32 @@ pub const NeonVkContext = struct {
 
     // this one treats the renderer like any other subsystem
     //
-    fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
-        _ = self;
-        var renderObject = StaticMesh.fromTransform(params.init_transform);
+    //fn initRenderObject(self: *@This(), params: CreateRenderObjectParams) !StaticMesh {
+    //    _ = self;
+    //    var renderObject = StaticMesh.fromTransform(params.init_transform);
 
-        const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
+    //    const findMesh = graphics.getIndexedMeshByName(params.mesh_name);
 
-        renderObject.mesh = findMesh;
-        renderObject.meshName = params.mesh_name;
-        return renderObject;
-    }
+    //    renderObject.mesh = findMesh;
+    //    renderObject.meshName = params.mesh_name;
+    //    return renderObject;
+    //}
 
-    pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle {
-        const renderObject = try self.initRenderObject(params);
+    // pub fn addRenderObject(self: *Self, objectHandle: core.ObjectHandle, params: CreateRenderObjectParams) !ObjectHandle {
+    //     const renderObject = try self.initRenderObject(params);
 
-        const rv = try self.staticMeshSet.createWithHandle(objectHandle, renderObject);
-        self.renderObjectsAreDirty = true;
+    //     const rv = try self.staticMeshSet.createWithHandle(objectHandle, renderObject);
+    //     return rv;
+    // }
 
-        return rv;
-    }
+    // pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
+    //     const renderObject = try self.initRenderObject(params);
 
-    pub fn add_renderobject(self: *Self, params: CreateRenderObjectParams) !ObjectHandle {
-        const renderObject = try self.initRenderObject(params);
+    //     const rv = try self.staticMeshSet.createObject(renderObject);
+    //     self.renderObjectsAreDirty = true;
 
-        const rv = try self.staticMeshSet.createObject(renderObject);
-        self.renderObjectsAreDirty = true;
-
-        return rv;
-    }
+    //     return rv;
+    // }
 
     pub fn readyToExit(self: *@This()) bool {
         while (self.renderthread.exitConfirmed.load(.seq_cst) == false) {

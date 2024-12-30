@@ -68,11 +68,11 @@ pub const GameContext = struct {
     debugOpen: bool = true,
     sphere: core.ObjectHandle = undefined,
     gc: *graphics.NeonVkContext = undefined,
-    objHandle: core.ObjectHandle = .{},
-    foxHandle: core.ObjectHandle = .{},
-    assetReady: bool = false,
+    obj: core.Entity = undefined,
+    fox: core.Entity = undefined,
+    fox2: core.Entity = undefined,
 
-    spheres: [4096]core.ObjectHandle = undefined,
+    spheres: [4096]core.Entity = undefined,
 
     cameraHorizontalRotationMat: core.Mat, // fp camera controls
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
@@ -117,14 +117,6 @@ pub const GameContext = struct {
     pub fn tick(self: *@This(), deltaTime: f64) void {
         self.animationDemo.tick(deltaTime) catch unreachable;
         // ig.igShowDemoWindow(&self.showDemo);
-        if (!self.assetReady) {
-            if (self.gc.textures.contains(texName.handle())) {
-                var obj = self.gc.staticMeshSet.get(self.objHandle).?;
-                obj.setTextureByName(self.gc, texName);
-                self.assetReady = true;
-                memory.MTPrintStatsDelta();
-            }
-        }
 
         const position = platform.getInstance().getCursorPosition();
         const dx = @as(f32, @floatCast(position.x - (@as(f32, @floatCast(lastXPos)))));
@@ -212,32 +204,34 @@ pub const GameContext = struct {
 
         self.camera.translate(.{ .x = 40.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
-        self.objHandle = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_helmet"),
-            .init_transform = core.zm.translation(0, -15, 0),
-        });
 
-        self.foxHandle = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_fox"),
-            .init_transform = core.zm.translation(50, 0, 0),
-        });
-
+        _ = try core.createEntity();
+        self.obj = try core.createEntity();
         {
-            var obj = self.gc.staticMeshSet.get(self.foxHandle).?;
-            obj.setTextureByName(self.gc, core.MakeName("t_fox"));
-            obj.animated = true; // DEBUG TODO
+            const mesh = self.obj.addComponent(graphics.StaticMesh).?;
+            mesh.setMesh("m_helmet");
+            mesh.position.y = -15;
+            mesh.updateScalars();
+            mesh.setTexture("t_helmet");
+        }
+
+        self.fox = try core.createEntity();
+        {
+            const mesh = self.fox.addComponent(graphics.StaticMesh).?;
+            mesh.position.x = 50;
+            mesh.updateScalars();
+            mesh.setMesh("m_fox");
+            mesh.setTexture("t_fox");
+            mesh.animated = true; // debug todo
         }
 
         {
             const meshName = core.MakeName("m_primitive_sphere");
             for (0..self.spheres.len) |i| {
-                const oHandle = try self.gc.add_renderobject(.{
-                    .mesh_name = meshName,
-                    .init_transform = core.zm.translation(0, 0, 0),
-                });
-                self.spheres[i] = oHandle;
-                var obj = self.gc.staticMeshSet.get(oHandle).?;
-                obj.visibility = false;
+                self.spheres[i] = try core.createEntity();
+                const mesh = self.spheres[i].addComponent(graphics.StaticMesh).?;
+                mesh.meshName = meshName;
+                mesh.visibility = false;
             }
         }
 
@@ -302,6 +296,18 @@ pub const GameContext = struct {
         }
 
         try physicsDemo.preparePhysics(self);
+
+        self.fox2 = try core.createEntity();
+        {
+            const mesh = self.fox2.addComponent(graphics.StaticMesh).?;
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.position.x = -40;
+            mesh.applyScalars();
+
+            mesh.setTexture("t_fox");
+            mesh.setMesh("m_fox");
+            mesh.animated = true;
+        }
     }
 
     pub fn deinit(self: *Self) void {

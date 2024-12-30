@@ -57,20 +57,20 @@ pub const StaticMesh = struct {
         _ = self;
     }
 
+    pub fn setMeshByName(self: *@This(), meshName: core.Name) void {
+        self.meshName = meshName;
+    }
+
     // script function
     pub fn setMesh(self: *@This(), meshName: []const u8) void {
         const name = core.MakeName(meshName);
         self.mesh = graphics.getIndexedMeshByName(core.MakeName(meshName));
         self.meshName = name;
-
-        graphics.getContext().renderObjectsAreDirty = true;
     }
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
             .mesh = null,
-            // .material = null,
-            // .texture = null,
             .transform = transform,
             .position = undefined,
             .rotation = undefined,
@@ -82,8 +82,14 @@ pub const StaticMesh = struct {
         return self;
     }
 
-    pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.textureId = gc.textureIds.get(name.handle());
+    pub fn setTexture(self: *Self, textureName: []const u8) void {
+        const name = core.MakeName(textureName);
+        self.textureId = graphics.getContext().textureIds.get(name.handle());
+        self.textureName = name;
+    }
+
+    pub fn setTextureByName(self: *Self, name: core.Name) void {
+        self.textureId = graphics.getContext().textureIds.get(name.handle());
         self.textureName = name;
     }
 
