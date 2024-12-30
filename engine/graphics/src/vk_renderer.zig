@@ -597,34 +597,6 @@ pub const NeonVkContext = struct {
         self.dynamicMeshManager = try mesh.DynamicMeshManager.init(self);
     }
 
-    fn upload_object_data(self: *Self) !void {
-        const allocation = self.frameData[self.nextFrameIndex].objectBuffer.allocation;
-        const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
-        var ssbo: []NeonVkObjectDataGpu = undefined;
-        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
-        ssbo.len = self.maxObjectCount;
-
-        var i: usize = 0;
-        while (i < self.maxObjectCount and i < self.staticMeshSet.dense.items.len) : (i += 1) {
-            const object = &self.staticMeshSet.dense.items[i].value;
-            var transform = self.staticMeshSet.dense.items[i].value.transform;
-
-            const entity = self.staticMeshSet.dense.items[i].sparseIndex;
-
-            // todo.. use _repr instead of posroT
-            if (core.Scene.SceneObjectContainer.get(entity, .posRot)) |posRot| {
-                transform = posRot.toTransform();
-            }
-
-            if (object.mesh != null) {
-                ssbo[i].modelMatrix = transform;
-            }
-        }
-
-        // unmapping every frame might actually be quite unessecary.
-        self.vkAllocator.vmaAllocator.unmapMemory(allocation);
-    }
-
     pub fn upload_texture_from_bytes(self: *@This(), bytes: []const u8) !*Texture {
         var stagingResults = try vk_utils.load_and_stage_image_from_bytes(self, bytes);
         defer stagingResults.stagingBuffer.deinit(self.vkAllocator);
