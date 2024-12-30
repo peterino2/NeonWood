@@ -238,6 +238,23 @@ pub const NeonVkAllocator = struct {
         return try self.createGpuBuffer(bufferSize, .{ .indirect_buffer_bit = true }, tag);
     }
 
+    pub fn createSsboBuffer(self: *@This(), bufferSize: u32, comptime tag: []const u8) !NeonVkBuffer {
+        const bci = vk.BufferCreateInfo{
+            .size = bufferSize,
+            .usage = .{ .storage_buffer_bit = true },
+            .flags = .{},
+            .sharing_mode = .exclusive,
+            .queue_family_index_count = 0,
+            .p_queue_family_indices = undefined,
+        };
+
+        const aci = vma.AllocationCreateInfo{
+            .usage = .cpuToGpu,
+        };
+
+        return try self.createBuffer(bci, aci, tag);
+    }
+
     pub fn createBuffer(
         self: *@This(),
         bci: vk.BufferCreateInfo,

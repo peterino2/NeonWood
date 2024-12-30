@@ -130,9 +130,11 @@ class OZZ_ANIMATION_DLL Skeleton {
   // Buffers below store joint informations in joing depth first order. Their
   // size is equal to the number of joints of the skeleton.
 
+ public:
   // Rest pose of every joint in local space.
   span<math::SoaTransform> joint_rest_poses_;
 
+ private:
   // Array of joint parent indexes.
   span<int16_t> joint_parents_;
 

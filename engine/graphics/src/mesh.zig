@@ -28,8 +28,8 @@ pub const MeshVertex = extern struct {
     normal: Vectorf = .{},
     color: Color = .{},
     uv: Vector2f = .{},
-    skeletal: u32 = 0,
-    pad: u32 = undefined,
+    bones: [4]u8 = .{ 0, 0, 0, 0 },
+    weights: [4]u8 = .{ 0, 0, 0, 0 },
 };
 
 pub const IndexBuffer = struct {
@@ -283,10 +283,16 @@ pub const VertexInputDescription = struct {
         try self.attributes.append(.{
             .binding = 0,
             .location = 4,
-            .format = .r8_uint,
-            .offset = @offsetOf(MeshVertex, "skeletal"),
+            .format = .a8b8g8r8_uint_pack32,
+            .offset = @offsetOf(MeshVertex, "bones"),
         });
 
+        try self.attributes.append(.{
+            .binding = 0,
+            .location = 5,
+            .format = .a8b8g8r8_uint_pack32,
+            .offset = @offsetOf(MeshVertex, "weights"),
+        });
         return self;
     }
 

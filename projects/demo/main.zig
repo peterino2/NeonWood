@@ -225,6 +225,7 @@ pub const GameContext = struct {
         {
             var obj = self.gc.staticMeshSet.get(self.foxHandle).?;
             obj.setTextureByName(self.gc, core.MakeName("t_fox"));
+            obj.animated = true; // DEBUG TODO
         }
 
         {

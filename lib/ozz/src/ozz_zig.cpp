@@ -95,6 +95,22 @@ void LoadSkeletonFromFile_c(void* skeleton, const char* filename)
 
     archive >> *sk;
 }
+
+struct OpaqueSpan 
+{
+    void* start;
+    void* end;
+};
+
+OpaqueSpan SkeletonJointRestPoses_c (void* skeleton)
+{
+    ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);
+    auto x = sk->joint_rest_poses();
+    OpaqueSpan* p = reinterpret_cast<OpaqueSpan*>(&x);
+
+    return *p;
+}
+
 void DestroySkeleton_c(void* skeleton)
 {
     ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);

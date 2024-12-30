@@ -1,7 +1,7 @@
 struct ObjectData {
     mat4 model;
     uint textureId;
-    uint animation;
+    int animation; // this is the index offset of the first matrix in the animation finals buffer.
     uint pad0;
     uint pad1;
 };

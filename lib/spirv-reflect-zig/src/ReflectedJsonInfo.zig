@@ -219,6 +219,7 @@ pub fn render(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
     try writer.writeAll("const float = gl.float;\n");
     try writer.writeAll("const u8vec4 = gl.u8vec4;\n");
     try writer.writeAll("const uint = gl.uint;\n");
+    try writer.writeAll("const int = gl.int;\n");
 
     for (self.reflectedTypes.values()) |reflected| {
         if (std.mem.eql(u8, reflected.name, "gl_PerVertex")) {

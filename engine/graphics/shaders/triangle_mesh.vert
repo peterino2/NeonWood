@@ -1,10 +1,13 @@
 #version 460
 
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+
 layout (location = 0) in vec3 vPosition;
 layout (location = 1) in vec3 vNormal;
 layout (location = 2) in vec4 vColor;
 layout (location = 3) in vec2 vTexCoord;
-layout (location = 4) in uint vSkeletal;
+layout (location = 4) in u8vec4 bones;
+layout (location = 5) in u8vec4 weights;
 
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
@@ -24,27 +27,26 @@ layout (set = 0, binding = 0) uniform CameraBuffer{
 void main()
 {
     vec3 vertexPos = vec3(0.0);
+    int animation = objectBuffer.objects[gl_BaseInstance].animation;
 
-    vertexPos = vPosition;
-    // if(vSkeletal == -1)
-    // {
-    //     vertexPos = vPosition;
-    // }
-    // else 
-    // {
-    //     uint animation = objectBuffer.objects[gl_BaseInstance].animation;
+    if(animation == -1)
+    {
+        vertexPos = vPosition;
+    }
+    else 
+    {
+        uint animation = objectBuffer.objects[gl_BaseInstance].animation;
 
-    //     for(int i = 0; i < 4; i += 1)
-    //     {
-    //         uint boneIndex = vbd.buf[gl_BaseInstance].bones[i];
-    //         float weight = vbd.buf[gl_BaseInstance].weights[i] / 255;
+        for(int i = 0; i < 4; i += 1)
+        {
+            uint boneIndex = bones[i];
+            float weight = float(weights[i]) / 255;
 
-    //         // this will depend on ozz's finals format
-    //         mat4 boneTransform = animationBuffer.finals[vSkeletal + animation] * inverseRestPose.bones[boneIndex];
-
-    //         vertexPos += weight * (boneTransform * vec4(vPosition, 1.0)).xyz;
-    //     }
-    // }
+            // this will depend on ozz's finals format
+            mat4 boneTransform = animationBuffer.finals[animation + boneIndex];
+            vertexPos += weight * (  boneTransform * vec4(vPosition, 1.0) ).xyz;
+        }
+    }
 
 	mat4 modelMatrix = objectBuffer.objects[gl_BaseInstance].model;
     mat4 final = (cameraData.viewproj * modelMatrix);

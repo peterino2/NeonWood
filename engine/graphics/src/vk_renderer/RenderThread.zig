@@ -61,6 +61,10 @@ meshPool: *MeshPoolBuffers = undefined,
 
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
 
+// DEBUG DO NOT USE
+skinning: std.ArrayListUnmanaged(core.Mat) = .{},
+skinningLock: std.Thread.Mutex = .{},
+
 const ProcessEventListener = struct {
     ptr: *anyopaque,
     func: *const fn (*anyopaque) void,
@@ -80,6 +84,7 @@ pub const SharedData = struct {
     pipelineLayout: vk.PipelineLayout,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
     objectData: std.ArrayList(ObjectSharedData) = .{},
+    skinning: std.ArrayList(core.Mat) = .{},
     extent: core.Vector2f,
 };
 
@@ -343,10 +348,6 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
 
     const count = shared.objectData.items.len;
     vkd.cmdDrawIndexedIndirect(cmd, self.indirectGpu.buffer, 0, @intCast(count), @sizeOf(vk.DrawIndexedIndirectCommand));
-    // for (shared.objectData.items, 0..) |object, i| {
-    //     const meshBuffer = object.indexedMesh;
-    //     vkd.cmdDrawIndexed(cmd, meshBuffer.index.size, 1, meshBuffer.index.start, 0, @as(u32, @intCast(i)));
-    // }
 }
 
 pub fn updateIndirectBuffers(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
@@ -495,17 +496,33 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
 fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
     var z1 = tracy.ZoneN(@src(), "uploading ssbo data");
     defer z1.End();
-    const allocation = self.frameData[fi].objectBuffer.allocation;
-    const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
-    var ssbo: []NeonVkObjectDataGpu = undefined;
-    ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
-    ssbo.len = self.maxObjectCount;
+    {
+        const allocation = self.frameData[fi].objectBuffer.allocation;
+        const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var ssbo: []NeonVkObjectDataGpu = undefined;
+        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
+        ssbo.len = self.maxObjectCount;
 
-    for (shared.models.items, 0..) |model, i| {
-        ssbo[i] = model;
+        for (shared.models.items, 0..) |model, i| {
+            ssbo[i] = model;
+        }
+
+        self.vkAllocator.vmaAllocator.unmapMemory(allocation);
     }
 
-    self.vkAllocator.vmaAllocator.unmapMemory(allocation);
+    // animations
+    {
+        // DO NOT USE DEBUG
+        self.skinningLock.lock(); // lets hope this lock doesnt cause something really fucked, this is a temporary solution just to show off something for today though
+        defer self.skinningLock.unlock();
+
+        const finals = try self.vkAllocator.mapBuffer(core.Mat, self.frameData[fi].animationsBuffer);
+        defer self.vkAllocator.unmapMemory(self.frameData[fi].animationsBuffer);
+
+        for (self.skinning.items, 0..) |model, i| {
+            finals[i] = model;
+        }
+    }
 }
 
 fn padUniformBufferSize(self: @This(), originalSize: usize) usize {
@@ -873,6 +890,8 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
 }
 
 fn initShared(self: *@This()) !void {
+    // DEBUG DO NOT USE
+    self.skinningLock = .{};
     for (&self.sharedData) |*s| {
         s.lock = .{};
         s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);

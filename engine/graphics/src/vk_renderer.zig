@@ -803,7 +803,11 @@ pub const NeonVkContext = struct {
         var globalTextureBinding = vkinit.descriptorSetLayoutBinding(.combined_image_sampler, .{ .vertex_bit = true, .fragment_bit = true }, 2);
         globalTextureBinding.descriptor_count = 800;
 
-        var bindings = [_]@TypeOf(sceneBinding){ cameraBufferBinding, sceneBinding, globalTextureBinding };
+        var bindings = [_]@TypeOf(sceneBinding){
+            cameraBufferBinding,
+            sceneBinding,
+            globalTextureBinding,
+        };
 
         const flags = [_]vk.DescriptorBindingFlags{
             .{},
@@ -814,22 +818,25 @@ pub const NeonVkContext = struct {
         const fci = vk.DescriptorSetLayoutBindingFlagsCreateInfo{ .binding_count = 3, .p_binding_flags = @ptrCast(&flags) };
 
         var globalSetInfo = vk.DescriptorSetLayoutCreateInfo{
-            .binding_count = 3,
+            .binding_count = @intCast(bindings.len),
             .flags = .{},
             .p_bindings = @as([*]const @TypeOf(sceneBinding), @ptrCast(&bindings)),
             .p_next = &fci,
         };
+        self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &globalSetInfo, null);
+
+        // create object set bindings
+        // object set is really per frame rendering buffers.
 
         const objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
-        var objectBindings = [_]@TypeOf(objectBinding){objectBinding};
+        const animationBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 1);
+        var objectBindings = [_]@TypeOf(objectBinding){ objectBinding, animationBinding };
 
         var objectSetInfo = vk.DescriptorSetLayoutCreateInfo{
-            .binding_count = 1,
+            .binding_count = 2,
             .flags = .{},
             .p_bindings = @as([*]const @TypeOf(objectBinding), @ptrCast(&objectBindings)),
         };
-
-        self.globalDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &globalSetInfo, null);
         self.objectDescriptorLayout = try self.vkd.createDescriptorSetLayout(self.dev, &objectSetInfo, null);
 
         const paddedSceneSize = self.pad_uniform_buffer_size(@sizeOf(NeonVkSceneDataGpu));
@@ -852,6 +859,12 @@ pub const NeonVkContext = struct {
                 "framedata object ssbo",
             );
 
+            self.frameData[i].animationsBuffer = try self.create_buffer(
+                @sizeOf(core.Mat) * 100_000, // 100k bones ought to be enough for anyone
+                .{ .storage_buffer_bit = true },
+                .cpuToGpu,
+                "animations ssbo",
+            );
             var objectDescriptorSetAllocInfo = vk.DescriptorSetAllocateInfo{
                 .descriptor_pool = self.descriptorPool,
                 .descriptor_set_count = 1,
@@ -873,8 +886,21 @@ pub const NeonVkContext = struct {
                 0,
             );
 
-            var objectSetWrites = [_]@TypeOf(objectWrite){objectWrite};
-            self.vkd.updateDescriptorSets(self.dev, 1, &objectSetWrites, 0, undefined);
+            var animBufferInfo = vk.DescriptorBufferInfo{
+                .buffer = self.frameData[i].animationsBuffer.buffer,
+                .offset = 0,
+                .range = @sizeOf(core.Mat) * 100_000,
+            };
+
+            const animBufferWrite = vkinit.writeDescriptorSet(
+                .storage_buffer,
+                self.frameData[i].objectDescriptorSet,
+                &animBufferInfo,
+                1,
+            );
+
+            var objectSetWrites = [_]@TypeOf(objectWrite){ objectWrite, animBufferWrite };
+            self.vkd.updateDescriptorSets(self.dev, 2, &objectSetWrites, 0, undefined);
 
             // detail the global descriptor set.
             self.frameData[i].cameraBuffer = try self.create_buffer(@sizeOf(NeonVkCameraDataGpu), .{ .uniform_buffer_bit = true }, .cpuToGpu, "Framedata camera buffer");
@@ -1246,6 +1272,13 @@ pub const NeonVkContext = struct {
                     gpuData.textureId = self.textureIds.get(missingTextureName.handle()).?;
                 }
 
+                // DEBUG ANIMATION AHFDJKASHFJKAS
+                if (object.animated) {
+                    gpuData.animation = 0;
+                } else {
+                    gpuData.animation = -1;
+                }
+
                 objectData.* = .{
                     // .textureSet = if (object.textureId != null) object.texture.? else self.meshMaterial.textureSet,
                     .indexedMesh = object.mesh.?,
@@ -1602,6 +1635,7 @@ pub const NeonVkContext = struct {
 
         var desiredFeatures12 = vk.PhysicalDeviceVulkan12Features{};
 
+        desiredFeatures12.shader_int_8 = vk.TRUE;
         desiredFeatures12.storage_buffer_8_bit_access = vk.TRUE;
         desiredFeatures12.descriptor_binding_partially_bound = vk.TRUE;
         desiredFeatures12.runtime_descriptor_array = vk.TRUE;

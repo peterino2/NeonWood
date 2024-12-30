@@ -84,7 +84,7 @@ const UploadList = struct {
 // operation per frame
 //
 // 1. async loading of vertices push model load results into a queue
-// 2. these results ar ethen installe dinto the vertex pool
+// 2. these results ar ethen installed into the vertex pool
 
 var gMeshPoolBuffer: *MeshPoolBuffers = undefined;
 
@@ -508,6 +508,27 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
             .color = .{},
             .uv = uv,
         });
+
+        const jointsIndex = weightCount * i;
+        if (weightCount == 4) {
+            if (jointsIndex < joints.items.len) {
+                vertexList.items[vertexList.items.len - 1].bones = .{
+                    @intCast(joints.items[jointsIndex + 0]),
+                    @intCast(joints.items[jointsIndex + 1]),
+                    @intCast(joints.items[jointsIndex + 2]),
+                    @intCast(joints.items[jointsIndex + 3]),
+                };
+
+                vertexList.items[vertexList.items.len - 1].weights = .{
+                    @intFromFloat(weights.items[jointsIndex + 0] * 255),
+                    @intFromFloat(weights.items[jointsIndex + 1] * 255),
+                    @intFromFloat(weights.items[jointsIndex + 2] * 255),
+                    @intFromFloat(weights.items[jointsIndex + 3] * 255),
+                };
+            }
+        } else {
+            return error.NotImplementedYet;
+        }
     }
 
     if (indexList.items.len == 0) {

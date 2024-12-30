@@ -12,6 +12,10 @@ pub const Skeleton = opaque {
         LoadSkeletonFromFile_c(self, path);
     }
 
+    pub fn getRestPoseModel(self: *@This()) Span(SoaTransform) {
+        return @bitCast(SkeletonJointRestPoses_c(@ptrCast(self)));
+    }
+
     pub fn numSoaJoints(self: *@This()) usize {
         return @intCast(SkeletonNumSoaJoints_c(@ptrCast(self)));
     }
@@ -24,6 +28,7 @@ pub const Skeleton = opaque {
         DestroySkeleton_c(@ptrCast(self));
     }
 
+    pub extern fn SkeletonJointRestPoses_c(s: ?*anyopaque) callconv(.C) OpaqueSpan;
     pub extern fn SkeletonNumJoints_c(s: ?*anyopaque) callconv(.C) c_int;
     pub extern fn SkeletonNumSoaJoints_c(s: ?*anyopaque) callconv(.C) c_int;
 
@@ -182,6 +187,11 @@ pub const SoaQuaternion = extern struct {
             .w = SimdFloat4_one,
         };
     }
+};
+
+pub const OpaqueSpan = extern struct {
+    start: ?*anyopaque,
+    end: ?*anyopaque,
 };
 
 pub const SoaTransform = extern struct {

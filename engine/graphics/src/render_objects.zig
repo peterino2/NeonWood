@@ -39,6 +39,8 @@ pub const StaticMesh = struct {
     textureName: core.Name = core.NameInvalid,
     meshName: core.Name = core.NameInvalid,
 
+    animated: bool = false,
+
     pub var BaseContainer: *StaticMeshSet = undefined;
     pub const ComponentName = "StaticMesh";
 

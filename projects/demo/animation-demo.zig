@@ -1,5 +1,6 @@
 const nw = @import("NeonWood");
 const core = nw.core;
+const graphics = nw.graphics;
 const ozz = nw.graphics.ozz;
 pub const std = @import("std");
 
@@ -9,7 +10,9 @@ pub const AnimationDemo = struct {
     samplingJobContext: *ozz.SamplingJobContext = undefined,
     locals: std.ArrayListUnmanaged(ozz.SoaTransform),
     models: std.ArrayListUnmanaged(ozz.Float4x4),
+    inverseBinds: std.ArrayListUnmanaged(core.Mat),
     ratio: f64 = 0.0,
+    bindModels: std.ArrayListUnmanaged(ozz.Float4x4),
 
     allocator: std.mem.Allocator,
 
@@ -22,6 +25,8 @@ pub const AnimationDemo = struct {
             .skeleton = ozz.Skeleton.create(),
             .animation = ozz.Animation.create(),
             .locals = .{},
+            .inverseBinds = .{},
+            .bindModels = .{},
             .models = .{},
         };
 
@@ -33,6 +38,25 @@ pub const AnimationDemo = struct {
 
         self.animation.loadFromFile("content/gltf-samples/Fox/glTF/Run.ozz");
         self.samplingJobContext.resize(self.skeleton.numJoints());
+
+        try self.inverseBinds.resize(self.allocator, self.skeleton.numJoints());
+        try self.bindModels.resize(self.allocator, self.skeleton.numJoints());
+
+        var ltmJob: ozz.LocalToModelJob = .{
+            .skeleton = self.skeleton,
+            .input = self.skeleton.getRestPoseModel(),
+            .output = ozz.makeSpan(self.bindModels.items),
+        };
+
+        core.engine_log("creating bind pose {d} joints", .{self.inverseBinds.items.len});
+
+        if (!ltmJob.run()) {
+            core.engine_logs("unable to get bind pose");
+        }
+
+        for (self.bindModels.items, 0..) |bind, i| {
+            self.inverseBinds.items[i] = core.zm.inverse(@as(core.Mat, @bitCast(bind)));
+        }
 
         return self;
     }
@@ -61,13 +85,22 @@ pub const AnimationDemo = struct {
 
         if (!ltmJob.run()) {
             core.engine_logs("local to model job failed");
+            return;
         }
 
-        for (self.models.items) |x| {
+        const gc = graphics.getContext();
+        const rt = &gc.renderthread;
+
+        rt.skinningLock.lock();
+        defer rt.skinningLock.unlock();
+
+        rt.skinning.clearRetainingCapacity();
+        for (self.models.items, 0..) |x, i| {
             const transform: core.Mat = @bitCast(x);
+            const final = core.zm.mul(self.inverseBinds.items[i], transform);
+            try rt.skinning.append(rt.allocator, final);
             const offset = core.zm.mul(core.zm.Vec{ 0, 0, 0, 1 }, transform);
             core.debugSphere(core.Vectorf.fromZm(offset), 5, .{});
-            // core.engine_log("count = {any} ", .{transform});
         }
     }
 
