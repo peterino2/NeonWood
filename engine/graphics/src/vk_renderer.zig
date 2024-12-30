@@ -2031,6 +2031,7 @@ pub const NeonVkContext = struct {
         for (self.frameData, 0..) |_, i| {
             self.frameData[i].cameraBuffer.deinit(self.vkAllocator);
             self.frameData[i].objectBuffer.deinit(self.vkAllocator);
+            self.frameData[i].animationsBuffer.deinit(self.vkAllocator);
         }
         self.sceneParameterBuffer.deinit(self.vkAllocator);
 
