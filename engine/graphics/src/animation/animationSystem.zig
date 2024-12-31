@@ -16,6 +16,7 @@ pub const Skeleton = struct {
 pub const AnimationTrack = struct {
     animation: *ozz.Animation,
     endTime: f32 = 1.0,
+
     pub fn deinit(self: *@This()) void {
         self.animation.destroy();
     }
@@ -30,6 +31,7 @@ pub const Animator = struct {
     track: ?*AnimationTrack = null,
     playback: f32 = 0.0,
     playbackRate: f32 = 1.0,
+
     // todo.. implement blending
     // animations: [4]*ozz.Animation = undefined,
     // timelines: [4]f32 = .{ 0, 0, 0, 0 },
@@ -51,7 +53,7 @@ pub const Animator = struct {
         self.entity = core.Entity{ .handle = handle };
 
         if (self.entity.get(graphics.StaticMesh)) |mesh| {
-            // mesh.animated = true; //todo
+            mesh.animated = true; //todo
             mesh.animator = self;
             self.sjc = ozz.SamplingJobContext.createMaxTracks(256);
         } else {
@@ -124,7 +126,7 @@ pub const Animator = struct {
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
-            self.finals.append(allocator, final) catch unreachable;
+            self.finals.items[i] = final;
         }
     }
 
@@ -135,6 +137,13 @@ pub const Animator = struct {
     pub fn setAnimation(self: *@This(), path: []const u8) void {
         const name = core.MakeName(path);
         self.setAnimationByName(name) catch unreachable;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.sjc.destroy();
+        self.finals.deinit(allocator);
+        self.locals.deinit(allocator);
+        self.models.deinit(allocator);
     }
 
     pub var BaseContainer: *core.SparseMap(@This()) = undefined;
@@ -152,7 +161,17 @@ pub const AnimationSystem = struct {
     animTracks: std.AutoHashMapUnmanaged(u32, *AnimationTrack) = .{},
     skeletons: std.AutoHashMapUnmanaged(u32, *Skeleton) = .{},
 
+    sharedArena: [2]std.heap.ArenaAllocator, // could be a good usecase for a fat bump arena
+    shared: [2]std.ArrayListUnmanaged(MatrixUploads) = .{ .{}, .{} },
+    sharedLocks: [2]std.Thread.Mutex = .{ .{}, .{} }, // could be a good usecase for a fat bump arena
+
+    pub const MatrixUploads = struct {
+        offset: u32,
+        matrices: std.ArrayListUnmanaged(core.Mat) = .{},
+    };
+
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
+    pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
     pub fn tick(self: *@This(), dt: f64) void {
         _ = self;
@@ -208,11 +227,44 @@ pub const AnimationSystem = struct {
         return self.arena.allocator();
     }
 
+    pub fn getShared(self: @This(), fi: u32) []const MatrixUploads {
+        return self.shared[fi].items;
+    }
+
+    pub fn sendShared(self: *@This(), frameIndex: u32) void {
+        const fi: usize = @intCast(frameIndex);
+
+        self.sharedLocks[fi].lock();
+        defer self.sharedLocks[fi].unlock();
+
+        _ = self.sharedArena[fi].reset(.retain_capacity);
+
+        const allocator = self.sharedArena[fi].allocator();
+        const shared = &self.shared[fi];
+        shared.* = .{};
+
+        for (Animator.BaseContainer.list.items) |animator| {
+            var upload: MatrixUploads = .{ .offset = animator.finalsSpan.start };
+            // std.debug.print("finalsSpan size {d} animator finals {d}\n", .{ animator.finalsSpan.size, animator.finals.items.len });
+            upload.matrices.resize(allocator, animator.finalsSpan.size) catch unreachable;
+
+            for (animator.finals.items, 0..) |final, i| {
+                upload.matrices.items[i] = final;
+            }
+
+            shared.append(allocator, upload) catch unreachable;
+        }
+    }
+
     pub fn init(alloc: std.mem.Allocator) !*@This() {
         const self = try alloc.create(@This());
         self.* = .{
             .backingAllocator = alloc,
             .arena = std.heap.ArenaAllocator.init(alloc),
+            .sharedArena = .{
+                std.heap.ArenaAllocator.init(alloc),
+                std.heap.ArenaAllocator.init(alloc),
+            },
             .slots = try MergedSpans.init(alloc, vk_constants.MAX_SKIN_SLOTS),
         };
 
@@ -224,7 +276,9 @@ pub const AnimationSystem = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        core.engine_logs("deinitializaing animation system");
         {
+            core.engine_log("skeleton count {d}", .{self.skeletons.count()});
             var iter = self.skeletons.iterator();
             while (iter.next()) |i| {
                 i.value_ptr.*.deinit();
@@ -232,11 +286,21 @@ pub const AnimationSystem = struct {
         }
 
         {
+            core.engine_log("animTracks count {d}", .{self.animTracks.count()});
             var iter = self.animTracks.iterator();
             while (iter.next()) |i| {
                 i.value_ptr.*.deinit();
             }
         }
+
+        for (self.sharedArena) |arena| {
+            arena.deinit();
+        }
+
+        for (Animator.BaseContainer.list.items) |animator| {
+            animator.deinit();
+        }
+        self.slots.deinit();
         core.undefineComponent(Animator);
         self.arena.deinit();
         self.skeletons.deinit(self.backingAllocator);

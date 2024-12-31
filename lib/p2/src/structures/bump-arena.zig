@@ -2,7 +2,7 @@ const std = @import("std");
 const paged_vector = @import("paged-vector.zig");
 const PagedVectorAdvanced = paged_vector.PagedVectorAdvanced;
 
-// non-threadsafe, fast bump-only allocator
+// mutex based, fast bump-only allocator
 pub const BumpArena = struct {
     const PageSize = 8192 * 2;
     const SmallAllocPages = paged_vector.PagedVectorAdvanced([PageSize]u8, 1);

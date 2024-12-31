@@ -44,13 +44,13 @@ pub const SkeletonLoader = struct {
     }
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
-        const ozzSk = ozz.Skeleton.create();
+        const sk = ozz.Skeleton.create();
 
         const mapping = core.fs().loadFile(propertiesBag.?.path) catch return error.UnableToLoad;
         defer core.fs().unmap(mapping);
-        ozzSk.loadFromBytes(mapping.bytes);
+        sk.loadFromBytes(mapping.bytes);
 
-        self.sys.newSkeleton(assetRef.name, ozzSk) catch return error.UnableToLoad;
+        self.sys.newSkeleton(assetRef.name, sk) catch return error.UnableToLoad;
     }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {

@@ -513,14 +513,22 @@ fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
     // animations
     {
         // DO NOT USE DEBUG
-        self.skinningLock.lock(); // lets hope this lock doesnt cause something really fucked, this is a temporary solution just to show off something for today though
-        defer self.skinningLock.unlock();
+        //self.skinningLock.lock(); // lets hope this lock doesnt cause something really fucked, this is a temporary solution just to show off something for today though
+        //defer self.skinningLock.unlock();
 
         const finals = try self.vkAllocator.mapBuffer(core.Mat, self.frameData[fi].animationsBuffer);
         defer self.vkAllocator.unmapMemory(self.frameData[fi].animationsBuffer);
 
-        for (self.skinning.items, 0..) |model, i| {
-            finals[i] = model;
+        const as = animationSystem.gAnimationSys;
+        as.sharedLocks[fi].lock();
+        defer as.sharedLocks[fi].unlock();
+
+        const sharedFinals = as.getShared(fi);
+
+        for (sharedFinals) |upload| {
+            for (upload.matrices.items, 0..) |final, i| {
+                finals[upload.offset + i] = final;
+            }
         }
     }
 }
@@ -984,6 +992,7 @@ const TextureList = texture_list.TextureList;
 
 const vkd_utils = @import("vkd_utils.zig");
 const vkinit = @import("../vk_init.zig");
+const animationSystem = @import("../animation/animationSystem.zig");
 // const vk_mesh_pool = @import("vk_mesh_pool.zig");
 // const MeshPool = vk_mesh_pool.MeshPool;
 

@@ -207,26 +207,27 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleRemoved(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object removed id={d} from container={s}({d}) 0x{x}", .{
-            handle.index,
-            self.containerNames.items[containerID].utf8(),
-            containerID,
-            @intFromPtr(self.containers.items[containerID].ptr),
-        });
+        _ = containerID;
+        //core.engine_log("ECS:: object removed id={d} from container={s}({d}) 0x{x}", .{
+        //    handle.index,
+        //    self.containerNames.items[containerID].utf8(),
+        //    containerID,
+        //    @intFromPtr(self.containers.items[containerID].ptr),
+        //});
 
         self.baseSet.get(handle).?.containersCount -= 1;
     }
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        //_ = containerID;
-        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
-            handle.index,
-            self.containerNames.items[containerID].utf8(),
-            containerID,
-            @intFromPtr(self.containers.items[containerID].ptr),
-        });
-
+        _ = containerID;
+        //        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
+        //            handle.index,
+        //            self.containerNames.items[containerID].utf8(),
+        //            containerID,
+        //            @intFromPtr(self.containers.items[containerID].ptr),
+        //        });
+        //
         if (self.baseSet.get(handle)) |obj| {
             obj.containersCount += 1;
         } else {

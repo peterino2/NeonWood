@@ -1249,7 +1249,7 @@ pub const NeonVkContext = struct {
 
                 // DEBUG ANIMATION AHFDJKASHFJKAS
                 if (object.animated) {
-                    gpuData.animation = 0;
+                    gpuData.animation = @intCast(object.animator.?.finalsSpan.start);
                 } else {
                     gpuData.animation = -1;
                 }

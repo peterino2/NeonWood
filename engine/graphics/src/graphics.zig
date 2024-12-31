@@ -100,8 +100,10 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
     vk_renderer.gContext = context;
 
-    _ = try core.createObject(AnimationSystem, .{ .can_tick = true });
+    const as = try core.createObject(AnimationSystem, .{ .can_tick = true });
     try animation_loaders.initLoaders();
+
+    try registerRendererPlugin(as);
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
     memory.MTPrintStatsDelta();

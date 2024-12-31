@@ -207,7 +207,7 @@ pub const PhysicsRuntime = struct {
             }, .activate);
         }
 
-        for (0..1024) |i| {
+        for (0..2) |i| {
             _ = try bodyInterface.createAndAddBody(
                 .{
                     .position = .{ 0, @as(f32, @floatFromInt(i)) * 1.1 + 1.0, 2, 1 },

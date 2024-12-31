@@ -325,6 +325,22 @@ pub const GameContext = struct {
             animator.setAnimation("a_fox_walk");
             // mesh.animated = true;
         }
+
+        const fox3 = try core.createEntity();
+        {
+            const mesh = fox3.addComponent(graphics.StaticMesh).?;
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.position.x = 30;
+            mesh.applyScalars();
+
+            mesh.setTexture("t_fox");
+            mesh.setMesh("m_fox");
+
+            const animator = fox3.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_survey");
+            // mesh.animated = true;
+        }
     }
 
     pub fn deinit(self: *Self) void {
@@ -494,8 +510,8 @@ pub fn main() anyerror!void {
 
     const args = try neonwood.getArgs();
 
-    //memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
-    memory.MTSetup(std.heap.c_allocator, .{ .timeline = args.dmt });
+    memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
+    // memory.MTSetup(std.heap.c_allocator, .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
