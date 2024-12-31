@@ -346,8 +346,8 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
         try parser.parse(@alignCast(file.bytes));
     }
 
-    std.debug.print("\n", .{});
-    parser.debugPrint();
+    // std.debug.print("\n", .{});
+    // parser.debugPrint();
 
     if (parser.data.meshes.items.len > 1) {
         return error.OnlyOneMeshPerGltfImplemented;
