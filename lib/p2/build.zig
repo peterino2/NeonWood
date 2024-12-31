@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/p2.zig"),
     });
 
-    const test_step = b.step("test-p2", "");
+    const test_step = b.step("test", "test p2");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
@@ -21,4 +21,7 @@ pub fn build(b: *std.Build) void {
     tests.root_module.addImport("p2", mod);
     const runArtifact = b.addRunArtifact(tests);
     test_step.dependOn(&runArtifact.step);
+    if (b.args) |args| {
+        runArtifact.addArgs(args);
+    }
 }

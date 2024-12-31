@@ -129,7 +129,7 @@ struct span {
   iterator begin() const { return data_; }
   iterator end() const { return data_ + size_; }
 
- private:
+ public:
   // span begin pointer.
   _Ty* data_;
 

@@ -11,6 +11,6 @@ test "simple_integration" {
 
 test "renderthread queue" {
     const allocator = std.testing.allocator;
-    core.start_module(allocator);
+    try core.start_module(.{}, .{}, allocator);
     defer core.shutdown_module(allocator);
 }

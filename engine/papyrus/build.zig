@@ -33,6 +33,6 @@ pub fn build(b: *std.Build) void {
     main_tests.linkLibC();
     main_tests.linkLibCpp();
     const run_tests = b.addRunArtifact(main_tests);
-    const test_step = b.step("test-papyrus", "Run library tests");
+    const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_tests.step);
 }

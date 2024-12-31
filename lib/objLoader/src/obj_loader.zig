@@ -373,7 +373,7 @@ const ObjContents = struct {
         const file_contents = try loadFileAlloc(file_path, 1, allocator);
         defer allocator.free(file_contents);
 
-        return try loadFromBytes(file_contents);
+        return try loadFromBytes(file_contents, allocator);
     }
 
     pub fn loadFromBytes(file_contents: []const u8, allocator: std.mem.Allocator) !ObjContents {
@@ -469,4 +469,9 @@ test "parse_monkey" {
         normal_count,
         faces_count,
     });
+}
+
+test "ObjIndexMesh" {
+    const monkey_obj_path = "./content/monkey.obj";
+    _ = monkey_obj_path;
 }

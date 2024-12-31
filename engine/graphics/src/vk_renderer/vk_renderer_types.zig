@@ -30,10 +30,13 @@ pub const NeonVkFrameData = struct {
     // buffers
     spriteBuffer: vk_allocator.NeonVkBuffer,
     objectBuffer: vk_allocator.NeonVkBuffer,
+    animationsBuffer: vk_allocator.NeonVkBuffer,
     cameraBuffer: vk_allocator.NeonVkBuffer,
 };
 
-pub const NeonVkObjectDataGpu = @import("triangle_mesh_vert").ObjectData;
+pub const triangle_mesh_vert = @import("triangle_mesh_vert");
+pub const NeonVkObjectDataGpu = triangle_mesh_vert.ObjectData;
+pub const VertexBoneData = triangle_mesh_vert.VertexBoneData;
 
 pub const NeonVkSceneDataGpu = struct {
     fogColor: core.zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 },
@@ -47,7 +50,15 @@ pub const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
     .{ .type = .uniform_buffer, .descriptor_count = 1000 },
     .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
     .{ .type = .storage_buffer, .descriptor_count = 1000 },
-    .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+    .{ .type = .combined_image_sampler, .descriptor_count = 2000 },
+    .{ .type = .sampler, .descriptor_count = 1000 },
+    .{ .type = .sampled_image, .descriptor_count = 1000 },
+    .{ .type = .storage_image, .descriptor_count = 1000 },
+
+    //     .{ .type = .sampler, .descriptor_count = 1000 },
+    //     .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+    //     .{ .type = .sampled_image, .descriptor_count = 1000 },
+    //     .{ .type = .storage_image, .descriptor_count = 1000 },
 };
 
 pub const NeonVkSwapImage = struct {

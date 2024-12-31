@@ -22,11 +22,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("empty/main.zig"),
     });
 
-    // _ = nwbuild.addProgram(.{
-    //     .name = "uiSample",
-    //     .desc = "ui sample program for papyrus",
-    //     .root_source_file = b.path("uiSample/main.zig"),
-    // });
+    _ = nwbuild.addProgram(.{
+        .name = "uiSample",
+        .desc = "ui sample program for papyrus",
+        .root_source_file = b.path("uiSample/main.zig"),
+    });
 
     _ = nwbuild.addProgram(.{
         .name = "imguiSample",

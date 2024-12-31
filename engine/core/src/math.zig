@@ -240,6 +240,10 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
             };
         }
 
+        pub inline fn fromInt(t: anytype) @This() {
+            return .{ .x = t, .y = t, .z = t };
+        }
+
         pub inline fn toArr3(self: @This()) [3]T {
             return .{ self.x, self.y, self.z };
         }

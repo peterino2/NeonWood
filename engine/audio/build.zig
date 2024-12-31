@@ -21,4 +21,16 @@ pub fn build(b: *std.Build) void {
 
         mod.addImport(depName, dep.module(depName));
     }
+
+    const test_step = b.step("test", "run unit tests for audio");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("tests/tests.zig"),
+    });
+
+    tests.root_module.addImport("audio", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
+    b.installArtifact(tests);
 }

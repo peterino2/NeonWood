@@ -9,8 +9,6 @@ const core = @import("core");
 const tracy = core.tracy;
 const vk_constants = graphics.constants;
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 pub const api = @import("cimgui.zig");
 pub const c = api.c;
 
@@ -194,19 +192,13 @@ pub const NeonVkImGui = struct {
     }
 
     pub fn onRendererTeardown(self: *Self) void {
-        // c.ImGui_ImplGlfw_Shutdown();
-        if (use_renderthread)
-            c.cImGui_vk_Shutdown();
-
+        c.cImGui_vk_Shutdown();
         _ = self;
     }
 
     pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
-        if (!use_renderthread) {
-            c.cImGui_vk_Shutdown();
-        }
         ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
         self.allocator.destroy(self);
     }

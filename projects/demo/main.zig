@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const neonwood = @import("NeonWood");
 pub const options = @import("NeonWoodOptions");
+const AnimationDemo = @import("animation-demo.zig").AnimationDemo;
 const ozz = graphics.ozz;
 const memory = core.MemoryTracker;
 const physicsDemo = @import("physics-demo.zig");
@@ -21,19 +22,49 @@ var gGame: *GameContext = undefined;
 
 const testimage1 = "textures/lost_empire-RGBA.png";
 const testimage2 = "textures/texture_sample.png";
+const helmet = "gltf-samples/DamagedHelmet/glTF/Default_albedo.png";
+const foxTexture = "gltf-samples/Fox/glTF/Texture.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRefOptions(
         "Mesh",
         "m_empire",
-        .{
-            .path = "meshes/lost_empire.obj",
-        },
+        .{ .path = "meshes/lost_empire.obj" },
+    ),
+    assets.MakeImportRefOptions(
+        "Mesh",
+        "m_helmet",
+        .{ .path = "gltf-samples/DamagedHelmet/glTF-Binary/DamagedHelmet.glb" },
+    ),
+    assets.MakeImportRefOptions(
+        "Mesh",
+        "m_fox",
+        .{ .path = "gltf-samples/Fox/glTF/Fox.gltf" },
     ),
     assets.MakeImportRefOptions("Texture", "t_empire", .{
         .path = testimage1,
         .textureUseBlockySampler = false,
+    }),
+    assets.MakeImportRefOptions("Texture", "t_helmet", .{
+        .path = helmet,
+        .textureUseBlockySampler = false,
+    }),
+    assets.MakeImportRefOptions("Texture", "t_fox", .{
+        .path = foxTexture,
+        .textureUseBlockySampler = false,
+    }),
+    assets.MakeImportRefOptions("Animation", "a_fox_survey", .{
+        .path = "gltf-samples/Fox/glTF/Survey.ozz",
+    }),
+    assets.MakeImportRefOptions("Animation", "a_fox_run", .{
+        .path = "gltf-samples/Fox/glTF/Run.ozz",
+    }),
+    assets.MakeImportRefOptions("Animation", "a_fox_walk", .{
+        .path = "gltf-samples/Fox/glTF/Walk.ozz",
+    }),
+    assets.MakeImportRefOptions("Skeleton", "sk_fox", .{
+        .path = "gltf-samples/Fox/glTF/skeleton.ozz",
     }),
 };
 
@@ -49,10 +80,11 @@ pub const GameContext = struct {
     debugOpen: bool = true,
     sphere: core.ObjectHandle = undefined,
     gc: *graphics.NeonVkContext = undefined,
-    objHandle: core.ObjectHandle = .{},
-    assetReady: bool = false,
+    obj: core.Entity = undefined,
+    fox: core.Entity = undefined,
+    fox2: core.Entity = undefined,
 
-    spheres: [4096]core.ObjectHandle = undefined,
+    spheres: [4096]core.Entity = undefined,
 
     cameraHorizontalRotationMat: core.Mat, // fp camera controls
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
@@ -73,6 +105,8 @@ pub const GameContext = struct {
 
     frameCount: u32 = 5,
 
+    // animationDemo: *AnimationDemo = undefined,
+
     pub fn init(allocator: std.mem.Allocator) !*Self {
         var self = try allocator.create(@This());
         self.* = Self{
@@ -90,18 +124,11 @@ pub const GameContext = struct {
         return self;
     }
 
-    var texName = core.MakeName("t_empire");
+    var texName = core.MakeName("t_helmet");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
+        // self.animationDemo.tick(deltaTime) catch unreachable;
         // ig.igShowDemoWindow(&self.showDemo);
-        if (!self.assetReady) {
-            if (self.gc.textures.contains(texName.handle())) {
-                var obj = self.gc.staticMeshSet.get(self.objHandle).?;
-                obj.setTextureByName(self.gc, texName);
-                self.assetReady = true;
-                memory.MTPrintStatsDelta();
-            }
-        }
 
         const position = platform.getInstance().getCursorPosition();
         const dx = @as(f32, @floatCast(position.x - (@as(f32, @floatCast(lastXPos)))));
@@ -127,7 +154,7 @@ pub const GameContext = struct {
         self.camera.resolve(self.cameraHorizontalRotationMat);
 
         var i: f32 = 0;
-        while (i < 0) : (i += 1) {
+        while (i < 1000) : (i += 1) {
             graphics.debugLine(
                 .{ .x = -1000, .y = 0, .z = -1000 + i * 10 },
                 .{ .x = 1000, .y = 0, .z = -1000 + i * 10 },
@@ -178,42 +205,46 @@ pub const GameContext = struct {
         try core.fs().addContentPath("demo");
         try core.script.runScriptFile("scripts/prepare.lua");
 
-        {
-            const skeleton = ozz.Skeleton.create();
-            defer skeleton.destroy();
-            skeleton.loadFromFile("content/test_ozz/robot_skeleton.ozz");
-
-            const animation = ozz.Animation.create();
-            defer animation.destroy();
-            animation.loadFromFile("content/test_ozz/robot_animation.ozz");
-
-            const samplingJobContext = ozz.SamplingJobContext.createMaxTracks(420);
-            defer samplingJobContext.destroy();
-        }
+        // self.animationDemo = try AnimationDemo.create(self.allocator);
 
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
-        self.camera.translate(.{ .x = 0.0, .y = -0.0, .z = -6.0 });
+        self.camera.translate(.{ .x = 35.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
-        self.objHandle = try self.gc.add_renderobject(.{
-            .mesh_name = core.MakeName("m_empire"),
-            .material_name = core.MakeName("t_mesh"),
-            .init_transform = core.zm.translation(0, -15, 0),
-        });
+
+        _ = try core.createEntity();
+        self.obj = try core.createEntity();
+        {
+            const mesh = self.obj.addComponent(graphics.StaticMesh).?;
+            mesh.setMesh("m_helmet");
+            mesh.position.y = -15;
+            mesh.applyScalars();
+            mesh.setTexture("t_helmet");
+        }
+
+        self.fox = try core.createEntity();
+        {
+            const mesh = self.fox.addComponent(graphics.StaticMesh).?;
+            mesh.position.x = 50;
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.applyScalars();
+            mesh.setMesh("m_fox");
+            mesh.setTexture("t_fox");
+
+            const animator = self.fox.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_run");
+            //mesh.animated = true; // debug todo
+        }
 
         {
             const meshName = core.MakeName("m_primitive_sphere");
-            const materialName = core.MakeName("t_mesh");
-            for (0..2048) |i| {
-                const oHandle = try self.gc.add_renderobject(.{
-                    .mesh_name = meshName,
-                    .material_name = materialName,
-                    .init_transform = core.zm.translation(0, 0, 0),
-                });
-                self.spheres[i] = oHandle;
-                var obj = self.gc.staticMeshSet.get(oHandle).?;
-                obj.visibility = false;
+            for (0..self.spheres.len) |i| {
+                self.spheres[i] = try core.createEntity();
+                const mesh = self.spheres[i].addComponent(graphics.StaticMesh).?;
+                mesh.meshName = meshName;
+                mesh.visibility = false;
             }
         }
 
@@ -278,10 +309,43 @@ pub const GameContext = struct {
         }
 
         try physicsDemo.preparePhysics(self);
+
+        self.fox2 = try core.createEntity();
+        {
+            const mesh = self.fox2.addComponent(graphics.StaticMesh).?;
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.position.x = 40;
+            mesh.applyScalars();
+
+            mesh.setTexture("t_fox");
+            mesh.setMesh("m_fox");
+
+            const animator = self.fox2.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_walk");
+            // mesh.animated = true;
+        }
+
+        const fox3 = try core.createEntity();
+        {
+            const mesh = fox3.addComponent(graphics.StaticMesh).?;
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.position.x = 30;
+            mesh.applyScalars();
+
+            mesh.setTexture("t_fox");
+            mesh.setMesh("m_fox");
+
+            const animator = fox3.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_survey");
+            // mesh.animated = true;
+        }
     }
 
     pub fn deinit(self: *Self) void {
         physicsDemo.unpreparePhysics(self);
+        // self.animationDemo.destroy();
         if (self.panelText != null)
             self.allocator.free(self.panelText.?);
         self.allocator.destroy(self);
@@ -447,11 +511,11 @@ pub fn main() anyerror!void {
     const args = try neonwood.getArgs();
 
     memory.MTSetup(gpa.allocator(), .{ .timeline = args.dmt });
+    // memory.MTSetup(std.heap.c_allocator, .{ .timeline = args.dmt });
     defer memory.MTShutdown();
 
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
-    // const allocator = std.heap.c_allocator;
 
     engine_log("Starting up", .{});
 

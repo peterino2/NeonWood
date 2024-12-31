@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
     const p2mod = p2dep.module("p2");
     mod.addImport("p2", p2mod);
 
-    const test_step = b.step("test-nfd", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,
@@ -57,6 +57,7 @@ pub fn build(b: *std.Build) void {
     tests.addIncludePath(b.path("./include"));
 
     tests.root_module.addImport("nfd", mod);
+    tests.root_module.addImport("p2", p2mod);
     const runArtifact = b.addRunArtifact(tests);
     test_step.dependOn(&runArtifact.step);
 }

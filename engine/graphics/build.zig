@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) void {
     //
     // this doesn't really do anything other than call a few functions
     // to make sure that we properly linked everything
-    const test_step = b.step("test-graphics", "");
+    const test_step = b.step("test", "");
     const tests = b.addTest(.{
         .target = target,
         .optimize = optimize,

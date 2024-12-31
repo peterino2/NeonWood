@@ -8,9 +8,16 @@ const mesh_cooking = @import("cooking/mesh_cooking.zig");
 pub const vk_renderer = @import("vk_renderer.zig");
 const materials = @import("materials.zig");
 
-pub const graphics_ecs = @import("graphics_ecs.zig");
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
+
+pub const animation_system = @import("animation/animationSystem.zig");
+pub const AnimationSystem = animation_system.AnimationSystem;
+pub const Animator = animation_system.Animator;
+pub const AnimationTrack = animation_system.AnimationTrack;
+pub const Skeleton = animation_system.Skeleton;
+
+pub const animation_loaders = @import("animation/loaders.zig");
 
 pub const RenderThread = @import("vk_renderer/RenderThread.zig");
 pub const vkinit = @import("vk_init.zig");
@@ -31,7 +38,13 @@ pub const DynamicMesh = mesh.DynamicMesh;
 pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
 
-pub const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
+const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
+pub const MeshSourceType = mesh_pool.MeshSourceType;
+pub const loadIndexedMeshForPooling = mesh_pool.loadIndexedMeshForPooling;
+pub const getMeshPoolBuffers = mesh_pool.getMeshPoolBuffers;
+pub const getIndexedMeshByName = mesh_pool.getIndexedMeshByName;
+
+// pub const DynamicTexture = @import("dynamic_texture/DynamicTexture.zig");
 
 pub const vk_util = @import("vk_utils.zig");
 pub const createAndInstallTextureFromPixels = vk_util.createAndInstallTextureFromPixels;
@@ -84,11 +97,13 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
         .{ .can_tick = true, .isCore = true },
     ) catch unreachable;
     memory.MTPrintStatsDelta();
-    engine_logs("NeonVkContext grew");
 
     vk_renderer.gContext = context;
-    try graphics_ecs.registerEcs(allocator);
-    memory.MTPrintStatsDelta();
+
+    const as = try core.createObject(AnimationSystem, .{ .can_tick = true });
+    try animation_loaders.initLoaders();
+
+    try registerRendererPlugin(as);
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
     memory.MTPrintStatsDelta();
@@ -113,7 +128,6 @@ pub fn shutdown_module(allocator: std.mem.Allocator) void {
         texture_cooking.deinitCooker();
     }
     engine_logs("graphics module shutting down...");
-    graphics_ecs.shutdownEcs();
     vk_renderer.gContext.shutdown();
 }
 
@@ -150,19 +164,6 @@ pub fn loadSpv(allocator: std.mem.Allocator, path: []const u8) ![]const u32 {
     }
 
     return error.FileNotFound;
-}
-
-pub const rend = @import("rend_core.zig");
-pub usingnamespace @import("rend_core.zig");
-
-pub const gles_renderer = @import("gles_renderer.zig");
-
-pub fn start_gles(allocator: std.mem.Allocator) void {
-    gles_renderer.start(allocator);
-}
-
-pub fn shutdown_gles(allocator: std.mem.Allocator) void {
-    gles_renderer.shutdown(allocator);
 }
 
 pub const Module = core.ModuleDescription{

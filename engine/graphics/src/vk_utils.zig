@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("core");
 const vk_renderer = @import("vk_renderer.zig");
 const vma = @import("vma");
+const graphics = @import("graphics.zig");
 const vk = @import("vulkan");
 const vkinit = @import("vk_init.zig");
 const vk_constants = @import("vk_constants.zig");
@@ -145,14 +146,14 @@ pub fn createTextureFromPixels(
     };
 
     // create descriptors for
-    const textureSet = ctx.create_mesh_image_for_texture(newTexture.*, .{
+    const rv = ctx.create_mesh_image_for_texture(newTexture.*, .{
         .useBlocky = useBlocky,
     }) catch unreachable;
 
-    return .{ .texture = newTexture, .descriptor = textureSet };
+    return .{ .texture = newTexture, .descriptor = rv.textureSet, .textureId = rv.textureId };
 }
 
-const CreateTextureResults = struct { texture: *Texture, descriptor: vk.DescriptorSet };
+const CreateTextureResults = struct { texture: *Texture, descriptor: vk.DescriptorSet, textureId: u32 };
 
 pub fn createAndInstallTextureFromPixels(
     textureName: core.Name,
@@ -163,7 +164,7 @@ pub fn createAndInstallTextureFromPixels(
 ) !CreateTextureResults {
     const res = try createTextureFromPixels(pixels, size, ctx, useBlocky);
 
-    ctx.install_texture_into_registry(textureName, res.texture, res.descriptor) catch return error.UnknownStatePanic;
+    ctx.install_texture_into_registry(textureName, res.texture, res.descriptor, res.textureId) catch return error.UnknownStatePanic;
 
     return res;
 }
@@ -507,7 +508,7 @@ pub fn createDescriptorSetForImage(
     layout: vk.DescriptorSetLayout,
     imageView: vk.ImageView,
     sampler: vk.Sampler,
-) !vk.DescriptorSet {
+) !struct { textureSet: vk.DescriptorSet, textureId: u32 } {
 
     // var textureSet = try self.allocator.create(vk.DescriptorSet);
     var textureSet: vk.DescriptorSet = undefined;
@@ -534,5 +535,10 @@ pub fn createDescriptorSetForImage(
 
     vkd.updateDescriptorSets(dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
 
-    return textureSet;
+    const gc = graphics.getContext();
+    const newTextureId = gc.newTextureId;
+    gc.newTextureId += 1;
+
+    try gc.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
+    return .{ .textureSet = textureSet, .textureId = newTextureId };
 }

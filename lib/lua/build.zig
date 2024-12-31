@@ -66,7 +66,7 @@ pub fn build(b: *std.Build) void {
 
     mod.linkLibrary(luac);
 
-    const run_step = b.step("run-lua", "");
+    const run_step = b.step("test", "");
     const tests = b.addExecutable(.{
         .name = "run-lua",
         .target = target,

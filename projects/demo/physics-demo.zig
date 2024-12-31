@@ -19,8 +19,6 @@ pub fn preparePhysics(self: *GameContext) !void {
     {
         const btn = ctx.get(button);
         btn.setSize(.{ .x = 120, .y = 50 });
-        // var obj = self.gc.staticMeshSet.get(self.objHandle).?;
-        // obj.visibility = !obj.visibility;
     }
 
     self.cameraPhysicsBody = try physics.addPrimitiveBody(.box, .{
@@ -38,8 +36,9 @@ pub fn unpreparePhysics(self: *GameContext) void {
 fn swapToPhysics(_: ui.NodeHandle, _: ui.PressedType, context: ?*anyopaque) ui.HandlerError!void {
     if (context) |c| {
         const self: *GameContext = @alignCast(@ptrCast(c));
-        var obj = self.gc.staticMeshSet.get(self.objHandle).?;
-        obj.visibility = !obj.visibility;
+        if (self.obj.get(graphics.StaticMesh)) |mesh| {
+            mesh.visibility = !mesh.visibility;
+        }
     }
 }
 
@@ -56,12 +55,11 @@ pub fn tick(self: *GameContext, deltaTime: f64) void {
             continue;
         }
         const rotation = physicsRuntime.sphereRotations.items[i];
-        const handle = self.spheres[i];
-        var obj = self.gc.staticMeshSet.get(handle).?;
-        obj.visibility = true;
-        obj.position = position;
-        obj.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
-        obj.rotation = rotation;
-        obj.applyScalars();
+        var mesh = self.spheres[i].get(graphics.StaticMesh).?;
+        mesh.visibility = true;
+        mesh.position = position;
+        mesh.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
+        mesh.rotation = rotation;
+        mesh.applyScalars();
     }
 }

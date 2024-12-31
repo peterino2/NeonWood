@@ -4,9 +4,11 @@ const core = @import("core");
 
 pub const NumFrames = NUM_FRAMES;
 pub const FrameTimeout = 10_000_000_000; // 10 full second frame timeout
-pub const MAX_OBJECTS = 100000; // 100k objects ought to be enough for anyone
+pub const MAX_OBJECTS = 100_000; // 100k objects ought to be enough for anyone
 pub const NUM_FRAMES: usize = 2;
 pub const DEVICE_LAYERS = [_]core.CStr{VK_KHRONOS_VALIDATION_LAYER_STRING};
+
+pub const MAX_SKIN_SLOTS = 100_000;
 
 pub const required_device_layers = [_]core.CStr{"VK_LAYER_KHRONOS_validation"};
 
@@ -108,4 +110,5 @@ pub const DeviceDispatch = vk.DeviceWrapper(.{
     .cmdCopyBufferToImage = true,
     .createSampler = true,
     .destroySampler = true,
+    .cmdDrawIndexedIndirect = true,
 });

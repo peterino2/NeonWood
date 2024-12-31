@@ -130,6 +130,7 @@ pub const DisplayText = struct {
             .renderMode = .Simple,
             .mesh = try graphics.DynamicMesh.init(atlas.g, atlas.g.allocator, .{
                 .maxVertexCount = opts.charLimit * 4,
+                .maxIndexCount = opts.charLimit * 4 * 6 / 4,
             }),
             .string = null,
             .renderedGeo = try papyrus.TextRenderGeometry.create(allocator),

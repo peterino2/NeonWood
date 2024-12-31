@@ -7,6 +7,8 @@ const graphics = @import("graphics.zig");
 const meshes = @import("mesh.zig");
 const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 const materials = @import("materials.zig");
+const animationSystem = @import("animation/animationSystem.zig");
+const Animator = animationSystem.Animator;
 
 const Material = materials.Material;
 const EulerAngles = core.EulerAngles;
@@ -17,15 +19,18 @@ const zm = core.zm;
 const mul = zm.mul;
 
 const Mesh = meshes.Mesh;
+const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
+const IndexedMesh = mesh_pool.IndexedMesh;
 
+// lol we need to rename this thing again, it should be called RenderMesh
 pub const StaticMeshSet = core.SparseSet(StaticMesh);
 
 pub const StaticMesh = struct {
     const Self = @This();
 
-    mesh: ?*Mesh = null,
-    material: ?*Material = null,
-    texture: ?vk.DescriptorSet = null,
+    mesh: ?IndexedMesh = null,
+    // texture: ?vk.DescriptorSet = null,
+    textureId: ?u32 = null,
     transform: core.Mat = core.zm.translation(0, 0, 0),
     visibility: bool = true,
 
@@ -37,6 +42,9 @@ pub const StaticMesh = struct {
     textureName: core.Name = core.NameInvalid,
     meshName: core.Name = core.NameInvalid,
 
+    animated: bool = false, // todo remove
+    animator: ?*Animator = null,
+
     pub var BaseContainer: *StaticMeshSet = undefined;
     pub const ComponentName = "StaticMesh";
 
@@ -45,36 +53,23 @@ pub const StaticMesh = struct {
         "applyRelativeRotationY",
         "applyRelativeRotationZ",
         "setMesh",
-        "setMaterial",
-        "scriptInit", // todo.. sholdnt need this...
+        "setTextureByName",
     };
 
-    pub fn scriptInit(self: *@This()) void {
-        self.setMaterial("t_mesh");
-    }
-
-    pub fn setMaterial(self: *@This(), materialName: []const u8) void {
-        const name = core.MakeName(materialName);
-        const mat = graphics.getContext().materials.getEntry(name.handle()).?;
-        self.material = mat.value_ptr.*;
-        graphics.getContext().renderObjectsAreDirty = true;
+    pub fn setMeshByName(self: *@This(), meshName: core.Name) void {
+        self.meshName = meshName;
     }
 
     // script function
     pub fn setMesh(self: *@This(), meshName: []const u8) void {
         const name = core.MakeName(meshName);
-        const meshRef = graphics.getContext().meshes.get(name.handle());
-        self.mesh = meshRef;
+        self.mesh = graphics.getIndexedMeshByName(core.MakeName(meshName));
         self.meshName = name;
-
-        graphics.getContext().renderObjectsAreDirty = true;
     }
 
     pub fn fromTransform(transform: core.Mat) Self {
         var self = Self{
             .mesh = null,
-            .material = null,
-            .texture = null,
             .transform = transform,
             .position = undefined,
             .rotation = undefined,
@@ -86,9 +81,19 @@ pub const StaticMesh = struct {
         return self;
     }
 
-    pub fn setTextureByName(self: *Self, gc: *NeonVkContext, name: core.Name) void {
-        self.texture = gc.textureSets.get(name.handle()).?;
+    pub fn setTexture(self: *Self, textureName: []const u8) void {
+        const name = core.MakeName(textureName);
+        self.textureId = graphics.getContext().textureIds.get(name.handle());
         self.textureName = name;
+    }
+
+    pub fn setTextureByName(self: *Self, name: core.Name) void {
+        self.textureId = graphics.getContext().textureIds.get(name.handle());
+        self.textureName = name;
+    }
+
+    pub fn updateTexture(self: *@This(), gc: *NeonVkContext) void {
+        self.textureId = gc.textureIds.get(self.textureName.handle());
     }
 
     pub fn applyTransform(self: *StaticMesh, transform: core.Mat) void {

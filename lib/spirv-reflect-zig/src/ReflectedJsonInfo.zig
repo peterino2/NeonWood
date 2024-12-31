@@ -174,6 +174,10 @@ fn generateReflectedTypeInfo(self: @This(), typeObject: std.json.ObjectMap) !Ref
             self.warn("vec3 usage detected, this is poorly supported by many vendors", .{});
             reflectedField.size = 16;
         }
+
+        if (std.mem.eql(u8, reflectedField.typeName, "u8vec4")) {
+            reflectedField.size = 4;
+        }
         try info.fields.append(reflectedField);
     }
 
@@ -213,7 +217,9 @@ pub fn render(self: *@This(), allocator: std.mem.Allocator) ![]u8 {
     try writer.writeAll("const vec4 = gl.vec4;\n");
     try writer.writeAll("const mat4 = gl.mat4;\n");
     try writer.writeAll("const float = gl.float;\n");
+    try writer.writeAll("const u8vec4 = gl.u8vec4;\n");
     try writer.writeAll("const uint = gl.uint;\n");
+    try writer.writeAll("const int = gl.int;\n");
 
     for (self.reflectedTypes.values()) |reflected| {
         if (std.mem.eql(u8, reflected.name, "gl_PerVertex")) {

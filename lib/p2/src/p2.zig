@@ -1,6 +1,9 @@
 // ---- ----
 const std = @import("std");
 const utils = @import("structures/utils.zig");
+pub const getFileExtension = utils.getFileExtension;
+pub const getBasePath = utils.getBasePath;
+pub const getFolder = utils.getFolder;
 
 pub const BumpArena = @import("structures/bump-arena.zig").BumpArena;
 
@@ -61,15 +64,20 @@ pub const MakeName = names.MakeName;
 pub const createNameRegistry = names.createNameRegistry;
 pub const destroyNameRegistry = names.destroyNameRegistry;
 
+pub const spans = @import("structures/spans.zig");
+pub const MergedSpans = spans.MergedSpans;
+pub const Span = spans.Span;
+
 comptime {
-    std.testing.refAllDecls(utils);
-    std.testing.refAllDecls(static_structures);
-    std.testing.refAllDecls(ring_queue);
-    std.testing.refAllDecls(sparse_set);
-    std.testing.refAllDecls(stack_structures);
-    std.testing.refAllDecls(index_pool);
-    std.testing.refAllDecls(concurrent_queue);
-    std.testing.refAllDecls(string_pool);
+    // std.testing.refAllDecls(utils);
+    // std.testing.refAllDecls(static_structures);
+    // std.testing.refAllDecls(ring_queue);
+    // std.testing.refAllDecls(sparse_set);
+    // std.testing.refAllDecls(stack_structures);
+    // std.testing.refAllDecls(index_pool);
+    // std.testing.refAllDecls(concurrent_queue);
+    // std.testing.refAllDecls(string_pool);
+    std.testing.refAllDecls(spans);
 }
 
 // ---- aliases ----

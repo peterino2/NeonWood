@@ -13,8 +13,6 @@ const vk_renderer = @import("vk_renderer.zig");
 const mesh = @import("mesh.zig");
 const texture = @import("texture.zig");
 
-const use_renderthread = core.BuildOption("use_renderthread");
-
 const NeonVkContext = vk_renderer.NeonVkContext;
 const Material = materials.Material;
 const Mesh = mesh.Mesh;
@@ -39,6 +37,7 @@ pub const TextureLoader = struct {
         name: core.Name,
         texture: *Texture,
         textureSet: vk.DescriptorSet,
+        textureId: u32,
     };
 
     gc: *NeonVkContext,
@@ -131,7 +130,7 @@ pub const TextureLoader = struct {
                 };
 
                 const sampler = if (assetReady.properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
-                const textureSet = vk_utils.createDescriptorSetForImage(
+                const rv = vk_utils.createDescriptorSetForImage(
                     gc.dev,
                     gc.descriptorPool,
                     gc.singleTextureSetLayout,
@@ -139,15 +138,12 @@ pub const TextureLoader = struct {
                     sampler,
                 ) catch return error.UnknownStatePanic;
 
-                if (!use_renderthread) {
-                    gc.install_texture_into_registry(assetReady.name, newTexture, textureSet) catch return error.UnknownStatePanic;
-                } else {
-                    self.rtAssetsReady.pushLocked(.{
-                        .name = assetReady.name,
-                        .texture = newTexture,
-                        .textureSet = textureSet,
-                    }) catch return error.UnknownStatePanic;
-                }
+                self.rtAssetsReady.pushLocked(.{
+                    .name = assetReady.name,
+                    .texture = newTexture,
+                    .textureSet = rv.textureSet,
+                    .textureId = rv.textureId,
+                }) catch return error.UnknownStatePanic;
                 z1.End();
             }
         }
@@ -156,15 +152,11 @@ pub const TextureLoader = struct {
     // processing events, some should really be processing events rather than
     pub fn processEvents(self: *@This(), frameNumber: u64) core.EngineDataEventError!void {
         _ = frameNumber;
-        if (!use_renderthread) {
-            try self.processEventInner();
-        } else {
-            if (self.rtAssetsReady.count() > 0) {
-                self.rtAssetsReady.lock();
-                defer self.rtAssetsReady.unlock();
-                while (self.rtAssetsReady.popFromUnlocked()) |a| {
-                    self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet) catch return error.UnknownStatePanic;
-                }
+        if (self.rtAssetsReady.count() > 0) {
+            self.rtAssetsReady.lock();
+            defer self.rtAssetsReady.unlock();
+            while (self.rtAssetsReady.popFromUnlocked()) |a| {
+                self.gc.install_texture_into_registry(a.name, a.texture, a.textureSet, a.textureId) catch return error.UnknownStatePanic;
             }
         }
     }
@@ -191,9 +183,7 @@ pub const TextureLoader = struct {
             .rtAssetsReady = core.RingQueue(RTAssetsReady).init(allocator, 1024) catch unreachable,
         };
 
-        if (use_renderthread) {
-            try self.gc.renderthread.installListener(self, processRenderThreadEvents);
-        }
+        try self.gc.renderthread.installListener(self, processRenderThreadEvents);
 
         return self;
     }
@@ -221,8 +211,38 @@ pub const MeshLoader = struct {
     }
 
     pub fn loadAsset(self: *@This(), assetRef: assets.AssetRef, propertiesBag: ?assets.AssetPropertiesBag) assets.AssetLoaderError!void {
-        core.engine_log("loading mesh asset {s}", .{propertiesBag.?.path});
-        _ = self.gc.new_mesh_from_obj(assetRef.name, propertiesBag.?.path) catch return error.UnableToLoad;
+        _ = self;
+        const sourceType = getSourceType(propertiesBag);
+        core.engine_log("loading mesh asset {s} [{s}]", .{ propertiesBag.?.path, if (sourceType) |s| @tagName(s) else "default" });
+        graphics.loadIndexedMeshForPooling(assetRef.name, .{ .path = propertiesBag.?.path, .sourceType = getSourceType(propertiesBag) }) catch return error.UnableToLoad;
+    }
+
+    fn getSourceType(propertiesBag: ?assets.AssetPropertiesBag) ?graphics.MeshSourceType {
+        if (propertiesBag) |bag| {
+            if (bag.meshType) |meshType| {
+                if (std.mem.eql(u8, meshType, "obj")) {
+                    return graphics.MeshSourceType.obj;
+                }
+                if (std.mem.eql(u8, meshType, "gltf")) {
+                    return graphics.MeshSourceType.gltf;
+                }
+            }
+
+            // try to deduce it by file name, if nothing is set.
+            const ext = core.getFileExtension(bag.path);
+            if (std.mem.eql(u8, ext, ".obj")) {
+                return graphics.MeshSourceType.obj;
+            }
+            if (std.mem.eql(u8, ext, ".gltf")) {
+                return graphics.MeshSourceType.gltf;
+            }
+
+            if (std.mem.eql(u8, ext, ".glb")) {
+                return graphics.MeshSourceType.gltf;
+            }
+        }
+
+        return null;
     }
 
     pub fn discardAll(self: *@This()) void {

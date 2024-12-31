@@ -22,6 +22,82 @@
 
 const std = @import("std");
 
+const Build = std.Build;
+const LazyPath = LazyPath;
+
+pub const GltfToOzz = struct {
+    b: *Build,
+    ozz_build: *Build,
+    exe: *Build.Step.Compile,
+
+    const BuildOptions = struct {
+        importName: []const u8 = "ozz",
+        optimize: std.builtin.OptimizeMode = .Debug,
+    };
+
+    fn initFromBuilder(b: *Build, ozz_build: *Build, opts: BuildOptions) GltfToOzz {
+        const exe = ozz_build.addExecutable(.{
+            .name = "gltf2ozz",
+            .target = ozz_build.host,
+            .optimize = .ReleaseSafe,
+        });
+        exe.linkLibCpp();
+        exe.linkLibC();
+
+        b.installArtifact(exe);
+        const src_dir = "ozz-animation/src/";
+
+        exe.addIncludePath(ozz_build.path("ozz-animation/include/ozz/animation/offline/tools"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/include/ozz/animation/offline"));
+        exe.addIncludePath(ozz_build.path(src_dir ++ "animation/offline/tools"));
+        exe.addIncludePath(ozz_build.path(src_dir ++ "animation/offline"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/include/"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/src"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/include/ozz/options"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/extern/jsoncpp/dist"));
+        exe.addIncludePath(ozz_build.path("ozz-animation/extern/jsoncpp/dist/json"));
+
+        exe.addCSourceFiles(.{
+            .files = &.{
+                src_dir ++ "animation/offline/gltf/gltf2ozz.cc",
+                src_dir ++ "animation/offline/tools/import2ozz.cc",
+                src_dir ++ "animation/offline/tools/import2ozz_anim.cc",
+                src_dir ++ "animation/offline/tools/import2ozz_config.cc",
+                src_dir ++ "animation/offline/tools/import2ozz_skel.cc",
+                src_dir ++ "animation/offline/tools/import2ozz_track.cc",
+                src_dir ++ "animation/offline/raw_animation.cc",
+                src_dir ++ "animation/offline/raw_animation_utils.cc",
+                src_dir ++ "animation/offline/animation_builder.cc",
+                src_dir ++ "animation/offline/animation_optimizer.cc",
+                src_dir ++ "animation/offline/raw_skeleton.cc",
+                src_dir ++ "animation/offline/raw_skeleton_archive.cc",
+                src_dir ++ "animation/offline/skeleton_builder.cc",
+                src_dir ++ "animation/offline/raw_track.cc",
+                src_dir ++ "animation/offline/track_builder.cc",
+                src_dir ++ "animation/offline/additive_animation_builder.cc",
+                src_dir ++ "animation/offline/raw_animation_archive.cc",
+                src_dir ++ "animation/offline/track_optimizer.cc",
+                "ozz-animation/extern/jsoncpp/dist/jsoncpp.cpp",
+            },
+        });
+
+        const dep = b.dependency(opts.importName, .{});
+        const ozz_mod = dep.artifact("ozz_cpp");
+        exe.root_module.linkLibrary(ozz_mod);
+
+        return .{
+            .b = b,
+            .ozz_build = ozz_build,
+            .exe = exe,
+        };
+    }
+
+    pub fn init(b: *Build, opts: BuildOptions) GltfToOzz {
+        const dep = b.dependency(opts.importName, .{});
+        return initFromBuilder(b, dep.builder, opts);
+    }
+};
+
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
@@ -74,13 +150,13 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/ozz.zig"),
     });
 
+    ozz.addIncludePath(b.path("ozz-animation/include"));
+
     ozz.addCSourceFiles(.{
         .files = &.{
             "src/ozz_zig.cpp",
         },
     });
-
-    ozz.addIncludePath(b.path("ozz-animation/include"));
 
     const tests = b.addTest(.{
         .name = "ozz-tests",
@@ -90,7 +166,7 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(tests);
 
-    const test_step = b.step("test-ozz", "run some ozz-runtime tests");
+    const test_step = b.step("test", "run some ozz-runtime tests");
     tests.root_module.addImport("ozz", ozz);
     tests.linkLibrary(ozz_cpp);
 

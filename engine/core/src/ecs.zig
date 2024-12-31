@@ -207,25 +207,27 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleRemoved(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object removed id={d} from container={s}({d}) 0x{x}", .{
-            handle.index,
-            self.containerNames.items[containerID].utf8(),
-            containerID,
-            @intFromPtr(self.containers.items[containerID].ptr),
-        });
+        _ = containerID;
+        //core.engine_log("ECS:: object removed id={d} from container={s}({d}) 0x{x}", .{
+        //    handle.index,
+        //    self.containerNames.items[containerID].utf8(),
+        //    containerID,
+        //    @intFromPtr(self.containers.items[containerID].ptr),
+        //});
 
         self.baseSet.get(handle).?.containersCount -= 1;
     }
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
-            handle.index,
-            self.containerNames.items[containerID].utf8(),
-            containerID,
-            @intFromPtr(self.containers.items[containerID].ptr),
-        });
-
+        _ = containerID;
+        //        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
+        //            handle.index,
+        //            self.containerNames.items[containerID].utf8(),
+        //            containerID,
+        //            @intFromPtr(self.containers.items[containerID].ptr),
+        //        });
+        //
         if (self.baseSet.get(handle)) |obj| {
             obj.containersCount += 1;
         } else {
@@ -289,12 +291,17 @@ pub const Entity = struct {
         },
     };
 
-    pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
-        const rv = Component.BaseContainer.createWithHandle(self.handle, .{}) catch return null;
+    pub fn fromHandle(handle: core.ObjectHandle) @This() {
+        return .{ .handle = handle };
+    }
 
-        if (@hasDecl(Component, "init")) {
-            rv.init(self.handle);
-        }
+    pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
+        const rv = Component.BaseContainer.createWithHandleECS(self.handle);
+
+        // if (@hasDecl(Component, "init")) {
+        //     rv.init(self.handle);
+        // }
+
         return rv;
     }
 

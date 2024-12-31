@@ -24,6 +24,6 @@ pub fn build(b: *std.Build) void {
     test_exe.root_module.addImport("packer", mod);
     test_exe.root_module.addImport("p2", p2mod);
 
-    const test_step = b.step("test-packer", "runs sample unit tests for packer");
+    const test_step = b.step("test", "runs sample unit tests for packer");
     test_step.dependOn(&b.addRunArtifact(test_exe).step);
 }

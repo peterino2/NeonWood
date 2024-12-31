@@ -25,6 +25,8 @@ pub const png = @import("png.zig");
 
 pub const colors = @import("colors.zig");
 
+pub const zgltf = @import("zgltf");
+
 pub const zm = @import("zmath");
 pub usingnamespace @import("p2");
 pub const algorithm = @import("p2");

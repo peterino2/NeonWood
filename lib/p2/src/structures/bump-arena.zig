@@ -2,7 +2,7 @@ const std = @import("std");
 const paged_vector = @import("paged-vector.zig");
 const PagedVectorAdvanced = paged_vector.PagedVectorAdvanced;
 
-// non-threadsafe, fast bump-only allocator
+// mutex based, fast bump-only allocator
 pub const BumpArena = struct {
     const PageSize = 8192 * 2;
     const SmallAllocPages = paged_vector.PagedVectorAdvanced([PageSize]u8, 1);
@@ -85,6 +85,7 @@ pub const BumpArena = struct {
         _ = ret_addr;
     }
 
+    // do not support resize in place.
     pub fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
         _ = ctx;
         _ = buf;

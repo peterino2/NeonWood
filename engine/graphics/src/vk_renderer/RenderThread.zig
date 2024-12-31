@@ -38,6 +38,9 @@ actual_extent: vk.Extent2D = undefined, // actual_extent is the base extent used
 commandBuffers: [NumFrames]vk.CommandBuffer = undefined,
 frameSync: [NumFrames]FrameSyncs = undefined,
 
+indirectStaging: graphics.NeonVkBuffer = undefined,
+indirectGpu: graphics.NeonVkBuffer = undefined,
+
 isMinimized: std.atomic.Value(bool),
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
@@ -54,7 +57,13 @@ maxObjectCount: u32,
 
 plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 
+meshPool: *MeshPoolBuffers = undefined,
+
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
+
+// DEBUG DO NOT USE
+skinning: std.ArrayListUnmanaged(core.Mat) = .{},
+skinningLock: std.Thread.Mutex = .{},
 
 const ProcessEventListener = struct {
     ptr: *anyopaque,
@@ -62,20 +71,20 @@ const ProcessEventListener = struct {
 };
 
 pub const ObjectSharedData = struct {
-    visibility: bool,
-    textureSet: vk.DescriptorSet,
-    pipeline: vk.Pipeline,
-    pipelineLayout: vk.PipelineLayout,
-    meshBuffer: vk.Buffer,
-    vertexCount: u32,
+    //textureSet: vk.DescriptorSet,
+    // textureId: u32,
+    indexedMesh: mesh_pool.IndexedMesh,
 };
 
 pub const SharedData = struct {
     lock: std.Thread.Mutex,
     cameraData: vk_renderer_camera_gpu.NeonVkCameraDataGpu,
     sceneData: NeonVkSceneDataGpu,
+    pipeline: vk.Pipeline,
+    pipelineLayout: vk.PipelineLayout,
     models: std.ArrayList(NeonVkObjectDataGpu) = .{},
     objectData: std.ArrayList(ObjectSharedData) = .{},
+    skinning: std.ArrayList(core.Mat) = .{},
     extent: core.Vector2f,
 };
 
@@ -143,13 +152,29 @@ const FrameSyncs = struct {
     }
 };
 
-pub fn setup(self: *@This()) !void {
+pub fn setup(self: *@This(), gc: *NeonVkContext) !void {
     self.actual_extent = try vk_swapchain_helpers.findActualExtent(self.extent, self.caps);
+    self.meshPool = try MeshPoolBuffers.create(self.allocator, gc, .{});
+
     try self.createSyncs();
     try self.initCommandBuffers();
     try self.initOrRecycleSwapchain();
     try self.initFramebuffers();
+    try self.initIndirectBuffers();
     try self.initShared();
+}
+
+pub fn uploadIndirectCommands(self: *@This(), cmd: vk.CommandBuffer, count: u32) void {
+    vkd_utils.copyStagingSlice(vk.DrawIndexedIndirectCommand, cmd, .{
+        .src = &self.indirectStaging,
+        .dst = &self.indirectGpu,
+        .size = count,
+    });
+}
+
+pub fn initIndirectBuffers(self: *@This()) !void {
+    self.indirectStaging = try self.vkAllocator.createStagingBuffer(8192 * @sizeOf(vk.DrawIndexedIndirectCommand), "main systems indirect staging buffer");
+    self.indirectGpu = try self.vkAllocator.createIndirectCommandBuffer(8192 * @sizeOf(vk.DrawIndexedIndirectCommand), "main systems indirect command buffer");
 }
 
 fn deinitExtras(self: *@This()) void {
@@ -194,6 +219,9 @@ fn processExitSignal(self: *@This()) void {
 
     core.engine_logs("RT - Process Exit Signal");
 
+    self.vkAllocator.destroyBuffer(&self.indirectGpu);
+    self.vkAllocator.destroyBuffer(&self.indirectStaging);
+
     vkd.queueWaitIdle(self.graphicsQueue.handle) catch {};
 
     self.deinitShared();
@@ -203,6 +231,7 @@ fn processExitSignal(self: *@This()) void {
     self.displayTarget.deinit(self);
     self.deinitExtras();
     self.listeners.deinit(self.allocator);
+    self.meshPool.destroy();
 
     self.exitConfirmed.store(true, .seq_cst);
 }
@@ -232,6 +261,26 @@ pub fn spinProcessExitSignal(self: *@This()) void {
     return;
 }
 
+pub fn updateMeshImages(self: *@This()) !void {
+    if (graphics.getContext().newMeshImages.count() > 0) {
+        graphics.getContext().newMeshImages.lock();
+        defer graphics.getContext().newMeshImages.unlock();
+        while (graphics.getContext().newMeshImages.popFromUnlocked()) |new| {
+            var imageBufferInfo = new.bufferInfo;
+            for (0..self.frameData.len) |i| {
+                var writeDescriptorSet = vkinit.writeDescriptorImage(
+                    .combined_image_sampler,
+                    self.frameData[i].globalDescriptorSet,
+                    &imageBufferInfo,
+                    2,
+                );
+                writeDescriptorSet.dst_array_element = new.textureId;
+                vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&writeDescriptorSet), 0, undefined);
+            }
+        }
+    }
+}
+
 // can be called from any thread.
 // queues up a render job for the next frame
 pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void {
@@ -244,6 +293,9 @@ pub fn dispatchNextFrame(self: *@This(), deltaTime: f64, frameIndex: u32) !void 
         frameIndex: u32,
 
         pub fn func(ctx: *@This(), _: *core.JobContext) void {
+            // check for mesh pool updates
+            ctx.r.updateMeshImages() catch unreachable;
+            ctx.r.meshPool.checkUpdates() catch unreachable;
             ctx.r.draw(ctx.dt, ctx.frameIndex) catch unreachable;
             while (ctx.r.framesInFlight.cmpxchgStrong(1, 0, .seq_cst, .acquire) != null) {}
         }
@@ -283,22 +335,43 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     const startOffset: u32 = paddedSceneSize * fi;
 
     const frameData = self.getFrameData(fi);
+    const layout = shared.pipelineLayout;
+    const pipeline = shared.pipeline;
+
+    var buffers = graphics.getMeshPoolBuffers();
+
+    vkd.cmdBindPipeline(cmd, .graphics, pipeline);
+    vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&buffers.vertex.buffer), @ptrCast(&offset));
+    vkd.cmdBindIndexBuffer(cmd, buffers.index.buffer, 0, .uint32);
+    vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+    vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
+
+    const count = shared.objectData.items.len;
+    vkd.cmdDrawIndexedIndirect(cmd, self.indirectGpu.buffer, 0, @intCast(count), @sizeOf(vk.DrawIndexedIndirectCommand));
+}
+
+pub fn updateIndirectBuffers(self: *@This(), cmd: vk.CommandBuffer, fi: u32) !void {
+    const shared = self.getShared(fi);
+
+    const count = shared.objectData.items.len;
+    if (count == 0)
+        return;
+
+    const mapped = self.vkAllocator.mapBuffer(vk.DrawIndexedIndirectCommand, self.indirectStaging) catch unreachable;
+    defer self.vkAllocator.unmapMemory(self.indirectStaging);
 
     for (shared.objectData.items, 0..) |object, i| {
-        const pipeline = object.pipeline;
-        const layout = object.pipelineLayout;
-        const meshBuffer = object.meshBuffer;
-        const textureSet = object.textureSet;
-        const vertexCount = object.vertexCount;
-
-        vkd.cmdBindPipeline(cmd, .graphics, pipeline);
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
-        vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 2, 1, @ptrCast(&textureSet), 0, undefined);
-        vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&meshBuffer), @ptrCast(&offset));
-
-        vkd.cmdDraw(cmd, vertexCount, 1, 0, @intCast(i));
+        const meshBuffer = object.indexedMesh;
+        mapped[i] = .{
+            .index_count = meshBuffer.index.size,
+            .instance_count = 1,
+            .first_index = meshBuffer.index.start,
+            .vertex_offset = 0,
+            .first_instance = @intCast(i),
+        };
     }
+
+    self.uploadIndirectCommands(cmd, @intCast(count));
 }
 
 // fi = frameIndex
@@ -323,8 +396,13 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
         };
         try self.preFrameUpdate(fi);
         const cmd = try self.startFrameCommands(fi);
+
+        // try self.meshPool.updateRequests(cmd);
         var z = tracy.ZoneNC(@src(), "Main RenderPass", 0x00FF1111);
         const time = core.getEngineTime();
+
+        try self.updateIndirectBuffers(cmd, fi);
+        self.preDrawPlugins(cmd, fi);
         try self.beginMainRenderpass(cmd, syncIndex);
 
         self.renderMeshes(cmd, fi);
@@ -347,7 +425,15 @@ pub fn draw(self: *@This(), deltaTime: f64, fi: u32) !void {
             std.time.sleep(300 * 1000 * 1000);
         }
     }
-    self.dynamicMeshManager.finishUpload() catch unreachable;
+    // self.dynamicMeshManager.finishUpload() catch unreachable;
+}
+
+fn preDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
+    for (self.plugins.items) |interface| {
+        if (interface.vtable.rtPreDraw) |rtPreDraw| {
+            rtPreDraw(interface.ptr, self, cmd, fi);
+        }
+    }
 }
 
 fn postDrawPlugins(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
@@ -410,26 +496,41 @@ fn preFrameUpdate(self: *@This(), fi: u32) !void {
 fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
     var z1 = tracy.ZoneN(@src(), "uploading ssbo data");
     defer z1.End();
-    const allocation = self.frameData[fi].objectBuffer.allocation;
-    const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
-    var ssbo: []NeonVkObjectDataGpu = undefined;
-    ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
-    ssbo.len = self.maxObjectCount;
+    {
+        const allocation = self.frameData[fi].objectBuffer.allocation;
+        const data = try self.vkAllocator.vmaAllocator.mapMemory(allocation, NeonVkObjectDataGpu);
+        var ssbo: []NeonVkObjectDataGpu = undefined;
+        ssbo.ptr = @as([*]NeonVkObjectDataGpu, @ptrCast(data));
+        ssbo.len = self.maxObjectCount;
 
-    for (shared.models.items, 0..) |model, i| {
-        ssbo[i] = model;
+        for (shared.models.items, 0..) |model, i| {
+            ssbo[i] = model;
+        }
+
+        self.vkAllocator.vmaAllocator.unmapMemory(allocation);
     }
 
-    // var i: usize = 0;
-    // while (i < self.maxobjectcount and i < self.renderobjectset.dense.len) : (i += 1) {
-    //     const object = self.renderobjectset.dense.items(.renderobject)[i];
-    //     if (object.mesh != null) {
-    //         ssbo[i].modelmatrix = self.renderobjectset.dense.items(.renderobject)[i].transform;
-    //     }
-    // }
+    // animations
+    {
+        // DO NOT USE DEBUG
+        //self.skinningLock.lock(); // lets hope this lock doesnt cause something really fucked, this is a temporary solution just to show off something for today though
+        //defer self.skinningLock.unlock();
 
-    // unmapping every frame might actually be quite unessecary.
-    self.vkAllocator.vmaAllocator.unmapMemory(allocation);
+        const finals = try self.vkAllocator.mapBuffer(core.Mat, self.frameData[fi].animationsBuffer);
+        defer self.vkAllocator.unmapMemory(self.frameData[fi].animationsBuffer);
+
+        const as = animationSystem.gAnimationSys;
+        as.sharedLocks[fi].lock();
+        defer as.sharedLocks[fi].unlock();
+
+        const sharedFinals = as.getShared(fi);
+
+        for (sharedFinals) |upload| {
+            for (upload.matrices.items, 0..) |final, i| {
+                finals[upload.offset + i] = final;
+            }
+        }
+    }
 }
 
 fn padUniformBufferSize(self: @This(), originalSize: usize) usize {
@@ -512,7 +613,6 @@ fn finishFrame(self: *@This(), frameIndex: u32, syncIndex: u32) !void {
     var presentInfo = vk.PresentInfoKHR{
         .p_swapchains = @as([*]const vk.SwapchainKHR, @ptrCast(&self.displayTarget.swapchain)),
         .swapchain_count = 1,
-        //.p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.renderCompleteSemaphores.items[syncIndex])),
         .p_wait_semaphores = @as([*]const vk.Semaphore, @ptrCast(&self.frameSync[syncIndex].renderComplete)),
         .wait_semaphore_count = 1,
         .p_image_indices = @as([*]const u32, @ptrCast(&syncIndex)),
@@ -798,6 +898,8 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
 }
 
 fn initShared(self: *@This()) !void {
+    // DEBUG DO NOT USE
+    self.skinningLock = .{};
     for (&self.sharedData) |*s| {
         s.lock = .{};
         s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);
@@ -878,6 +980,21 @@ const vk_renderer_interface = @import("vk_renderer_interface.zig");
 const RendererInterfaceRef = vk_renderer_interface.RendererInterfaceRef;
 
 const mesh = @import("../mesh.zig");
+
+const mesh_pool = @import("vk_mesh_pool.zig");
+const MeshPoolBuffers = mesh_pool.MeshPoolBuffers;
+
+const graphics = @import("../graphics.zig");
+const NeonVkContext = graphics.NeonVkContext;
+
+const texture_list = @import("vk_texture_list.zig");
+const TextureList = texture_list.TextureList;
+
+const vkd_utils = @import("vkd_utils.zig");
+const vkinit = @import("../vk_init.zig");
+const animationSystem = @import("../animation/animationSystem.zig");
+// const vk_mesh_pool = @import("vk_mesh_pool.zig");
+// const MeshPool = vk_mesh_pool.MeshPool;
 
 // todo and documentation
 //

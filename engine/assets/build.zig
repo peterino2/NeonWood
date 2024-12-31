@@ -22,4 +22,16 @@ pub fn build(b: *std.Build) void {
     );
 
     mod.addImport("packer", packer_dep.module("packer"));
+
+    const test_step = b.step("test", "run unit tests for assets");
+    const tests = b.addTest(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("tests/test.zig"),
+    });
+
+    tests.root_module.addImport("assets", mod);
+    const runArtifact = b.addRunArtifact(tests);
+    test_step.dependOn(&runArtifact.step);
+    b.installArtifact(tests);
 }

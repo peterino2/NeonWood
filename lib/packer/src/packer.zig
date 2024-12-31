@@ -6,6 +6,8 @@ const PackedFileEntry = @import("PackedFileEntry.zig");
 const packerfs = @import("packerfs.zig");
 pub const PackerFS = packerfs.PackerFS;
 
+pub const PackerBytesMapping = packerfs.PackerBytesMapping;
+
 const constants = @import("constants.zig");
 pub const PackerMagic = constants.PackerMagic;
 pub const littleEndian = constants.littleEndian;
