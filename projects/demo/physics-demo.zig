@@ -57,9 +57,12 @@ pub fn tick(self: *GameContext, deltaTime: f64) void {
         const rotation = physicsRuntime.sphereRotations.items[i];
         var mesh = self.spheres[i].get(graphics.StaticMesh).?;
         mesh.visibility = true;
-        mesh.position = position;
-        mesh.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
-        mesh.rotation = rotation;
-        mesh.applyScalars();
+
+        const scene = self.spheres[i].get(core.Scene).?;
+        const pr = scene.getPosRot();
+
+        pr.position = position;
+        pr.scale = .{ .x = 0.5, .y = 0.5, .z = 0.5 };
+        pr.rotation.quat = rotation;
     }
 }

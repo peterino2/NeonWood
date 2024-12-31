@@ -139,6 +139,10 @@ pub const Scene = struct {
         }
     }
 
+    pub fn getPosRot(self: *@This()) *SceneObjectPosRot {
+        return SceneObjectContainer.get(self.handle, .posRot).?;
+    }
+
     pub fn setRotation(self: @This(), rotation: core.Rotation) void {
         SceneObjectContainer.get(self.handle, .posRot).?.*.rotation = rotation;
     }
@@ -158,6 +162,10 @@ pub const Scene = struct {
 
     pub fn getRotation(self: @This()) core.Rotation {
         return SceneObjectContainer.get(self.handle, .posRot).?.rotation;
+    }
+
+    pub fn getScaleV(self: @This()) core.Vectorf {
+        return SceneObjectContainer.get(self.handle, .posRot).?.scale;
     }
 
     pub fn getParent(self: @This()) core.Entity {

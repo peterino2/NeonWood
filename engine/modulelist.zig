@@ -7,4 +7,5 @@ pub const list = [_][]const u8{
     "graphics",
     "ui",
     "vkImgui",
+    // "gameplay", // optional, but audio and physics are no longer optional with this one in.
 };

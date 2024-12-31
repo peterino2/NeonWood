@@ -169,6 +169,17 @@ pub const StaticMesh = struct {
         );
         self.transform = newTransform;
     }
+
+    pub fn initECS(self: *@This(), handle: core.ObjectHandle) void {
+        const entity = core.Entity.fromHandle(handle);
+        if (entity.get(core.Scene)) |scene| {
+            self.position = scene.getPosition();
+            self.rotation = scene.getRotation().quat;
+            self.scale = scene.getScaleV();
+        } else {
+            _ = entity.addComponent(core.Scene);
+        }
+    }
 };
 
 fn makePerspective(fov: f32, aspect: f32, near: f32, far: f32) Mat {

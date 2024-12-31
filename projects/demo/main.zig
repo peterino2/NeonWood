@@ -216,32 +216,35 @@ pub const GameContext = struct {
         _ = try core.createEntity();
         self.obj = try core.createEntity();
         {
+            const scene = self.obj.addComponent(core.Scene).?;
+            scene.getPosRot().position.z = 15;
+
             const mesh = self.obj.addComponent(graphics.StaticMesh).?;
             mesh.setMesh("m_helmet");
-            mesh.position.y = -15;
-            mesh.applyScalars();
             mesh.setTexture("t_helmet");
         }
 
         self.fox = try core.createEntity();
         {
+            const scene = self.fox.addComponent(core.Scene).?;
+            scene.getPosRot().position.x = 50;
+            scene.getPosRot().scale = core.Vectorf.fromInt(0.1);
+
             const mesh = self.fox.addComponent(graphics.StaticMesh).?;
-            mesh.position.x = 50;
-            mesh.scale = core.Vectorf.fromInt(0.1);
-            mesh.applyScalars();
             mesh.setMesh("m_fox");
             mesh.setTexture("t_fox");
 
             const animator = self.fox.addComponent(graphics.Animator).?;
             animator.setSkeleton("sk_fox");
             animator.setAnimation("a_fox_run");
-            //mesh.animated = true; // debug todo
         }
 
         {
             const meshName = core.MakeName("m_primitive_sphere");
             for (0..self.spheres.len) |i| {
                 self.spheres[i] = try core.createEntity();
+                _ = self.spheres[i].addComponent(core.Scene);
+
                 const mesh = self.spheres[i].addComponent(graphics.StaticMesh).?;
                 mesh.meshName = meshName;
                 mesh.visibility = false;
@@ -312,27 +315,26 @@ pub const GameContext = struct {
 
         self.fox2 = try core.createEntity();
         {
-            const mesh = self.fox2.addComponent(graphics.StaticMesh).?;
-            mesh.scale = core.Vectorf.fromInt(0.1);
-            mesh.position.x = 40;
-            mesh.applyScalars();
+            const scene = self.fox2.addComponent(core.Scene).?;
+            scene.getPosRot().position.x = 40;
+            scene.getPosRot().scale = core.Vectorf.fromInt(0.1);
 
+            const mesh = self.fox2.addComponent(graphics.StaticMesh).?;
             mesh.setTexture("t_fox");
             mesh.setMesh("m_fox");
 
             const animator = self.fox2.addComponent(graphics.Animator).?;
             animator.setSkeleton("sk_fox");
             animator.setAnimation("a_fox_walk");
-            // mesh.animated = true;
         }
 
         const fox3 = try core.createEntity();
         {
-            const mesh = fox3.addComponent(graphics.StaticMesh).?;
-            mesh.scale = core.Vectorf.fromInt(0.1);
-            mesh.position.x = 30;
-            mesh.applyScalars();
+            const scene = fox3.addComponent(core.Scene).?;
+            scene.getPosRot().position.x = 30;
+            scene.getPosRot().scale = core.Vectorf.fromInt(0.1);
 
+            const mesh = fox3.addComponent(graphics.StaticMesh).?;
             mesh.setTexture("t_fox");
             mesh.setMesh("m_fox");
 
