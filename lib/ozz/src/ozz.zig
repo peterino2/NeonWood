@@ -12,6 +12,10 @@ pub const Skeleton = opaque {
         LoadSkeletonFromFile_c(self, path);
     }
 
+    pub fn loadFromBytes(self: *@This(), bytes: []const u8) void {
+        LoadSkeletonFromBytes_c(self, @constCast(@ptrCast(bytes.ptr)), bytes.len);
+    }
+
     pub fn getRestPoseModel(self: *@This()) Span(SoaTransform) {
         return @bitCast(SkeletonJointRestPoses_c(@ptrCast(self)));
     }
@@ -35,6 +39,7 @@ pub const Skeleton = opaque {
     pub extern fn CreateSkeleton_c() callconv(.C) ?*anyopaque;
     pub extern fn DestroySkeleton_c(target: ?*anyopaque) callconv(.C) void;
     pub extern fn LoadSkeletonFromFile_c(s: ?*anyopaque, path: [*c]const u8) callconv(.C) void;
+    pub extern fn LoadSkeletonFromBytes_c(s: ?*anyopaque, size: ?*anyopaque, size: usize) void;
 };
 
 pub const Animation = opaque {
@@ -47,12 +52,22 @@ pub const Animation = opaque {
         LoadAnimationFromFile_c(self, path);
     }
 
+    pub fn loadFromBytes(self: *@This(), bytes: []const u8) void {
+        LoadAnimationFromBytes_c(self, @constCast(@ptrCast(bytes.ptr)), bytes.len);
+    }
+
     pub fn destroy(self: *@This()) void {
         DestroyAnimation_c(@ptrCast(self));
     }
 
+    pub fn getDuration(self: *@This()) f32 {
+        return AnimationGetDuration_c(@ptrCast(self));
+    }
+
+    pub extern fn AnimationGetDuration_c(s: ?*anyopaque) callconv(.C) f32;
     pub extern fn CreateAnimation_c() callconv(.C) ?*anyopaque;
     pub extern fn LoadAnimationFromFile_c(s: ?*anyopaque, path: [*c]const u8) void;
+    pub extern fn LoadAnimationFromBytes_c(s: ?*anyopaque, size: ?*anyopaque, size: usize) void;
     pub extern fn DestroyAnimation_c(target: ?*anyopaque) callconv(.C) void;
 };
 

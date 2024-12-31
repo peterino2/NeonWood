@@ -72,6 +72,25 @@ void* CreateSkeleton_c()
     return rv;
 }
 
+void LoadSkeletonFromBytes_c(void* skeleton, void* start, size_t size)
+{
+    ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);
+
+    ozz::io::MemoryStream ms;
+    ms.Write(start, size);
+    ms.Seek(0, ozz::io::Stream::Origin::kSet);
+
+    std::cout << "loading skeleton from bytes" << std::endl;
+    ozz::io::IArchive archive(&ms);
+
+    if (!archive.TestTag<ozz::animation::Skeleton>()) {
+        std::cout << "Archive doesn't contain the expected object type." << std::endl;
+      return;
+    }
+
+    archive >> *sk;
+}
+
 void LoadSkeletonFromFile_c(void* skeleton, const char* filename)
 {
     ozz::animation::Skeleton* sk = static_cast<ozz::animation::Skeleton*>(skeleton);
@@ -118,6 +137,12 @@ void DestroySkeleton_c(void* skeleton)
     delete sk;
 }
 
+float AnimationGetDuration_c(void* animation) 
+{
+    ozz::animation::Animation* a = static_cast<ozz::animation::Animation*>(animation);
+    return a->duration();
+}
+
 void* CreateAnimation_c()
 {
     ozz::animation::Animation* a = new ozz::animation::Animation();
@@ -131,6 +156,24 @@ void DestroyAnimation_c(void* anim)
     delete self;
 }
 
+void LoadAnimationFromBytes_c(void* anim, void* start, size_t size)
+{
+    ozz::animation::Animation* self = static_cast<ozz::animation::Animation*>(anim);
+    ozz::io::MemoryStream ms;   
+    ms.Write(start, size);
+    ms.Seek(0, ozz::io::Stream::Origin::kSet);
+    ozz::io::IArchive archive(&ms);
+
+    if (!archive.TestTag<ozz::animation::Animation>()) {
+        std::cout << "Failed to load animation instance from bytes "
+                      << "." << std::endl;
+      return;
+    }
+
+    // Once the tag is validated, reading cannot fail.
+    archive >> *self;
+}
+
 void LoadAnimationFromFile_c(void* anim, const char* filename)
 {
     ozz::animation::Animation* self = static_cast<ozz::animation::Animation*>(anim);
@@ -142,7 +185,7 @@ void LoadAnimationFromFile_c(void* anim, const char* filename)
       return;
     }
 
-    std::cout << "loading skeleton from " << filename << std::endl;
+    std::cout << "loading animation from " << filename << std::endl;
     ozz::io::IArchive archive(&file);
 
     if (!archive.TestTag<ozz::animation::Animation>()) {

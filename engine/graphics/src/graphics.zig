@@ -11,6 +11,14 @@ const materials = @import("materials.zig");
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
 
+pub const animation_system = @import("animation/animationSystem.zig");
+pub const AnimationSystem = animation_system.AnimationSystem;
+pub const Animator = animation_system.Animator;
+pub const AnimationTrack = animation_system.AnimationTrack;
+pub const Skeleton = animation_system.Skeleton;
+
+pub const animation_loaders = @import("animation/loaders.zig");
+
 pub const RenderThread = @import("vk_renderer/RenderThread.zig");
 pub const vkinit = @import("vk_init.zig");
 pub const vk_allocator = @import("vk_allocator.zig");
@@ -89,10 +97,11 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
         .{ .can_tick = true, .isCore = true },
     ) catch unreachable;
     memory.MTPrintStatsDelta();
-    engine_logs("NeonVkContext grew");
 
     vk_renderer.gContext = context;
-    memory.MTPrintStatsDelta();
+
+    _ = try core.createObject(AnimationSystem, .{ .can_tick = true });
+    try animation_loaders.initLoaders();
 
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
     memory.MTPrintStatsDelta();

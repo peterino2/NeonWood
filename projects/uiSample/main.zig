@@ -25,17 +25,11 @@ pub const GameContext = struct {
 
     fpsText: ?[]u8 = null,
 
-    pixelBuffer: graphics.PixelBufferRGBA8,
-
     pub fn init(allocator: std.mem.Allocator) !*@This() {
-        var self = try allocator.create(@This());
+        const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
-            .pixelBuffer = try graphics.PixelBufferRGBA8.init(allocator, .{ .x = 100, .y = 100 }),
         };
-        self.pixelBuffer.clear(colors.ColorRGBA8.fromHex(0x101010ff));
-        self.pixelBuffer.getPixel(.{ .x = 42, .y = 42 }).* = colors.ColorRGBA8.fromHex(0xFF0000FF);
-        self.pixelBuffer.getPixel(.{ .x = 43, .y = 43 }).* = colors.ColorRGBA8.fromHex(0xFF0000FF);
         return self;
     }
 
@@ -294,10 +288,6 @@ pub fn main() anyerror!void {
 
     var tracker = memory.MTGet().?;
     const allocator = tracker.allocator();
-
-    // var bumpArena = try core.algorithm.BumpArena.init(tracker.allocator());
-    // defer bumpArena.deinit();
-    // const allocator = bumpArena.allocator();
 
     nw.graphics.setStartupSettings("maxObjectCount", 10);
     platform.setWindowSettings(.{ .windowName = "NeonWood: ui" });

@@ -54,6 +54,18 @@ const AssetReferences = [_]assets.AssetImportReference{
         .path = foxTexture,
         .textureUseBlockySampler = false,
     }),
+    assets.MakeImportRefOptions("Animation", "a_fox_survey", .{
+        .path = "gltf-samples/Fox/glTF/Survey.ozz",
+    }),
+    assets.MakeImportRefOptions("Animation", "a_fox_run", .{
+        .path = "gltf-samples/Fox/glTF/Run.ozz",
+    }),
+    assets.MakeImportRefOptions("Animation", "a_fox_walk", .{
+        .path = "gltf-samples/Fox/glTF/Walk.ozz",
+    }),
+    assets.MakeImportRefOptions("Skeleton", "sk_fox", .{
+        .path = "gltf-samples/Fox/glTF/skeleton.ozz",
+    }),
 };
 
 // Primarily a test file that exists to create a simple application for
@@ -93,7 +105,7 @@ pub const GameContext = struct {
 
     frameCount: u32 = 5,
 
-    animationDemo: *AnimationDemo = undefined,
+    // animationDemo: *AnimationDemo = undefined,
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
         var self = try allocator.create(@This());
@@ -115,7 +127,7 @@ pub const GameContext = struct {
     var texName = core.MakeName("t_helmet");
 
     pub fn tick(self: *@This(), deltaTime: f64) void {
-        self.animationDemo.tick(deltaTime) catch unreachable;
+        // self.animationDemo.tick(deltaTime) catch unreachable;
         // ig.igShowDemoWindow(&self.showDemo);
 
         const position = platform.getInstance().getCursorPosition();
@@ -193,12 +205,12 @@ pub const GameContext = struct {
         try core.fs().addContentPath("demo");
         try core.script.runScriptFile("scripts/prepare.lua");
 
-        self.animationDemo = try AnimationDemo.create(self.allocator);
+        // self.animationDemo = try AnimationDemo.create(self.allocator);
 
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
 
-        self.camera.translate(.{ .x = 40.0, .y = -0.0, .z = -6.0 });
+        self.camera.translate(.{ .x = 35.0, .y = -0.0, .z = -6.0 });
         self.gc.activateCamera(&self.camera);
 
         _ = try core.createEntity();
@@ -207,7 +219,7 @@ pub const GameContext = struct {
             const mesh = self.obj.addComponent(graphics.StaticMesh).?;
             mesh.setMesh("m_helmet");
             mesh.position.y = -15;
-            mesh.updateScalars();
+            mesh.applyScalars();
             mesh.setTexture("t_helmet");
         }
 
@@ -215,10 +227,15 @@ pub const GameContext = struct {
         {
             const mesh = self.fox.addComponent(graphics.StaticMesh).?;
             mesh.position.x = 50;
-            mesh.updateScalars();
+            mesh.scale = core.Vectorf.fromInt(0.1);
+            mesh.applyScalars();
             mesh.setMesh("m_fox");
             mesh.setTexture("t_fox");
-            mesh.animated = true; // debug todo
+
+            const animator = self.fox.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_run");
+            //mesh.animated = true; // debug todo
         }
 
         {
@@ -297,18 +314,22 @@ pub const GameContext = struct {
         {
             const mesh = self.fox2.addComponent(graphics.StaticMesh).?;
             mesh.scale = core.Vectorf.fromInt(0.1);
-            mesh.position.x = -40;
+            mesh.position.x = 40;
             mesh.applyScalars();
 
             mesh.setTexture("t_fox");
             mesh.setMesh("m_fox");
-            mesh.animated = true;
+
+            const animator = self.fox2.addComponent(graphics.Animator).?;
+            animator.setSkeleton("sk_fox");
+            animator.setAnimation("a_fox_walk");
+            // mesh.animated = true;
         }
     }
 
     pub fn deinit(self: *Self) void {
         physicsDemo.unpreparePhysics(self);
-        self.animationDemo.destroy();
+        // self.animationDemo.destroy();
         if (self.panelText != null)
             self.allocator.free(self.panelText.?);
         self.allocator.destroy(self);

@@ -835,7 +835,7 @@ pub const NeonVkContext = struct {
             );
 
             self.frameData[i].animationsBuffer = try self.create_buffer(
-                @sizeOf(core.Mat) * 100_000, // 100k bones ought to be enough for anyone
+                @sizeOf(core.Mat) * vk_constants.MAX_SKIN_SLOTS, // 100k bones ought to be enough for anyone
                 .{ .storage_buffer_bit = true },
                 .cpuToGpu,
                 "animations ssbo",
@@ -864,7 +864,7 @@ pub const NeonVkContext = struct {
             var animBufferInfo = vk.DescriptorBufferInfo{
                 .buffer = self.frameData[i].animationsBuffer.buffer,
                 .offset = 0,
-                .range = @sizeOf(core.Mat) * 100_000,
+                .range = @sizeOf(core.Mat) * vk_constants.MAX_SKIN_SLOTS,
             };
 
             const animBufferWrite = vkinit.writeDescriptorSet(

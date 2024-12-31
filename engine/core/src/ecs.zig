@@ -219,13 +219,13 @@ pub const EcsRegistry = struct {
 
     pub fn onHandleAdded(p: *anyopaque, containerID: u32, handle: core.ObjectHandle) void {
         const self: *@This() = @ptrCast(@alignCast(p));
-        _ = containerID;
-        // core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
-        //     handle.index,
-        //     self.containerNames.items[containerID].utf8(),
-        //     containerID,
-        //     @intFromPtr(self.containers.items[containerID].ptr),
-        // });
+        //_ = containerID;
+        core.engine_log("ECS:: object added id=0x{x} from container={s}({d}) 0x{x}", .{
+            handle.index,
+            self.containerNames.items[containerID].utf8(),
+            containerID,
+            @intFromPtr(self.containers.items[containerID].ptr),
+        });
 
         if (self.baseSet.get(handle)) |obj| {
             obj.containersCount += 1;
@@ -289,6 +289,10 @@ pub const Entity = struct {
             //.{ .name = "get", .func = "luaAddComponent" },
         },
     };
+
+    pub fn fromHandle(handle: core.ObjectHandle) @This() {
+        return .{ .handle = handle };
+    }
 
     pub fn addComponent(self: @This(), comptime Component: type) ?*Component {
         const rv = Component.BaseContainer.createWithHandleECS(self.handle);

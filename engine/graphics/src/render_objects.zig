@@ -7,6 +7,8 @@ const graphics = @import("graphics.zig");
 const meshes = @import("mesh.zig");
 const NeonVkContext = @import("vk_renderer.zig").NeonVkContext;
 const materials = @import("materials.zig");
+const animationSystem = @import("animation/animationSystem.zig");
+const Animator = animationSystem.Animator;
 
 const Material = materials.Material;
 const EulerAngles = core.EulerAngles;
@@ -20,6 +22,7 @@ const Mesh = meshes.Mesh;
 const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
 const IndexedMesh = mesh_pool.IndexedMesh;
 
+// lol we need to rename this thing again, it should be called RenderMesh
 pub const StaticMeshSet = core.SparseSet(StaticMesh);
 
 pub const StaticMesh = struct {
@@ -39,7 +42,8 @@ pub const StaticMesh = struct {
     textureName: core.Name = core.NameInvalid,
     meshName: core.Name = core.NameInvalid,
 
-    animated: bool = false,
+    animated: bool = false, // todo remove
+    animator: ?*Animator = null,
 
     pub var BaseContainer: *StaticMeshSet = undefined;
     pub const ComponentName = "StaticMesh";
@@ -50,12 +54,7 @@ pub const StaticMesh = struct {
         "applyRelativeRotationZ",
         "setMesh",
         "setTextureByName",
-        "scriptInit", // todo.. sholdnt need this...
     };
-
-    pub fn scriptInit(self: *@This()) void {
-        _ = self;
-    }
 
     pub fn setMeshByName(self: *@This(), meshName: core.Name) void {
         self.meshName = meshName;
