@@ -507,6 +507,10 @@ pub const InputStack = struct {
     }
 
     pub fn updatePreviousInputs(self: *@This()) void {
+        if (self.active.bindingStack.items.len == 0) {
+            return;
+        }
+
         var i: i32 = @intCast(self.active.bindingStack.items.len - 1);
         while (i >= 0) : (i -= 1) {
             const binding = &self.active.bindingStack.items[@intCast(i)];
@@ -523,6 +527,9 @@ pub const InputStack = struct {
     fn routeKeyEvent(self: *@This(), key: Key, event: ActionEvent) void {
         // for all bindings in reverse order from this layer, route the input, stop the
         // route if the input was consumed
+        if (self.active.bindingStack.items.len == 0) {
+            return;
+        }
 
         var i: i32 = @intCast(self.active.bindingStack.items.len - 1);
         while (i >= 0) : (i -= 1) {
