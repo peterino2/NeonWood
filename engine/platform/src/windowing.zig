@@ -99,6 +99,7 @@ pub const PlatformInstance = struct {
     gameInput: *gameInput.GameInputSystem = undefined,
 
     cursorEnabled: bool = true,
+    newCursorEnabled: bool = true,
 
     cursorPos: core.Vector2f = .{},
 
@@ -226,6 +227,11 @@ pub const PlatformInstance = struct {
     pub fn pollEvents(self: *@This()) void {
         glfw3.glfwPollEvents();
 
+        if (self.cursorEnabled != self.newCursorEnabled) {
+            self.cursorEnabled = self.newCursorEnabled;
+            glfw3.glfwSetInputMode(self.window, glfw3.GLFW_CURSOR, if (self.cursorEnabled) glfw3.GLFW_CURSOR_NORMAL else glfw3.GLFW_CURSOR_DISABLED);
+        }
+
         if (self.shouldExit()) {
             core.gEngine.exit();
         }
@@ -249,18 +255,25 @@ pub const PlatformInstance = struct {
         _ = glfw3.glfwSetMouseButtonCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), mouseButtonCallback);
         _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), keyCallback);
         _ = glfw3.glfwSetFramebufferSizeCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), windowResizeCallback);
-        _ = glfw3.glfwSetCharCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), charCallback);
+        // _ = glfw3.glfwSetCharCallback(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), charCallback);
 
         glfw3.glfwGetWindowContentScale(@as(?*glfw3.GLFWwindow, @ptrCast(self.window)), &self.contentScale.x, &self.contentScale.y);
     }
 
     pub fn pumpEvents(self: *@This()) !void {
+        const inputStack = core.getInputStack();
+        inputStack.updatePreviousInputs();
+
         if (self.eventQueue.count() > 0) {
             while (self.eventQueue.pop()) |event| {
                 try self.workBuffer.append(event);
             }
 
             for (self.workBuffer.items) |event| {
+                {
+                    inputStack.routeEvent(event);
+                }
+
                 for (self.listeners.items) |listener| {
                     try listener.vtable.OnIoEvent(listener.ptr, event);
                 }
@@ -292,6 +305,7 @@ pub const PlatformInstance = struct {
 
             self.workBuffer.clearRetainingCapacity();
         }
+        inputStack.sendAxisUpdates();
     }
 
     pub fn shouldExit(self: @This()) bool {
@@ -305,8 +319,7 @@ pub const PlatformInstance = struct {
     }
 
     pub fn setCursorEnabled(self: *@This(), cursorEnabled: bool) void {
-        self.cursorEnabled = cursorEnabled;
-        glfw3.glfwSetInputMode(self.window, glfw3.GLFW_CURSOR, if (cursorEnabled) glfw3.GLFW_CURSOR_NORMAL else glfw3.GLFW_CURSOR_DISABLED);
+        self.newCursorEnabled = cursorEnabled;
     }
 
     pub fn isCursorEnabled(self: @This()) bool {
@@ -323,15 +336,7 @@ pub const PlatformInstance = struct {
     }
 };
 
-pub const IOEvent = union(enum(u8)) {
-    windowFocused: struct { focused: c_int },
-    mousePosition: struct { x: f64, y: f64 },
-    mouseButton: struct { button: c_int, action: c_int, mods: c_int },
-    scroll: struct { xoffset: f64, yoffset: f64 },
-    key: struct { key: c_int, scancode: c_int, action: c_int, mods: c_int },
-    windowResize: struct { newSize: core.Vector2f },
-    codepoint: c_uint,
-};
+pub const IOEvent = core.IOEvent;
 
 fn windowResizeCallback(_: ?*glfw3.GLFWwindow, newWidth: c_int, newHeight: c_int) callconv(.C) void {
     pushEventSafe(.{ .windowResize = .{

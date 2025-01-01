@@ -343,6 +343,71 @@ pub const GameContext = struct {
             animator.setAnimation("a_fox_survey");
             // mesh.animated = true;
         }
+
+        try self.setupInputs();
+    }
+
+    pub fn onMove2(ctx: ?*anyopaque, axis: core.Vector2f) void {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        _ = self;
+        _ = axis;
+    }
+
+    pub fn onMove(ctx: ?*anyopaque, axis: core.Vector2f) void {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        self.movementInput.z = axis.y;
+        self.movementInput.x = -axis.x;
+        // core.engine_log("input recieved{any}", .{axis});
+    }
+
+    pub fn onMoveVertical(ctx: ?*anyopaque, axis: f32) void {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        self.movementInput.y = axis;
+    }
+
+    pub fn onLook(ctx: ?*anyopaque, event: core.ActionEvent) void {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        _ = self;
+        switch (event) {
+            .keyDown => {
+                platform.getInstance().setCursorEnabled(false);
+            },
+            .keyUp => {
+                platform.getInstance().setCursorEnabled(true);
+            },
+            else => {},
+        }
+    }
+
+    fn setupInputs(self: *@This()) !void {
+        {
+            const moveAxis = try core.Axis2dBinding.create(core.MakeName("move"));
+            moveAxis.addKey(.W, 1.0, .y);
+            moveAxis.addKey(.S, -1.0, .y);
+            moveAxis.addKey(.D, 1.0, .x);
+            moveAxis.addKey(.A, -1.0, .x);
+
+            _ = moveAxis.data.addListener(self, onMove);
+            moveAxis.activate();
+        }
+
+        {
+            const moveAxis = try core.Axis1dBinding.create(core.MakeName("moveVertical"));
+            moveAxis.addKey(.E, 1.0);
+            moveAxis.addKey(.Q, -1.0);
+
+            _ = moveAxis.data.addListener(self, onMoveVertical);
+            moveAxis.activate();
+        }
+
+        {
+            const binding = try core.ActionBinding.create(core.MakeName("onLookDown"));
+            binding.addKey(.LeftAlt, .keyDown);
+            binding.addKey(.LeftAlt, .keyUp);
+
+            _ = binding.data.addListener(self, onLook);
+            binding.activate();
+        }
     }
 
     pub fn deinit(self: *Self) void {
@@ -536,8 +601,8 @@ pub fn main() anyerror!void {
     try neonwood.start_everything(@import("spec.zig").spec, allocator, args);
     defer neonwood.shutdown_everything(allocator);
 
-    _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
-    try platform.getInstance().installCursorPosCallback(mousePositionCallback);
+    // _ = glfw3.glfwSetKeyCallback(@as(?*glfw3.GLFWwindow, @ptrCast(platform.getInstance().window)), input_callback);
+    // try platform.getInstance().installCursorPosCallback(mousePositionCallback);
 
     try neonwood.run_everything(GameContext);
 }

@@ -24,6 +24,10 @@ function GetProperty(entity)
     return properties[entity]
 end
 
+function GetObject(entity) 
+    return properties[entity]
+end
+
 Core = {
     registerTick = registerTick;
 }

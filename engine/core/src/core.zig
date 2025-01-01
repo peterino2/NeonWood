@@ -2,6 +2,14 @@
 
 const std = @import("std");
 
+pub const inputs = @import("inputs/inputStack.zig");
+pub const getInputStack = inputs.getInputStack;
+pub const ActionEvent = inputs.ActionEvent;
+pub const Axis1dBinding = inputs.Axis1dBinding;
+pub const Axis2dBinding = inputs.Axis2dBinding;
+pub const ActionBinding = inputs.ActionBinding;
+pub const IOEvent = inputs.IOEvent;
+
 pub const debug_draw = @import("debug_draw.zig");
 pub const DebugDrawParams = debug_draw.DebugDrawParams;
 pub const DebugDrawInterface = debug_draw.DebugDrawInterface;
@@ -104,6 +112,8 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     try algorithm.string_pool.setup(allocator);
 
     _ = try gEngine.createObject(script_bindings.ScriptTicks, .{ .can_tick = true });
+
+    _ = try inputs.initInputStack();
 
     logs("core module starting up... ");
     return;
