@@ -582,26 +582,29 @@ pub fn getInputStack() *InputStack {
     return gInputStack;
 }
 
-pub fn sampleCode() void {
-    const moveAxis = Axis2dBinding.create();
-    moveAxis.addKey(.W, 1.0, .y);
-    moveAxis.addKey(.S, -1.0, .y);
-    moveAxis.addKey(.D, 1.0, .x);
-    moveAxis.addKey(.A, -1.0, .x);
-
-    const Testing = struct {
-        pub fn onAxis(context: ?*anyopaque, axis: core.Vector2f) void {
-            _ = context;
-            _ = axis;
-        }
-    };
-    const self = Testing{};
-    moveAxis.data.addListener(&self, Testing.onAxis);
-}
-
 pub fn initInputStack() !void {
     gInputStack = try core.createObject(InputStack, .{});
 }
+
+// creates a binding for a lua type
+// TODO
+// pub fn LuaBinding(comptime T: type, comptime typeName: []const u8) type {
+//     return struct {
+//         p: ?*T,
+//
+//         pub const PodDataTable = pod.DataTable{
+//             .name = typeName,
+//             .funcs = &.{},
+//         };
+//
+//         pub fn create() @This() {
+//             return .{};
+//         }
+//     };
+// }
+
+const lua = core.lua;
+const pod = lua.pod;
 
 const Key = @import("keys.zig").Key;
 const std = @import("std");

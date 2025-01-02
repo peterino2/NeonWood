@@ -28,6 +28,11 @@ const p2 = @import("p2");
 //
 // todo.. subsystem implementation
 //
+// for types such as core.inputs.Bindings
+// they contain a pointer to some C type.
+//
+// use newfuncoverride
+//
 
 pub fn NewFunc(comptime T: type) lua.LuaCFunc {
     const S = struct {
@@ -299,12 +304,27 @@ pub const DirectFunc = struct {
 };
 
 pub const DataTable = struct {
+    // the name of the type to use in lua, this gets globally assigned
     name: []const u8,
+
+    // list of zig functions which can be directly called using *Type
     funcs: []const []const u8 = &.{},
+
+    // list of functions that take in a function that directly matches the signature *const fn (?*c.lua_State) callconv(.C) i32
     luaFuncs: []const []const u8 = &.{},
+
+    // same as above, but lets you set the name name to use in lualand.
+    // eg. .{.name = "update", .func = "luaUpdate"}; uses the luaC function luaUpdate, but is invoked as update() in script
+    luaDirectFuncs: []const DirectFunc = &.{},
+
+    // overrides the lua function with a different one, use lua.CWrap
     newFuncOverride: ?lua.LuaCFunc = null,
+
+    // destructor function
+    destructor: ?[]const u8 = null,
+
+    // we normally generate a toString function for your pod type, but this lets you set an override
     toStringOverride: ?lua.LuaCFunc = null,
-    banInstantiation: bool = false,
     operators: struct {
         // i've decided I shall not support operator overloading for now
         add: ?[]const u8 = null,
@@ -312,7 +332,7 @@ pub const DataTable = struct {
         mul: ?[]const u8 = null,
         eq: ?[]const u8 = null,
     } = .{},
-    luaDirectFuncs: []const DirectFunc = &.{},
+    banInstantiation: bool = false, // disables generating "new" function for the lua type
 };
 
 const PodLib = struct {
@@ -342,6 +362,10 @@ pub fn MakeMetatable(comptime T: type) PodLib {
         }
         if (T.PodDataTable.operators.eq) |f| {
             m = m ++ .{.{ .name = "__eq", .func = comptime Operator2Arg(T, @field(T, f)) }};
+        }
+
+        if (T.PodDataTable.destructor) |f| {
+            m = m ++ .{.{ .name = "__gc", .func = comptime lua.WrapZigFunc(@field(T, f)) }};
         }
 
         inline for (T.PodDataTable.funcs) |f| {

@@ -244,6 +244,28 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
             return .{ .x = t, .y = t, .z = t };
         }
 
+        // easing functions
+        pub inline fn drainToZero(self: @This(), o: anytype) @This() {
+            return self.drain(o, Zeroes);
+        }
+
+        pub inline fn drain(self: @This(), o: anytype, target: anytype) @This() {
+            return .{
+                .x = drainElement(self.x, o.x, target.x),
+                .y = drainElement(self.y, o.y, target.y),
+                .z = drainElement(self.z, o.z, target.z),
+            };
+        }
+
+        inline fn drainElement(a: anytype, v: anytype, t: anytype) @TypeOf(a) {
+            if (a > t) {
+                return @max(t, a - v);
+            } else {
+                return @min(t, a + v);
+            }
+        }
+
+        // array functions.
         pub inline fn toArr3(self: @This()) [3]T {
             return .{ self.x, self.y, self.z };
         }
@@ -345,6 +367,22 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
                 .x = o[0],
                 .y = o[1],
                 .z = o[2],
+            };
+        }
+
+        pub inline fn clampAllAbs(self: @This(), abs: anytype) @This() {
+            return .{
+                .x = std.math.clamp(self.x, -abs, abs),
+                .y = std.math.clamp(self.y, -abs, abs),
+                .z = std.math.clamp(self.z, -abs, abs),
+            };
+        }
+
+        pub inline fn clampAll(self: @This(), lower: anytype, upper: anytype) @This() {
+            return .{
+                .x = std.math.clamp(self.x, -lower, upper),
+                .y = std.math.clamp(self.y, -lower, upper),
+                .z = std.math.clamp(self.z, -lower, upper),
             };
         }
 
@@ -482,8 +520,24 @@ pub const Rotation = struct {
     quat: Quat = zm.qidentity(),
 
     pub fn init() @This() {
+        return .{};
+    }
+
+    pub fn eulerX(o: f32) @This() {
         return .{
-            .quat = .{ 0, 0, 0, 0 },
+            .quat = zm.matToQuat(zm.rotationX((o))),
+        };
+    }
+
+    pub fn eulerY(o: f32) @This() {
+        return .{
+            .quat = zm.matToQuat(zm.rotationY((o))),
+        };
+    }
+
+    pub fn eulerZ(o: f32) @This() {
+        return .{
+            .quat = zm.matToQuat(zm.rotationZ((o))),
         };
     }
 

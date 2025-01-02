@@ -26,3 +26,4 @@ packages/
 *.DS_Store
 
 *imgui.ini
+*.stackdump

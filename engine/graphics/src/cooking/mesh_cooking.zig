@@ -65,38 +65,28 @@ fn ensureGltf2ozz(allocator: std.mem.Allocator) !void {
         const argv: []const []const u8 = &.{ "zig", "build", "tools" };
 
         core.engine_log("gltf2ozz missing, building it...", .{});
-        const result = try std.process.Child.run(.{
-            .argv = argv,
-            .allocator = allocator,
-            .cwd = ".",
-        });
 
-        defer allocator.free(result.stdout);
-        defer allocator.free(result.stderr);
+        var child = std.process.Child.init(argv, allocator);
+        child.stdin_behavior = .Ignore;
+        child.stdout_behavior = .Pipe;
+        child.stderr_behavior = .Pipe;
+        child.cwd = ".";
 
-        var success: bool = true;
-        switch (result.term) {
+        switch (try child.spawnAndWait()) {
             .Exited => |value| {
-                if (value != 0) {
-                    success = false;
+                if (value == 0) {
+                    core.engine_log("gltf2ozz built", .{});
+                } else {
+                    core.engine_logs("unable to build gltf2ozz");
                 }
             },
             .Signal => {
-                success = false;
+                core.engine_logs("unable to build gltf2ozz");
             },
-            .Stopped => {
-                success = false;
-                // no-op should be ok?
-            },
+            .Stopped => {},
             .Unknown => {
                 unreachable;
             },
-        }
-
-        if (success) {
-            core.engine_log("gltf2ozz built", .{});
-        } else {
-            core.engine_log("unable to build gltf2ozz {s}\n{s}", .{ result.stdout, result.stderr });
         }
 
         return;
@@ -151,6 +141,7 @@ fn cookAnimations(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u
         .argv = argv,
         .allocator = allocator,
         .cwd = core.getFolder(absFile),
+        .max_output_bytes = 150 * 1024 * 1024,
     });
 
     defer allocator.free(result.stdout);

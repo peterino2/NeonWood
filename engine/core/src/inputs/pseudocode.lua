@@ -5,6 +5,7 @@ moveAxis:addKey(Keys.S, -1.0, Axis.Y)
 
 moveAxis:addKey(Keys.A, -1.0, Axis.X)
 moveAxis:addKey(Keys.D, 1.0, Axis.X)
+moveAxis:addListener(balls, )
 
 Input.addBinding("move", moveAxis, true)
 

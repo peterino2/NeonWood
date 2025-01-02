@@ -125,8 +125,14 @@ pub const Animator = struct {
 
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
+            // const p: core.zm.Vec = .{ 0, 0, 0, 1 };
+            // graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.1, .{});
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
             self.finals.items[i] = final;
+            // core.engine_log(
+            //     "[{d}] {d} {d} {d} {d}, {d} {d} {d} {d}",
+            //     .{ i, transform[0][0], transform[0][1], transform[0][2], transform[0][3], transform[1][0], transform[1][1], transform[1][2], transform[1][3] },
+            // );
         }
     }
 
@@ -198,6 +204,10 @@ pub const AnimationSystem = struct {
 
         try new.inverseBinds.resize(self.arenaAllocator(), new.sk.numJoints());
 
+        if (new.inverseBinds.items.len > 256) {
+            @panic("too many bones in skeleton, not supported");
+        }
+
         var bindModels = std.ArrayList(ozz.Float4x4).init(self.backingAllocator);
         defer bindModels.deinit();
 
@@ -217,6 +227,9 @@ pub const AnimationSystem = struct {
         }
 
         for (bindModels.items, 0..) |bind, i| {
+            // const p: core.zm.Vec = .{ 0, 0, 0, 1 };
+            // graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, @as(core.Mat, @bitCast(bind)))), 0.1, .{ .duration = 100 });
+
             new.inverseBinds.items[i] = core.zm.inverse(@as(core.Mat, @bitCast(bind)));
         }
 
@@ -245,7 +258,8 @@ pub const AnimationSystem = struct {
 
         for (Animator.BaseContainer.list.items) |animator| {
             var upload: MatrixUploads = .{ .offset = animator.finalsSpan.start };
-            // std.debug.print("finalsSpan size {d} animator finals {d}\n", .{ animator.finalsSpan.size, animator.finals.items.len });
+            // core.engine_log("finalsSpan size offset{d} {d} animator finals {d}\n", .{ animator.finalsSpan.start, animator.finalsSpan.size, animator.finals.items.len });
+
             upload.matrices.resize(allocator, animator.finalsSpan.size) catch unreachable;
 
             for (animator.finals.items, 0..) |final, i| {

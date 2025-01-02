@@ -386,6 +386,11 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
 
     var joints = std.ArrayList(u16).init(allocator);
     defer joints.deinit();
+    // add a different joint format one, todo- i need to fix up zgltf
+
+    var useJoints8: bool = false;
+    var joints8 = std.ArrayList(u8).init(allocator);
+    defer joints8.deinit();
 
     var weights = std.ArrayList(f32).init(allocator);
     defer weights.deinit();
@@ -439,14 +444,26 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
                     const accessor = parser.data.accessors.items[x];
                     core.engine_log("accessor info: {any}", .{accessor});
 
-                    parser.getDataFromBufferView(u16, &joints, accessor, @alignCast(binaryBytes));
-                    core.engine_log("joints loaded: {d} - {d} {d} {d} {d}", .{
-                        joints.items.len,
-                        joints.items[0],
-                        joints.items[1],
-                        joints.items[2],
-                        joints.items[3],
-                    });
+                    if (accessor.component_type == .unsigned_byte) {
+                        useJoints8 = true;
+                        parser.getDataFromBufferView(u8, &joints8, accessor, @alignCast(binaryBytes));
+                        core.engine_log("joints8 loaded: {d} - {d} {d} {d} {d}", .{
+                            joints8.items.len,
+                            joints8.items[0],
+                            joints8.items[1],
+                            joints8.items[2],
+                            joints8.items[3],
+                        });
+                    } else {
+                        parser.getDataFromBufferView(u16, &joints, accessor, @alignCast(binaryBytes));
+                        core.engine_log("joints loaded: {d} - {d} {d} {d} {d}", .{
+                            joints.items.len,
+                            joints.items[0],
+                            joints.items[1],
+                            joints.items[2],
+                            joints.items[3],
+                        });
+                    }
                 },
                 .weights => |x| {
                     const accessor = parser.data.accessors.items[x];
@@ -511,20 +528,36 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
 
         const jointsIndex = weightCount * i;
         if (weightCount == 4) {
-            if (jointsIndex < joints.items.len) {
-                vertexList.items[vertexList.items.len - 1].bones = .{
-                    @intCast(joints.items[jointsIndex + 0]),
-                    @intCast(joints.items[jointsIndex + 1]),
-                    @intCast(joints.items[jointsIndex + 2]),
-                    @intCast(joints.items[jointsIndex + 3]),
-                };
-
-                vertexList.items[vertexList.items.len - 1].weights = .{
-                    @intFromFloat(weights.items[jointsIndex + 0] * 255),
-                    @intFromFloat(weights.items[jointsIndex + 1] * 255),
-                    @intFromFloat(weights.items[jointsIndex + 2] * 255),
-                    @intFromFloat(weights.items[jointsIndex + 3] * 255),
-                };
+            if (useJoints8) {
+                if (jointsIndex < joints8.items.len) {
+                    vertexList.items[vertexList.items.len - 1].bones = .{
+                        @intCast(joints8.items[jointsIndex + 0]),
+                        @intCast(joints8.items[jointsIndex + 1]),
+                        @intCast(joints8.items[jointsIndex + 2]),
+                        @intCast(joints8.items[jointsIndex + 3]),
+                    };
+                    vertexList.items[vertexList.items.len - 1].weights = .{
+                        @intFromFloat(weights.items[jointsIndex + 0] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 1] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 2] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 3] * 255),
+                    };
+                }
+            } else {
+                if (jointsIndex < joints.items.len) {
+                    vertexList.items[vertexList.items.len - 1].bones = .{
+                        @intCast(joints.items[jointsIndex + 0]),
+                        @intCast(joints.items[jointsIndex + 1]),
+                        @intCast(joints.items[jointsIndex + 2]),
+                        @intCast(joints.items[jointsIndex + 3]),
+                    };
+                    vertexList.items[vertexList.items.len - 1].weights = .{
+                        @intFromFloat(weights.items[jointsIndex + 0] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 1] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 2] * 255),
+                        @intFromFloat(weights.items[jointsIndex + 3] * 255),
+                    };
+                }
             }
         } else {
             return error.NotImplementedYet;
