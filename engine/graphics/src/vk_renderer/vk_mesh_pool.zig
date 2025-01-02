@@ -12,7 +12,9 @@ pub const MeshUpdate = union(enum(u8)) {
     new: struct {
         vertices: []MeshVertex,
         indices: []u32,
+        jointNames: []JointNameEntry,
         name: core.Name,
+        skeletonName: ?core.Name,
     },
     free: struct {
         vertices: Span,
@@ -25,6 +27,10 @@ pub const MeshUpdate = union(enum(u8)) {
             .new => |new| {
                 allocator.free(new.vertices);
                 allocator.free(new.indices);
+                for (new.jointNames) |entry| {
+                    entry.deinit();
+                }
+                allocator.free(new.jointNames);
             },
             .free => {},
         }
@@ -94,6 +100,7 @@ pub const IndexedMesh = struct {
     vertex: Span,
     index: Span,
     name: core.Name,
+    jointRemap: ?[]u8, // this is NOT a string, they're joint indices.. which happen to be u8s
 };
 
 pub fn getIndexedMeshByName(name: core.Name) ?IndexedMesh {
@@ -119,6 +126,9 @@ pub const MeshPoolBuffers = struct {
 
     vertexMapLock: std.Thread.Mutex,
     vertexMap: std.AutoHashMapUnmanaged(u32, IndexedMesh),
+    jointMaps: std.AutoHashMapUnmanaged(u32, JointMapEntry),
+
+    const JointMapEntry = std.AutoHashMapUnmanaged(u32, u32);
 
     const Requests = core.RingQueue(MeshUpdate);
 
@@ -133,6 +143,7 @@ pub const MeshPoolBuffers = struct {
 
         self.vertexMap = .{};
         self.vertexMapLock = .{};
+        self.jointMaps = .{};
 
         self.indexSpans = try MergedSpans.init(allocator, opt.indexCount);
         self.vertexSpans = try MergedSpans.init(allocator, opt.vertexCount);
@@ -197,8 +208,43 @@ pub const MeshPoolBuffers = struct {
                     try vertexUploadList.uploads.append(.{ .staging = stagingVertex, .destination = vertexSpan });
                     try indexUploadList.uploads.append(.{ .staging = stagingIndex, .destination = indexSpan });
 
+                    var jointMap: JointMapEntry = .{};
+
+                    for (new.jointNames) |entry| {
+                        core.engine_log("gtlf bone found {s} -> {d}", .{ entry.name, entry.index });
+                        try jointMap.put(self.allocator, core.MakeName(entry.name).handle(), entry.index);
+                    }
+
+                    try gMeshPoolBuffer.jointMaps.put(self.allocator, new.name.handle(), jointMap);
+
+                    var jointRemap: ?[]u8 = null;
+
+                    if (new.skeletonName) |skName| {
+                        if (animationSystem.getSkeletonByName(skName)) |sk| {
+                            // build the joint remap
+                            // this is a map from ozz's index to gltf's index
+                            var iter = sk.jointMapping.iterator();
+                            jointRemap = try graphics.getContext().allocator.alloc(u8, sk.jointMapping.count());
+
+                            while (iter.next()) |i| {
+                                const jointName = i.key_ptr.*;
+                                const ozzIndex = i.value_ptr.*;
+                                var gltfIndex = jointMap.get(core.MakeName(jointName).handle());
+                                if (gltfIndex == null) {
+                                    gltfIndex = 0;
+                                    core.engine_log("ERROR REMAPPING BONE setting to zero {s}", .{jointName});
+                                }
+
+                                core.engine_log("remapping bone from {s} ozz {d} -> {d} gltf", .{ jointName, ozzIndex, gltfIndex.? });
+
+                                jointRemap.?[ozzIndex] = @intCast(gltfIndex.?);
+                            }
+                        }
+                    }
+
                     gMeshPoolBuffer.vertexMapLock.lock();
-                    try gMeshPoolBuffer.vertexMap.put(self.allocator, new.name.handle(), .{ .index = indexSpan, .vertex = vertexSpan, .name = new.name });
+                    try gMeshPoolBuffer.vertexMap.put(self.allocator, new.name.handle(), .{ .index = indexSpan, .vertex = vertexSpan, .name = new.name, .jointRemap = jointRemap });
+
                     gMeshPoolBuffer.vertexMapLock.unlock();
                 },
                 .free => |free| {
@@ -278,9 +324,25 @@ pub const MeshPoolBuffers = struct {
             }
         }
 
+        {
+            var iter = self.vertexMap.valueIterator();
+            while (iter.next()) |p| {
+                if (p.jointRemap) |jr| {
+                    graphics.getContext().allocator.free(jr);
+                }
+            }
+        }
         self.vertexMap.deinit(self.allocator);
         self.indexSpans.deinit();
         self.vertexSpans.deinit();
+        {
+            var iter = self.jointMaps.valueIterator();
+            while (iter.next()) |p| {
+                p.deinit(self.allocator);
+            }
+        }
+
+        self.jointMaps.deinit(self.allocator);
 
         self.vertexBuffer.deinit(self.gc.vkAllocator);
 
@@ -309,6 +371,7 @@ pub const MeshSourceType = enum { obj, gltf };
 pub const LoadMeshSettings = struct {
     path: []const u8,
     sourceType: ?MeshSourceType = null,
+    skeletonName: ?core.Name,
 };
 
 pub fn loadIndexedMeshForPooling(meshName: core.Name, opt: LoadMeshSettings) !void {
@@ -325,12 +388,12 @@ pub fn loadIndexedMeshForPooling(meshName: core.Name, opt: LoadMeshSettings) !vo
             try loadIndexedMeshForPoolingObj(meshName, opt.path);
         },
         .gltf => {
-            try loadIndexedMeshForPoolingGltf(meshName, opt.path);
+            try loadIndexedMeshForPoolingGltf(meshName, opt.skeletonName, opt.path);
         },
     }
 }
 
-pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !void {
+pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Name, path: []const u8) !void {
     const file = try core.fs().loadFile(path);
     defer core.fs().unmap(file);
 
@@ -442,7 +505,7 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
                 },
                 .joints => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any}", .{accessor});
+                    core.engine_log("accessor info: {any} acecssor index {d}", .{ accessor, x });
 
                     if (accessor.component_type == .unsigned_byte) {
                         useJoints8 = true;
@@ -491,6 +554,38 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
                     const accessor = parser.data.accessors.items[x];
                     core.engine_log("accessor info: {any} NOT PARSED", .{accessor});
                 },
+            }
+        }
+    }
+
+    if (parser.data.skins.items.len > 1) {
+        @panic("too many skins, not supported");
+    }
+
+    var jointNameList: std.ArrayList(JointNameEntry) = std.ArrayList(JointNameEntry).init(allocator);
+
+    if (weights.items.len > 0) {
+        core.engine_log("skin found, building joint map", .{});
+        if (parser.data.skins.items[0].skeleton) |skeletonIndex| {
+            for (parser.data.nodes.items[skeletonIndex..], 0..) |node, i| {
+                core.engine_log("gltf: {s} -> {d} (skeleton index)", .{ node.name, i });
+                const gcAllocator = graphics.getContext().allocator;
+                try jointNameList.append(.{ .index = @intCast(i), .name = try gcAllocator.dupe(u8, node.name) });
+            }
+        } else {
+            if (parser.data.skins.items[0].joints.items.len > 0) {
+                for (parser.data.skins.items[0].joints.items, 0..) |i, j| {
+                    const node = parser.data.nodes.items[i];
+                    core.engine_log("gltf: {s} -> {d} (joints map)", .{ node.name, j });
+                    const gcAllocator = graphics.getContext().allocator;
+                    try jointNameList.append(.{ .index = @intCast(j), .name = try gcAllocator.dupe(u8, node.name) });
+                }
+            } else {
+                for (parser.data.nodes.items, 0..) |node, i| {
+                    core.engine_log("gltf: {s} -> {d} (fallback)", .{ node.name, i });
+                    const gcAllocator = graphics.getContext().allocator;
+                    try jointNameList.append(.{ .index = @intCast(i), .name = try gcAllocator.dupe(u8, node.name) });
+                }
             }
         }
     }
@@ -574,6 +669,8 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, path: []const u8) !voi
         .new = .{
             .vertices = try vertexList.toOwnedSlice(),
             .indices = try indexList.toOwnedSlice(),
+            .jointNames = try jointNameList.toOwnedSlice(),
+            .skeletonName = skeletonName,
             .name = meshName,
         },
     };
@@ -672,10 +769,14 @@ pub fn loadIndexedMeshForPoolingObj(meshName: core.Name, path: []const u8) !void
         }
     }
 
+    var jointNames = std.ArrayList(JointNameEntry).init(allocator);
+
     const rv: MeshUpdate = .{
         .new = .{
             .vertices = try vertexList.toOwnedSlice(),
             .indices = try indexList.toOwnedSlice(),
+            .jointNames = try jointNames.toOwnedSlice(),
+            .skeletonName = null,
             .name = meshName,
         },
     };
@@ -684,6 +785,16 @@ pub fn loadIndexedMeshForPoolingObj(meshName: core.Name, path: []const u8) !void
 
     try gMeshPoolBuffer.updateRequests.pushLocked(rv);
 }
+
+pub const JointNameEntry = struct {
+    name: []u8 = undefined,
+    index: u32 = 0,
+
+    pub fn deinit(self: @This()) void {
+        const allocator = graphics.getContext().allocator;
+        allocator.free(self.name);
+    }
+};
 
 const objLoader = @import("objLoader");
 
@@ -703,8 +814,10 @@ const NeonVkUploader = vk_utils.NeonVkUploader;
 const vk_renderer = @import("../vk_renderer.zig");
 const NeonVkContext = vk_renderer.NeonVkContext;
 
+const animationSystem = @import("../animation/animationSystem.zig");
 const vk_constants = @import("../vk_constants.zig");
 const vk_api = @import("../vk_api.zig");
 const vkd = vk_api.vkd;
 const vki = vk_api.vki;
 const vkb = vk_api.vkb;
+const graphics = @import("../graphics.zig");

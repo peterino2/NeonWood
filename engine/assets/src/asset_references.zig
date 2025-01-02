@@ -38,6 +38,7 @@ pub const AssetPropertiesBag = struct {
     soundLooping: bool = false,
     textureUseBlockySampler: bool = true,
     meshType: ?[]const u8 = null,
+    skeletonName: ?[]const u8 = null,
 };
 
 pub const AssetRef = struct {

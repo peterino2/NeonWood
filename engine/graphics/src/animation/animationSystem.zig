@@ -7,6 +7,15 @@ const std = @import("std");
 pub const Skeleton = struct {
     sk: *ozz.Skeleton,
     inverseBinds: std.ArrayListUnmanaged(core.Mat) = .{},
+    jointMapping: std.StringHashMapUnmanaged(u8) = .{},
+
+    pub fn buildJointMap(self: *@This(), allocator: std.mem.Allocator) !void {
+        for (self.sk.getJointsList(), 0..) |jointName, i| {
+            const str = std.mem.span(jointName);
+            core.engine_log("ozz: joint {s} -> {d}", .{ str, i });
+            try self.jointMapping.put(allocator, str, @intCast(i));
+        }
+    }
 
     pub fn deinit(self: *@This()) void {
         self.sk.destroy();
@@ -93,6 +102,13 @@ pub const Animator = struct {
         if (track.endTime < 0.01)
             return;
 
+        var jointRemap: ?[]u8 = null;
+        if (self.entity.get(graphics.StaticMesh)) |meshComponent| {
+            if (meshComponent.mesh) |mesh| {
+                jointRemap = mesh.jointRemap;
+            }
+        }
+
         const skeleton = self.skeleton.?;
         self.playback += @as(f32, @floatCast(dt)) * self.playbackRate;
 
@@ -125,10 +141,19 @@ pub const Animator = struct {
 
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
-            // const p: core.zm.Vec = .{ 0, 0, 0, 1 };
-            // graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.1, .{});
+
+            const p: core.zm.Vec = .{ 0, 0, 0, 1 };
+            graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.03, .{
+                .color = if (i == 3) .{ .x = 1 } else .{ .y = 1 },
+            });
+
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
-            self.finals.items[i] = final;
+            // joint remap ozz -> gltf
+            if (jointRemap) |jr| {
+                self.finals.items[@intCast(jr[i])] = final;
+            } else {
+                self.finals.items[i] = final;
+            }
             // core.engine_log(
             //     "[{d}] {d} {d} {d} {d}, {d} {d} {d} {d}",
             //     .{ i, transform[0][0], transform[0][1], transform[0][2], transform[0][3], transform[1][0], transform[1][1], transform[1][2], transform[1][3] },
@@ -201,6 +226,8 @@ pub const AnimationSystem = struct {
         new.* = .{
             .sk = sk,
         };
+
+        try new.buildJointMap(self.arenaAllocator());
 
         try new.inverseBinds.resize(self.arenaAllocator(), new.sk.numJoints());
 
@@ -324,6 +351,10 @@ pub const AnimationSystem = struct {
 };
 
 pub var gAnimationSys: *AnimationSystem = undefined;
+
+pub fn getSkeletonByName(name: core.Name) ?*Skeleton {
+    return gAnimationSys.skeletons.get(name.handle());
+}
 
 const graphics = @import("../graphics.zig");
 const MergedSpans = core.MergedSpans;

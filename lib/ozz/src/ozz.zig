@@ -16,6 +16,13 @@ pub const Skeleton = opaque {
         LoadSkeletonFromBytes_c(self, @constCast(@ptrCast(bytes.ptr)), bytes.len);
     }
 
+    pub fn getJointsList(self: *@This()) []const [*c]const u8 {
+        const span: Span([*c]const u8) = @bitCast(SkeletonGetJointsList_c(@ptrCast(self)));
+
+        // std.debug.print("{d} \n", .{@intFromPtr(span.end)});
+        return span.toSlice();
+    }
+
     pub fn getRestPoseModel(self: *@This()) Span(SoaTransform) {
         return @bitCast(SkeletonJointRestPoses_c(@ptrCast(self)));
     }
@@ -35,6 +42,7 @@ pub const Skeleton = opaque {
     pub extern fn SkeletonJointRestPoses_c(s: ?*anyopaque) callconv(.C) OpaqueSpan;
     pub extern fn SkeletonNumJoints_c(s: ?*anyopaque) callconv(.C) c_int;
     pub extern fn SkeletonNumSoaJoints_c(s: ?*anyopaque) callconv(.C) c_int;
+    pub extern fn SkeletonGetJointsList_c(s: ?*anyopaque) callconv(.C) OpaqueSpan;
 
     pub extern fn CreateSkeleton_c() callconv(.C) ?*anyopaque;
     pub extern fn DestroySkeleton_c(target: ?*anyopaque) callconv(.C) void;
@@ -104,6 +112,10 @@ pub fn Span(comptime T: type) type {
 
         pub fn fromArray(arr: []T) @This() {
             return .{ .start = arr.ptr, .end = arr.ptr + arr.len };
+        }
+
+        pub fn toSlice(self: @This()) []T {
+            return self.start[0..(@intFromPtr(self.end))];
         }
     };
 }

@@ -17,6 +17,12 @@
 
 extern "C" {
 
+struct OpaqueSpan 
+{
+    void* start;
+    void* end;
+};
+
 void testFunc()
 {
     fprintf(stderr, "lmao2nova \n");
@@ -52,6 +58,14 @@ bool SamplingJob_Validate_c(void* context)
 {
     ozz::animation::SamplingJob* self = static_cast<ozz::animation::SamplingJob*>(context);
     return self->Validate();
+}
+ 
+OpaqueSpan SkeletonGetJointsList_c(void* context) 
+{
+    ozz::animation::Skeleton* self = static_cast<ozz::animation::Skeleton*>(context);
+    auto s = self->joint_names();
+    OpaqueSpan* ptr = reinterpret_cast<OpaqueSpan*>(&s);
+    return *ptr;
 }
 
 int SkeletonNumJoints_c(void* context)
@@ -115,11 +129,6 @@ void LoadSkeletonFromFile_c(void* skeleton, const char* filename)
     archive >> *sk;
 }
 
-struct OpaqueSpan 
-{
-    void* start;
-    void* end;
-};
 
 OpaqueSpan SkeletonJointRestPoses_c (void* skeleton)
 {

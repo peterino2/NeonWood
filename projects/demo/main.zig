@@ -27,6 +27,9 @@ const foxTexture = "gltf-samples/Fox/glTF/Texture.png";
 
 // Asset loader
 const AssetReferences = [_]assets.AssetImportReference{
+    assets.MakeImportRefOptions("Skeleton", "sk_fox", .{
+        .path = "gltf-samples/Fox/glTF/skeleton.ozz",
+    }),
     assets.MakeImportRefOptions(
         "Mesh",
         "m_empire",
@@ -40,7 +43,7 @@ const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRefOptions(
         "Mesh",
         "m_fox",
-        .{ .path = "gltf-samples/Fox/glTF/Fox.gltf" },
+        .{ .path = "gltf-samples/Fox/glTF/Fox.gltf", .skeletonName = "sk_fox" },
     ),
     assets.MakeImportRefOptions("Texture", "t_empire", .{
         .path = testimage1,
@@ -62,9 +65,6 @@ const AssetReferences = [_]assets.AssetImportReference{
     }),
     assets.MakeImportRefOptions("Animation", "a_fox_walk", .{
         .path = "gltf-samples/Fox/glTF/Walk.ozz",
-    }),
-    assets.MakeImportRefOptions("Skeleton", "sk_fox", .{
-        .path = "gltf-samples/Fox/glTF/skeleton.ozz",
     }),
 };
 
@@ -147,7 +147,6 @@ pub const GameContext = struct {
         self.cameraHorizontalRotationMat = core.zm.matFromRollPitchYaw(0, self.eulerX, 0);
 
         var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
-
         self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@as(f32, @floatCast(deltaTime))));
 
         self.camera.updateCamera();

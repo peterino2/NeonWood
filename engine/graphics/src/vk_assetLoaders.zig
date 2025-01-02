@@ -214,7 +214,11 @@ pub const MeshLoader = struct {
         _ = self;
         const sourceType = getSourceType(propertiesBag);
         core.engine_log("loading mesh asset {s} [{s}]", .{ propertiesBag.?.path, if (sourceType) |s| @tagName(s) else "default" });
-        graphics.loadIndexedMeshForPooling(assetRef.name, .{ .path = propertiesBag.?.path, .sourceType = getSourceType(propertiesBag) }) catch return error.UnableToLoad;
+        graphics.loadIndexedMeshForPooling(assetRef.name, .{
+            .path = propertiesBag.?.path,
+            .sourceType = getSourceType(propertiesBag),
+            .skeletonName = if (propertiesBag.?.skeletonName) |skName| core.MakeName(skName) else null,
+        }) catch return error.UnableToLoad;
     }
 
     fn getSourceType(propertiesBag: ?assets.AssetPropertiesBag) ?graphics.MeshSourceType {
