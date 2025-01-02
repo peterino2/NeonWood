@@ -460,6 +460,10 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
 
     var weightCount: usize = 4;
 
+    if (m.prmitives.items.len > 1) {
+        @panic("sorry, havent implemented support for multiple primitives yet, would require more work on the way i handle materials");
+    }
+
     var indexList = std.ArrayList(u32).init(allocator);
     for (m.primitives.items) |primitive| {
         if (primitive.indices) |indices| {
