@@ -145,8 +145,6 @@ pub const DebugDrawSubsystem = struct {
 
     pub fn prepareSubsystem(self: *@This(), gc: *graphics.NeonVkContext) !void {
         self.gc = gc;
-        // load debug meshes
-        try assets.loadList(Primitives);
 
         // assign debug meshes
         self.meshes[@as(usize, @intCast(@intFromEnum(DebugPrimitiveType.sphere)))] = core.MakeName("m_primitive_sphere");

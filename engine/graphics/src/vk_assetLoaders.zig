@@ -25,11 +25,17 @@ pub const TextureLoader = struct {
     const StagedTextureDescription = struct {
         name: core.Name,
         stagingResults: vk_utils.LoadAndStageImage,
+        textureListResults: ?[]vk_utils.LoadAndStageImage = null,
         assetRef: assets.AssetRef,
         properties: assets.AssetPropertiesBag,
 
         pub fn deinit(self: *@This(), gc: *NeonVkContext) void {
             self.stagingResults.deinit(gc.vkAllocator);
+            if (self.textureListResults) |results| {
+                for (results) |*result| {
+                    result.deinit(gc.vkAllocator);
+                }
+            }
         }
     };
 
@@ -57,26 +63,48 @@ pub const TextureLoader = struct {
             gc: *NeonVkContext,
             properties: assets.AssetPropertiesBag,
 
-            pub fn func(ctx: @This(), _: *core.JobContext) void {
+            pub fn eFunc(ctx: @This()) !void {
                 var z1 = tracy.ZoneN(@src(), "Loading file from TextureLoader");
                 const gc = ctx.gc;
-                const stagingResults = vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path) catch unreachable;
+                defer {
+                    _ = ctx.gc.outstandingJobsCount.fetchSub(1, .seq_cst);
+                }
+                var loadAndStageResults = try vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path);
+                errdefer loadAndStageResults.deinit(gc.vkAllocator);
 
-                tracy.Message(ctx.assetRef.name.utf8());
+                var assetRefName = ctx.assetRef.name;
+
+                tracy.Message(assetRefName.utf8());
                 tracy.Message(ctx.properties.path);
 
-                core.engine_log("loaded: {s} from: {s}", .{ ctx.assetRef.name.utf8(), ctx.properties.path });
-                const loadedDescription = StagedTextureDescription{
+                core.engine_log("loaded: {s} from: {s}", .{ assetRefName.utf8(), ctx.properties.path });
+                var loadedDescription = StagedTextureDescription{
                     .name = ctx.assetRef.name,
-                    .stagingResults = stagingResults,
+                    .stagingResults = loadAndStageResults,
                     .assetRef = ctx.assetRef,
                     .properties = ctx.properties,
                 };
 
+                if (ctx.properties.textureList) |textureList| {
+                    const tlResults = try ctx.gc.allocator.alloc(vk_utils.LoadAndStageImage, textureList.len);
+                    errdefer ctx.gc.allocator.free(tlResults);
+
+                    for (textureList, 0..) |tPath, i| {
+                        const rv = try vk_utils.load_and_stage_image_from_file(gc, tPath);
+                        errdefer rv.deinit();
+                        tlResults[i] = rv;
+                    }
+
+                    loadedDescription.textureListResults = tlResults;
+                }
+
                 z1.End();
 
                 ctx.loader.assetsReady.pushLocked(loadedDescription) catch unreachable;
-                _ = ctx.gc.outstandingJobsCount.fetchSub(1, .seq_cst);
+            }
+
+            pub fn func(ctx: @This(), _: *core.JobContext) void {
+                ctx.eFunc() catch unreachable;
             }
         };
 
@@ -96,54 +124,63 @@ pub const TextureLoader = struct {
         self.processEventInner() catch {};
     }
 
-    fn processEventInner(self: *@This()) core.EngineDataEventError!void {
+    pub fn createImageFromStagingResult(self: *@This(), name: core.Name, stagingResults: *vk_utils.LoadAndStageImage, properties: assets.AssetPropertiesBag) core.EngineDataEventError!void {
         const gc = self.gc;
+        var stagingBuffer = stagingResults.stagingBuffer;
+        const image = stagingResults.image;
 
+        vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, stagingResults.mipLevel) catch return error.UnknownStatePanic;
+        stagingBuffer.deinit(gc.vkAllocator);
+
+        var imageViewCreate = vkinit.imageViewCreateInfo(
+            .r8g8b8a8_srgb,
+            image.image,
+            .{ .color_bit = true },
+            stagingResults.mipLevel,
+        );
+        const imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
+        const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+
+        newTexture.* = Texture{
+            .image = image,
+            .imageView = imageView,
+        };
+
+        const sampler = if (properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
+        const rv = vk_utils.createDescriptorSetForImage(
+            gc.dev,
+            gc.descriptorPool,
+            gc.singleTextureSetLayout,
+            imageView,
+            sampler,
+        ) catch return error.UnknownStatePanic;
+
+        self.rtAssetsReady.pushLocked(.{
+            .name = name,
+            .texture = newTexture,
+            .textureSet = rv.textureSet,
+            .textureId = rv.textureId,
+        }) catch return error.UnknownStatePanic;
+    }
+
+    fn processEventInner(self: *@This()) core.EngineDataEventError!void {
         if (self.assetsReady.count() > 0) {
             self.assetsReady.lock();
             defer self.assetsReady.unlock();
-            while (self.assetsReady.popFromUnlocked()) |assetReady| {
+            while (self.assetsReady.popFromUnlocked()) |ar| {
+                var assetReady = ar;
                 var z1 = tracy.ZoneN(@src(), "Uploading asset loaded by TextureLoader");
                 tracy.Message("TextureLoader");
                 tracy.Message(assetReady.assetRef.name.utf8());
                 tracy.Message(assetReady.properties.path);
-
                 core.engine_log("async texture load complete registry: {s}", .{assetReady.name.utf8()});
-                var stagingBuffer = assetReady.stagingResults.stagingBuffer;
-                const image = assetReady.stagingResults.image;
+                try self.createImageFromStagingResult(assetReady.name, &assetReady.stagingResults, assetReady.properties);
 
-                vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, assetReady.stagingResults.mipLevel) catch return error.UnknownStatePanic;
-                stagingBuffer.deinit(gc.vkAllocator);
+                if (assetReady.textureListResults) |results| {
+                    try self.createImageFromStagingResult(assetReady.name, &assetReady.stagingResults, assetReady.properties);
+                    self.gc.allocator.free(results);
+                }
 
-                var imageViewCreate = vkinit.imageViewCreateInfo(
-                    .r8g8b8a8_srgb,
-                    image.image,
-                    .{ .color_bit = true },
-                    assetReady.stagingResults.mipLevel,
-                );
-                const imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
-                const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
-
-                newTexture.* = Texture{
-                    .image = image,
-                    .imageView = imageView,
-                };
-
-                const sampler = if (assetReady.properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
-                const rv = vk_utils.createDescriptorSetForImage(
-                    gc.dev,
-                    gc.descriptorPool,
-                    gc.singleTextureSetLayout,
-                    imageView,
-                    sampler,
-                ) catch return error.UnknownStatePanic;
-
-                self.rtAssetsReady.pushLocked(.{
-                    .name = assetReady.name,
-                    .texture = newTexture,
-                    .textureSet = rv.textureSet,
-                    .textureId = rv.textureId,
-                }) catch return error.UnknownStatePanic;
                 z1.End();
             }
         }

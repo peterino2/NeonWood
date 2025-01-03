@@ -332,7 +332,7 @@ pub const TextRenderer = struct {
         new.* = try FontAtlasVk.init(self.allocator, self.g);
         new.isDefault = true;
         new.atlas = papyrusCtx.defaultFont.atlas; // use default font instead of loading a font from text file
-        const defaultName = core.MakeName("default");
+        var defaultName = core.MakeName("default");
         try new.prepareFont(defaultName);
         try self.fonts.put(self.allocator, defaultName.handle(), new);
         self.papyrusCtx.defaultFont.atlas.rendererHash = defaultName.handle();
@@ -342,7 +342,7 @@ pub const TextRenderer = struct {
         newMono.isDefault = true;
         newMono.atlas = papyrusCtx.defaultMonoFont.atlas;
 
-        const monoName = core.MakeName("monospace");
+        var monoName = core.MakeName("monospace");
         try newMono.prepareFont(monoName);
         try self.fonts.put(self.allocator, monoName.handle(), newMono);
         self.papyrusCtx.defaultMonoFont.atlas.rendererHash = monoName.handle();
@@ -353,7 +353,7 @@ pub const TextRenderer = struct {
             newbitmap.isDefault = true;
             newbitmap.atlas = papyrusCtx.defaultBitmapFont.atlas;
 
-            const bitmapName = core.MakeName("bitmap");
+            var bitmapName = core.MakeName("bitmap");
 
             try newbitmap.prepareFont(bitmapName);
             try self.fonts.put(self.allocator, bitmapName.handle(), newbitmap);
@@ -386,7 +386,8 @@ pub const TextRenderer = struct {
         return self;
     }
 
-    pub fn addFont(self: *@This(), ttfPath: []const u8, name: core.Name) !*FontAtlasVk {
+    pub fn addFont(self: *@This(), ttfPath: []const u8, _name: core.Name) !*FontAtlasVk {
+        var name = _name;
         var new = try self.allocator.create(FontAtlasVk);
 
         const textureName = try std.fmt.allocPrint(self.allocator, "texture.font.{s}", .{name.utf8()});
@@ -406,8 +407,9 @@ pub const TextRenderer = struct {
         return new;
     }
 
-    pub fn addDisplayText(self: *@This(), fontName: core.Name, opts: anytype) !*DisplayText {
+    pub fn addDisplayText(self: *@This(), _fontName: core.Name, opts: anytype) !*DisplayText {
         const new = try self.allocator.create(DisplayText);
+        var fontName = _fontName;
 
         new.* = try DisplayText.init(
             self.allocator,

@@ -17,6 +17,10 @@ pub const Animator = animation_system.Animator;
 pub const AnimationTrack = animation_system.AnimationTrack;
 pub const Skeleton = animation_system.Skeleton;
 
+const skybox = @import("skybox.zig");
+pub const CubeMapDirs = skybox.CubeMapDirs;
+pub const MakeCubeMapList = skybox.MakeCubeMapList;
+
 pub const animation_loaders = @import("animation/loaders.zig");
 
 pub const RenderThread = @import("vk_renderer/RenderThread.zig");
@@ -87,6 +91,13 @@ pub fn registerRendererPlugin(value: anytype) !void {
 }
 var gCooking: bool = false;
 
+const primitives = [_]assets.AssetImportReference{
+    assets.MakeImportRef("Mesh", "m_primitive_sphere", "meshes/primitive_sphere.obj"),
+    assets.MakeImportRef("Mesh", "m_primitive_box", "meshes/primitive_box.obj"),
+    assets.MakeImportRef("Mesh", "m_primitive_line", "meshes/primitive_line.obj"),
+    assets.MakeImportRef("Mesh", "m_skybox", "meshes/skybox.obj"),
+};
+
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
     engine_logs("graphics module starting up...");
@@ -108,9 +119,8 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     vk_assetLoaders.init_loaders(allocator) catch unreachable;
     memory.MTPrintStatsDelta();
 
-    if (core.fs().fileExists("meshes/primitive_sphere.obj")) {
-        debug_draw.init_debug_draw_subsystem() catch unreachable;
-    }
+    try assets.loadList(primitives);
+    debug_draw.init_debug_draw_subsystem() catch unreachable;
 
     if (@hasField(@TypeOf(programSpec), "cooking")) {
         gCooking = true;

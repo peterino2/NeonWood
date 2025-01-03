@@ -82,12 +82,13 @@ pub const StaticMesh = struct {
     }
 
     pub fn setTexture(self: *Self, textureName: []const u8) void {
-        const name = core.MakeName(textureName);
+        var name = core.MakeName(textureName);
         self.textureId = graphics.getContext().textureIds.get(name.handle());
         self.textureName = name;
     }
 
-    pub fn setTextureByName(self: *Self, name: core.Name) void {
+    pub fn setTextureByName(self: *Self, _name: core.Name) void {
+        var name = _name;
         self.textureId = graphics.getContext().textureIds.get(name.handle());
         self.textureName = name;
     }

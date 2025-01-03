@@ -537,6 +537,8 @@ pub fn createDescriptorSetForImage(
 
     const gc = graphics.getContext();
     const newTextureId = gc.newTextureId;
+
+    // ruh roh, that's a big todo to do in the future
     gc.newTextureId += 1;
 
     try gc.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });

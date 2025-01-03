@@ -463,7 +463,7 @@ pub const Context = struct {
     }
 
     pub fn installFontAtlas(self: *@This(), fontName: []const u8, atlas: *FontAtlas) !void {
-        const name = Name.fromUtf8(fontName);
+        var name = Name.fromUtf8(fontName);
         try self.fonts.put(name.handle(), .{ .atlas = atlas, .name = name });
     }
 
@@ -502,7 +502,7 @@ pub const Context = struct {
     }
 
     pub fn setFont(self: *@This(), handle: NodeHandle, font: []const u8) void {
-        const name = Name.fromUtf8(font);
+        var name = Name.fromUtf8(font);
 
         switch (self.nodes.get(handle).?.nodeType) {
             .DisplayText => {

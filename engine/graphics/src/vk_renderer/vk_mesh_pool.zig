@@ -103,7 +103,8 @@ pub const IndexedMesh = struct {
     jointRemap: ?[]u8, // this is NOT a string, they're joint indices.. which happen to be u8s
 };
 
-pub fn getIndexedMeshByName(name: core.Name) ?IndexedMesh {
+pub fn getIndexedMeshByName(_name: core.Name) ?IndexedMesh {
+    var name = _name;
     gMeshPoolBuffer.vertexMapLock.lock();
     defer gMeshPoolBuffer.vertexMapLock.unlock();
     return gMeshPoolBuffer.vertexMap.get(name.handle());
@@ -211,11 +212,13 @@ pub const MeshPoolBuffers = struct {
                     var jointMap: JointMapEntry = .{};
 
                     for (new.jointNames) |entry| {
+                        var entryName = core.MakeName(entry.name);
                         core.engine_log("gtlf bone found {s} -> {d}", .{ entry.name, entry.index });
-                        try jointMap.put(self.allocator, core.MakeName(entry.name).handle(), entry.index);
+                        try jointMap.put(self.allocator, entryName.handle(), entry.index);
                     }
 
-                    try gMeshPoolBuffer.jointMaps.put(self.allocator, new.name.handle(), jointMap);
+                    var newName = new.name;
+                    try gMeshPoolBuffer.jointMaps.put(self.allocator, newName.handle(), jointMap);
 
                     var jointRemap: ?[]u8 = null;
 
@@ -229,7 +232,8 @@ pub const MeshPoolBuffers = struct {
                             while (iter.next()) |i| {
                                 const jointName = i.key_ptr.*;
                                 const ozzIndex = i.value_ptr.*;
-                                var gltfIndex = jointMap.get(core.MakeName(jointName).handle());
+                                var jn = core.MakeName(jointName);
+                                var gltfIndex = jointMap.get(jn.handle());
                                 if (gltfIndex == null) {
                                     gltfIndex = 0;
                                     core.engine_log("ERROR REMAPPING BONE setting to zero {s}", .{jointName});
@@ -243,7 +247,7 @@ pub const MeshPoolBuffers = struct {
                     }
 
                     gMeshPoolBuffer.vertexMapLock.lock();
-                    try gMeshPoolBuffer.vertexMap.put(self.allocator, new.name.handle(), .{ .index = indexSpan, .vertex = vertexSpan, .name = new.name, .jointRemap = jointRemap });
+                    try gMeshPoolBuffer.vertexMap.put(self.allocator, newName.handle(), .{ .index = indexSpan, .vertex = vertexSpan, .name = newName, .jointRemap = jointRemap });
 
                     gMeshPoolBuffer.vertexMapLock.unlock();
                 },
@@ -460,7 +464,7 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
 
     var weightCount: usize = 4;
 
-    if (m.prmitives.items.len > 1) {
+    if (m.primitives.items.len > 1) {
         @panic("sorry, havent implemented support for multiple primitives yet, would require more work on the way i handle materials");
     }
 

@@ -700,7 +700,9 @@ pub const NeonVkContext = struct {
         self.deferredTextureDestroy.clearRetainingCapacity();
     }
 
-    pub fn install_texture_into_registry(self: *@This(), name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet, textureId: u32) !void {
+    pub fn install_texture_into_registry(self: *@This(), _name: core.Name, textureRef: *Texture, textureSet: vk.DescriptorSet, textureId: u32) !void {
+        var name = _name;
+
         try self.textures.put(self.allocator, name.handle(), textureRef);
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
         try self.textureIds.put(self.allocator, name.handle(), textureId);
@@ -710,10 +712,11 @@ pub const NeonVkContext = struct {
 
     pub fn updateTextureFromPixelsSync(
         self: *@This(),
-        textureToUpdate: core.Name,
+        _textureToUpdate: core.Name,
         pixelBuffer: PixelBufferRGBA8,
         useBlockySampler: bool,
     ) !void {
+        var textureToUpdate = _textureToUpdate;
         core.asserts(
             pixelBuffer.pixels.len == pixelBuffer.extent.x * pixelBuffer.extent.y * 4,
             "invalid pixel buffer length (expected:{d}, got:{d})",
@@ -733,21 +736,25 @@ pub const NeonVkContext = struct {
         try self.textureSets.put(self.allocator, textureToUpdate.handle(), results.descriptor);
     }
 
-    pub fn create_standard_texture_from_bytes(self: *Self, textureName: core.Name, bytes: []const u8) !*Texture {
+    pub fn create_standard_texture_from_bytes(self: *Self, _textureName: core.Name, bytes: []const u8) !*Texture {
+        var textureName = _textureName;
         const newTexture = try self.upload_texture_from_bytes(bytes);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);
         return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
     }
 
-    pub fn create_standard_texture_from_file(self: *Self, textureName: core.Name, texturePath: []const u8) !*Texture {
+    pub fn create_standard_texture_from_file(self: *Self, _textureName: core.Name, texturePath: []const u8) !*Texture {
+        var textureName = _textureName;
         const newTexture = try self.upload_texture_from_file(texturePath);
         try self.textures.put(self.allocator, textureName.handle(), newTexture);
         return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
     }
 
+    var missing_texture_name = core.MakeName("missing_texture");
+
     pub fn load_core_textures(self: *Self) !void {
         const texture_sample_png = @embedFile("texture_sample.png");
-        _ = try self.create_standard_texture_from_bytes(core.MakeName("missing_texture"), texture_sample_png);
+        _ = try self.create_standard_texture_from_bytes(missing_texture_name, texture_sample_png);
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
@@ -1036,7 +1043,7 @@ pub const NeonVkContext = struct {
         try pipeline_builder.add_depth_stencil();
         try pipeline_builder.init_triangle_pipeline(self.actual_extent);
 
-        const materialName = core.MakeName("t_mesh");
+        var materialName = core.MakeName("t_mesh");
 
         var material = try self.allocator.create(Material);
         material.* = Material{
@@ -1059,7 +1066,7 @@ pub const NeonVkContext = struct {
         // --------- set up the image
         var imageBufferInfo = vk.DescriptorImageInfo{
             .sampler = self.blockySampler,
-            .image_view = (self.textures.get(core.MakeName("missing_texture").handle())).?.imageView,
+            .image_view = (self.textures.get(core.StaticName("missing_texture").handle())).?.imageView,
             .image_layout = .shader_read_only_optimal,
         };
         try self.materials.put(self.allocator, materialName.handle(), material);
@@ -1075,7 +1082,7 @@ pub const NeonVkContext = struct {
         const newTextureId = self.newTextureId;
         try self.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
         self.newTextureId += 1;
-        try self.textureIds.put(self.allocator, core.MakeName("missing_texture").handle(), newTextureId);
+        try self.textureIds.put(self.allocator, core.StaticName("missing_texture").handle(), newTextureId);
 
         self.vkd.updateDescriptorSets(self.dev, 1, @ptrCast(&descriptorSet), 0, undefined);
         // ---------------

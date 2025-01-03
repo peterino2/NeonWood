@@ -39,6 +39,7 @@ pub const AssetPropertiesBag = struct {
     textureUseBlockySampler: bool = true,
     meshType: ?[]const u8 = null,
     skeletonName: ?[]const u8 = null,
+    textureList: ?[]const []const u8 = null, // if set, path texture will be loaded first, and this list of textures will be loaded together.
 };
 
 pub const AssetRef = struct {
@@ -184,12 +185,16 @@ pub const AssetReferenceSys = struct {
         _ = self.outstandingAssetJobs.fetchAdd(1, .acquire);
 
         var z = tracy.ZoneN(@src(), "AssetReferenceSys LoadRef");
+        var assetName = asset.name;
+        var assetType = asset.assetType;
+
         if (propertiesBag) |props| {
-            core.engine_log("loading asset {s} ({s}) [{s}]", .{ asset.name.utf8(), asset.assetType.utf8(), props.path });
+            core.engine_log("loading asset {s} ({s}) [{s}]", .{ assetName.utf8(), assetType.utf8(), props.path });
         } else {
-            core.engine_log("loading asset {s} ({s})", .{ asset.name.utf8(), asset.assetType.utf8() });
+            core.engine_log("loading asset {s} ({s})", .{ assetName.utf8(), assetType.utf8() });
         }
-        try self.loaders.getPtr(asset.assetType.handle()).?.loadAsset(asset, propertiesBag);
+        var n = asset.assetType;
+        try self.loaders.getPtr(n.handle()).?.loadAsset(asset, propertiesBag);
         z.End();
     }
 

@@ -16,7 +16,7 @@ const NameInvalidComptimeString = "Invalid";
 // trying out a names scheme similar in vein to unreal engine's FNames
 pub const NameRegistry = struct {
     allocator: std.mem.Allocator,
-    map: std.StringHashMapUnmanaged(u32),
+    map: std.StringHashMapUnmanaged(u32), // todo.. this can be replaced with a specialized hashmap
     pagedVector: PagedVectorAdvanced([]const u8, 1024),
     stringArena: std.heap.ArenaAllocator,
     mutex: std.Thread.Mutex = .{},
@@ -144,23 +144,21 @@ pub const Name = struct {
         return getRegistry().name(string);
     }
 
-    pub fn handle(self: *const @This()) u32 {
+    pub fn handle(self: *@This()) u32 {
         if (self.index == null) {
             const index = getRegistry().InstallNameInner(self.string, false);
-            const mutableThis = @as(*@This(), @ptrCast(@constCast(self)));
-            mutableThis.*.index = index;
+            self.index = index;
         }
 
         return self.index.?;
     }
 
-    pub fn utf8(self: *const @This()) []const u8 {
+    pub fn utf8(self: *@This()) []const u8 {
         // so nasty... and const-violating. but the ergonomics is so good...
         if (self.index == null) {
             // screw it..  i'll pay the cost of duplicating even comptime strings
             const index = getRegistry().InstallNameInner(self.string, true);
-            const mutableThis = @as(*@This(), @ptrCast(@constCast(self)));
-            mutableThis.*.index = index;
+            self.index = index;
         }
 
         return getRegistry().pagedVector.get(self.index.?).*;
@@ -182,6 +180,25 @@ pub const Name = struct {
         return self.index == other.index;
     }
 };
+
+pub fn StaticName(comptime N: []const u8) type {
+    return struct {
+        pub const str = N;
+        pub var staticName: Name = .{ .string = str, .index = null };
+
+        pub fn GetName() *Name {
+            return &staticName;
+        }
+
+        pub fn handle() u32 {
+            return staticName.handle();
+        }
+
+        pub fn utf() []const u8 {
+            return staticName.utf8();
+        }
+    };
+}
 
 test "zname initialization and lookup" {
     _ = try createNameRegistry(std.testing.allocator);

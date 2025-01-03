@@ -218,7 +218,7 @@ pub fn OnIoEvent_GLFW(self: *@This(), event: platform.IOEvent) platform.InputLis
         else => {},
     }
 }
-
+var t_white_name = core.MakeName("t_white");
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     core.ui_log("Papyrus Subsystem setup {x}", .{@intFromPtr(self)});
 
@@ -227,7 +227,7 @@ pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     try self.setupMeshes();
 
     try self.gc.registerRendererPlugin(self);
-    self.defaultTextureSet = self.gc.textureSets.get(core.MakeName("t_white").handle()).?;
+    self.defaultTextureSet = self.gc.textureSets.get(t_white_name.handle()).?;
 
     self.mappedBuffers = try self.pipeData.mapBuffers(self.gc, ImageGpu, 0);
     self.textImageBuffers = try self.textPipeData.mapBuffers(self.gc, FontInfo, 0);
@@ -471,7 +471,8 @@ pub fn uploadSSBOData(self: *@This(), frameId: usize, drawList: *const papyrus.D
                 var imageSet: ?vk.DescriptorSet = null;
 
                 if (rect.imageRef) |_imageRef| {
-                    if (self.gc.textureSets.get(_imageRef.handle())) |maybeImageSet| {
+                    var ref = _imageRef;
+                    if (self.gc.textureSets.get(ref.handle())) |maybeImageSet| {
                         imageSet = maybeImageSet;
                         imagesGpu[self.ssboCount].flags = 1;
                     }

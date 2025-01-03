@@ -60,6 +60,7 @@ pub const names = @import("structures/names.zig");
 
 pub const NameInvalid = names.NameInvalid;
 pub const Name = names.Name;
+pub const StaticName = names.StaticName;
 pub const MakeName = names.MakeName;
 pub const createNameRegistry = names.createNameRegistry;
 pub const destroyNameRegistry = names.destroyNameRegistry;

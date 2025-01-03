@@ -161,7 +161,8 @@ pub const Animator = struct {
         }
     }
 
-    pub fn setAnimationByName(self: *@This(), name: core.Name) !void {
+    pub fn setAnimationByName(self: *@This(), _name: core.Name) !void {
+        var name = _name;
         self.track = gAnimationSys.animTracks.get(name.handle());
     }
 
@@ -212,7 +213,8 @@ pub const AnimationSystem = struct {
         }
     }
 
-    pub fn newAnimTrack(self: *@This(), name: core.Name, anim: *ozz.Animation) !void {
+    pub fn newAnimTrack(self: *@This(), _name: core.Name, anim: *ozz.Animation) !void {
+        var name = _name;
         const new = try self.arenaAllocator().create(AnimationTrack);
         new.* = .{
             .animation = anim,
@@ -221,11 +223,12 @@ pub const AnimationSystem = struct {
         try self.animTracks.put(self.backingAllocator, name.handle(), new);
     }
 
-    pub fn newSkeleton(self: *@This(), name: core.Name, sk: *ozz.Skeleton) !void {
+    pub fn newSkeleton(self: *@This(), _name: core.Name, sk: *ozz.Skeleton) !void {
         const new = try self.arenaAllocator().create(Skeleton);
         new.* = .{
             .sk = sk,
         };
+        var name = _name;
 
         try new.buildJointMap(self.arenaAllocator());
 
@@ -352,7 +355,8 @@ pub const AnimationSystem = struct {
 
 pub var gAnimationSys: *AnimationSystem = undefined;
 
-pub fn getSkeletonByName(name: core.Name) ?*Skeleton {
+pub fn getSkeletonByName(_name: core.Name) ?*Skeleton {
+    var name = _name;
     return gAnimationSys.skeletons.get(name.handle());
 }
 

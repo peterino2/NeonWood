@@ -191,7 +191,8 @@ pub const EcsRegistry = struct {
         return self;
     }
 
-    pub fn registerContainer(self: *@This(), ref: EcsContainerRef, containerName: core.Name) !void {
+    pub fn registerContainer(self: *@This(), ref: EcsContainerRef, _containerName: core.Name) !void {
+        var containerName = _containerName;
         const newid = self.containers.items.len;
 
         try self.containers.append(self.allocator, ref);

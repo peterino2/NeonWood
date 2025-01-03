@@ -25,6 +25,7 @@
 const std = @import("std");
 const p2 = @import("p2");
 const Name = p2.Name;
+const MakeName = p2.MakeName;
 const PackedFileEntry = @import("PackedFileEntry.zig");
 
 // this contains information about where the file came from.
@@ -156,7 +157,8 @@ pub const PackerFS = struct {
     }
 
     pub fn fileExists(self: *@This(), path: []const u8) bool {
-        if (self.fileHandlesByName.get(Name.Make(path).handle())) |handle| {
+        var pathName = MakeName(path);
+        if (self.fileHandlesByName.get(pathName.handle())) |handle| {
             _ = handle;
             return true;
         }
@@ -179,7 +181,8 @@ pub const PackerFS = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        if (self.fileHandlesByName.get(Name.Make(path).handle())) |fileNameHandle| {
+        var pathName = Name.Make(path);
+        if (self.fileHandlesByName.get(pathName.handle())) |fileNameHandle| {
             if (try self.loadFileByIndexFromPak(fileNameHandle)) |mapping| {
                 return mapping;
             }
@@ -200,7 +203,7 @@ pub const PackerFS = struct {
     }
 
     fn addFileEntry(self: *@This(), headerEntry: PackedFileEntry, pakMountingIndex: usize) !usize {
-        const headerName = Name.Make(headerEntry.getFileName());
+        var headerName = Name.Make(headerEntry.getFileName());
         const headerIndex = self.fileHeaders.items.len;
         try self.fileHeaders.append(self.allocator, headerEntry);
         try self.filePakSources.append(self.allocator, pakMountingIndex);

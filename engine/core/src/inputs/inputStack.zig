@@ -443,7 +443,8 @@ pub const BindingLayer = struct {
         return self;
     }
 
-    pub fn addBindingByName(self: *@This(), name: core.Name, new: anytype) !void {
+    pub fn addBindingByName(self: *@This(), _name: core.Name, new: anytype) !void {
+        var name = _name;
         if (self.bindingsByName.contains(name.handle())) {
             self.removeBindingByName(name);
         }
@@ -469,7 +470,8 @@ pub const BindingLayer = struct {
         try self.bindingStack.append(self.allocator, newBinding);
     }
 
-    pub fn removeBindingByName(self: *@This(), name: core.Name) void {
+    pub fn removeBindingByName(self: *@This(), _name: core.Name) void {
+        var name = _name;
         _ = self.bindingStack.orderedRemove(self.bindingsByName.get(name.handle()).?);
         _ = self.bindingsByName.remove(name.handle());
     }
