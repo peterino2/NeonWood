@@ -1,5 +1,5 @@
 pub const AnimationLoader = struct {
-    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Animation"), @This());
+    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from("Animation", @This());
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     sys: *animation_system.AnimationSystem,
@@ -34,7 +34,7 @@ pub const AnimationLoader = struct {
 };
 
 pub const SkeletonLoader = struct {
-    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Skeleton"), @This());
+    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from("Skeleton", @This());
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     sys: *animation_system.AnimationSystem,

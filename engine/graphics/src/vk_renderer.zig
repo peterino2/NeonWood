@@ -750,11 +750,11 @@ pub const NeonVkContext = struct {
         return self.textures.getEntry(textureName.handle()).?.value_ptr.*;
     }
 
-    var missing_texture_name = core.MakeName("missing_texture");
+    const missing_texture_name = core.StaticName("missing_texture");
 
     pub fn load_core_textures(self: *Self) !void {
         const texture_sample_png = @embedFile("texture_sample.png");
-        _ = try self.create_standard_texture_from_bytes(missing_texture_name, texture_sample_png);
+        _ = try self.create_standard_texture_from_bytes(missing_texture_name.get(), texture_sample_png);
     }
 
     pub fn init_texture_descriptor(self: *Self) !void {
@@ -1200,7 +1200,7 @@ pub const NeonVkContext = struct {
         }
     }
 
-    var missingTextureName: core.Name = core.MakeName("missing_texture");
+    var missingTextureName = core.Name.MakeComptime("missing_texture");
 
     fn sendSharedData(self: *@This(), frameIndex: u32) !void {
         var z1 = tracy.ZoneN(@src(), "sending shared data");

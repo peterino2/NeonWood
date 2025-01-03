@@ -13,7 +13,6 @@ pub const RendererInterfaceRef = core.InterfaceRef(RendererInterface);
 
 // RendererInterfaceVTable
 pub const RendererInterface = struct {
-    typeName: Name,
     typeSize: usize,
     typeAlign: usize,
 
@@ -49,7 +48,6 @@ pub const RendererInterface = struct {
         };
 
         const self = @This(){
-            .typeName = MakeTypeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .onRendererTeardown = if (@hasDecl(TargetType, "onRendererTeardown")) wrappedFuncs.onRendererTeardown else null,

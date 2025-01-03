@@ -11,8 +11,8 @@ pub const AssetImportReference = struct {
 pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) AssetImportReference {
     return .{
         .assetRef = .{
-            .assetType = core.MakeName(assetType),
-            .name = core.MakeName(name),
+            .assetType = core.Name.MakeComptime(assetType),
+            .name = core.Name.MakeComptime(name),
         },
         .properties = .{ .path = path },
     };
@@ -22,8 +22,8 @@ pub fn MakeImportRef(assetType: []const u8, name: []const u8, path: []const u8) 
 pub fn MakeImportRefOptions(assetType: []const u8, name: []const u8, properties: AssetPropertiesBag) AssetImportReference {
     return .{
         .assetRef = .{
-            .assetType = core.MakeName(assetType),
-            .name = core.MakeName(name),
+            .assetType = core.Name.MakeComptime(assetType),
+            .name = core.Name.MakeComptime(name),
         },
         .properties = properties,
     };
@@ -80,16 +80,16 @@ pub const AssetLoaderMessage = struct {
 };
 
 pub const AssetLoaderInterface = struct {
-    typeName: core.Name,
+    typeName: []const u8,
     typeSize: usize,
     typeAlign: usize,
 
-    assetType: core.Name,
+    assetType: []const u8,
     loadAsset: *const fn (*anyopaque, AssetRef, ?AssetPropertiesBag) AssetLoaderError!void,
     destroy: *const fn (*anyopaque, std.mem.Allocator) void,
     discardAll: *const fn (*anyopaque) void,
 
-    pub fn from(comptime assetType: core.Name, comptime TargetType: type) @This() {
+    pub fn from(comptime assetType: []const u8, comptime TargetType: type) @This() {
         const wrappedFuncs = struct {
             pub fn loadAsset(
                 pointer: *anyopaque,
@@ -125,7 +125,7 @@ pub const AssetLoaderInterface = struct {
         }
 
         const self = @This(){
-            .typeName = core.MakeTypeName(TargetType),
+            .typeName = @typeName(TargetType),
             .typeSize = @sizeOf(TargetType),
             .typeAlign = @alignOf(TargetType),
             .loadAsset = wrappedFuncs.loadAsset,
@@ -171,7 +171,8 @@ pub const AssetReferenceSys = struct {
 
     pub fn registerLoader(self: *@This(), loader: anytype) !void {
         const vtable = &@field(@TypeOf(loader.*), "LoaderInterfaceVTable");
-        try self.loaders.put(self.allocator, vtable.assetType.handle(), .{
+        var assetType = core.MakeName(vtable.assetType);
+        try self.loaders.put(self.allocator, assetType.handle(), .{
             .vtable = vtable,
             .target = loader,
             .size = @sizeOf(@TypeOf(loader)),

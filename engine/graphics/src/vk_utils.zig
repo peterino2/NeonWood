@@ -230,7 +230,7 @@ pub fn load_and_stage_image(ctx: *NeonVkContext, pngContents: PngContents) !Load
         .usage = .gpuOnly,
     };
 
-    const newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, @src().fn_name);
+    const newImage = try ctx.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, "saved image vk_renderer.Texture");
     const stagingBuffer = try stagePixels(pngContents, ctx);
 
     return .{

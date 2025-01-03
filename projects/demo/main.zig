@@ -69,11 +69,11 @@ const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRefOptions("Texture", "t_skybox", .{
         .path = "sky_air/cube_front.png",
         .textureList = graphics.MakeCubeMapList(
-            "sky_air/cube_down",
-            "sky_air/cube_left",
-            "sky_air/cube_right",
-            "sky_air/cube_forward",
-            "sky_air/cube_back",
+            "sky_air/cube_down.png",
+            "sky_air/cube_left.png",
+            "sky_air/cube_right.png",
+            "sky_air/cube_front.png",
+            "sky_air/cube_back.png",
         ),
     }),
 };

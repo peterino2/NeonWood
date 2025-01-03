@@ -1,8 +1,8 @@
 gc: *graphics.NeonVkContext,
 allocator: std.mem.Allocator,
 pipeData: gpd.GpuPipeData = undefined,
-materialName: core.Name = core.MakeName("mat_papyrus"),
-materialNameText: core.Name = core.MakeName("mat_papyrus_text"),
+materialName: core.Name = core.Name.MakeComptime("mat_papyrus"),
+materialNameText: core.Name = core.Name.MakeComptime("mat_papyrus_text"),
 material: *graphics.Material = undefined, // main material used for anything that isn't text
 defaultTextureSet: vk.DescriptorSet,
 textMaterial: *graphics.Material = undefined, // main material used for text
@@ -218,7 +218,8 @@ pub fn OnIoEvent_GLFW(self: *@This(), event: platform.IOEvent) platform.InputLis
         else => {},
     }
 }
-var t_white_name = core.MakeName("t_white");
+
+const t_white_name = core.StaticName("t_white");
 pub fn setup(self: *@This(), gc: *graphics.NeonVkContext) !void {
     core.ui_log("Papyrus Subsystem setup {x}", .{@intFromPtr(self)});
 

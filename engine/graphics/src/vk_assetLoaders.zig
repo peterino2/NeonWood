@@ -19,7 +19,7 @@ const Mesh = mesh.Mesh;
 const Texture = texture.Texture;
 
 pub const TextureLoader = struct {
-    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from(core.MakeName("Texture"), @This());
+    pub var LoaderInterfaceVTable: assets.AssetLoaderInterface = assets.AssetLoaderInterface.from("Texture", @This());
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     const StagedTextureDescription = struct {
@@ -90,7 +90,10 @@ pub const TextureLoader = struct {
                     errdefer ctx.gc.allocator.free(tlResults);
 
                     for (textureList, 0..) |tPath, i| {
-                        const rv = try vk_utils.load_and_stage_image_from_file(gc, tPath);
+                        const rv = vk_utils.load_and_stage_image_from_file(gc, tPath) catch {
+                            core.engine_log("unable to load file {s}", .{tPath});
+                            return error.FailedToLoad;
+                        };
                         errdefer rv.deinit();
                         tlResults[i] = rv;
                     }
@@ -177,7 +180,14 @@ pub const TextureLoader = struct {
                 try self.createImageFromStagingResult(assetReady.name, &assetReady.stagingResults, assetReady.properties);
 
                 if (assetReady.textureListResults) |results| {
-                    try self.createImageFromStagingResult(assetReady.name, &assetReady.stagingResults, assetReady.properties);
+                    var buf: [256]u8 = undefined;
+                    for (results, 0..) |res, i| {
+                        var r = res;
+                        var arName = assetReady.name;
+                        const newName = std.fmt.bufPrint(&buf, "{s}[{d}]", .{ arName.utf8(), i }) catch return core.EngineDataEventError.OutOfMemory;
+
+                        try self.createImageFromStagingResult(core.MakeName(newName), &r, assetReady.properties);
+                    }
                     self.gc.allocator.free(results);
                 }
 
@@ -233,7 +243,7 @@ pub const TextureLoader = struct {
 };
 
 pub const MeshLoader = struct {
-    pub var LoaderInterfaceVTable = assets.AssetLoaderInterface.from(core.MakeName("Mesh"), @This());
+    pub var LoaderInterfaceVTable = assets.AssetLoaderInterface.from("Mesh", @This());
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
     gc: *NeonVkContext,
 

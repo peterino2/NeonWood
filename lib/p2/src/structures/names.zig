@@ -125,7 +125,7 @@ pub fn destroyNameRegistry() void {
 }
 
 pub fn MakeName(string: []const u8) Name {
-    return Name.MakeComptime(string);
+    return Name.Make(string);
 }
 
 pub const Name = struct {
@@ -186,8 +186,12 @@ pub fn StaticName(comptime N: []const u8) type {
         pub const str = N;
         pub var staticName: Name = .{ .string = str, .index = null };
 
-        pub fn GetName() *Name {
-            return &staticName;
+        pub fn ToName() Name {
+            .{ .string = N, .index = null };
+        }
+
+        pub fn get() Name {
+            return staticName;
         }
 
         pub fn handle() u32 {

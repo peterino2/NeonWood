@@ -128,7 +128,7 @@ pub const DebugDrawSubsystem = struct {
     pipeData: gpd.GpuPipeData = undefined,
     mappedBuffers: []gpd.GpuMappingData(DebugPrimitiveGpu) = undefined,
     material: *graphics.Material = undefined,
-    materialName: core.Name = core.MakeName("mat_debugsys"),
+    materialName: core.Name = core.Name.MakeComptime("mat_debugsys"),
 
     deltaTime: f64 = 0,
 
