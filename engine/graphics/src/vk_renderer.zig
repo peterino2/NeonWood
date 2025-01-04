@@ -705,7 +705,10 @@ pub const NeonVkContext = struct {
 
         try self.textures.put(self.allocator, name.handle(), textureRef);
         try self.textureSets.put(self.allocator, name.handle(), textureSet);
-        try self.textureIds.put(self.allocator, name.handle(), textureId);
+
+        if (!textureRef.isCube) {
+            try self.textureIds.put(self.allocator, name.handle(), textureId);
+        }
     }
 
     const PixelBufferRGBA8 = @import("PixelBufferRGBA8.zig");

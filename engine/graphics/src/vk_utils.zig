@@ -540,11 +540,11 @@ pub fn createDescriptorSetForImage(
     const newTextureId = gc.newTextureId;
 
     // ruh roh, that's a big todo to do in the future
-    gc.newTextureId += 1;
 
     if (addToGlobal) {
+        gc.newTextureId += 1;
         try gc.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
     }
 
-    return .{ .textureSet = textureSet, .textureId = newTextureId };
+    return .{ .textureSet = textureSet, .textureId = if (addToGlobal) newTextureId else 0 };
 }

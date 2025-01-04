@@ -142,7 +142,7 @@ pub fn samplerCreateInfo(
         .compare_enable = vk.FALSE,
         .compare_op = .never,
         .min_lod = 0.0,
-        .max_lod = 0.0,
+        .max_lod = vk.LOD_CLAMP_NONE,
         .border_color = .float_transparent_black,
         .unnormalized_coordinates = vk.FALSE,
     };
