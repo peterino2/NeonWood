@@ -39,6 +39,7 @@ pub const AssetPropertiesBag = struct {
     textureUseBlockySampler: bool = true,
     meshType: ?[]const u8 = null,
     skeletonName: ?[]const u8 = null,
+    textureCube: bool = false,
     textureList: ?[]const []const u8 = null, // if set, path texture will be loaded first, and this list of textures will be loaded together.
 };
 

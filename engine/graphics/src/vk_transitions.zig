@@ -12,6 +12,8 @@ pub fn transferDst_into_shaderReadOnly(
     cmd: vk.CommandBuffer,
     image: vk.Image,
     mipLevel: u32,
+    baseArrayLayer: u32,
+    layerCount: u32,
 ) void {
     if (mipLevel == 0) {
         core.engine_logs("mipLevel 0 detected into_shaderReadOnly");
@@ -21,8 +23,8 @@ pub fn transferDst_into_shaderReadOnly(
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,
         .level_count = mipLevel,
-        .base_array_layer = 0,
-        .layer_count = 1,
+        .base_array_layer = baseArrayLayer,
+        .layer_count = layerCount,
     };
 
     var imageBarrier_toReadable = vk.ImageMemoryBarrier{
@@ -30,12 +32,8 @@ pub fn transferDst_into_shaderReadOnly(
         .new_layout = .shader_read_only_optimal,
         .image = image,
         .subresource_range = range,
-        .src_access_mask = .{
-            .transfer_write_bit = true,
-        },
-        .dst_access_mask = .{
-            .shader_read_bit = false,
-        },
+        .src_access_mask = .{ .transfer_write_bit = true },
+        .dst_access_mask = .{ .shader_read_bit = false },
         .src_queue_family_index = 0,
         .dst_queue_family_index = 0,
     };
@@ -57,6 +55,8 @@ pub fn into_transferDst(
     cmd: vk.CommandBuffer,
     image: vk.Image,
     mipLevel: u32,
+    baseArrayLayer: u32,
+    layerCount: u32,
 ) void {
     if (mipLevel == 0) {
         core.engine_logs("mipLevel 0 detected into_transferDst");
@@ -65,8 +65,8 @@ pub fn into_transferDst(
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,
         .level_count = mipLevel,
-        .base_array_layer = 0,
-        .layer_count = 1,
+        .base_array_layer = baseArrayLayer,
+        .layer_count = layerCount,
     };
 
     var imageBarrier_toTransfer = vk.ImageMemoryBarrier{
@@ -75,9 +75,7 @@ pub fn into_transferDst(
         .image = image,
         .subresource_range = range,
         .src_access_mask = .{},
-        .dst_access_mask = .{
-            .transfer_write_bit = true,
-        },
+        .dst_access_mask = .{ .transfer_write_bit = true },
         .src_queue_family_index = 0,
         .dst_queue_family_index = 0,
     };

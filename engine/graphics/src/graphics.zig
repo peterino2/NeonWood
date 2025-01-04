@@ -17,9 +17,9 @@ pub const Animator = animation_system.Animator;
 pub const AnimationTrack = animation_system.AnimationTrack;
 pub const Skeleton = animation_system.Skeleton;
 
-const skybox = @import("skybox.zig");
-pub const CubeMapDirs = skybox.CubeMapDirs;
-pub const MakeCubeMapList = skybox.MakeCubeMapList;
+const vk_cubemap = @import("vk_renderer/vk_cubemap.zig");
+pub const CubeMapDirs = vk_cubemap.CubeMapDirs;
+pub const MakeCubeMapList = vk_cubemap.MakeCubeMapList;
 
 pub const animation_loaders = @import("animation/loaders.zig");
 

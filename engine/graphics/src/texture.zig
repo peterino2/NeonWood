@@ -23,6 +23,7 @@ pub const PixelPos = struct {
 pub const Texture = struct {
     image: NeonVkImage,
     imageView: vk.ImageView,
+    isCube: bool = false,
 
     pub fn deinit(self: *@This(), ctx: *NeonVkContext) void {
         ctx.vkd.destroyImageView(ctx.dev, self.imageView, null);

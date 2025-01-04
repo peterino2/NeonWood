@@ -10,6 +10,23 @@ pub const PngContents = struct {
     size: core.Vector2u,
     allocator: std.mem.Allocator,
 
+    pub fn initFromPathSpec(path: []const u8, allocator: std.mem.Allocator) !@This() {
+        var pngContents: PngContents = undefined;
+        var cookedPath = std.ArrayList(u8).init(allocator);
+        defer cookedPath.deinit();
+
+        try cookedPath.appendSlice("_cooked/");
+        try cookedPath.appendSlice(path);
+        try cookedPath.appendSlice(".Texture");
+
+        if (core.fs().fileExists(cookedPath.items)) {
+            pngContents = try PngContents.initFromFSCooked(core.fs(), allocator, cookedPath.items);
+        } else {
+            pngContents = try PngContents.initFromFS(core.fs(), allocator, path);
+        }
+        return pngContents;
+    }
+
     pub fn initFromFSCooked(fs: *core.FileSystem, allocator: std.mem.Allocator, path: []const u8) !@This() {
         const mapping = try fs.loadFile(path);
         defer fs.unmap(mapping);

@@ -52,6 +52,7 @@ pub const LoadAndStageImage = struct {
     stagingBuffer: NeonVkBuffer,
     image: NeonVkImage,
     mipLevel: u32 = 0,
+    cubeOffsets: ?[6]u32 = null,
 
     pub fn deinit(self: *@This(), vkAllocator: *NeonVkAllocator) void {
         vkAllocator.destroyBuffer(&self.stagingBuffer);
@@ -248,7 +249,7 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
         var z2 = tracy.ZoneN(@src(), "recording command buffer");
         const cmd = ctx.uploader.commandBuffer;
 
-        transitions.into_transferDst(cmd, newImage.image, mipLevel);
+        transitions.into_transferDst(cmd, newImage.image, mipLevel, 0, 1);
 
         var copyRegion = vk.BufferImageCopy{
             .buffer_offset = 0,
@@ -278,25 +279,24 @@ pub fn submit_copy_from_staging(ctx: *NeonVkContext, stagingBuffer: NeonVkBuffer
         );
 
         // core.graphics_log("miplevel count: {d}", .{mipLevel});
-        try generateMipMaps(ctx, newImage, mipLevel);
+        try generateMipMaps(cmd, newImage, mipLevel, 0);
 
-        transitions.transferDst_into_shaderReadOnly(cmd, newImage.image, mipLevel);
+        transitions.transferDst_into_shaderReadOnly(cmd, newImage.image, mipLevel, 0, 1);
         z2.End();
     }
     try ctx.uploader.finishUploadContext();
     //try ctx.finish_upload_context(&ctx.uploadContext);
 }
 
-fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !void {
+fn generateMipMaps(cmd: vk.CommandBuffer, vkImage: NeonVkImage, mipLevels: u32, baseArrayLayer: u32) !void {
     try core.assert(mipLevels > 0);
-    const cmd = ctx.uploader.commandBuffer;
     const img = vkImage.image;
 
     const range: vk.ImageSubresourceRange = .{
         .aspect_mask = .{ .color_bit = true },
         .base_mip_level = 0,
         .level_count = 1,
-        .base_array_layer = 0,
+        .base_array_layer = baseArrayLayer,
         .layer_count = 1,
     };
 
@@ -325,7 +325,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             .transfer_read_bit = true,
         };
 
-        ctx.vkd.cmdPipelineBarrier(cmd, .{
+        vkd.cmdPipelineBarrier(cmd, .{
             .transfer_bit = true,
         }, .{
             .transfer_bit = true,
@@ -337,7 +337,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
         blit.src_subresource = .{
             .aspect_mask = .{ .color_bit = true },
             .mip_level = @as(u32, @intCast(i)) - 1,
-            .base_array_layer = 0,
+            .base_array_layer = baseArrayLayer,
             .layer_count = 1,
         };
 
@@ -359,7 +359,7 @@ fn generateMipMaps(ctx: *NeonVkContext, vkImage: NeonVkImage, mipLevels: u32) !v
             .layer_count = 1,
         };
 
-        ctx.vkd.cmdBlitImage(
+        vkd.cmdBlitImage(
             cmd,
             img,
             .transfer_src_optimal,
@@ -508,6 +508,7 @@ pub fn createDescriptorSetForImage(
     layout: vk.DescriptorSetLayout,
     imageView: vk.ImageView,
     sampler: vk.Sampler,
+    addToGlobal: bool,
 ) !struct { textureSet: vk.DescriptorSet, textureId: u32 } {
 
     // var textureSet = try self.allocator.create(vk.DescriptorSet);
@@ -541,6 +542,9 @@ pub fn createDescriptorSetForImage(
     // ruh roh, that's a big todo to do in the future
     gc.newTextureId += 1;
 
-    try gc.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
+    if (addToGlobal) {
+        try gc.newMeshImages.pushLocked(.{ .bufferInfo = imageBufferInfo, .textureId = newTextureId });
+    }
+
     return .{ .textureSet = textureSet, .textureId = newTextureId };
 }

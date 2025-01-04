@@ -6,6 +6,7 @@ const core = @import("core");
 const assets = @import("assets");
 const vk_utils = @import("vk_utils.zig");
 const vkinit = @import("vk_init.zig");
+const vk_cubemap = @import("vk_renderer/vk_cubemap.zig");
 
 const tracy = core.tracy;
 const materials = @import("materials.zig");
@@ -69,8 +70,15 @@ pub const TextureLoader = struct {
                 defer {
                     _ = ctx.gc.outstandingJobsCount.fetchSub(1, .seq_cst);
                 }
-                var loadAndStageResults = try vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path);
-                errdefer loadAndStageResults.deinit(gc.vkAllocator);
+
+                var loadAndStageResults: vk_utils.LoadAndStageImage = undefined;
+                if (!ctx.properties.textureCube) {
+                    loadAndStageResults = try vk_utils.load_and_stage_image_from_file(gc, ctx.properties.path);
+                    errdefer loadAndStageResults.deinit(gc.vkAllocator);
+                } else {
+                    loadAndStageResults = try vk_cubemap.stageCubeTexture(ctx.properties.textureList.?);
+                    errdefer loadAndStageResults.deinit(gc.vkAllocator);
+                }
 
                 var assetRefName = ctx.assetRef.name;
 
@@ -132,38 +140,75 @@ pub const TextureLoader = struct {
         var stagingBuffer = stagingResults.stagingBuffer;
         const image = stagingResults.image;
 
-        vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, stagingResults.mipLevel) catch return error.UnknownStatePanic;
-        stagingBuffer.deinit(gc.vkAllocator);
+        if (stagingResults.cubeOffsets != null) {
+            vk_cubemap.submitTextureCube(&gc.uploader, stagingResults) catch return error.UnknownStatePanic;
+            stagingBuffer.deinit();
 
-        var imageViewCreate = vkinit.imageViewCreateInfo(
-            .r8g8b8a8_srgb,
-            image.image,
-            .{ .color_bit = true },
-            stagingResults.mipLevel,
-        );
-        const imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
-        const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+            var ivc = vkinit.imageViewCreateInfo(
+                .r8g8b8a8_srgb,
+                image.image,
+                .{ .color_bit = true },
+                stagingResults.mipLevel,
+            );
+            ivc.view_type = .cube_array;
+            ivc.subresource_range.layer_count = 6;
+            const imageView = gc.vkd.createImageView(gc.dev, &ivc, null) catch return error.UnknownStatePanic;
+            const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+            newTexture.* = Texture{
+                .image = image,
+                .imageView = imageView,
+            };
 
-        newTexture.* = Texture{
-            .image = image,
-            .imageView = imageView,
-        };
+            const rv = vk_utils.createDescriptorSetForImage(
+                gc.dev,
+                gc.descriptorPool,
+                gc.cubeDescriptorSetLayout,
+                imageView,
+                gc.cubeSampler,
+                false,
+            ) catch return error.UnknownStatePanic;
 
-        const sampler = if (properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
-        const rv = vk_utils.createDescriptorSetForImage(
-            gc.dev,
-            gc.descriptorPool,
-            gc.singleTextureSetLayout,
-            imageView,
-            sampler,
-        ) catch return error.UnknownStatePanic;
+            self.rtAssetsReady.pushLocked(.{
+                .name = name,
+                .texture = newTexture,
+                .textureSet = rv.textureSet,
+                .textureId = rv.textureId,
+            });
+        } else {
+            vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, stagingResults.mipLevel) catch return error.UnknownStatePanic;
+            stagingBuffer.deinit(gc.vkAllocator);
 
-        self.rtAssetsReady.pushLocked(.{
-            .name = name,
-            .texture = newTexture,
-            .textureSet = rv.textureSet,
-            .textureId = rv.textureId,
-        }) catch return error.UnknownStatePanic;
+            var imageViewCreate = vkinit.imageViewCreateInfo(
+                .r8g8b8a8_srgb,
+                image.image,
+                .{ .color_bit = true },
+                stagingResults.mipLevel,
+            );
+            const imageView = gc.vkd.createImageView(gc.dev, &imageViewCreate, null) catch return error.UnknownStatePanic;
+            const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
+
+            newTexture.* = Texture{
+                .image = image,
+                .imageView = imageView,
+            };
+
+            const sampler = if (properties.textureUseBlockySampler) gc.blockySampler else gc.linearSampler;
+            const rv = vk_utils.createDescriptorSetForImage(
+                gc.dev,
+                gc.descriptorPool,
+                gc.singleTextureSetLayout,
+                imageView,
+                sampler,
+                true,
+            ) catch return error.UnknownStatePanic;
+
+            self.rtAssetsReady.pushLocked(.{
+                .name = name,
+                .texture = newTexture,
+                .textureSet = rv.textureSet,
+                .textureId = rv.textureId,
+            }) catch return error.UnknownStatePanic;
+        }
     }
 
     fn processEventInner(self: *@This()) core.EngineDataEventError!void {

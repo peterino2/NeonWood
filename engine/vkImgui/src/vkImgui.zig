@@ -123,28 +123,28 @@ pub const NeonVkImGui = struct {
         std.debug.print("vkImGui = {d}\n", .{@sizeOf(c.ImGuiStyle)});
         std.debug.print("size of InputEvent = {d}\n", .{@sizeOf(c.ImGuiInputEvent)});
 
-        const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
-            .{ .type = .sampler, .descriptor_count = 1000 },
-            .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
-            .{ .type = .sampled_image, .descriptor_count = 1000 },
-            .{ .type = .storage_image, .descriptor_count = 1000 },
-            .{ .type = .uniform_texel_buffer, .descriptor_count = 1000 },
-            .{ .type = .storage_texel_buffer, .descriptor_count = 1000 },
-            .{ .type = .uniform_buffer, .descriptor_count = 1000 },
-            .{ .type = .storage_buffer, .descriptor_count = 1000 },
-            .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
-            .{ .type = .storage_buffer_dynamic, .descriptor_count = 1000 },
-            .{ .type = .input_attachment, .descriptor_count = 1000 },
-        };
+        // const descriptorPoolSizes = [_]vk.DescriptorPoolSize{
+        //     .{ .type = .sampler, .descriptor_count = 1000 },
+        //     .{ .type = .combined_image_sampler, .descriptor_count = 1000 },
+        //     .{ .type = .sampled_image, .descriptor_count = 1000 },
+        //     .{ .type = .storage_image, .descriptor_count = 1000 },
+        //     .{ .type = .uniform_texel_buffer, .descriptor_count = 1000 },
+        //     .{ .type = .storage_texel_buffer, .descriptor_count = 1000 },
+        //     .{ .type = .uniform_buffer, .descriptor_count = 1000 },
+        //     .{ .type = .storage_buffer, .descriptor_count = 1000 },
+        //     .{ .type = .uniform_buffer_dynamic, .descriptor_count = 1000 },
+        //     .{ .type = .storage_buffer_dynamic, .descriptor_count = 1000 },
+        //     .{ .type = .input_attachment, .descriptor_count = 1000 },
+        // };
 
-        var poolInfo = vk.DescriptorPoolCreateInfo{
-            .flags = .{},
-            .max_sets = 1000,
-            .pool_size_count = @intCast(descriptorPoolSizes.len),
-            .p_pool_sizes = &descriptorPoolSizes,
-        };
+        // var poolInfo = vk.DescriptorPoolCreateInfo{
+        //     .flags = .{},
+        //     .max_sets = 1000,
+        //     .pool_size_count = @intCast(descriptorPoolSizes.len),
+        //     .p_pool_sizes = &descriptorPoolSizes,
+        // };
 
-        self.descriptorPool = try ctx.vkd.createDescriptorPool(ctx.dev, &poolInfo, null);
+        self.descriptorPool = ctx.descriptorPool; // try ctx.vkd.createDescriptorPool(ctx.dev, &poolInfo, null);
         _ = c.igCreateContext(null);
         const io: *c.ImGuiIO = c.igGetIO();
         io.*.ConfigFlags |= c.ImGuiConfigFlags_NavEnableKeyboard;
@@ -199,7 +199,7 @@ pub const NeonVkImGui = struct {
     pub fn deinit(self: *Self) void {
         const ctx = self.ctx;
         ctx.vkd.deviceWaitIdle(ctx.dev) catch unreachable;
-        ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
+        // ctx.vkd.destroyDescriptorPool(ctx.dev, self.descriptorPool, null);
         self.allocator.destroy(self);
     }
 };

@@ -1112,6 +1112,9 @@ pub const NeonVkContext = struct {
         linearCreateSample.mipmap_mode = .linear;
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
+        var cubeCreateSample = vkinit.samplerCreateInfo(.linear, .clamp_to_edge);
+        self.linearSampler = try self.vkd.createSampler(self.dev, &cubeCreateSample, null);
+
         try self.create_mesh_material();
     }
 

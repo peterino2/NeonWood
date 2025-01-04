@@ -66,12 +66,13 @@ const AssetReferences = [_]assets.AssetImportReference{
     assets.MakeImportRefOptions("Animation", "a_fox_walk", .{
         .path = "gltf-samples/Fox/glTF/Walk.ozz",
     }),
-    assets.MakeImportRefOptions("Texture", "t_skybox", .{
-        .path = "sky_air/cube_front.png",
+    assets.MakeImportRefOptions("Texture", "t_cube_skybox", .{
+        .textureCube = true,
         .textureList = graphics.MakeCubeMapList(
-            "sky_air/cube_down.png",
-            "sky_air/cube_left.png",
             "sky_air/cube_right.png",
+            "sky_air/cube_left.png",
+            "sky_air/cube_up.png",
+            "sky_air/cube_down.png",
             "sky_air/cube_front.png",
             "sky_air/cube_back.png",
         ),
