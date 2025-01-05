@@ -1,26 +1,14 @@
 #version 460
 
-#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
 
-layout (location = 0) in vec3 vPosition;
-layout (location = 1) in vec3 vNormal;
-layout (location = 2) in vec4 vColor;
-layout (location = 3) in vec2 vTexCoord;
-layout (location = 4) in u8vec4 bones;
-layout (location = 5) in u8vec4 weights;
+#include "vertexInput.glsl"
 
 layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
 layout (location = 2) out vec3 worldPosition;
 layout (location = 3) flat out uint textureId;
 
-layout (set = 0, binding = 0) uniform CameraBuffer{
-    mat4 view;
-    mat4 proj;
-    mat4 viewproj;
-    vec4 position;
-} cameraData;
-
+#include "globalSet.glsl"
 #include "sharedSsbo.glsl"
 #include "skeletalBuffers.glsl"
 

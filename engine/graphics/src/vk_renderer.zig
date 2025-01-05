@@ -290,6 +290,8 @@ pub const NeonVkContext = struct {
     textures: std.AutoHashMapUnmanaged(u32, *Texture),
     cameraRef: ?*render_objects.Camera,
 
+    skybox: *SkyboxSystem,
+
     deferredTextureDestroy: std.ArrayListUnmanaged(*Texture),
     deferredDescriptorsDestroy: std.ArrayListUnmanaged(vk.DescriptorSet),
 
@@ -297,6 +299,7 @@ pub const NeonVkContext = struct {
 
     blockySampler: vk.Sampler,
     linearSampler: vk.Sampler,
+    cubeSampler: vk.Sampler,
 
     descriptorPool: vk.DescriptorPool,
     globalDescriptorLayout: vk.DescriptorSetLayout,
@@ -550,6 +553,7 @@ pub const NeonVkContext = struct {
         return self;
     }
 
+    const SkyboxSystem = @import("skybox.zig");
     pub fn postInit(self: *@This()) core.EngineDataEventError!void {
         self.init_dynamic_mesh() catch return core.EngineDataEventError.UnknownStatePanic;
         self.init_renderthread() catch return core.EngineDataEventError.UnknownStatePanic;
@@ -1039,7 +1043,7 @@ pub const NeonVkContext = struct {
         defer pipeline_builder.deinit();
 
         try pipeline_builder.add_mesh_description();
-        try pipeline_builder.add_push_constant();
+        try pipeline_builder.add_push_constant(); //TODO. i suspect i really dont need this
         try pipeline_builder.add_layout(self.globalDescriptorLayout);
         try pipeline_builder.add_layout(self.objectDescriptorLayout);
         try pipeline_builder.add_layout(self.singleTextureSetLayout);
@@ -1116,7 +1120,7 @@ pub const NeonVkContext = struct {
         self.linearSampler = try self.vkd.createSampler(self.dev, &linearCreateSample, null);
 
         var cubeCreateSample = vkinit.samplerCreateInfo(.linear, .clamp_to_edge);
-        self.linearSampler = try self.vkd.createSampler(self.dev, &cubeCreateSample, null);
+        self.cubeSampler = try self.vkd.createSampler(self.dev, &cubeCreateSample, null);
 
         try self.create_mesh_material();
     }
@@ -1215,6 +1219,8 @@ pub const NeonVkContext = struct {
         shared.lock.lock();
         defer shared.lock.unlock();
         if (self.cameraRef) |camera| {
+            shared.cameraData.view = camera.transform;
+            shared.cameraData.proj = camera.projection;
             shared.cameraData.viewproj = camera.final;
             shared.cameraData.position = camera.position;
         }
@@ -2062,6 +2068,8 @@ pub const NeonVkContext = struct {
                 onRendererTeardown(interface.ptr);
             }
         }
+
+        self.skybox.destroy();
 
         while (self.outstandingJobsCount.load(.seq_cst) > 0) {
             std.debug.print("outstanding jobs: count = {d}\r", .{self.outstandingJobsCount.load(.seq_cst)});

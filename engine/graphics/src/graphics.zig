@@ -11,6 +11,9 @@ const materials = @import("materials.zig");
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
 
+pub const SkyboxSystem = @import("skybox.zig");
+pub const setSkybox = SkyboxSystem.setSkybox;
+
 pub const animation_system = @import("animation/animationSystem.zig");
 pub const AnimationSystem = animation_system.AnimationSystem;
 pub const Animator = animation_system.Animator;
@@ -80,6 +83,7 @@ pub usingnamespace @import("vk_renderer/vk_renderer_types.zig");
 pub const render_objects = @import("render_objects.zig");
 pub const Camera = render_objects.Camera;
 pub const StaticMesh = render_objects.StaticMesh;
+pub const IndexedMesh = mesh_pool.IndexedMesh;
 
 pub fn registerRendererPlugin(value: anytype) !void {
     const ref = RendererInterfaceRef{
@@ -121,6 +125,8 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
     try assets.loadList(primitives);
     debug_draw.init_debug_draw_subsystem() catch unreachable;
+
+    context.skybox = SkyboxSystem.create(context.allocator) catch return core.EngineDataEventError.UnknownStatePanic;
 
     if (@hasField(@TypeOf(programSpec), "cooking")) {
         gCooking = true;

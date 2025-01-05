@@ -8,7 +8,7 @@ const Vectorf = core.Vectorf;
 
 const Camera = render_objects.Camera;
 
-pub const NeonVkCameraDataGpu = struct {
+pub const NeonVkCameraDataGpu = extern struct {
     view: Mat,
     proj: Mat,
     viewproj: Mat,
@@ -29,14 +29,11 @@ pub const NeonVkCameraDataGpu = struct {
 
 // generates NeonVkCameraDataGpu and copies it into the buffer
 pub fn memcpyCameraDataToStagedBuffer(camera: *const Camera, data: [*]u8) void {
-    const projection_matrix: Mat = camera.final;
-    const position: Vectorf = camera.position;
-
     var cameraData = NeonVkCameraDataGpu{
-        .proj = core.zm.identity(),
-        .view = core.zm.identity(),
-        .viewproj = projection_matrix,
-        .position = position,
+        .proj = camera.projection,
+        .view = camera.transform,
+        .viewproj = camera.final,
+        .position = camera.position,
     };
 
     var dataSlice: []u8 = undefined;

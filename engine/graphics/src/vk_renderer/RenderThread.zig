@@ -339,10 +339,21 @@ pub fn renderMeshes(self: *@This(), cmd: vk.CommandBuffer, fi: u32) void {
     const pipeline = shared.pipeline;
 
     var buffers = graphics.getMeshPoolBuffers();
-
-    vkd.cmdBindPipeline(cmd, .graphics, pipeline);
     vkd.cmdBindVertexBuffers(cmd, 0, 1, @ptrCast(&buffers.vertex.buffer), @ptrCast(&offset));
     vkd.cmdBindIndexBuffer(cmd, buffers.index.buffer, 0, .uint32);
+
+    // skybox
+    const skybox = SkyboxSystem.gSkybox;
+    if (skybox.cubeMapShared[fi] != null and skybox.mesh != null) {
+        vkd.cmdBindPipeline(cmd, .graphics, skybox.material.pipeline);
+        vkd.cmdBindDescriptorSets(cmd, .graphics, skybox.material.layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
+        vkd.cmdBindDescriptorSets(cmd, .graphics, skybox.material.layout, 1, 1, @ptrCast(&skybox.cubeMapShared[fi]), 0, undefined);
+        const skyboxMesh = skybox.mesh.?;
+        vkd.cmdDrawIndexed(cmd, skyboxMesh.index.size, 1, skyboxMesh.index.start, 0, 0);
+    }
+
+    // all regular meshes
+    vkd.cmdBindPipeline(cmd, .graphics, pipeline);
     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 0, 1, @ptrCast(&frameData.globalDescriptorSet), 1, @ptrCast(&startOffset));
     vkd.cmdBindDescriptorSets(cmd, .graphics, layout, 1, 1, @ptrCast(&frameData.objectDescriptorSet), 0, undefined);
 
@@ -512,10 +523,6 @@ fn uploadObjectData(self: *@This(), shared: *SharedData, fi: u32) !void {
 
     // animations
     {
-        // DO NOT USE DEBUG
-        //self.skinningLock.lock(); // lets hope this lock doesnt cause something really fucked, this is a temporary solution just to show off something for today though
-        //defer self.skinningLock.unlock();
-
         const finals = try self.vkAllocator.mapBuffer(core.Mat, self.frameData[fi].animationsBuffer);
         defer self.vkAllocator.unmapMemory(self.frameData[fi].animationsBuffer);
 
@@ -898,8 +905,6 @@ fn createSwapchainImagesAndViews(self: *@This()) !void {
 }
 
 fn initShared(self: *@This()) !void {
-    // DEBUG DO NOT USE
-    self.skinningLock = .{};
     for (&self.sharedData) |*s| {
         s.lock = .{};
         s.models = std.ArrayList(NeonVkObjectDataGpu).init(self.allocator);
@@ -993,6 +998,8 @@ const TextureList = texture_list.TextureList;
 const vkd_utils = @import("vkd_utils.zig");
 const vkinit = @import("../vk_init.zig");
 const animationSystem = @import("../animation/animationSystem.zig");
+
+const SkyboxSystem = @import("../skybox.zig");
 // const vk_mesh_pool = @import("vk_mesh_pool.zig");
 // const MeshPool = vk_mesh_pool.MeshPool;
 

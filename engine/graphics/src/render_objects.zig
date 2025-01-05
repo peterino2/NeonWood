@@ -266,7 +266,7 @@ pub const Camera = struct {
     }
 
     pub fn updateCamera(self: *Camera) void {
-        self.projection = zm.perspectiveFovRh(core.radians(self.fov), 16.0 / 9.0, 0.1, 2000);
+        self.projection = zm.perspectiveFovRh(core.radians(self.fov), 16.0 / 9.0, 0.1, 200000);
         self.projection[1][1] *= -1;
     }
 

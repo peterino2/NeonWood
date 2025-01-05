@@ -142,7 +142,7 @@ pub const TextureLoader = struct {
 
         if (stagingResults.cubeOffsets != null) {
             vk_cubemap.submitTextureCube(&gc.uploader, stagingResults) catch return error.UnknownStatePanic;
-            stagingBuffer.deinit();
+            stagingBuffer.deinit(gc.vkAllocator);
 
             var ivc = vkinit.imageViewCreateInfo(
                 .r8g8b8a8_srgb,
@@ -150,7 +150,7 @@ pub const TextureLoader = struct {
                 .{ .color_bit = true },
                 stagingResults.mipLevel,
             );
-            ivc.view_type = .cube_array;
+            ivc.view_type = .cube;
             ivc.subresource_range.layer_count = 6;
             const imageView = gc.vkd.createImageView(gc.dev, &ivc, null) catch return error.UnknownStatePanic;
             const newTexture = gc.allocator.create(Texture) catch return error.UnknownStatePanic;
@@ -162,7 +162,7 @@ pub const TextureLoader = struct {
             const rv = vk_utils.createDescriptorSetForImage(
                 gc.dev,
                 gc.descriptorPool,
-                gc.cubeDescriptorSetLayout,
+                gc.singleTextureSetLayout,
                 imageView,
                 gc.cubeSampler,
                 false,
@@ -173,7 +173,7 @@ pub const TextureLoader = struct {
                 .texture = newTexture,
                 .textureSet = rv.textureSet,
                 .textureId = rv.textureId,
-            });
+            }) catch return error.UnknownStatePanic;
         } else {
             vk_utils.submit_copy_from_staging(gc, stagingBuffer, image, stagingResults.mipLevel) catch return error.UnknownStatePanic;
             stagingBuffer.deinit(gc.vkAllocator);

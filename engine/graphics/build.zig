@@ -42,6 +42,9 @@ pub fn build(b: *std.Build) void {
     spirvGen.addShader(mod, b.path("shaders/triangle_mesh.vert"), "triangle_mesh_vert");
     spirvGen.addShader(mod, b.path("shaders/default_lit.frag"), "default_lit");
 
+    spirvGen.addShader(mod, b.path("shaders/skybox/skybox.vert"), "skybox_vert");
+    spirvGen.addShader(mod, b.path("shaders/skybox/skybox.frag"), "skybox_frag");
+
     spirvGen.addShader(mod, b.path("shaders/debug.vert"), "debug_vert");
     spirvGen.addShader(mod, b.path("shaders/debug.frag"), "debug_frag");
 

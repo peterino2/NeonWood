@@ -112,11 +112,16 @@ pub fn addProgram(self: *BuildSystem, opts: AddProgramOptions) *std.Build.Step.C
 
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/triangle_mesh.vert"), "triangle_mesh_vert");
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/default_lit.frag"), "default_lit");
+
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/debug.vert"), "debug_vert");
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/debug.frag"), "debug_frag");
 
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/skybox/skybox.vert"), "skybox_vert");
+    self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/graphics/shaders/skybox/skybox.frag"), "skybox_frag");
+
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/PapyrusRect.vert"), "papyrus_vk_vert");
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/PapyrusRect.frag"), "papyrus_vk_frag");
+
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/FontSDF.vert"), "FontSDF_vert");
     self.spirvReflect.addShaderInstallRef(exe, self.nw_builder.path("engine/ui/shaders/FontSDF.frag"), "FontSDF_frag");
 

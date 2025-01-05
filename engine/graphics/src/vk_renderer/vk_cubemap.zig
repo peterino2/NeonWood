@@ -32,13 +32,13 @@ pub fn stageCubeTexture(list: []const []const u8) !LoadAndStageImage {
     const gc = graphics.getContext();
     const allocator = gc.allocator;
 
-    const pngs: [6]core.png.PngContents = undefined;
+    var pngs: [6]core.png.PngContents = undefined;
 
     for (0..6) |i| {
         pngs[i] = try core.png.PngContents.initFromPathSpec(list[i], allocator);
     }
     defer {
-        for (pngs) |*png| {
+        for (&pngs) |*png| {
             png.deinit();
         }
     }
@@ -51,19 +51,19 @@ pub fn stageCubeTexture(list: []const []const u8) !LoadAndStageImage {
     for (pngs) |png| {
         try core.assertf(width == png.size.x, "inconsistent cubemap dimensions", .{});
         try core.assertf(height == png.size.y, "inconsistent cubemap dimensions", .{});
-        totalLen += png.pixels.len;
+        totalLen += @intCast(png.pixels.len);
     }
 
     const stagingBuffer = try gc.vkAllocator.createStagingBuffer(totalLen, "cubemap creation staging texture map");
     const pixelBuffer = try gc.vkAllocator.mapBuffer(u8, stagingBuffer);
 
-    var offset: usize = 0;
+    var offset: u32 = 0;
 
-    var bufferOffsets: [6]usize = undefined;
+    var bufferOffsets: [6]u32 = undefined;
     for (pngs, 0..) |png, i| {
         const dest = pixelBuffer[offset .. offset + png.pixels.len];
-        offset += png.pixels.len;
         bufferOffsets[i] = offset;
+        offset += @intCast(png.pixels.len);
         @memcpy(dest, png.pixels);
     }
 
@@ -90,15 +90,15 @@ pub fn stageCubeTexture(list: []const []const u8) !LoadAndStageImage {
         .requiredFlags = .{},
         .usage = .gpuOnly,
     };
-    const newImage = gc.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, "cubemap creation image");
+    const newImage = try gc.vkAllocator.createImage(imgCreateInfo, imgAllocInfo, "cubemap creation image");
 
-    try gc.vkAllocator.unmapMemory(stagingBuffer);
+    gc.vkAllocator.unmapMemory(stagingBuffer);
 
     return .{
         .stagingBuffer = stagingBuffer,
         .image = newImage,
         .mipLevel = mipLevel,
-        .cube = bufferOffsets,
+        .cubeOffsets = bufferOffsets,
     };
 }
 
@@ -121,7 +121,7 @@ pub fn submitTextureCube(uploader: *vk_utils.NeonVkUploader, state: *const LoadA
                     .image_subresource = .{
                         .aspect_mask = .{ .color_bit = true },
                         .mip_level = 0,
-                        .base_array_layer = face,
+                        .base_array_layer = @intCast(face),
                         .layer_count = 1,
                     },
                     .image_extent = .{
@@ -147,6 +147,15 @@ pub fn submitTextureCube(uploader: *vk_utils.NeonVkUploader, state: *const LoadA
         }
         try uploader.finishUploadContext();
     }
+}
+
+pub fn createDescriptorSet(
+    dev: vk.Device,
+) struct {
+    layout: vk.DescriptorSetLayout,
+    descriptorSet: vk.DescriptorSet,
+} {
+    _ = dev;
 }
 
 const core = @import("core");

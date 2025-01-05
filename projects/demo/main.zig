@@ -68,14 +68,14 @@ const AssetReferences = [_]assets.AssetImportReference{
     }),
     assets.MakeImportRefOptions("Texture", "t_cube_skybox", .{
         .textureCube = true,
-        .textureList = graphics.MakeCubeMapList(
+        .textureList = &.{
             "sky_air/cube_right.png",
             "sky_air/cube_left.png",
             "sky_air/cube_up.png",
             "sky_air/cube_down.png",
-            "sky_air/cube_front.png",
             "sky_air/cube_back.png",
-        ),
+            "sky_air/cube_front.png",
+        },
     }),
 };
 
@@ -216,6 +216,8 @@ pub const GameContext = struct {
         try core.script.runScriptFile("scripts/prepare.lua");
 
         // self.animationDemo = try AnimationDemo.create(self.allocator);
+
+        try graphics.setSkybox("t_cube_skybox");
 
         self.gc = graphics.getContext();
         try assets.loadList(AssetReferences);
