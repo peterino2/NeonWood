@@ -12,7 +12,7 @@ pub const Skeleton = struct {
     pub fn buildJointMap(self: *@This(), allocator: std.mem.Allocator) !void {
         for (self.sk.getJointsList(), 0..) |jointName, i| {
             const str = std.mem.span(jointName);
-            core.engine_log("ozz: joint {s} -> {d}", .{ str, i });
+            // core.engine_log("ozz: joint {s} -> {d}", .{ str, i });
             try self.jointMapping.put(allocator, str, @intCast(i));
         }
     }

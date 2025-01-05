@@ -1215,6 +1215,7 @@ pub const NeonVkContext = struct {
     fn sendSharedData(self: *@This(), frameIndex: u32) !void {
         var z1 = tracy.ZoneN(@src(), "sending shared data");
         defer z1.End();
+        //const frameIndex = fi % @as(u32, @intCast(graphics.NumFrames));
         const shared = self.renderthread.getShared(frameIndex);
         shared.lock.lock();
         defer shared.lock.unlock();
@@ -1252,8 +1253,8 @@ pub const NeonVkContext = struct {
 
             if (object.mesh != null and object.visibility) {
                 // core.engine_log("scene count {d}", .{core.Scene.BaseContainer.dense.items.len});
-                if (core.Scene.SceneObjectContainer.get(objectId, .posRot)) |posRot| {
-                    transform = posRot.toTransform();
+                if (core.Scene.SceneObjectContainer.get(objectId, ._repr)) |repr| {
+                    transform = repr.transform;
                 }
 
                 const gpuData = try shared.models.addOne();
@@ -2034,6 +2035,7 @@ pub const NeonVkContext = struct {
         self.vkd.destroyDescriptorSetLayout(self.dev, self.singleTextureSetLayout, null);
         self.vkd.destroySampler(self.dev, self.blockySampler, null);
         self.vkd.destroySampler(self.dev, self.linearSampler, null);
+        self.vkd.destroySampler(self.dev, self.cubeSampler, null);
         self.vkd.destroyDescriptorPool(self.dev, self.descriptorPool, null);
     }
 

@@ -58,6 +58,9 @@ pub fn initPipeline(self: *@This()) !void {
     try pipelineBuilder.add_layout(gc.singleTextureSetLayout);
     try pipelineBuilder.add_depth_stencil(); // todo.. we might not want this for a skybox.
     try pipelineBuilder.init_triangle_pipeline(gc.actual_extent);
+    pipelineBuilder.pdsci.?.depth_write_enable = vk.FALSE;
+    pipelineBuilder.pdsci.?.depth_test_enable = vk.FALSE;
+    pipelineBuilder.pdsci.?.depth_compare_op = .never;
 
     const materialName = core.MakeName("Mat_skybox");
     self.material = try self.allocator.create(graphics.Material);

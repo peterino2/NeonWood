@@ -53,7 +53,9 @@ pub const SceneObjectRepr = struct {
     // unless you know what you're doing
     transform: core.Mat = core.zm.identity(),
     parent: ?core.ObjectHandle = null,
-    attachmentMode: SceneAttachMode = .relative,
+    attachmentMode: SceneAttachMode = .relative, // doesn't do anything yet, only support relative right now
+    transformOverride: ?*core.Transform = null,
+    lastUpdate: u32 = 0,
 };
 
 pub const SceneObject = struct {
@@ -172,16 +174,60 @@ pub const Scene = struct {
         return core.Entity{ .handle = SceneObjectContainer.get(self.handle, ._repr).?.parent orelse .{} };
     }
 
+    pub fn setParent(self: @This(), newParent: core.Entity) void {
+        core.engine_log("parenting entity {d} -> {d}", .{ self.handle.index, newParent.handle.index });
+        const repr: *SceneObjectRepr = SceneObjectContainer.get(self.handle, ._repr).?;
+        const thisParent = repr.parent;
+        if (thisParent) |p| {
+            const parentRef = @This(){ .handle = p };
+            parentRef.removeChild(self.handle);
+        }
+
+        repr.parent = newParent.handle;
+
+        const children = SceneObjectContainer.get(newParent.handle, .children).?;
+        children.append(childAllocator(), newParent.handle) catch unreachable;
+    }
+
+    pub fn clearParent(self: @This()) void {
+        const repr = SceneObjectContainer.get(self.handle, ._repr).?;
+        const thisParent = &repr.parent;
+        if (thisParent) |p| {
+            const parentRef = @This(){ .handle = p };
+            parentRef.removeChild(self.handle);
+        }
+
+        repr.parent = null;
+    }
+
+    pub fn removeChild(self: @This(), child: core.ObjectHandle) void {
+        const children = SceneObjectContainer.get(self.handle, .children).?;
+        for (children.items, 0..) |search, i| {
+            if (child.eql(search)) {
+                _ = children.swapRemove(i);
+                break;
+            }
+        }
+    }
+
     pub fn getTransform(self: @This()) core.Transform {
-        // walk up the parent stack and resolve transforms?
         return SceneObjectContainer.get(self.handle, ._repr).?.transform;
     }
 
-    pub fn setMobility(self: @This(), mobility: SceneMobilityMode) !void {
+    // you MUST clearTransfomRefUnsafe() before destroying this transform
+    pub fn setTransformRefUnsafe(self: @This(), ref: *core.Transform) void {
+        SceneObjectContainer.get(self.handle, ._repr).?.transformOverride = ref;
+    }
+
+    pub fn clearTransformRefUnsafe(self: @This(), ref: *core.Transform) void {
+        SceneObjectContainer.get(self.handle, ._repr).?.transformOverride = ref;
+    }
+
+    pub fn setMobility(self: @This(), mobility: SceneMobilityMode) void {
         const settings = Scene.SceneObjectContainer.get(self.handle, .settings).?;
         if (settings.sceneMode == .static) {
             if (mobility == .moveable) {
-                try core.gScene.dynamicObjects.append(core.gScene.allocator, self.handle);
+                core.gScene.dynamicObjects.append(core.gScene.allocator, self.handle) catch unreachable;
             }
         }
 
@@ -209,38 +255,95 @@ pub const SceneObjectInitParams = union(enum) {
     },
 };
 
+pub var gSceneSystem: *SceneSystem = undefined;
+
+fn childAllocator() std.mem.Allocator {
+    return gSceneSystem.childrenArena.allocator();
+}
+
 pub const SceneSystem = struct {
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
     allocator: std.mem.Allocator,
     dynamicObjects: ArrayListUnmanaged(core.ObjectHandle) = .{},
+    childrenArena: std.heap.ArenaAllocator,
+    tickCount: u32 = 0,
 
     pub const Field = SceneObjectSet.Field;
     pub const FieldType = SceneObjectSet.FieldType;
 
     // internal update transform function
-    fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: SceneObjectPosRot) void {
-        _ = self;
+    fn updateTransform(self: *@This(), repr: *SceneObjectRepr, posRot: *const SceneObjectPosRot) void {
+        if (repr.lastUpdate == self.tickCount) {
+            return;
+        }
 
-        repr.*.transform = core.zm.mul(
+        if (repr.transformOverride) |override| {
+            repr.lastUpdate = self.tickCount;
+            repr.transform = override.*;
+            return;
+        }
+
+        var final: core.Transform = core.zm.identity();
+
+        if (repr.parent) |parent| {
+            if (Scene.SceneObjectContainer.get(parent, ._repr)) |parentRepr| {
+                const parentPosRot = Scene.SceneObjectContainer.get(parent, .posRot).?;
+                self.updateTransform(parentRepr, parentPosRot);
+                const parentTransform = parentRepr.transform;
+                final = core.zm.mul(parentTransform, final);
+            } else {}
+        }
+
+        // core.engine_log("final\n{d} {d} {d} {d}\n{d} {d} {d} {d}", .{
+        //     final[0][0],
+        //     final[0][1],
+        //     final[0][2],
+        //     final[0][3],
+        //     final[1][0],
+        //     final[1][1],
+        //     final[1][2],
+        //     final[1][3],
+        // });
+        repr.transform = core.zm.mul(
             core.zm.mul(
-                core.zm.scalingV(posRot.scale.toZm()),
-                core.zm.matFromQuat(posRot.rotation.quat),
+                core.zm.mul(
+                    core.zm.scalingV(posRot.scale.toZm()),
+                    core.zm.matFromQuat(posRot.rotation.quat),
+                ),
+                core.zm.translationV(posRot.position.toZm()),
             ),
-            core.zm.translationV(posRot.position.toZm()),
+            final,
         );
+
+        // core.engine_log("final\n{d} {d} {d} {d}\n{d} {d} {d} {d}", .{
+        //     repr.transform[0][0],
+        //     repr.transform[0][1],
+        //     repr.transform[0][2],
+        //     repr.transform[0][3],
+        //     repr.transform[1][0],
+        //     repr.transform[1][1],
+        //     repr.transform[1][2],
+        //     repr.transform[1][3],
+        // });
+
+        repr.lastUpdate = self.tickCount;
     }
 
     pub fn updateTransforms(self: *@This()) void {
+        self.tickCount +%= 1;
+        if (self.tickCount == 0) {
+            self.tickCount += 1;
+        }
         // todo. calculate a running load factor for the number of movable objects
         // vs static objects
         // if we have a small amount of movable vs static AND if we have > 1000 objects,
         // then iterate over dynamicObjects array instead
         for (Scene.SceneObjectContainer.denseItems(._repr), 0..) |*repr, i| {
             const settings = Scene.SceneObjectContainer.readDense(i, .settings);
-            if (settings.sceneMode == .moveable) {
+            if (settings.sceneMode == .moveable or repr.lastUpdate == 0) {
                 const posRot = Scene.SceneObjectContainer.readDense(i, .posRot);
-                self.updateTransform(repr, posRot.*);
+                self.updateTransform(repr, posRot);
             }
         }
     }
@@ -250,7 +353,9 @@ pub const SceneSystem = struct {
         const self = try allocator.create(@This());
         self.* = .{
             .allocator = allocator,
+            .childrenArena = std.heap.ArenaAllocator.init(allocator),
         };
+        gSceneSystem = self;
         try core.defineComponent(Scene, allocator);
         Scene.SceneObjectContainer = try SceneObjectSet.create(allocator);
         return self;
@@ -264,6 +369,8 @@ pub const SceneSystem = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        self.dynamicObjects.deinit(self.allocator);
+        self.childrenArena.deinit();
         core.undefineComponent(Scene);
         Scene.SceneObjectContainer.destroy();
         self.allocator.destroy(self);

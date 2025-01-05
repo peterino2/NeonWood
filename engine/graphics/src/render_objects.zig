@@ -218,8 +218,15 @@ pub const Camera = struct {
     far_clipping_cache: f32 = 2000.0,
 
     position: Vectorf = Vectorf{ .x = 0.0, .y = 0.0, .z = 0.0 },
-    rotation: Quat,
-    transform: Mat = zm.identity(),
+    rotation: Quat, // todo, remove, we only work with euler tracks now for camera.
+
+    // applied in that order,
+    yaw: f32 = 0,
+    pitch: f32 = 0,
+    roll: f32 = 0,
+
+    transform: core.Transform = zm.identity(),
+    worldTransform: Mat = zm.identity(),
     projection: Mat = makePerspective(
         core.radians(70.0), // angle
         16.0 / 9.0,
@@ -270,12 +277,43 @@ pub const Camera = struct {
         self.projection[1][1] *= -1;
     }
 
-    pub fn resolve(self: *Camera, base: Mat) void {
-        self.transform = mul(
-            base,
-            zm.matFromQuat(self.rotation),
-        );
-        self.transform = mul(zm.translationV(self.position.fmul(-1).toZm()), self.transform);
-        self.final = mul(self.transform, self.projection);
+    pub fn resolve(self: *Camera) void {
+
+        // handle world transforms
+        {
+            var base = core.zm.identity();
+            base = mul(core.zm.rotationY(self.yaw), base);
+            base = mul(core.zm.rotationX(self.pitch), base);
+            base = mul(core.zm.rotationZ(self.roll), base);
+
+            const pr2 = core.scene.SceneObjectPosRot{
+                .position = self.position,
+            };
+
+            self.worldTransform = mul(base, pr2.toTransform());
+
+            // self.worldTransform = core.zm.mul(
+            //     base,
+            //     posRot.toTransform(),
+            //     //mul(, base),
+            // );
+        }
+
+        // calculate viewProjections
+        {
+            var base = core.zm.rotationY(-self.yaw + core.radians(180.0));
+            base = mul(base, core.zm.rotationX(self.pitch));
+            base = mul(base, core.zm.rotationZ(self.roll));
+            self.transform = base;
+            // self.transform = mul(
+            //     base,
+            //     mul(zm.matFromQuat(self.rotation), zm.rotationY(core.radians(180.0))),
+            // );
+            var position = self.position;
+            // position.x *= -1;
+            // position.z *= -1;
+            self.transform = mul(zm.translationV(position.fmul(-1).toZm()), self.transform);
+            self.final = mul(self.transform, self.projection);
+        }
     }
 };

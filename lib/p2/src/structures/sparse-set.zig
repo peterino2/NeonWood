@@ -21,6 +21,10 @@ pub const SetHandle = packed struct {
     pub fn hash(self: @This()) u32 {
         return @as(u32, @bitCast(self));
     }
+
+    pub fn eql(self: @This(), other: @This()) bool {
+        return self.hash() == other.hash();
+    }
 };
 
 pub fn SparseMultiSet(comptime T: type) type {

@@ -516,6 +516,11 @@ pub const Quat = zm.Quat;
 pub const Mat = zm.Mat;
 pub const Transform = zm.Mat;
 
+pub fn matGetPosition(m: Mat) Vectorf {
+    const vec: Vectorf = .{};
+    return zm.mul(vec.toZm(), m);
+}
+
 pub const Rotation = struct {
     quat: Quat = zm.qidentity(),
 

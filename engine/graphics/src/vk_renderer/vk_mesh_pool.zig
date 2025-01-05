@@ -213,7 +213,6 @@ pub const MeshPoolBuffers = struct {
 
                     for (new.jointNames) |entry| {
                         var entryName = core.MakeName(entry.name);
-                        core.engine_log("gtlf bone found {s} -> {d}", .{ entry.name, entry.index });
                         try jointMap.put(self.allocator, entryName.handle(), entry.index);
                     }
 
@@ -236,10 +235,10 @@ pub const MeshPoolBuffers = struct {
                                 var gltfIndex = jointMap.get(jn.handle());
                                 if (gltfIndex == null) {
                                     gltfIndex = 0;
-                                    core.engine_log("ERROR REMAPPING BONE setting to zero {s}", .{jointName});
+                                    // core.engine_log("ERROR REMAPPING BONE setting to zero {s}", .{jointName});
                                 }
 
-                                core.engine_log("remapping bone from {s} ozz {d} -> {d} gltf", .{ jointName, ozzIndex, gltfIndex.? });
+                                // core.engine_log("remapping bone from {s} ozz {d} -> {d} gltf", .{ jointName, ozzIndex, gltfIndex.? });
 
                                 jointRemap.?[ozzIndex] = @intCast(gltfIndex.?);
                             }
@@ -576,7 +575,7 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
         core.engine_log("skin found, building joint map", .{});
         if (parser.data.skins.items[0].skeleton) |skeletonIndex| {
             for (parser.data.nodes.items[skeletonIndex..], 0..) |node, i| {
-                core.engine_log("gltf: {s} -> {d} (skeleton index)", .{ node.name, i });
+                // core.engine_log("gltf: {s} -> {d} (skeleton index)", .{ node.name, i });
                 const gcAllocator = graphics.getContext().allocator;
                 try jointNameList.append(.{ .index = @intCast(i), .name = try gcAllocator.dupe(u8, node.name) });
             }
@@ -584,13 +583,13 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
             if (parser.data.skins.items[0].joints.items.len > 0) {
                 for (parser.data.skins.items[0].joints.items, 0..) |i, j| {
                     const node = parser.data.nodes.items[i];
-                    core.engine_log("gltf: {s} -> {d} (joints map)", .{ node.name, j });
+                    // core.engine_log("gltf: {s} -> {d} (joints map)", .{ node.name, j });
                     const gcAllocator = graphics.getContext().allocator;
                     try jointNameList.append(.{ .index = @intCast(j), .name = try gcAllocator.dupe(u8, node.name) });
                 }
             } else {
                 for (parser.data.nodes.items, 0..) |node, i| {
-                    core.engine_log("gltf: {s} -> {d} (fallback)", .{ node.name, i });
+                    // core.engine_log("gltf: {s} -> {d} (fallback)", .{ node.name, i });
                     const gcAllocator = graphics.getContext().allocator;
                     try jointNameList.append(.{ .index = @intCast(i), .name = try gcAllocator.dupe(u8, node.name) });
                 }
