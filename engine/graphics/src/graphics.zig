@@ -115,7 +115,7 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
     vk_renderer.gContext = context;
 
-    const as = try core.createObject(AnimationSystem, .{ .can_tick = true });
+    const as = try core.createObject(AnimationSystem, .{ .can_tick = false });
     try animation_loaders.initLoaders();
 
     try registerRendererPlugin(as);

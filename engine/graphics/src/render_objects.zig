@@ -282,7 +282,7 @@ pub const Camera = struct {
         // handle world transforms
         {
             var base = core.zm.identity();
-            base = mul(core.zm.rotationY(self.yaw), base);
+            base = mul(core.zm.rotationY(-self.yaw), base);
             base = mul(core.zm.rotationX(self.pitch), base);
             base = mul(core.zm.rotationZ(self.roll), base);
 
@@ -301,7 +301,7 @@ pub const Camera = struct {
 
         // calculate viewProjections
         {
-            var base = core.zm.rotationY(-self.yaw + core.radians(180.0));
+            var base = core.zm.rotationY(self.yaw + core.radians(180.0));
             base = mul(base, core.zm.rotationX(self.pitch));
             base = mul(base, core.zm.rotationZ(self.roll));
             self.transform = base;

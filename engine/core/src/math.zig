@@ -546,8 +546,13 @@ pub const Rotation = struct {
         };
     }
 
-    pub fn rotateVector(self: @This(), other: anytype) @TypeOf(other) {
-        return zm.mul(zm.quatToMat(self.quat), other.toZm());
+    pub fn rotateVector(self: @This(), other: Vectorf) Vectorf {
+        return Vectorf.fromZm(
+            zm.mul(
+                zm.quatToMat(self.quat),
+                other.toZm(),
+            ),
+        );
     }
 };
 

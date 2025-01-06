@@ -99,8 +99,8 @@ pub const GameContext = struct {
 
     cameraHorizontalRotationMat: core.Mat, // fp camera controls
     movementInput: core.Vectorf = core.Vectorf.new(0.0, 0.0, 0.0), // fp camera controls
-    eulerX: f32 = 0, // camera controls
-    eulerY: f32 = 0, // camera controls
+    yaw: f32 = 0, // camera controls
+    pitch: f32 = 0, // camera controls
 
     vulkanValidation: bool = true,
 
@@ -130,7 +130,7 @@ pub const GameContext = struct {
         self.camera.fov = 70.0;
         self.camera.position = .{ .x = 0.0, .y = 6.5, .z = 0 };
         self.camera.updateCamera();
-        self.camera.resolve(self.cameraHorizontalRotationMat);
+        self.camera.resolve();
 
         return self;
     }
@@ -146,22 +146,23 @@ pub const GameContext = struct {
         const dy = @as(f32, @floatCast(position.y - (@as(f32, @floatCast(lastYPos)))));
 
         if (!platform.getInstance().cursorEnabled) {
-            self.eulerX += dx / 1920;
-            self.eulerY -= dy / 1080;
-            self.eulerY = std.math.clamp(gGame.eulerY, core.radians(-90.0), core.radians(90.0));
+            self.yaw += dx / 1920;
+            self.pitch += dy / 1080;
+            self.pitch = std.math.clamp(gGame.pitch, core.radians(-90.0), core.radians(90.0));
         }
 
         lastXPos = position.x;
         lastYPos = position.y;
 
-        self.camera.setRotationEuler(self.eulerY, 0, 0);
-        self.cameraHorizontalRotationMat = core.zm.matFromRollPitchYaw(0, self.eulerX, 0);
+        // self.camera.setRotationEuler(self.pitch, 0, 0);
+        self.camera.yaw = self.yaw;
+        self.camera.pitch = self.pitch;
 
-        var moveRot = core.Vectorf.fromZm(core.zm.mul(self.cameraHorizontalRotationMat, self.movementInput.normalize().toZm()));
+        var moveRot = core.Rotation.eulerY(self.yaw).rotateVector(self.movementInput.normalize());
         self.camera.position = self.camera.position.add(moveRot.fmul(10.0).fmul(@as(f32, @floatCast(deltaTime))));
 
         self.camera.updateCamera();
-        self.camera.resolve(self.cameraHorizontalRotationMat);
+        self.camera.resolve();
 
         var i: f32 = 0;
         while (i < 1000) : (i += 1) {

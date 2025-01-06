@@ -327,6 +327,8 @@ pub fn tick(self: *@This(), deltaTime: f64) void {
     }) catch unreachable;
 
     self.papyrusCtx.pushDebugText("  renderthread (ms): {d:.4}", .{core.getEngine().renderThreadTime * 1000.0}) catch unreachable;
+
+    // for(core.getEngine().)
 }
 
 pub fn buildTextPipeline(self: *@This()) !void {

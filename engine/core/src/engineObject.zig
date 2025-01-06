@@ -83,7 +83,7 @@ pub const EngineObjectVTable = struct {
             const Wrapped = struct {
                 pub fn func(pointer: *anyopaque, deltaTime: f64) EngineDataEventError!void {
                     var ptr = @as(*TargetType, @ptrCast(@alignCast(pointer)));
-                    try ptr.preTick(deltaTime);
+                    ptr.preTick(deltaTime) catch return error.UnknownStatePanic;
                 }
             };
 

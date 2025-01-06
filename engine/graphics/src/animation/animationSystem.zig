@@ -12,7 +12,6 @@ pub const Skeleton = struct {
     pub fn buildJointMap(self: *@This(), allocator: std.mem.Allocator) !void {
         for (self.sk.getJointsList(), 0..) |jointName, i| {
             const str = std.mem.span(jointName);
-            // core.engine_log("ozz: joint {s} -> {d}", .{ str, i });
             try self.jointMapping.put(allocator, str, @intCast(i));
         }
     }
@@ -205,7 +204,7 @@ pub const AnimationSystem = struct {
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
     pub const RendererInterfaceVTable = graphics.RendererInterface.from(@This());
 
-    pub fn tick(self: *@This(), dt: f64) void {
+    pub fn preTick(self: *@This(), dt: f64) !void {
         _ = self;
 
         for (Animator.BaseContainer.list.items) |animator| {
