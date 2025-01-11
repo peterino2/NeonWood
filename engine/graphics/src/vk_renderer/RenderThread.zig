@@ -45,7 +45,7 @@ isMinimized: std.atomic.Value(bool),
 
 // acquireNextFrame will prime an already allocated semaphore at the same time it
 // returns an index.
-// with triple buffering we can't garutee which index will be acquired next.
+// with double buffering we can't garutee which index will be acquired next.
 // and we can't risk acquiring a semaphore that is already in flight.
 // therefore this extraSemaphore shall act as an empty spot in the semaphore queue
 emptyAcquireSemaphore: vk.Semaphore = undefined,
@@ -60,10 +60,6 @@ plugins: *const std.ArrayListUnmanaged(RendererInterfaceRef),
 meshPool: *MeshPoolBuffers = undefined,
 
 listeners: std.ArrayListUnmanaged(ProcessEventListener) = .{},
-
-// DEBUG DO NOT USE
-skinning: std.ArrayListUnmanaged(core.Mat) = .{},
-skinningLock: std.Thread.Mutex = .{},
 
 const ProcessEventListener = struct {
     ptr: *anyopaque,
@@ -698,6 +694,7 @@ fn getNextSwapImage(self: *@This()) !u32 {
         .null_handle,
     )).image_index;
 
+    // core.assert(imageIndex < 2) catch @panic("swap index > 2??");
     // load the newly primed semaphore for the acquire operation into the next slot
     std.mem.swap(
         vk.Semaphore,

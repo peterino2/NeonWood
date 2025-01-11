@@ -30,6 +30,12 @@ pub const AnimationTrack = struct {
     }
 };
 
+pub const PlaybackTrack = struct {
+    track: ?*AnimationTrack = null,
+    playback: f32 = 0.0,
+    playbackRate: f32 = 1.0,
+};
+
 pub const Animator = struct {
     animationName: ?core.Name = null,
     skeleton: ?*Skeleton = null,
@@ -287,7 +293,13 @@ pub const AnimationSystem = struct {
 
         for (Animator.BaseContainer.list.items) |animator| {
             var upload: MatrixUploads = .{ .offset = animator.finalsSpan.start };
-            // core.engine_log("finalsSpan size offset{d} {d} animator finals {d}\n", .{ animator.finalsSpan.start, animator.finalsSpan.size, animator.finals.items.len });
+            // core.engine_log(
+            // "finalsSpan size offset{d} {d} animator finals {d}\n",
+            // .{
+            //      animator.finalsSpan.start,1
+            //      animator.finalsSpan.size,
+            //      animator.finals.items.len
+            //  });
 
             upload.matrices.resize(allocator, animator.finalsSpan.size) catch unreachable;
 

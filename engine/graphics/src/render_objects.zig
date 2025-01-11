@@ -278,8 +278,6 @@ pub const Camera = struct {
     }
 
     pub fn resolve(self: *Camera) void {
-
-        // handle world transforms
         {
             var base = core.zm.identity();
             base = mul(core.zm.rotationY(-self.yaw), base);
@@ -291,12 +289,6 @@ pub const Camera = struct {
             };
 
             self.worldTransform = mul(base, pr2.toTransform());
-
-            // self.worldTransform = core.zm.mul(
-            //     base,
-            //     posRot.toTransform(),
-            //     //mul(, base),
-            // );
         }
 
         // calculate viewProjections

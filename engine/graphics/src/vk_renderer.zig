@@ -260,6 +260,7 @@ pub const NeonVkContext = struct {
     swapImages: ArrayList(NeonVkSwapImage),
     framebuffers: ArrayList(vk.Framebuffer),
     nextFrameIndex: u32,
+    frameIndex: u32,
     rendererTime: f64,
 
     depthFormat: vk.Format,
@@ -399,6 +400,7 @@ pub const NeonVkContext = struct {
         self.allocator = allocator;
         self.swapchain = .null_handle;
         self.nextFrameIndex = 0;
+        self.frameIndex = 0;
         self.rendererTime = 0;
         self.shouldShowDebug = false;
         self.mode = 0;
@@ -1163,11 +1165,10 @@ pub const NeonVkContext = struct {
         var z1 = tracy.ZoneNC(@src(), "advance frame index", 0x11111100);
         defer z1.End();
 
-        const fi = self.nextFrameIndex;
-        while (self.renderthread.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
+        self.frameIndex = self.nextFrameIndex;
         self.nextFrameIndex = (self.nextFrameIndex + 1) % @as(u32, @intCast(vk_constants.NUM_FRAMES));
 
-        return fi;
+        return self.frameIndex;
     }
 
     pub fn engineDraw(self: *Self, dt: f64) void {
@@ -1175,15 +1176,22 @@ pub const NeonVkContext = struct {
 
         core.gScene.updateTransforms();
 
-        var frameIndex: u32 = 0;
+        var frameIndex: u32 = self.frameIndex;
 
         if (!self.renderthread.minimized()) {
-            frameIndex = self.advanceFrameIndexRt(); //self.renderthread.acquireNextFrame() catch unreachable;
+            frameIndex = self.advanceFrameIndexRt();
+            core.assert(frameIndex < 2) catch @panic("frame index > 2");
         }
 
         var z2 = tracy.ZoneN(@src(), "renderer tick");
         self.sendSharedData(frameIndex) catch unreachable;
         self.sendSharedDataPlugins(frameIndex);
+
+        if (!self.renderthread.minimized()) {
+            var z1 = tracy.ZoneNC(@src(), "advance frame index", 0x11111100);
+            while (self.renderthread.framesInFlight.cmpxchgStrong(0, 1, .seq_cst, .acquire) != null) {}
+            z1.End();
+        }
 
         if (!self.renderthread.minimized()) {
             self.renderthread.dispatchNextFrame(dt, frameIndex) catch unreachable;
