@@ -94,6 +94,10 @@ const UploadList = struct {
 
 var gMeshPoolBuffer: *MeshPoolBuffers = undefined;
 
+pub fn getMeshPoolAllocator() std.mem.Allocator {
+    return gMeshPoolBuffer.allocator;
+}
+
 const MeshVertexTransmute = extern struct { data: [@sizeOf(MeshVertex)]u8 };
 
 pub const IndexedMesh = struct {
@@ -213,6 +217,7 @@ pub const MeshPoolBuffers = struct {
 
                     for (new.jointNames) |entry| {
                         var entryName = core.MakeName(entry.name);
+                        // core.engine_log("gtlf bone found {s} -> {d}", .{ entry.name, entry.index });
                         try jointMap.put(self.allocator, entryName.handle(), entry.index);
                     }
 
@@ -702,6 +707,10 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
     // core.graphics_log("[{s}] vertex count vertices={d} indices={d}", .{ path, rv.new.vertices.len, rv.new.indices.len });
 
     // try gMeshPoolBuffer.updateRequests.pushLocked(rv);
+}
+
+pub fn pushMeshUpdateRequest(update: MeshUpdate) !void {
+    try gMeshPoolBuffer.updateRequests.pushLocked(update);
 }
 
 pub fn loadIndexedMeshForPoolingObj(meshName: core.Name, path: []const u8) !void {

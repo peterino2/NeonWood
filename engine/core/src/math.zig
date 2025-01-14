@@ -214,6 +214,10 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
         pub const Ones = @This(){ .x = 1, .y = 1, .z = 1 };
         pub const Zeroes = @This(){ .x = 0, .y = 0, .z = 0 };
 
+        pub const Up = @This(){ .y = 1 };
+        pub const Right = @This(){ .x = 1 };
+        pub const Forward = @This(){ .z = 1 };
+
         // LUA BEGIN
         pub const PodDataTable: pod.DataTable = .{
             .name = typeName,
@@ -375,6 +379,22 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
                 .x = std.math.clamp(self.x, -abs, abs),
                 .y = std.math.clamp(self.y, -abs, abs),
                 .z = std.math.clamp(self.z, -abs, abs),
+            };
+        }
+
+        pub inline fn cross(self: @This(), other: @This()) @This() {
+            return .{
+                .x = self.y * other.z - self.z * other.y,
+                .y = self.z * other.x - self.x * other.z,
+                .z = self.x * other.y - self.y * other.x,
+            };
+        }
+
+        pub fn lerp(self: @This(), other: @This(), alpha: anytype) @This() {
+            return .{
+                .x = std.math.lerp(self.x, other.x, alpha),
+                .y = std.math.lerp(self.y, other.y, alpha),
+                .z = std.math.lerp(self.z, other.z, alpha),
             };
         }
 

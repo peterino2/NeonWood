@@ -212,6 +212,8 @@ pub const AnimationSystem = struct {
 
     pub fn preTick(self: *@This(), dt: f64) !void {
         _ = self;
+        var z1 = core.tracy.ZoneN(@src(), "animation system tick");
+        defer z1.End();
 
         for (Animator.BaseContainer.list.items) |animator| {
             animator.update(dt);

@@ -44,8 +44,9 @@ pub const Mesh = mesh.Mesh;
 pub const DynamicMesh = mesh.DynamicMesh;
 pub const IndexBuffer = mesh.IndexBuffer;
 pub const Texture = texture.Texture;
+pub const MeshVertex = mesh.MeshVertex;
 
-const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
+pub const mesh_pool = @import("vk_renderer/vk_mesh_pool.zig");
 pub const MeshSourceType = mesh_pool.MeshSourceType;
 pub const loadIndexedMeshForPooling = mesh_pool.loadIndexedMeshForPooling;
 pub const getMeshPoolBuffers = mesh_pool.getMeshPoolBuffers;

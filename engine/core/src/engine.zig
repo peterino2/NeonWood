@@ -191,6 +191,8 @@ pub const Engine = struct {
 
         const newTime = time.getEngineTime();
 
+        var z1 = tracy.ZoneN(@src(), "time updates");
+
         if (self.first) {
             self.first = false;
             self.engineStartTime = newTime;
@@ -199,16 +201,21 @@ pub const Engine = struct {
 
         self.deltaTime = newTime - self.lastEngineTime;
         math.rollingAverage(&self.averageFrameTime, self.deltaTime, @floatFromInt(self.averageFrameSampleWindow));
+        z1.End();
 
+        var z2 = tracy.ZoneN(@src(), "debug updates");
         for (self.delegates.onFrameDebugInfoEmitted.items) |l| {
             try l.func(l.ctx, self.averageFrameTime);
         }
+        z2.End();
 
         self.frameNumber += 1;
 
+        var z3 = tracy.ZoneN(@src(), "platform event updates");
         if (self.platformProcEventsFunc) |procEventsFn| {
             try procEventsFn(self.platformCtx, self.frameNumber);
         }
+        z3.End();
 
         for (self.eventors.items) |*objectRef| {
             objectRef.vtable.processEvents.?(objectRef.ptr, self.frameNumber) catch @panic("process event error");
@@ -216,10 +223,13 @@ pub const Engine = struct {
 
         self.nfdRuntime.processCallbacks();
 
+        var z4 = tracy.ZoneN(@src(), "pretick event updates");
         for (self.preTickables.items) |*objectRef| {
             objectRef.vtable.preTick_func.?(objectRef.ptr, self.deltaTime) catch @panic("pretick event error");
         }
+        z4.End();
 
+        var z5 = tracy.ZoneN(@src(), "system object ticks");
         var index: isize = @as(isize, @intCast(self.tickables.items.len)) - 1;
         while (index >= 0) : (index -= 1) {
             var z = tracy.Zone(@src());
@@ -228,6 +238,7 @@ pub const Engine = struct {
             z.Name(objectRef.vtable.typeName);
             z.End();
         }
+        z5.End();
 
         const systemsThreadTime: f64 = time.getEngineTime() - newTime;
 

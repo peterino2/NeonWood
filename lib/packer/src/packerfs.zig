@@ -40,6 +40,10 @@ pub const PackerBytesMapping = struct {
     mappingId: usize,
     fileEntryId: usize,
     inMemory: bool,
+
+    pub inline fn bytesNoEnd(self: @This()) []const u8 {
+        return self.bytes[0 .. self.bytes.len - 1];
+    }
 };
 
 pub const Settings = struct {

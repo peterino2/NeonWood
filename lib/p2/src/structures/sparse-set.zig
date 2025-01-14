@@ -464,6 +464,10 @@ pub fn SparseSetAdvanced(comptime T: type, comptime SparseSize: u32) type {
 
         // Will fail if the handle already exists.
         pub fn createWithHandle(self: *@This(), handle: SetHandle, initValue: T) !ConstructResult {
+            if (handle.index >= DefaultSparseSize) {
+                std.debug.print("this should never happen handle index is huge: {d}\n", .{handle.index});
+                @panic("impossible handle");
+            }
             var currentDenseHandle = self.sparse[handle.index];
             if (currentDenseHandle.alive) {
                 return error.ObjectAlreadyExists;
