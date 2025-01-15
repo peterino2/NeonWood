@@ -315,7 +315,7 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
         }
 
         pub inline fn dot(self: @This(), other: @This()) T {
-            return self.x * other.x + self.y * other.y;
+            return self.x * other.x + self.y * other.y + self.z * other.z;
         }
 
         pub inline fn equals(self: @This(), other: @This()) bool {
