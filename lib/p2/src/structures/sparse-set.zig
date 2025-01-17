@@ -664,8 +664,8 @@ pub fn SparseMap(comptime T: type) type {
 
         pub const EcsContainerInterfaceVTable = EcsContainerInterface.Implement(@This());
 
-        pub fn get(self: @This(), handle: SetHandle) *anyopaque {
-            return self.map.get(handle).?;
+        pub fn get(self: @This(), handle: SetHandle) ?*anyopaque {
+            return self.map.get(handle);
         }
 
         pub fn handleExists(self: @This(), handle: SetHandle) bool {
@@ -701,7 +701,7 @@ const interface = @import("interface.zig");
 pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterfaceVTable", struct {
     containerTypeName: []const u8,
     handleExists: *const fn (*const anyopaque, SetHandle) bool,
-    get: *const fn (*const anyopaque, SetHandle) *anyopaque,
+    get: *const fn (*const anyopaque, SetHandle) ?*anyopaque,
     createWithHandle: *const fn (*anyopaque, SetHandle) *anyopaque,
     getContainerID: *const fn (*const anyopaque) u32,
     onRegister: *const fn (*anyopaque, u32, ContainerListener) void,
@@ -721,7 +721,7 @@ pub const EcsContainerInterface = interface.MakeInterface("EcsContainerInterface
             }
 
             // gets a function. assuming it exists
-            pub fn get(p: *const anyopaque, handle: SetHandle) *anyopaque {
+            pub fn get(p: *const anyopaque, handle: SetHandle) ?*anyopaque {
                 // std.debug.print("get {p}\n", .{p});
                 var ptr = @as(*const TargetType, @ptrCast(@alignCast(p)));
                 if (@hasDecl(TargetType, "getHandleRef")) {

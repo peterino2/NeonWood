@@ -3,6 +3,12 @@ const zphysics = @import("zphysics");
 const core = @import("core");
 const zm = core.zm;
 
+const physicsCollider = @import("physicsCollider.zig");
+pub const PhysicsCollider = physicsCollider.PhysicsCollider;
+
+const physicsCharacter = @import("physicsCharacter.zig");
+pub const PhysicsCharacter = physicsCharacter.PhysicsCharacter;
+
 pub const ObjectLayers = struct {
     pub const non_moving: zphysics.ObjectLayer = 0;
     pub const moving: zphysics.ObjectLayer = 1;
@@ -86,28 +92,18 @@ const ObjectLayerPairFilter = extern struct {
 
 pub const PhysicsRuntime = struct {
     allocator: std.mem.Allocator,
+
     bpli: BroadPhaseLayerInterface,
-    ovbplf: ObjectVsBroadPhaseLayerFilter,
-    olpf: ObjectLayerPairFilter,
-    max_bodies: u32,
+    ovbplf: ObjectVsBroadPhaseLayerFilter = .{},
+    olpf: ObjectLayerPairFilter = .{},
+    max_bodies: u32 = 8192,
 
     system: *zphysics.PhysicsSystem = undefined,
 
-    primBoxSettings: *zphysics.BoxShapeSettings = undefined,
-    primBoxShape: *zphysics.Shape = undefined,
+    shapes: std.AutoHashMapUnmanaged(u32, ShapeRef) = .{},
 
-    primSphereSettings: *zphysics.SphereShapeSettings = undefined,
-    primSphereShape: *zphysics.Shape = undefined,
-
-    floorShapeSettings: *zphysics.BoxShapeSettings = undefined,
-    floorShape: *zphysics.Shape = undefined,
-
-    spherePositions: std.ArrayList(core.Vectorf),
-    sphereRotations: std.ArrayList(core.Quat),
-    sphereIds: std.ArrayList(zphysics.BodyId),
-
-    newBallTime: f64 = 5,
-    offset: f32 = 0,
+    updatePeriod: f64 = 1.0 / 60.0,
+    timeSinceUpdate: f64 = 0.0,
 
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
 
@@ -117,12 +113,6 @@ pub const PhysicsRuntime = struct {
         self.* = .{
             .allocator = allocator,
             .bpli = BroadPhaseLayerInterface.init(),
-            .ovbplf = .{},
-            .olpf = .{},
-            .spherePositions = std.ArrayList(core.Vectorf).init(allocator),
-            .sphereRotations = std.ArrayList(core.Quat).init(allocator),
-            .sphereIds = std.ArrayList(zphysics.BodyId).init(allocator),
-            .max_bodies = 8192,
         };
 
         const system = try zphysics.PhysicsSystem.create(
@@ -131,177 +121,170 @@ pub const PhysicsRuntime = struct {
             @as(*const zphysics.ObjectLayerPairFilter, @ptrCast(&self.olpf)),
             .{
                 .max_bodies = self.max_bodies,
+                .max_body_pairs = self.max_bodies * 2,
+                .max_contact_constraints = self.max_bodies * 2,
                 .num_body_mutexes = 0,
-                .max_body_pairs = 8192 * 2,
-                .max_contact_constraints = 8192 * 2,
             },
         );
 
         self.system = system;
 
-        const bodyInterface = self.system.getBodyInterfaceMut();
-
-        // primBoxSettings: *zphysics.BoxShapeSettings = undefined,
-        // primBoxShape: *zphysics.Shape = undefined,
-
-        // primSphereSettings: *zphysics.SphereShapeSettings = undefined,
-        // primSphereShape: *zphysics.Shape = undefined,
-
-        // setup primitives for settings.
-        self.primBoxSettings = try zphysics.BoxShapeSettings.create(.{ 2.0, 2.0, 2.0 });
-        self.primBoxShape = try self.primBoxSettings.createShape();
-
-        self.primSphereSettings = try zphysics.SphereShapeSettings.create(0.5);
-        self.primSphereShape = try self.primSphereSettings.createShape();
-
-        self.floorShapeSettings = try zphysics.BoxShapeSettings.create(.{ 300, 1, 300 });
-        self.floorShape = try self.floorShapeSettings.createShape();
-
-        // create floor
-        _ = try bodyInterface.createAndAddBody(.{
-            .position = .{ 0, -1, 0, 1 },
-            .rotation = .{ 0, 0, 0, 1 },
-            .shape = self.floorShape,
-            .motion_type = .static,
-            .object_layer = ObjectLayers.non_moving,
-        }, .activate);
-
-        const roomSize = 7;
-        // create up and down walls
-        {
-            const rotation = zm.quatFromMat(zm.rotationZ(core.radians(90.0)));
-            _ = try bodyInterface.createAndAddBody(.{
-                .position = .{ roomSize, -1, 0, 1 },
-                .rotation = rotation,
-                .shape = self.floorShape,
-                .motion_type = .static,
-                .object_layer = ObjectLayers.non_moving,
-            }, .activate);
-
-            _ = try bodyInterface.createAndAddBody(.{
-                .position = .{ -roomSize, -1, 0, 1 },
-                .rotation = rotation,
-                .shape = self.floorShape,
-                .motion_type = .static,
-                .object_layer = ObjectLayers.non_moving,
-            }, .activate);
-        }
-
-        // create left and right walls
-        {
-            const rotation = zm.quatFromMat(zm.rotationX(core.radians(90.0)));
-            _ = try bodyInterface.createAndAddBody(.{
-                .position = .{ 0, -1, -roomSize, 1 },
-                .rotation = rotation,
-                .shape = self.floorShape,
-                .motion_type = .static,
-                .object_layer = ObjectLayers.non_moving,
-            }, .activate);
-
-            _ = try bodyInterface.createAndAddBody(.{
-                .position = .{ 0, -1, roomSize, 1 },
-                .rotation = rotation,
-                .shape = self.floorShape,
-                .motion_type = .static,
-                .object_layer = ObjectLayers.non_moving,
-            }, .activate);
-        }
-
-        for (0..2) |i| {
-            _ = try bodyInterface.createAndAddBody(
-                .{
-                    .position = .{ 0, @as(f32, @floatFromInt(i)) * 1.1 + 1.0, 2, 1 },
-                    .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.primSphereShape,
-                    .motion_type = .dynamic,
-                    .object_layer = ObjectLayers.moving,
-                    .restitution = 0.4,
-                    .angular_velocity = .{ 0, 0, 0, 0 },
-                },
-                .activate,
-            );
-            _ = try bodyInterface.createAndAddBody(
-                .{
-                    .position = .{ 5, @as(f32, @floatFromInt(i)) * 1.1 + 1.0, 2, 1 },
-                    .rotation = .{ 0, 0, 0, 1 },
-                    .shape = self.primSphereShape,
-                    .motion_type = .dynamic,
-                    .restitution = 0.4,
-                    .object_layer = ObjectLayers.moving,
-                    .angular_velocity = .{ 0, 0, 0, 0 },
-                },
-                .activate,
-            );
-        }
-
-        self.system.optimizeBroadPhase();
+        try core.defineComponent(PhysicsCharacter, self.allocator);
+        try core.defineComponent(PhysicsCollider, self.allocator);
 
         return self;
     }
 
-    pub fn updateSpherePositions(self: *@This()) !void {
-        try self.system.getBodyIds(&self.sphereIds);
-        try self.spherePositions.resize(self.sphereIds.items.len);
-        try self.sphereRotations.resize(self.sphereIds.items.len);
+    pub fn tick(self: *@This(), dt: f64) void {
+        self.timeSinceUpdate += dt;
+
+        while (self.timeSinceUpdate > self.updatePeriod) {
+            self.timeSinceUpdate -= self.updatePeriod;
+            self.system.update(@floatCast(self.updatePeriod), .{}) catch unreachable;
+        }
+
+        // todo.. interpolation kinda easy here.
+        self.updateScenes();
+    }
+
+    fn updateScenes(self: *@This()) void {
         const lockInterface = self.system.getBodyLockInterface();
 
-        for (self.sphereIds.items, 0..) |bodyId, i| {
-            var readLock: zphysics.BodyLockRead = .{};
-            readLock.lock(lockInterface, bodyId);
-            defer readLock.unlock();
+        // update colliders
+        for (PhysicsCollider.BaseContainer.list.items) |collider| {
+            if (collider.mobile == false) {
+                continue;
+            }
 
-            if (readLock.body) |body| {
-                self.spherePositions.items[i] = core.Vectorf.fromArray(body.position);
-                self.sphereRotations.items[i] = body.rotation;
+            if (collider.bodyId) |bodyId| {
+                var readLock: zphysics.BodyLockRead = .{};
+                readLock.lock(lockInterface, bodyId);
+                defer readLock.unlock();
+
+                if (readLock.body) |body| {
+                    const scene = collider.entity.get(core.Scene).?;
+                    scene.setPosition(core.Vectorf.fromArray(body.position));
+                    scene.setRotation(.{ .quat = body.rotation });
+                }
             }
         }
     }
 
-    pub fn tick(self: *@This(), dt: f64) void {
-        self.system.update(@floatCast(dt), .{}) catch unreachable;
-        self.updateSpherePositions() catch unreachable;
-
-        // self.newBallTime -= dt;
-
-        // if (self.newBallTime < 0) {
-        //     const bodyInterface = self.system.getBodyInterfaceMut();
-        //     self.newBallTime = 5.0;
-        //     self.offset += 0.01;
-
-        //     _ = bodyInterface.createAndAddBody(
-        //         .{
-        //             .position = .{ 0 + self.offset, 15, 0, 1 },
-        //             .rotation = .{ 0, 0, 0, 1 },
-        //             .shape = self.primSphereShape,
-        //             .motion_type = .dynamic,
-        //             .object_layer = ObjectLayers.moving,
-        //             .restitution = 0.4,
-        //             .angular_velocity = .{ 0, 0, 0, 0 },
-        //             .inertia_multiplier = 30,
-        //         },
-        //         .activate,
-        //     ) catch unreachable;
-
-        //     self.system.optimizeBroadPhase();
-        // }
-    }
-
     pub fn deinit(self: *@This()) void {
         const allocator = self.allocator;
-
-        self.primSphereShape.release();
-        self.primSphereSettings.release();
-
-        self.floorShape.release();
-        self.floorShapeSettings.release();
-
-        self.primBoxShape.release();
-        self.primBoxSettings.release();
-
+        core.undefineComponent(PhysicsCharacter);
+        core.undefineComponent(PhysicsCollider);
         self.system.destroy();
-        self.sphereIds.deinit();
-        self.spherePositions.deinit();
-        self.sphereRotations.deinit();
         allocator.destroy(self);
     }
+
+    pub fn createShape(self: *@This(), name: *core.Name, settings: ShapeSettings) !void {
+        const ref: ShapeRef = .{
+            .settings = settings,
+            .shape = try settings.createShape(),
+        };
+        try self.shapes.put(self.allocator, name.handle(), ref);
+    }
+};
+
+pub const ShapeSettings = union(enum(u8)) {
+    convex: *zphysics.ConvexShapeSettings,
+    box: *zphysics.BoxShapeSettings,
+    sphere: *zphysics.SphereShapeSettings,
+    triangle: *zphysics.TriangleShapeSettings,
+    capsule: *zphysics.CapsuleShapeSettings,
+    taperedCapsule: *zphysics.TaperedCapsuleShapeSettings,
+    cylinder: *zphysics.CylinderShapeSettings,
+    convexHull: *zphysics.ConvexHullShapeSettings,
+    heightField: *zphysics.HeightFieldShapeSettings,
+    mesh: *zphysics.MeshShapeSettings,
+    decorated: *zphysics.DecoratedShapeSettings,
+    compound: *zphysics.CompoundShapeSettings,
+
+    pub fn release(self: @This()) void {
+        switch (self) {
+            .convex => |x| {
+                x.release();
+            },
+            .box => |x| {
+                x.release();
+            },
+            .sphere => |x| {
+                x.release();
+            },
+            .triangle => |x| {
+                x.release();
+            },
+            .capsule => |x| {
+                x.release();
+            },
+            .taperedCapsule => |x| {
+                x.release();
+            },
+            .cylinder => |x| {
+                x.release();
+            },
+            .convexHull => |x| {
+                x.release();
+            },
+            .heightField => |x| {
+                x.release();
+            },
+            .mesh => |x| {
+                x.release();
+            },
+            .decorated => |x| {
+                x.release();
+            },
+            .compound => |x| {
+                x.release();
+            },
+        }
+    }
+
+    pub fn createShape(self: @This()) !*zphysics.Shape {
+        switch (self) {
+            .convex => |x| {
+                return try x.createShape();
+            },
+            .box => |x| {
+                return try x.createShape();
+            },
+            .sphere => |x| {
+                return try x.createShape();
+            },
+            .triangle => |x| {
+                return try x.createShape();
+            },
+            .capsule => |x| {
+                return try x.createShape();
+            },
+            .taperedCapsule => |x| {
+                return try x.createShape();
+            },
+            .cylinder => |x| {
+                return try x.createShape();
+            },
+            .convexHull => |x| {
+                return try x.createShape();
+            },
+            .heightField => |x| {
+                return try x.createShape();
+            },
+            .mesh => |x| {
+                return try x.createShape();
+            },
+            .decorated => |x| {
+                return try x.createShape();
+            },
+            .compound => |x| {
+                return try x.createShape();
+            },
+        }
+    }
+};
+
+pub const ShapeRef = struct {
+    settings: ShapeSettings = undefined,
+    shape: *zphysics.Shape = undefined,
 };

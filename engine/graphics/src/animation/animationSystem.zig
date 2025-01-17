@@ -147,10 +147,10 @@ pub const Animator = struct {
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
 
-            const p: core.zm.Vec = .{ 0, 0, 0, 1 };
-            graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.03, .{
-                .color = if (i == 3) .{ .x = 1 } else .{ .y = 1 },
-            });
+            // const p: core.zm.Vec = .{ 0, 0, 0, 1 };
+            // graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.03, .{
+            //     .color = if (i == 3) .{ .x = 1 } else .{ .y = 1 },
+            // });
 
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
             // joint remap ozz -> gltf

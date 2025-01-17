@@ -476,7 +476,7 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
     for (m.primitives.items) |primitive| {
         if (primitive.indices) |indices| {
             const accessor = parser.data.accessors.items[indices];
-            core.engine_log("index accessor info: {any}", .{accessor});
+            // core.engine_log("index accessor info: {any}", .{accessor});
 
             if (accessor.component_type == .unsigned_short) {
                 var temp = std.ArrayList(u16).init(allocator);
@@ -491,58 +491,46 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
         }
 
         for (primitive.attributes.items) |attribute| {
-            core.engine_log("attribute: {any}", .{attribute});
+            // core.engine_log("attribute: {any}", .{attribute});
 
             switch (attribute) {
                 .position => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any}", .{accessor});
+                    // core.engine_log("accessor info: {any}", .{accessor});
 
                     parser.getDataFromBufferView(f32, &positions, accessor, @alignCast(binaryBytes));
-                    core.engine_log("positions loaded: {d}", .{positions.items.len});
+                    // core.engine_log("positions loaded: {d}", .{positions.items.len});
                 },
                 .normal => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any}", .{accessor});
+                    // core.engine_log("accessor info: {any}", .{accessor});
 
                     parser.getDataFromBufferView(f32, &normals, accessor, @alignCast(binaryBytes));
-                    core.engine_log("normals loaded: {d}", .{normals.items.len});
+                    // core.engine_log("normals loaded: {d}", .{normals.items.len});
                 },
                 .texcoord => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any}", .{accessor});
+                    // core.engine_log("accessor info: {any}", .{accessor});
 
                     parser.getDataFromBufferView(f32, &texcoords, accessor, @alignCast(binaryBytes));
-                    core.engine_log("texcoords loaded: {d}", .{texcoords.items.len});
+                    // core.engine_log("texcoords loaded: {d}", .{texcoords.items.len});
                 },
                 .joints => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any} acecssor index {d}", .{ accessor, x });
+                    // core.engine_log("accessor info: {any} acecssor index {d}", .{ accessor, x });
 
                     if (accessor.component_type == .unsigned_byte) {
                         useJoints8 = true;
                         parser.getDataFromBufferView(u8, &joints8, accessor, @alignCast(binaryBytes));
-                        core.engine_log("joints8 loaded: {d} - {d} {d} {d} {d}", .{
-                            joints8.items.len,
-                            joints8.items[0],
-                            joints8.items[1],
-                            joints8.items[2],
-                            joints8.items[3],
-                        });
+                        // core.engine_log("joints8 loaded: {d} - {d} {d} {d} {d}", .{ joints8.items.len, joints8.items[0], joints8.items[1], joints8.items[2], joints8.items[3] });
                     } else {
                         parser.getDataFromBufferView(u16, &joints, accessor, @alignCast(binaryBytes));
-                        core.engine_log("joints loaded: {d} - {d} {d} {d} {d}", .{
-                            joints.items.len,
-                            joints.items[0],
-                            joints.items[1],
-                            joints.items[2],
-                            joints.items[3],
-                        });
+                        // core.engine_log("joints loaded: {d} - {d} {d} {d} {d}", .{ joints.items.len, joints.items[0], joints.items[1], joints.items[2], joints.items[3] });
                     }
                 },
                 .weights => |x| {
                     const accessor = parser.data.accessors.items[x];
-                    core.engine_log("accessor info: {any}", .{accessor});
+                    // core.engine_log("accessor info: {any}", .{accessor});
 
                     parser.getDataFromBufferView(f32, &weights, accessor, @alignCast(binaryBytes));
 
@@ -550,13 +538,7 @@ pub fn loadIndexedMeshForPoolingGltf(meshName: core.Name, skeletonName: ?core.Na
                         weightCount = 3;
                     }
 
-                    core.engine_log("weights loaded: {d} - {d} {d} {d} {d}", .{
-                        weights.items.len,
-                        weights.items[0],
-                        weights.items[1],
-                        weights.items[2],
-                        weights.items[3],
-                    });
+                    // core.engine_log("weights loaded: {d} - {d} {d} {d} {d}", .{ weights.items.len, weights.items[0], weights.items[1], weights.items[2], weights.items[3] });
                 },
                 .tangent => |x| {
                     const accessor = parser.data.accessors.items[x];

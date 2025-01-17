@@ -307,7 +307,8 @@ pub const Entity = struct {
     }
 
     pub fn get(self: @This(), comptime Component: type) ?*Component {
-        return Component.BaseContainer.get(self.handle);
+        const rv = Component.BaseContainer.get(self.handle);
+        return if (rv == null) null else @ptrCast(@alignCast(rv.?));
     }
 
     pub fn removeComponent(self: @This(), comptime Component: type) void {

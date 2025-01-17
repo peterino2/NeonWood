@@ -3,7 +3,24 @@ const std = @import("std");
 pub const zphysics = @import("zphysics");
 pub const core = @import("core");
 
+pub const PhysicsCollider = @import("physicsCollider.zig").PhysicsCollider;
+
+pub const ConvexShapeSettings = zphysics.ConvexShapeSettings;
+pub const BoxShapeSettings = zphysics.BoxShapeSettings;
+pub const SphereShapeSettings = zphysics.SphereShapeSettings;
+pub const TriangleShapeSettings = zphysics.TriangleShapeSettings;
+pub const CapsuleShapeSettings = zphysics.CapsuleShapeSettings;
+pub const TaperedCapsuleShapeSettings = zphysics.TaperedCapsuleShapeSettings;
+pub const CylinderShapeSettings = zphysics.CylinderShapeSettings;
+pub const ConvexHullShapeSettings = zphysics.ConvexHullShapeSettings;
+pub const HeightFieldShapeSettings = zphysics.HeightFieldShapeSettings;
+pub const MeshShapeSettings = zphysics.MeshShapeSettings;
+pub const DecoratedShapeSettings = zphysics.DecoratedShapeSettings;
+pub const CompoundShapeSettings = zphysics.CompoundShapeSettings;
+
 pub const BodyId = zphysics.BodyId;
+
+pub const ShapeSettings = runtime.ShapeSettings;
 
 pub const BodyCreationSettings = zphysics.BodyCreationSettings;
 pub const Activation = zphysics.Activation;
@@ -17,6 +34,7 @@ pub const PrimitiveType = enum {
     sphere,
 };
 
+// low level helpers - old api
 pub fn addPrimitiveBody(primitive: PrimitiveType, settings: BodyCreationSettings, activationMode: Activation) !BodyId {
     const interface = gPhysicsRuntime.system.getBodyInterfaceMut();
     var s = settings;
@@ -38,11 +56,21 @@ pub fn setBodyPosition(id: BodyId, pos: core.Vectorf) void {
     interface.setPosition(id, pos.toArr3(), .activate);
 }
 
+pub fn setBodyRotation(id: BodyId, rot: core.Rotation) void {
+    const interface = gPhysicsRuntime.system.getBodyInterfaceMut();
+    interface.setRotation(id, rot.quat, .activate);
+}
+
 pub fn optimizeBroadPhase() void {
     gPhysicsRuntime.system.optimizeBroadPhase();
 }
 
 pub var gPhysicsRuntime: *runtime.PhysicsRuntime = undefined;
+
+pub fn addShape(name: []const u8, settings: ShapeSettings) !void {
+    var n = core.MakeName(name);
+    try gPhysicsRuntime.createShape(&n, settings);
+}
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;

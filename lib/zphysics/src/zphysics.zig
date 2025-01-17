@@ -762,10 +762,10 @@ pub const CharacterGroundState = enum(c.JPC_CharacterGroundState) {
 };
 
 pub const BodyCreationSettings = extern struct {
-    position: [4]Real align(rvec_align) = .{ 0, 0, 0, 0 }, // 4th element is ignored
-    rotation: [4]f32 align(16) = .{ 0, 0, 0, 1 },
-    linear_velocity: [4]f32 align(16) = .{ 0, 0, 0, 0 }, // 4th element is ignored
-    angular_velocity: [4]f32 align(16) = .{ 0, 0, 0, 0 }, // 4th element is ignored
+    position: [4]Real align(rvec_align) = .{ 0, 0, 0, 0 }, // 4th element is ignored, also ignored in setupByShape
+    rotation: [4]f32 align(16) = .{ 0, 0, 0, 1 }, // ignored in setupByShape
+    linear_velocity: [4]f32 align(16) = .{ 0, 0, 0, 0 }, // 4th element is ignored // ignored in SetupByShape
+    angular_velocity: [4]f32 align(16) = .{ 0, 0, 0, 0 }, // 4th element is ignored // ignored in SetupByShape
     user_data: u64 = 0,
     object_layer: ObjectLayer = 0,
     collision_group: CollisionGroup = .{},
@@ -786,7 +786,7 @@ pub const BodyCreationSettings = extern struct {
     inertia_multiplier: f32 = 1.0,
     mass_properties_override: MassProperties = .{},
     reserved: ?*const anyopaque = null,
-    shape: ?*const Shape = null,
+    shape: ?*const Shape = null, // ignored in SetupByShape
 
     comptime {
         assert(@sizeOf(BodyCreationSettings) == @sizeOf(c.JPC_BodyCreationSettings));
