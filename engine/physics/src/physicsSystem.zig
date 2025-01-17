@@ -174,6 +174,7 @@ pub const PhysicsRuntime = struct {
         const allocator = self.allocator;
         core.undefineComponent(PhysicsCharacter);
         core.undefineComponent(PhysicsCollider);
+        self.shapes.deinit(self.allocator);
         self.system.destroy();
         allocator.destroy(self);
     }

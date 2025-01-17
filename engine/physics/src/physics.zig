@@ -88,3 +88,8 @@ pub const Module: core.ModuleDescription = .{
     .name = "physics",
     .enabledByDefault = false,
 };
+
+pub fn releaseShape(name: core.Name) void {
+    var n = name;
+    gPhysicsRuntime.shapes.get(n.handle()).?.shape.release();
+}
