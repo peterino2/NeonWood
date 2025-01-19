@@ -21,6 +21,10 @@ pub fn CWrap(comptime Func: anytype) LuaCFunc {
     return Wrap.inner;
 }
 
+pub extern fn setupMiniDump(takeFullDump: bool) callconv(.C) void;
+pub extern fn generateAnException() callconv(.C) void;
+pub extern fn takeDump() callconv(.C) void;
+
 pub fn WrapZigFunc(comptime baseFunc: anytype) LuaCFunc {
     return CWrap(FuncWrapper(baseFunc).wrapper);
 }

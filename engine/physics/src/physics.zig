@@ -4,6 +4,7 @@ pub const zphysics = @import("zphysics");
 pub const core = @import("core");
 
 pub const PhysicsCollider = @import("physicsCollider.zig").PhysicsCollider;
+pub const PhysicsCharacter = @import("physicsCharacter.zig").PhysicsCharacter;
 
 pub const ConvexShapeSettings = zphysics.ConvexShapeSettings;
 pub const BoxShapeSettings = zphysics.BoxShapeSettings;

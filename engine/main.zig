@@ -16,6 +16,7 @@ pub const std_options = std.Options{
 
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, x: ?usize) noreturn {
     core.forceFlush();
+    core.script.lua.takeDump();
     std.debug.panicImpl(error_return_trace, x, msg);
 }
 

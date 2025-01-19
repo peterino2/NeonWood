@@ -44,5 +44,5 @@ void main()
     textureId = objectBuffer.objects[gl_BaseInstance].textureId;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);
     texCoord = vTexCoord;
-    worldPosition = position.xyz;
+    worldPosition = (modelMatrix * vec4(0,0,0,1)).xyz;
 }

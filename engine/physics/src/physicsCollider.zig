@@ -9,7 +9,7 @@ pub const PhysicsCollider = struct {
         self.entity = core.Entity.fromHandle(handle);
 
         if (self.entity.get(PhysicsCharacter) != null) {
-            @panic("adding a physics character to an entity already controlled by physics character... not supported... i think");
+            @panic("adding a physics collider to an entity already controlled by physics character. I don't want to support this");
         }
 
         if (self.entity.get(core.Scene) == null) {
@@ -46,6 +46,7 @@ pub const PhysicsCollider = struct {
 
         self.bodyId = try interface.createAndAddBody(settings, .activate);
         self.mobile = settings.motion_type == .dynamic;
+        self.ready = true;
     }
 
     pub fn applyScene(self: *@This()) void {

@@ -58,6 +58,14 @@ pub fn build(b: *std.Build) void {
 
     luac.addCSourceFile(.{ .file = b.path("src/limited_io.c") });
 
+    if (target.result.os.tag == .windows) {
+        luac.addCSourceFile(.{ .file = b.path("src/minidumpsetup.cpp") });
+        luac.linkLibCpp();
+        luac.linkLibC();
+    } else {
+        luac.addCSourceFile(.{ .file = b.path("src/minidumpstub.cpp") });
+    }
+
     luac.addIncludePath(b.path("lua/src/"));
     luac.addIncludePath(b.path("src/"));
 

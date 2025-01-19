@@ -17,6 +17,7 @@ pub const NwArgs = struct {
     vulkanValidation: bool = true,
     fastTest: bool = false,
     dmt: bool = false, // detailed memory tracking, implements a timeline for tracking all memory allocations
+    fatDump: bool = false, // takes a full fat minidump on crash, very large files are produced
 };
 
 pub fn getArgs() !NwArgs {
@@ -41,7 +42,7 @@ pub fn start_modules(comptime programSpec: anytype, maybeArgs: ?NwArgs, allocato
                 if (maybeArgs) |args| {
                     try Struct.start_module(programSpec, args, allocator);
                 } else {
-                    try Struct.start_module(programSpec, .{}, allocator);
+                    try Struct.start_module(programSpec, NwArgs{}, allocator);
                 }
                 try shutdownList.append(allocator, Struct.shutdown_module);
                 core.engine_logs("module started >>>> " ++ feature ++ " <<<<");

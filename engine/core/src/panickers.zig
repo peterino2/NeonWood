@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const os = std.os;
 const windows = std.os.windows;
 const core = @import("core.zig");
+const lua = @import("lua");
 
 fn handleSegfaultWindows(info: *windows.EXCEPTION_POINTERS) callconv(windows.WINAPI) c_long {
     switch (info.ExceptionRecord.ExceptionCode) {
@@ -39,6 +40,7 @@ fn handleSegfaultWindowsExtra(
     const exception_address = @intFromPtr(info.ExceptionRecord.ExceptionAddress);
     core.engine_logs("PANIC!!");
     core.forceFlush();
+
     if (!@hasDecl(windows, "CONTEXT")) {
         switch (msg) {
             0 => {

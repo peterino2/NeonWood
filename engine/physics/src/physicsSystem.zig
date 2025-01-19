@@ -136,21 +136,28 @@ pub const PhysicsRuntime = struct {
     }
 
     pub fn tick(self: *@This(), dt: f64) void {
-        self.timeSinceUpdate += dt;
+        // self.timeSinceUpdate += dt;
 
-        while (self.timeSinceUpdate > self.updatePeriod) {
-            self.timeSinceUpdate -= self.updatePeriod;
-            self.system.update(@floatCast(self.updatePeriod), .{}) catch unreachable;
-        }
+        // while (self.timeSinceUpdate > self.updatePeriod) {
+        //     self.timeSinceUpdate -= self.updatePeriod;
+        //     self.system.update(@floatCast(self.updatePeriod), .{}) catch unreachable;
+        // }
+        self.system.update(@floatCast(dt), .{}) catch unreachable;
 
         // todo.. interpolation kinda easy here.
-        self.updateScenes();
+        self.updateScenes(dt);
     }
 
-    fn updateScenes(self: *@This()) void {
+    fn updateScenes(self: *@This(), dt: f64) void {
         const lockInterface = self.system.getBodyLockInterface();
 
-        // update colliders
+        // update character controllers
+
+        for (PhysicsCharacter.BaseContainer.list.items) |physChar| {
+            physChar.update(dt);
+        }
+
+        // update physics colliders
         for (PhysicsCollider.BaseContainer.list.items) |collider| {
             if (collider.mobile == false) {
                 continue;
@@ -172,6 +179,10 @@ pub const PhysicsRuntime = struct {
 
     pub fn deinit(self: *@This()) void {
         const allocator = self.allocator;
+
+        for (PhysicsCharacter.BaseContainer.list.items) |physChar| {
+            physChar.deinit();
+        }
         core.undefineComponent(PhysicsCharacter);
         core.undefineComponent(PhysicsCollider);
         self.shapes.deinit(self.allocator);

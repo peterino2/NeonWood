@@ -274,6 +274,10 @@ pub fn Vector3Type(comptime T: type, comptime typeName: []const u8) type {
             return .{ self.x, self.y, self.z };
         }
 
+        pub inline fn fromArr3(v: [3]f32) @This() {
+            return .{ .x = v[0], .y = v[1], .z = v[2] };
+        }
+
         pub inline fn toZm(self: @This()) zm.Vec {
             return .{ self.x, self.y, self.z, 1.0 };
         }

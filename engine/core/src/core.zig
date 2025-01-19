@@ -93,6 +93,7 @@ pub const Module = ModuleDescription{
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = programSpec;
+    script.lua.setupMiniDump(args.fatDump);
     _ = try algorithm.createNameRegistry(allocator);
     // LUA BEGIN -- what if i want to make the scripting integration optional?
     try script.start_lua(allocator);

@@ -1,7 +1,7 @@
 // scripting integration using lua
 
 const std = @import("std");
-const lua = @import("lua");
+pub const lua = @import("lua");
 const core = @import("core.zig");
 const startup_script = @embedFile("lua/startup.lua");
 const core_script = @embedFile("lua/core.lua");
