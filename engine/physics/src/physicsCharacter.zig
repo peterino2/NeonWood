@@ -35,7 +35,8 @@ pub const PhysicsCharacter = struct {
 
         settings.base.shape = shape.shape;
         settings.layer = physics.ObjectLayers.moving;
-        settings.mass = 7000;
+        settings.mass = 70;
+        settings.friction = 0.8;
 
         self.character = try zphysics.Character.create(settings, .{ p.x, p.y, p.z }, scene.getRotation().quat, 0, system.system);
 
@@ -67,8 +68,6 @@ pub const PhysicsCharacter = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        _ = self;
-        // @panic("fuck you");
         self.character.removeFromPhysicsSystem(.{});
         self.character.destroy();
     }

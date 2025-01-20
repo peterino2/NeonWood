@@ -5232,4 +5232,13 @@ CIMGUI_API void ImGuiPlatformIO_Set_Platform_GetWindowSize(ImGuiPlatformIO* plat
     platform_io->Platform_GetWindowSize = &Platform_GetWindowSize_hook;
 }
 
+
+extern "C" void takeDump();
+
+extern "C" void NeonWoodAssert(bool Expr)
+{
+    if(!Expr)
+        takeDump();
+}
+
 #endif
