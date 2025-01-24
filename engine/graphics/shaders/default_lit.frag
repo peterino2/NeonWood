@@ -7,6 +7,7 @@ layout (location = 0) in vec3 in_color;
 layout (location = 1) in vec2 texCoord;
 layout (location = 2) in vec3 worldPosition;
 layout (location = 3) flat in uint textureId;
+layout (location = 4) flat in uint baseInstance;
 
 layout (location = 0) out vec4 outFragColor;
 

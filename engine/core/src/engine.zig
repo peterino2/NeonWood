@@ -199,7 +199,14 @@ pub const Engine = struct {
             self.lastEngineTime = newTime;
         }
 
-        self.deltaTime = newTime - self.lastEngineTime;
+        if (newTime < self.lastEngineTime) {
+            std.debug.print("Warning! negative deltaTime? clamping to 0.0 newTime: {d} lastEngineTime:{d}", .{
+                newTime,
+                self.lastEngineTime,
+            });
+        }
+
+        self.deltaTime = @max(newTime - self.lastEngineTime, 0.0);
         math.rollingAverage(&self.averageFrameTime, self.deltaTime, @floatFromInt(self.averageFrameSampleWindow));
         z1.End();
 

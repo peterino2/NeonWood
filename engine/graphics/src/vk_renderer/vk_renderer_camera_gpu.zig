@@ -12,6 +12,7 @@ pub const NeonVkCameraDataGpu = extern struct {
     view: Mat,
     proj: Mat,
     viewproj: Mat,
+    viewprojAlt: Mat,
     position: Vectorf,
 
     pub fn upload(self: @This(), data: [*]u8) void {
@@ -33,6 +34,7 @@ pub fn memcpyCameraDataToStagedBuffer(camera: *const Camera, data: [*]u8) void {
         .proj = camera.projection,
         .view = camera.transform,
         .viewproj = camera.final,
+        .viewprojAlt = camera.finalAlt,
         .position = camera.position,
     };
 
@@ -53,6 +55,7 @@ pub fn uploadNullCameraToBuffer(data: [*]u8) void {
         .proj = core.zm.identity(),
         .view = core.zm.identity(),
         .viewproj = core.zm.identity(),
+        .viewprojAlt = core.zm.identity(),
         .position = .{},
     };
 

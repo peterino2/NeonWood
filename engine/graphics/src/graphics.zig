@@ -10,6 +10,7 @@ const materials = @import("materials.zig");
 
 pub usingnamespace @import("debug_draws.zig");
 pub const gpu_pipe_data = @import("gpu_pipe_data.zig");
+pub const BoneHandle = animation_system.BoneHandle;
 
 pub const SkyboxSystem = @import("skybox.zig");
 pub const setSkybox = SkyboxSystem.setSkybox;

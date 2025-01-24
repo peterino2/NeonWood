@@ -819,7 +819,7 @@ pub const NeonVkContext = struct {
         // create object set bindings
         // object set is really per frame rendering buffers.
 
-        const objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 0);
+        const objectBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true, .fragment_bit = true }, 0);
         const animationBinding = vkinit.descriptorSetLayoutBinding(.storage_buffer, .{ .vertex_bit = true }, 1);
         var objectBindings = [_]@TypeOf(objectBinding){ objectBinding, animationBinding };
 
@@ -1231,6 +1231,7 @@ pub const NeonVkContext = struct {
             shared.cameraData.view = camera.transform;
             shared.cameraData.proj = camera.projection;
             shared.cameraData.viewproj = camera.final;
+            shared.cameraData.viewprojAlt = camera.finalAlt;
             shared.cameraData.position = camera.position;
         }
         shared.sceneData.fogColor = [4]f32{ 0.005, 0.005, 0.005, 1.0 };
@@ -1275,12 +1276,13 @@ pub const NeonVkContext = struct {
                     gpuData.textureId = self.textureIds.get(missingTextureName.handle()).?;
                 }
 
-                // DEBUG ANIMATION AHFDJKASHFJKAS
                 if (object.animated) {
                     gpuData.animation = @intCast(object.animator.?.finalsSpan.start);
                 } else {
                     gpuData.animation = -1;
                 }
+
+                gpuData.flags0 = @bitCast(object.flags);
 
                 objectData.* = .{
                     // .textureSet = if (object.textureId != null) object.texture.? else self.meshMaterial.textureSet,

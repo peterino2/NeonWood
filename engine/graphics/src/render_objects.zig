@@ -45,6 +45,8 @@ pub const StaticMesh = struct {
     animated: bool = false, // todo remove
     animator: ?*Animator = null,
 
+    flags: Flags0 = .{},
+
     pub var BaseContainer: *StaticMeshSet = undefined;
     pub const ComponentName = "StaticMesh";
 
@@ -54,6 +56,12 @@ pub const StaticMesh = struct {
         "applyRelativeRotationZ",
         "setMesh",
         "setTextureByName",
+    };
+
+    pub const Flags0 = packed struct(u32) {
+        alwaysInFront: bool = false,
+        useAltFov: bool = false,
+        _pad: u30 = 0,
     };
 
     pub fn setMeshByName(self: *@This(), meshName: core.Name) void {
@@ -208,14 +216,10 @@ const ecs = core.ecs;
 
 pub const Camera = struct {
     fov: f32 = 70.0,
+    altFov: f32 = 70.0,
     aspect: f32 = 16.0 / 9.0,
     near_clipping: f32 = 0.1,
-    far_clipping: f32 = 2000.0,
-
-    fov_cache: f32 = 70.0,
-    aspect_cache: f32 = 16.0 / 9.0,
-    near_clipping_cache: f32 = 0.1,
-    far_clipping_cache: f32 = 2000.0,
+    far_clipping: f32 = 10000.0,
 
     position: Vectorf = Vectorf{ .x = 0.0, .y = 0.0, .z = 0.0 },
     rotation: Quat, // todo, remove, we only work with euler tracks now for camera.
@@ -233,22 +237,17 @@ pub const Camera = struct {
         0.1,
         200000,
     ),
+    projectionAlt: Mat = makePerspective(
+        core.radians(70.0), // angle
+        16.0 / 9.0,
+        0.0001,
+        1000,
+    ),
+
     final: Mat = zm.identity(),
+    finalAlt: Mat = zm.identity(),
 
     pub const EcsComponentDefinition = ecs.DefineComponent(@This(), .set); // set, map, multiset, maplist
-
-    pub fn isDirty(self: *Camera) bool {
-        if (self.fov_cache != self.fov)
-            return true;
-        if (self.aspect_cache != self.aspect_cache)
-            return true;
-        if (self.near_clipping != self.near_clipping_cache)
-            return true;
-        if (self.far_clipping != self.far_clipping_cache)
-            return true;
-
-        return false;
-    }
 
     pub fn init() Camera {
         return .{
@@ -275,6 +274,11 @@ pub const Camera = struct {
     pub fn updateCamera(self: *Camera) void {
         self.projection = zm.perspectiveFovRh(core.radians(self.fov), 16.0 / 9.0, 0.1, 200000);
         self.projection[1][1] *= -1;
+
+        self.projectionAlt = zm.perspectiveFovRh(core.radians(self.altFov), 16.0 / 9.0, 0.01, 200000);
+        self.projectionAlt[1][1] *= -1;
+
+        // self.projectionAlt = self.projection;
     }
 
     pub fn resolve(self: *Camera) void {
@@ -306,6 +310,7 @@ pub const Camera = struct {
             // position.z *= -1;
             self.transform = mul(zm.translationV(position.fmul(-1).toZm()), self.transform);
             self.final = mul(self.transform, self.projection);
+            self.finalAlt = mul(self.transform, self.projectionAlt);
         }
     }
 };

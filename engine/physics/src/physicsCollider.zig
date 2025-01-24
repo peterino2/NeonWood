@@ -33,7 +33,7 @@ pub const PhysicsCollider = struct {
 
         const scene = self.entity.get(core.Scene).?;
         const p = scene.getPosition();
-        core.engine_log("setting up collider shape {any}", .{p});
+        // core.engine_log("setting up collider shape {any}", .{p});
         settings.position = .{ p.x, p.y, p.z, 1.0 };
         settings.rotation = scene.getRotation().quat;
 

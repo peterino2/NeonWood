@@ -7,6 +7,7 @@ layout (location = 0) out vec3 outColor;
 layout (location = 1) out vec2 texCoord;
 layout (location = 2) out vec3 worldPosition;
 layout (location = 3) flat out uint textureId;
+layout (location = 4) flat out uint baseInstance;
 
 #include "globalSet.glsl"
 #include "sharedSsbo.glsl"
@@ -37,9 +38,26 @@ void main()
     }
 
 	mat4 modelMatrix = objectBuffer.objects[gl_BaseInstance].model;
-    mat4 final = (cameraData.viewproj * modelMatrix);
+
+    mat4 final;
+
+    if(flag0_useAltFov(objectBuffer.objects[gl_BaseInstance].flags0) == 1)
+    {
+        final = (cameraData.viewprojAlt * modelMatrix);
+    }
+    else
+    {
+        final = (cameraData.viewproj * modelMatrix);
+    }
+
     vec4 position = final * vec4(vertexPos, 1.0f);
 
+    if( flag0_AlwaysInFront(objectBuffer.objects[gl_BaseInstance].flags0) == 1)
+    {
+        position.z *= 0.0001;
+    }
+
+    baseInstance = gl_BaseInstance;
 	gl_Position = position;
     textureId = objectBuffer.objects[gl_BaseInstance].textureId;
 	outColor = vec3(vColor.x, vColor.y, vColor.z);

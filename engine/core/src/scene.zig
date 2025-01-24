@@ -51,7 +51,7 @@ pub const SceneObjectSettings = struct {
 pub const SceneObjectRepr = struct {
     // fields intended to be internally used, don't touch them
     // unless you know what you're doing
-    transform: core.Mat = core.zm.identity(),
+    transform: core.Mat = core.zm.identity(), // relative transform against parent, if no parent, then this is world transform
     parent: ?core.ObjectHandle = null,
     attachmentMode: SceneAttachMode = .relative, // doesn't do anything yet, only support relative right now
     transformOverride: ?*core.Transform = null,
@@ -210,6 +210,15 @@ pub const Scene = struct {
         }
     }
 
+    pub fn getAndResolveTransform(self: @This()) core.Transform {
+        const repr: *SceneObjectRepr = SceneObjectContainer.get(self.handle, ._repr).?;
+        if (repr.lastUpdate != gSceneSystem.tickCount) {
+            gSceneSystem.updateTransform(repr, SceneObjectContainer.get(self.handle, .posRot).?);
+        }
+
+        return repr.transform;
+    }
+
     pub fn getTransform(self: @This()) core.Transform {
         return SceneObjectContainer.get(self.handle, ._repr).?.transform;
     }
@@ -331,10 +340,6 @@ pub const SceneSystem = struct {
     }
 
     pub fn updateTransforms(self: *@This()) void {
-        self.tickCount +%= 1;
-        if (self.tickCount == 0) {
-            self.tickCount += 1;
-        }
         // todo. calculate a running load factor for the number of movable objects
         // vs static objects
         // if we have a small amount of movable vs static AND if we have > 1000 objects,
@@ -359,6 +364,14 @@ pub const SceneSystem = struct {
         try core.defineComponent(Scene, allocator);
         Scene.SceneObjectContainer = try SceneObjectSet.create(allocator);
         return self;
+    }
+
+    pub fn preTick(self: *@This(), dt: f64) !void {
+        _ = dt;
+        self.tickCount +%= 1;
+        if (self.tickCount == 0) {
+            self.tickCount += 1;
+        }
     }
 
     pub fn tick(self: *@This(), deltaTime: f64) void {

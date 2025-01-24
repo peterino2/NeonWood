@@ -60,7 +60,8 @@ pub fn build(b: *std.Build) void {
 
     if (target.result.os.tag == .windows) {
         luac.addCSourceFile(.{ .file = b.path("src/minidumpsetup.cpp") });
-        luac.linkLibCpp();
+        if (target.result.abi != .msvc)
+            luac.linkLibCpp();
         luac.linkLibC();
     } else {
         luac.addCSourceFile(.{ .file = b.path("src/minidumpstub.cpp") });

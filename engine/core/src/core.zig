@@ -15,6 +15,7 @@ pub const DebugDrawParams = debug_draw.DebugDrawParams;
 pub const DebugDrawInterface = debug_draw.DebugDrawInterface;
 pub const installDebugDrawInterface = debug_draw.installDebugDrawInterface;
 pub const debugSphere = debug_draw.debugSphere;
+pub const debugSphereTransform = debug_draw.debugSphereTransform;
 pub const debugBox = debug_draw.debugBox;
 pub const debugLine = debug_draw.debugLine;
 pub const script_bindings = script.script_bindings;

@@ -1,8 +1,10 @@
-// big main system for animation
+// big main sy.itemsstem for animation
 
 const ozz = @import("ozz");
 const core = @import("core");
 const std = @import("std");
+
+pub const BoneHandle = enum(u8) { _ };
 
 pub const Skeleton = struct {
     sk: *ozz.Skeleton,
@@ -11,8 +13,17 @@ pub const Skeleton = struct {
 
     pub fn buildJointMap(self: *@This(), allocator: std.mem.Allocator) !void {
         for (self.sk.getJointsList(), 0..) |jointName, i| {
+            // std.debug.print("jointName {d} {s}\n", .{ i, jointName });
             const str = std.mem.span(jointName);
             try self.jointMapping.put(allocator, str, @intCast(i));
+        }
+    }
+
+    pub fn getBoneHandleByName(self: @This(), string: []const u8) ?BoneHandle {
+        if (self.jointMapping.get(string)) |x| {
+            return @enumFromInt(x);
+        } else {
+            return null;
         }
     }
 
@@ -71,8 +82,12 @@ pub const Animator = struct {
             mesh.animator = self;
             self.sjc = ozz.SamplingJobContext.createMaxTracks(256);
         } else {
-            @panic("animator added to an entity that does not have a mesh");
+            @panic("animator added to an entity that does not have a mesh component");
         }
+    }
+
+    pub fn getBoneTransform(self: *@This(), handle: BoneHandle) core.Mat {
+        return @bitCast(self.models.items[@intFromEnum(handle)]);
     }
 
     pub fn setSkeletonByName(self: *@This(), skName: core.Name) !void {
@@ -147,14 +162,15 @@ pub const Animator = struct {
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
 
-            // const p: core.zm.Vec = .{ 0, 0, 0, 1 };
-            // graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.03, .{
-            //     .color = if (i == 3) .{ .x = 1 } else .{ .y = 1 },
-            // });
+            const p: core.zm.Vec = .{ 0, 0, 0, 1 };
+            graphics.debugSphere(core.Vectorf.fromZm(core.zm.mul(p, transform)), 0.03, .{
+                .color = if (i == 15) .{ .x = 1 } else .{ .y = 1 },
+            });
 
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
             // joint remap ozz -> gltf
             if (jointRemap) |jr| {
+                // core.engine_log("{d} xx {d}", .{ i, jr[i] });
                 self.finals.items[@intCast(jr[i])] = final;
             } else {
                 self.finals.items[i] = final;

@@ -41,6 +41,7 @@ pub const GltfToOzz = struct {
             .target = ozz_build.host,
             .optimize = .ReleaseSafe,
         });
+
         exe.linkLibCpp();
         exe.linkLibC();
 
@@ -113,7 +114,9 @@ pub fn build(b: *std.Build) void {
     ozz_cpp.addIncludePath(b.path("ozz-animation/include"));
     ozz_cpp.addIncludePath(b.path("ozz-animation/src"));
     ozz_cpp.linkLibC();
-    ozz_cpp.linkLibCpp();
+
+    if (target.result.abi != .msvc)
+        ozz_cpp.linkLibCpp();
 
     const src_dir = "ozz-animation/src/";
     ozz_cpp.addCSourceFiles(.{

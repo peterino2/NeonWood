@@ -16,6 +16,12 @@ const DebugDrawInterface = struct {
 var gDebugDrawInterface: ?*DebugDrawInterface = null;
 var gDebugDrawAllocator: ?std.mem.Allocator = null;
 
+pub fn debugSphereTransform(t: core.Mat, radius: f32, params: DebugDrawParams) void {
+    if (gDebugDrawInterface) |i| {
+        i.debugSphereFn(core.Vectorf.fromZm(core.zm.mul(core.zm.Vec{ 0, 0, 0, 1 }, t)), radius, params);
+    }
+}
+
 pub fn debugSphere(position: core.Vectorf, radius: f32, params: DebugDrawParams) void {
     if (gDebugDrawInterface) |i| {
         i.debugSphereFn(position, radius, params);

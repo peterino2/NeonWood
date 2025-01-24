@@ -23,7 +23,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     cimgui.linkLibC();
-    cimgui.linkLibCpp();
+    if (target.result.abi != .msvc)
+        cimgui.linkLibCpp();
     cimgui.addIncludePath(b.path("cimgui"));
     cimgui.addIncludePath(b.path("cimplot"));
     cimgui.addIncludePath(b.path("cimgui/imgui"));
