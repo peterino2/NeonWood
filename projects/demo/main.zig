@@ -4,7 +4,6 @@ pub const options = @import("NeonWoodOptions");
 const AnimationDemo = @import("animation-demo.zig").AnimationDemo;
 const ozz = graphics.ozz;
 const memory = core.MemoryTracker;
-const physicsDemo = @import("physics-demo.zig");
 const physics = neonwood.physics;
 
 const core = neonwood.core;
@@ -180,8 +179,6 @@ pub const GameContext = struct {
         }
         self.tickPanel(deltaTime) catch unreachable;
 
-        physicsDemo.tick(self, deltaTime);
-
         if (fastTest and self.time > 10.0) {
             core.signalShutdown();
         }
@@ -324,8 +321,6 @@ pub const GameContext = struct {
             ctx.getText(validation).textSize = 36;
         }
 
-        try physicsDemo.preparePhysics(self);
-
         self.fox2 = try core.createEntity();
         {
             const scene = self.fox2.addComponent(core.Scene).?;
@@ -424,7 +419,6 @@ pub const GameContext = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        physicsDemo.unpreparePhysics(self);
         // self.animationDemo.destroy();
         if (self.panelText != null)
             self.allocator.free(self.panelText.?);

@@ -24,6 +24,10 @@ pub fn setWindowSettings(params: windowing.PlatformParams) void {
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
     _ = programSpec;
+    if (core.isUtility()) {
+        return;
+    }
+
     gPlatformInstance = try allocator.create(windowing.PlatformInstance);
     gPlatformInstance.* = try windowing.PlatformInstance.init(allocator, gStartupParams);
     try gPlatformInstance.setup();
@@ -34,6 +38,10 @@ pub fn getInstance() *windowing.PlatformInstance {
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
+    if (core.isUtility()) {
+        return;
+    }
+
     core.engine_logs("Shutting down platform");
     gPlatformInstance.deinit();
 

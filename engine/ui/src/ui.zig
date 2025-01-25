@@ -25,10 +25,16 @@ pub fn getContext() *papyrus.Context {
     return gPapyrus.papyrusCtx;
 }
 
-pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
+pub fn start_module(comptime spec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
-    _ = programSpec;
+    _ = spec;
     _ = allocator;
+
+    // no initialization
+    if (core.isUtility()) {
+        return;
+    }
+
     gPapyrus = try core.gEngine.createObject(PapyrusSystem, .{ .can_tick = true });
     try gPapyrus.setup(graphics.getContext());
     core.engine_logs("ui start_module");
@@ -37,5 +43,4 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
     _ = allocator;
-    // gPapyrus.shutdown();
 }

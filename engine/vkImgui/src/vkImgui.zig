@@ -217,6 +217,9 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     _ = args;
     _ = programSpec;
     _ = allocator;
+    if (core.isUtility()) {
+        return;
+    }
     const neonVkImgui = try core.createObject(NeonVkImGui, .{});
     try neonVkImgui.setup(graphics.getContext());
 }

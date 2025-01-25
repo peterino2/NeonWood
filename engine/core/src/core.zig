@@ -92,9 +92,31 @@ pub const Module = ModuleDescription{
     .enabledByDefault = true,
 };
 
+var gIsUtility: bool = false;
+
+pub fn isUtility() bool {
+    return gIsUtility;
+}
+
+pub fn checkArgBool(args: anytype, comptime field: []const u8) bool {
+    if (@hasField(@TypeOf(args), "fatDump")) {
+        return @field(args, field);
+    }
+    return false;
+}
+
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
-    _ = programSpec;
-    script.lua.setupMiniDump(args.fatDump);
+    if (@hasField(@TypeOf(programSpec), "utility")) {
+        logs("utility mode - no gui");
+        gIsUtility = true;
+    }
+
+    var fatDump: bool = false;
+    if (checkArgBool(args, "fatDump")) {
+        fatDump = true;
+    }
+
+    script.lua.setupMiniDump(fatDump);
     _ = try algorithm.createNameRegistry(allocator);
     // LUA BEGIN -- what if i want to make the scripting integration optional?
     try script.start_lua(allocator);

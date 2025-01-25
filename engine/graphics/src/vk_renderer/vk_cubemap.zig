@@ -46,6 +46,7 @@ pub fn stageCubeTexture(list: []const []const u8) !LoadAndStageImage {
     const width = pngs[0].size.x;
     const height = pngs[0].size.y;
     try core.assert(width == height);
+    core.engine_log("cubemap dimensionss {d}x{d}", .{ width, height });
 
     var totalLen: u32 = 0;
     for (pngs) |png| {

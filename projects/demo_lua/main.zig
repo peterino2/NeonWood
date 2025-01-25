@@ -24,7 +24,7 @@ pub fn init(allocator: std.mem.Allocator) !*@This() {
     self.camera.fov = 70.0;
     self.camera.position = .{ .x = 0.0, .y = 0, .z = 0 };
     self.camera.updateCamera();
-    self.camera.resolve(core.zm.translation(0, 0, 0));
+    // self.camera.resolve(core.zm.translation(0, 0, 0));
     return self;
 }
 

@@ -106,37 +106,34 @@ const primitives = [_]assets.AssetImportReference{
 
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
-    engine_logs("graphics module starting up...");
+    if (!core.isUtility()) {
+        engine_logs("graphics module starting up...");
 
-    memory.MTPrintStatsDelta();
-    const context: *NeonVkContext = core.gEngine.createObject(
-        NeonVkContext,
-        .{ .can_tick = true, .isCore = true },
-    ) catch unreachable;
-    memory.MTPrintStatsDelta();
+        const context: *NeonVkContext = core.gEngine.createObject(
+            NeonVkContext,
+            .{ .can_tick = true, .isCore = true },
+        ) catch unreachable;
 
-    vk_renderer.gContext = context;
+        vk_renderer.gContext = context;
 
-    const as = try core.createObject(AnimationSystem, .{ .can_tick = false });
-    try animation_loaders.initLoaders();
+        const as = try core.createObject(AnimationSystem, .{ .can_tick = false });
+        try animation_loaders.initLoaders();
 
-    try registerRendererPlugin(as);
+        try registerRendererPlugin(as);
 
-    vk_assetLoaders.init_loaders(allocator) catch unreachable;
-    memory.MTPrintStatsDelta();
+        vk_assetLoaders.init_loaders(allocator) catch unreachable;
 
-    try assets.loadList(primitives);
-    debug_draw.init_debug_draw_subsystem() catch unreachable;
+        try assets.loadList(primitives);
+        debug_draw.init_debug_draw_subsystem() catch unreachable;
 
-    context.skybox = SkyboxSystem.create(context.allocator) catch return core.EngineDataEventError.UnknownStatePanic;
+        context.skybox = SkyboxSystem.create(context.allocator) catch return core.EngineDataEventError.UnknownStatePanic;
+    }
 
     if (@hasField(@TypeOf(programSpec), "cooking")) {
         gCooking = true;
         try texture_cooking.initCooker(allocator);
         try mesh_cooking.initCooker(allocator);
     }
-
-    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
@@ -145,8 +142,10 @@ pub fn shutdown_module(allocator: std.mem.Allocator) void {
         mesh_cooking.deinitCooker();
         texture_cooking.deinitCooker();
     }
-    engine_logs("graphics module shutting down...");
-    vk_renderer.gContext.shutdown();
+    if (!core.isUtility()) {
+        engine_logs("graphics module shutting down...");
+        vk_renderer.gContext.shutdown();
+    }
 }
 
 pub var icon: []const u8 = "content/textures/icon.png";

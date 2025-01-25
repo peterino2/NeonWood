@@ -58,6 +58,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("misc/asset-cooker.zig"),
     });
 
+    _ = nwbuild.addProgram(.{
+        .name = "cook",
+        .desc = "cli utility to cook specific assets",
+        .root_source_file = b.path("misc/cook.zig"),
+    });
+
     const cwd = std.fs.cwd().openDir("tests", .{ .iterate = true }) catch unreachable;
     var iterator = cwd.iterate();
 

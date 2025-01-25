@@ -3,6 +3,7 @@
 const std = @import("std");
 
 pub fn ParseArgs(comptime T: type) !T {
+    // I think i am actually totally cool with leaking this one and leaving it around... just dont spam call this function
     var iter = try std.process.argsWithAllocator(std.heap.c_allocator);
     var args: T = .{};
 

@@ -62,6 +62,7 @@ pub const PackerFS = struct {
     pakMountings: std.ArrayListUnmanaged(PakMounting) = .{},
     contentPaths: std.ArrayListUnmanaged([]u8) = .{},
 
+    stringArena: std.heap.ArenaAllocator,
     settings: Settings = .{},
 
     lock: std.Thread.Mutex = .{},
@@ -111,6 +112,7 @@ pub const PackerFS = struct {
         self.* = .{
             .allocator = allocator,
             .settings = settings,
+            .stringArena = std.heap.ArenaAllocator.init(allocator),
         };
 
         try self.addContentPath("content");
@@ -133,7 +135,7 @@ pub const PackerFS = struct {
 
         const pakMountingIndex = self.pakMountings.items.len;
 
-        try self.pakMountings.append(self.allocator, .{ .filePath = filePath });
+        try self.pakMountings.append(self.allocator, .{ .filePath = try self.stringAlloc().dupe(u8, filePath) });
 
         while (try iterator.next(reader)) |headerEntry| {
             const HeaderName = Name.Make(headerEntry.getFileName());
@@ -161,6 +163,8 @@ pub const PackerFS = struct {
     }
 
     pub fn fileExists(self: *@This(), path: []const u8) bool {
+        self.lock.lock();
+        defer self.lock.unlock();
         var pathName = MakeName(path);
         if (self.fileHandlesByName.get(pathName.handle())) |handle| {
             _ = handle;
@@ -173,7 +177,7 @@ pub const PackerFS = struct {
 
         for (self.contentPaths.items) |contentPath| {
             if (self.loadFileDirect(contentPath, path) catch return false) |mapping| {
-                self.unmap(mapping);
+                self.pakMountings.items[mapping.mappingId].removeMapping(self.allocator, mapping.fileEntryId);
                 return true;
             }
         }
@@ -187,6 +191,7 @@ pub const PackerFS = struct {
 
         var pathName = Name.Make(path);
         if (self.fileHandlesByName.get(pathName.handle())) |fileNameHandle| {
+            // std.debug.print("{s} maps to index {d}\n", .{ path, fileNameHandle });
             if (try self.loadFileByIndexFromPak(fileNameHandle)) |mapping| {
                 return mapping;
             }
@@ -212,11 +217,16 @@ pub const PackerFS = struct {
         try self.fileHeaders.append(self.allocator, headerEntry);
         try self.filePakSources.append(self.allocator, pakMountingIndex);
 
+        // std.debug.print("name {s} nameIndex {d} headerIndex {d}", .{ headerName.utf8(), headerName.handle(), headerIndex });
         try self.fileHandlesByName.put(self.allocator, headerName.handle(), headerIndex);
 
         try p2.assert(self.filePakSources.items.len == self.fileHeaders.items.len);
 
         return headerIndex;
+    }
+
+    fn stringAlloc(self: *@This()) std.mem.Allocator {
+        return self.stringArena.allocator();
     }
 
     fn loadFileDirect(self: *@This(), basePath: []const u8, path: []const u8) !?PackerBytesMapping {
@@ -237,7 +247,7 @@ pub const PackerFS = struct {
 
         const pakMountIndex = self.pakMountings.items.len;
         try self.pakMountings.append(self.allocator, .{
-            .filePath = path,
+            .filePath = try self.stringAlloc().dupe(u8, path),
             .inMemory = true,
         });
 
@@ -273,8 +283,13 @@ pub const PackerFS = struct {
 
         if (!pakMountingRef.isFileMounted()) {
             // std.debug.print("mounting file: {s}\n", .{pakMountingRef.filePath});
+            // std.debug.print("loading mount ref {s}\n", .{pakMountingRef.filePath});
             const fileBytes: []align(8) u8 = @alignCast(p2.loadFileAlloc(pakMountingRef.filePath, 8, self.allocator) catch |err| switch (err) {
                 error.FileNotFound => {
+                    return null;
+                },
+                error.InvalidWtf8 => {
+                    // std.debug.print("failed to load path INVALIDWTF8 {s} {d}\n", .{ pakMountingRef.filePath, index });
                     return null;
                 },
                 else => |narrow| {
@@ -323,6 +338,7 @@ pub const PackerFS = struct {
             self.allocator.free(path);
         }
         self.contentPaths.deinit(self.allocator);
+        self.stringArena.deinit();
         self.lock.unlock();
         self.allocator.destroy(self);
     }

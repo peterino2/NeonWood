@@ -16,6 +16,10 @@ pub var gSoundLoader: *soundEngine.SoundLoader = undefined;
 pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std.mem.Allocator) !void {
     _ = args;
     _ = programSpec;
+    if (core.isUtility()) {
+        return;
+    }
+
     gSoundEngine = core.gEngine.createObject(NeonSoundEngine, .{ .can_tick = true }) catch unreachable;
     gSoundLoader = allocator.create(soundEngine.SoundLoader) catch unreachable;
     gSoundLoader.* = soundEngine.SoundLoader.init(gSoundEngine);
@@ -24,7 +28,6 @@ pub fn start_module(comptime programSpec: anytype, args: anytype, allocator: std
     gSoundEngine.loadSound(core.MakeName("s_test"), "content/sounds/engineTick.wav", .{}) catch unreachable;
 
     core.engine_logs("sound start_module");
-    memory.MTPrintStatsDelta();
 }
 
 pub fn shutdown_module(allocator: std.mem.Allocator) void {
