@@ -37,16 +37,11 @@ pub const PhysicsCollider = struct {
         settings.position = .{ p.x, p.y, p.z, 1.0 };
         settings.rotation = scene.getRotation().quat;
 
-        if (scene.getParent().handle.alive) {
-            // ... FUCK!! need to implement that..... for now just get get the parent's
-            // location and ... yeah... we will need to transform these in
-            // the future.
-            // settings.position = (scene.getParent().get(core.Scene).?.getPosition().add(core.Vectorf.fromZm(settings.position))).toZm();
-        }
-
         self.bodyId = try interface.createAndAddBody(settings, .activate);
         self.mobile = settings.motion_type == .dynamic;
         self.ready = true;
+
+        try system.registerBodyEntity(self.bodyId.?, self.entity);
     }
 
     pub fn applyScene(self: *@This()) void {
@@ -59,6 +54,8 @@ pub const PhysicsCollider = struct {
     }
 
     pub fn deinit(self: *@This()) void {
+        // todo.
+        // try system.bodyIdToEntityMap.remove(self.bodyId);
         _ = self;
     }
 

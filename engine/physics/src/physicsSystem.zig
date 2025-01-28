@@ -104,8 +104,13 @@ pub const PhysicsRuntime = struct {
 
     updatePeriod: f64 = 1.0 / 60.0,
     timeSinceUpdate: f64 = 0.0,
+    idToEntity: std.AutoHashMapUnmanaged(zphysics.BodyId, core.Entity) = .{},
 
     pub var NeonObjectTable: core.EngineObjectVTable = core.EngineObjectVTable.from(@This());
+
+    pub fn registerBodyEntity(self: *@This(), bodyId: zphysics.BodyId, entity: core.Entity) !void {
+        try self.idToEntity.put(self.allocator, bodyId, entity);
+    }
 
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         const self = try allocator.create(@This());
@@ -183,6 +188,7 @@ pub const PhysicsRuntime = struct {
         for (PhysicsCharacter.BaseContainer.list.items) |physChar| {
             physChar.deinit();
         }
+        self.idToEntity.deinit(self.allocator);
         core.undefineComponent(PhysicsCharacter);
         core.undefineComponent(PhysicsCollider);
         self.shapes.deinit(self.allocator);

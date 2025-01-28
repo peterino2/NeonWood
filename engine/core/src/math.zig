@@ -542,7 +542,12 @@ pub const Transform = zm.Mat;
 
 pub fn matGetPosition(m: Mat) Vectorf {
     const vec: Vectorf = .{};
-    return zm.mul(vec.toZm(), m);
+    return Vectorf.fromZm(zm.mul(vec.toZm(), m));
+}
+
+pub fn matToRotation(m: Mat) Rotation {
+    const r: Rotation = .{ .quat = zm.matToQuat(m) };
+    return r;
 }
 
 pub const Rotation = struct {

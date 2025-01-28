@@ -94,3 +94,41 @@ pub fn releaseShape(name: core.Name) void {
     var n = name;
     gPhysicsRuntime.shapes.get(n.handle()).?.shape.release();
 }
+
+pub const RayCastSettings = struct {
+    entityLookup: bool = false,
+};
+
+pub const RayCastResult = struct {
+    body: BodyId,
+    point: core.Vectorf,
+    entity: ?core.Entity = null,
+};
+
+pub fn doRayCast(start: core.Vectorf, direction: core.Vectorf, settings: RayCastSettings) ?RayCastResult {
+    const query = gPhysicsRuntime.system.getNarrowPhaseQuery();
+    const result = query.castRay(.{
+        .origin = start.toZm(),
+        .direction = direction.toZm(),
+    }, .{});
+
+    if (!result.has_hit) {
+        return null;
+    }
+
+    var rv: RayCastResult = .{
+        .body = result.hit.body_id,
+        .point = direction.fmul(result.hit.fraction).add(start),
+    };
+
+    if (settings.entityLookup) {
+        rv.entity = gPhysicsRuntime.idToEntity.get(rv.body).?;
+    }
+
+    return rv;
+}
+
+pub fn applyForce(body: BodyId, impulse: core.Vectorf, position: core.Vectorf) void {
+    const interface = gPhysicsRuntime.system.getBodyInterfaceMut();
+    interface.addImpulseAtPosition(body, impulse.toArr3(), position.toArr3());
+}

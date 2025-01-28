@@ -567,6 +567,13 @@ pub const InputStack = struct {
                     self.routeKeyEvent(@enumFromInt(key.key), keyEvent);
                 }
             },
+            .mouseButton => |button| {
+                core.engine_log("{any}", .{button});
+                const keyEvent: ActionEvent = @enumFromInt(@as(u8, @intCast(button.action)));
+                if (keyEvent != .keyHeld) {
+                    self.routeKeyEvent(@enumFromInt(button.button + 10001), keyEvent);
+                }
+            },
             else => {},
         }
     }
