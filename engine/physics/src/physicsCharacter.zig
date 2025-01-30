@@ -3,6 +3,7 @@ pub const PhysicsCharacter = struct {
 
     // character: *zphysics.CharacterVirtual = undefined,
     character: *zphysics.Character = undefined,
+    bodyId: BodyId = undefined,
 
     pub fn initECS(self: *@This(), handle: core.SetHandle) void {
         self.entity = core.Entity.fromHandle(handle);
@@ -41,6 +42,7 @@ pub const PhysicsCharacter = struct {
         self.character = try zphysics.Character.create(settings, .{ p.x, p.y, p.z }, scene.getRotation().quat, 0, system.system);
 
         self.character.addToPhysicsSystem(.{});
+        self.bodyId = self.character.getBodyId();
 
         _ = interface;
     }

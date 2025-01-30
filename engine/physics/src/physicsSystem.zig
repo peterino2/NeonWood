@@ -21,6 +21,44 @@ pub const BroadPhaseLayers = struct {
     pub const len: u32 = 2;
 };
 
+pub const IgnoreFixedBodiesFilter = extern struct {
+    __v: *const zphysics.BodyFilter.VTable = &vtable,
+
+    filtered: [16]BodyId = undefined,
+    len: usize = 0,
+
+    const vtable = zphysics.BodyFilter.VTable{
+        .shouldCollide = _shouldCollide,
+        .shouldCollideLocked = _shouldCollideLocked,
+    };
+
+    pub fn addIgnoredBody(self: *@This(), bodyId: BodyId) !void {
+        if (self.len == 16) {
+            return error.OutOfMemory;
+        }
+
+        self.filtered[self.len] = bodyId;
+        self.len += 1;
+    }
+
+    pub fn _shouldCollide(p: *const zphysics.BodyFilter, bodyId: *const BodyId) callconv(.C) bool {
+        const self: *const @This() = @ptrCast(p);
+        for (0..self.len) |i| {
+            if (self.filtered[i] == bodyId.*) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub fn _shouldCollideLocked(p: *const zphysics.BodyFilter, body: *const Body) callconv(.C) bool {
+        const self: *const @This() = @ptrCast(p);
+        _ = self;
+        _ = body;
+        return true;
+    }
+};
+
 const BroadPhaseLayerInterface = extern struct {
     usingnamespace zphysics.BroadPhaseLayerInterface.Methods(@This());
     __v: *const zphysics.BroadPhaseLayerInterface.VTable = &vtable,
@@ -306,3 +344,6 @@ pub const ShapeRef = struct {
     settings: ShapeSettings = undefined,
     shape: *zphysics.Shape = undefined,
 };
+
+const BodyId = zphysics.BodyId;
+const Body = zphysics.Body;

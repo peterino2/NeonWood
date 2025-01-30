@@ -2941,6 +2941,13 @@ JPC_Character_GetPosition(const JPC_Character *in_character, JPC_Real out_positi
 {
     storeRVec3(out_position, toJph(in_character)->GetPosition());
 }
+
+JPC_API JPC_BodyID  
+JPC_Character_GetBodyId(const JPC_Character *in_character)
+{
+    auto x = toJph(in_character)->GetBodyID();
+    return *reinterpret_cast<JPC_BodyID*>(&x);
+}
 //--------------------------------------------------------------------------------------------------
 JPC_API void
 JPC_Character_SetPosition(JPC_Character *in_character, const JPC_Real in_position[3])

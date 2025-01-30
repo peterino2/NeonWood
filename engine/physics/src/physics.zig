@@ -29,6 +29,7 @@ pub const Activation = zphysics.Activation;
 pub const ObjectLayers = runtime.ObjectLayers;
 
 const runtime = @import("physicsSystem.zig");
+pub const IgnoreFixedBodiesFilter = runtime.IgnoreFixedBodiesFilter;
 
 pub const PrimitiveType = enum {
     box,
@@ -97,6 +98,7 @@ pub fn releaseShape(name: core.Name) void {
 
 pub const RayCastSettings = struct {
     entityLookup: bool = false,
+    bodyFilter: ?*const anyopaque = null,
 };
 
 pub const RayCastResult = struct {
@@ -105,12 +107,14 @@ pub const RayCastResult = struct {
     entity: ?core.Entity = null,
 };
 
-pub fn doRayCast(start: core.Vectorf, direction: core.Vectorf, settings: RayCastSettings) ?RayCastResult {
+pub fn traceLine(start: core.Vectorf, direction: core.Vectorf, settings: RayCastSettings) ?RayCastResult {
     const query = gPhysicsRuntime.system.getNarrowPhaseQuery();
     const result = query.castRay(.{
         .origin = start.toZm(),
         .direction = direction.toZm(),
-    }, .{});
+    }, .{
+        .body_filter = @ptrCast(@alignCast(settings.bodyFilter)),
+    });
 
     if (!result.has_hit) {
         return null;

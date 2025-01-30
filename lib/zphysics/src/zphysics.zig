@@ -2253,6 +2253,10 @@ pub const Character = opaque {
         c.JPC_Character_RemoveFromPhysicsSystem(@as(*c.JPC_Character, @ptrCast(character)), args.lock_bodies);
     }
 
+    pub fn getBodyId(character: *const Character) BodyId {
+        return @bitCast(c.JPC_Character_GetBodyId(@as(*const c.JPC_Character, @ptrCast(character))));
+    }
+
     pub fn getPosition(character: *const Character) [3]Real {
         var position: [3]Real = undefined;
         c.JPC_Character_GetPosition(@as(*const c.JPC_Character, @ptrCast(character)), &position);

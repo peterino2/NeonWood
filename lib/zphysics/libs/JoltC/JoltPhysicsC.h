@@ -2110,6 +2110,11 @@ JPC_CharacterVirtual_GetLinearVelocity(const JPC_CharacterVirtual *in_character,
 JPC_API void
 JPC_CharacterVirtual_SetLinearVelocity(JPC_CharacterVirtual *in_character, const float in_linear_velocity[3]);
 //--------------------------------------------------------------------------------------------------
+
+
+JPC_API JPC_BodyID  
+JPC_Character_GetBodyId(const JPC_Character *in_character);
+
 #ifdef __cplusplus
 }
 #endif
