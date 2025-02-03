@@ -48,6 +48,7 @@ pub const PlaybackTrack = struct {
 };
 
 pub const Animator = struct {
+    jointRemap: ?[]u8 = null,
     animationName: ?core.Name = null,
     skeleton: ?*Skeleton = null,
     skeletonName: ?core.Name = null,
@@ -62,12 +63,14 @@ pub const Animator = struct {
     // timelines: [4]f32 = .{ 0, 0, 0, 0 },
     animationCount: u32 = 0,
 
-    finals: std.ArrayListUnmanaged(core.Mat) = .{},
     locals: std.ArrayListUnmanaged(ozz.SoaTransform) = .{},
     models: std.ArrayListUnmanaged(ozz.Float4x4) = .{},
+    finals: std.ArrayListUnmanaged(core.Mat) = .{},
     finalsSpan: core.Span = undefined,
 
     entity: core.Entity = undefined,
+
+    resolverRef: ?AnimResolverRef = null,
 
     pub var allocator: std.mem.Allocator = undefined;
     // oh god if I want to support multiple animation blending...
@@ -105,29 +108,61 @@ pub const Animator = struct {
         try self.models.resize(allocator, numJoints);
         try self.finals.resize(allocator, numJoints);
         self.finalsSpan = try gAnimationSys.slots.allocate(@intCast(numJoints));
+
+        if (self.resolverRef) |ref| {
+            if (ref.vtable.onSkeletonSet) |f| {
+                f(ref.ptr, self);
+            }
+        }
+
+        self.jointRemap = null;
     }
 
     pub fn setSkeleton(self: *@This(), skeleton: []const u8) void {
         self.setSkeletonByName(core.MakeName(skeleton)) catch unreachable;
     }
 
-    pub fn update(self: *@This(), dt: f64) void {
-        if (self.skeleton == null)
-            return;
+    pub fn addResolver(self: *@This(), comptime Resolver: type) !*Resolver {
+        const resolver = try Resolver.create(allocator);
+        try resolver.onSkeletonSet(self);
 
-        if (self.track == null)
+        self.resolverRef = core.refFromPtr(AnimResolverInterface, resolver);
+
+        return resolver;
+    }
+
+    pub fn removeResolver(self: *@This()) void {
+        if (self.resolverRef) |ref| {
+            ref.vtable.destroy(ref.ptr);
+            self.resolverRef = null;
+        }
+    }
+
+    pub fn update(self: *@This(), dt: f64) void {
+        if (self.skeleton == null) {
             return;
+        }
+
+        // if a resolver is present, use that to update my the finals instead of the default function below
+        if (self.resolverRef) |ref| {
+            ref.vtable.resolve(ref.ptr, dt, self);
+            return;
+        }
+
+        if (!self.defaultSample(dt)) {
+            return;
+        }
+
+        self.modelToFinal();
+    }
+
+    fn defaultSample(self: *@This(), dt: f64) bool {
+        if (self.track == null)
+            return false;
 
         const track = self.track.?;
         if (track.endTime < 0.01)
-            return;
-
-        var jointRemap: ?[]u8 = null;
-        if (self.entity.get(graphics.StaticMesh)) |meshComponent| {
-            if (meshComponent.mesh) |mesh| {
-                jointRemap = mesh.jointRemap;
-            }
-        }
+            return false;
 
         const skeleton = self.skeleton.?;
         self.playback += @as(f32, @floatCast(dt)) * self.playbackRate;
@@ -145,7 +180,7 @@ pub const Animator = struct {
 
         if (!samplingJob.run()) {
             core.engine_errs("sampling job failed");
-            return;
+            return false;
         }
 
         var ltmJob: ozz.LocalToModelJob = .{
@@ -156,9 +191,53 @@ pub const Animator = struct {
 
         if (!ltmJob.run()) {
             core.engine_errs("local to model job failed");
-            return;
+            return false;
         }
 
+        return true;
+    }
+
+    pub fn commitLocalToModel(self: *@This(), input: []ozz.SoaTransform) void {
+        self.localToModel(input, self.models.items);
+    }
+
+    pub fn localToModel(self: *@This(), input: []ozz.SoaTransform, output: []ozz.Float4x4) void {
+        var ltmJob: ozz.LocalToModelJob = .{
+            .skeleton = self.skeleton.?.sk,
+            .input = ozz.makeSpan(input),
+            .output = ozz.makeSpan(output),
+        };
+
+        if (!ltmJob.run()) {
+            core.engine_errs("local to model job failed");
+            return;
+        }
+    }
+
+    pub fn sampleAnimation(self: *@This(), time: f32, track: *AnimationTrack, output: []ozz.SoaTransform) void {
+        var samplingJob: ozz.SamplingJob = .{
+            .ratio = time / track.endTime,
+            .animation = track.animation,
+            .context = self.sjc,
+            .output = ozz.makeSpan(output),
+        };
+
+        if (!samplingJob.run()) {
+            core.engine_errs("sampling job failed");
+            return;
+        }
+    }
+
+    pub fn modelToFinal(self: *@This()) void {
+        if (self.jointRemap == null) {
+            if (self.entity.get(graphics.StaticMesh)) |meshComponent| {
+                if (meshComponent.mesh) |mesh| {
+                    self.jointRemap = mesh.jointRemap;
+                }
+            }
+        }
+
+        const skeleton = self.skeleton.?;
         for (self.models.items, 0..) |model, i| {
             const transform: core.Mat = @bitCast(model);
 
@@ -169,7 +248,7 @@ pub const Animator = struct {
 
             const final = core.zm.mul(skeleton.inverseBinds.items[i], transform);
             // joint remap ozz -> gltf
-            if (jointRemap) |jr| {
+            if (self.jointRemap) |jr| {
                 // core.engine_log("{d} xx {d}", .{ i, jr[i] });
                 self.finals.items[@intCast(jr[i])] = final;
             } else {
@@ -194,6 +273,7 @@ pub const Animator = struct {
 
     pub fn deinit(self: *@This()) void {
         self.sjc.destroy();
+        self.removeResolver();
         self.finals.deinit(allocator);
         self.locals.deinit(allocator);
         self.models.deinit(allocator);
@@ -349,7 +429,7 @@ pub const AnimationSystem = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        core.engine_logs("deinitializaing animation system");
+        core.engine_logs("deinitializing animation system");
         {
             core.engine_log("skeleton count {d}", .{self.skeletons.count()});
             var iter = self.skeletons.iterator();
@@ -392,3 +472,7 @@ pub fn getSkeletonByName(_name: core.Name) ?*Skeleton {
 const graphics = @import("../graphics.zig");
 const MergedSpans = core.MergedSpans;
 const vk_constants = @import("../vk_constants.zig");
+
+const anim_resolver = @import("animResolver.zig");
+const AnimResolverRef = anim_resolver.AnimResolverRef;
+const AnimResolverInterface = anim_resolver.AnimResolverInterface;

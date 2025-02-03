@@ -21,6 +21,11 @@ pub const Animator = animation_system.Animator;
 pub const AnimationTrack = animation_system.AnimationTrack;
 pub const Skeleton = animation_system.Skeleton;
 
+pub const animation_resolver = @import("animation/animResolver.zig");
+pub const AnimResolverRef = animation_resolver.AnimResolverRef;
+pub const AnimResolverInterface = animation_resolver.AnimResolverInterface;
+pub const SingleAnimationResolver = animation_resolver.SingleAnimationResolver;
+
 const vk_cubemap = @import("vk_renderer/vk_cubemap.zig");
 pub const CubeMapDirs = vk_cubemap.CubeMapDirs;
 pub const MakeCubeMapList = vk_cubemap.MakeCubeMapList;
