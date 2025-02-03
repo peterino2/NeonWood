@@ -394,7 +394,7 @@ pub const AnimationSystem = struct {
             // core.engine_log(
             // "finalsSpan size offset{d} {d} animator finals {d}\n",
             // .{
-            //      animator.finalsSpan.start,1
+            //      animator.finalsSpan.start,
             //      animator.finalsSpan.size,
             //      animator.finals.items.len
             //  });
