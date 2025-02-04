@@ -25,6 +25,8 @@ pub const animation_resolver = @import("animation/animResolver.zig");
 pub const AnimResolverRef = animation_resolver.AnimResolverRef;
 pub const AnimResolverInterface = animation_resolver.AnimResolverInterface;
 pub const SingleAnimationResolver = animation_resolver.SingleAnimationResolver;
+pub const BlenderList = animation_resolver.BlenderList;
+pub const AnimSampler = animation_resolver.AnimSampler;
 
 const vk_cubemap = @import("vk_renderer/vk_cubemap.zig");
 pub const CubeMapDirs = vk_cubemap.CubeMapDirs;

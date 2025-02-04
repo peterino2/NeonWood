@@ -594,6 +594,18 @@ pub fn simdVec4ToVec(vec: zm.Vec) Vector4f {
     };
 }
 
+pub fn easeLinear(c: f32, t: f32, dt: f64, rate: f32) f32 {
+    const d = rate * @as(f32, @floatCast(dt));
+
+    if (c > t) {
+        return @max(c - d, t);
+    } else if (c < t) {
+        return @min(c + d, t);
+    } else {
+        return t;
+    }
+}
+
 pub fn rollingAverage(average: *f64, newValue: f64, sampleCount: f64) void {
     average.* = average.* - (average.* / sampleCount) + newValue / sampleCount;
 }

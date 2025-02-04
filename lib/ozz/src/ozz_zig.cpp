@@ -3,6 +3,7 @@
 
 #include "ozz/animation/runtime/animation.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
+#include "ozz/animation/runtime/blending_job.h"
 #include "ozz/animation/runtime/sampling_job.h"
 #include "ozz/animation/runtime/skeleton.h"
 #include "ozz/base/log.h"
@@ -263,6 +264,20 @@ bool LocalToModelJob_Run_c(void* context)
 {
     ozz::animation::LocalToModelJob* self = static_cast<ozz::animation::LocalToModelJob*>(context);
 
+    return self->Run();
+}
+
+// Blending job
+
+bool BlendingJob_Validate_c(void* context)
+{
+    ozz::animation::BlendingJob* self = static_cast<ozz::animation::BlendingJob*>(context);
+    return self->Validate();
+}
+
+bool BlendingJob_Run_c(void* context)
+{
+    ozz::animation::BlendingJob* self = static_cast<ozz::animation::BlendingJob*>(context);
     return self->Run();
 }
 

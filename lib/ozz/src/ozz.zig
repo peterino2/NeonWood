@@ -102,7 +102,8 @@ pub fn spanFromArrayList(list: anytype) Span(@TypeOf(list.items[0])) {
 }
 
 pub fn makeSpan(slice: anytype) Span(@TypeOf(slice[0])) {
-    return .{ .start = slice.ptr, .end = slice.ptr + slice.len };
+    //return .{ .start = slice.ptr, .end = slice.ptr + slice.len };
+    return .{ .start = slice.ptr, .end = slice.len };
 }
 
 pub fn Span(comptime T: type) type {
@@ -111,7 +112,8 @@ pub fn Span(comptime T: type) type {
         end: [*c]T = null,
 
         pub fn fromArray(arr: []T) @This() {
-            return .{ .start = arr.ptr, .end = arr.ptr + arr.len };
+            //return .{ .start = arr.ptr, .end = arr.ptr + arr.len };
+            return .{ .start = arr.ptr, .end = arr.len };
         }
 
         pub fn toSlice(self: @This()) []T {
@@ -275,6 +277,88 @@ pub const LocalToModelJob = extern struct {
         return LocalToModelJob_Run_c(@ptrCast(self));
     }
     pub extern fn LocalToModelJob_Run_c(?*anyopaque) callconv(.C) bool;
+};
+
+pub const Layer = extern struct {
+    // Blending weight of this layer. Negative values are considered as 0.
+    // Normalization is performed during the blending stage so weight can be in
+    // any range, even though range [0:1] is optimal.
+    weight: f32 = 0.0,
+
+    // The range [begin,end[ of input layer posture. This buffer expect to store
+    // local space transforms, that are usually outputted from a sampling job.
+    // This range must be at least as big as the rest pose buffer, even though
+    // only the number of transforms defined by the rest pose buffer will be
+    // processed.
+    transform: Span(SoaTransform) = .{},
+
+    // Optional range [begin,end[ of blending weight for each joint in this
+    // layer.
+    // If both pointers are nullptr (default case) then per joint weight
+    // blending is disabled. A valid range is defined as being at least as big
+    // as the rest pose buffer, even though only the number of transforms
+    // defined by the rest pose buffer will be processed. When a layer doesn't
+    // specifies per joint weights, then it is implicitly considered as
+    // being 1.f. This default value is a reference value for the normalization
+    // process, which implies that the range of values for joint weights should
+    // be [0,1]. Negative weight values are considered as 0, but positive ones
+    // aren't clamped because they could exceed 1.f if all layers contains valid
+    // joint weights.
+    jointWeights: Span(SoaTransform) = .{},
+};
+
+pub const BlendingJob = extern struct {
+
+    // The job blends the rest pose to the output when the accumulated weight of
+    // all layers is less than this threshold value.
+    // Must be greater than 0.f.
+    threshold: f32 = 0.01,
+
+    // Job input layers, can be empty or nullptr.
+    // The range of layers that must be blended.
+    layers: Span(Layer) = .{},
+
+    // Job input additive layers, can be empty or nullptr.
+    // The range of layers that must be added to the output.
+    additive_layers: Span(Layer) = .{},
+
+    // The skeleton rest pose. The size of this buffer defines the number of
+    // transforms to blend. This is the reference because this buffer is defined
+    // by the skeleton that all the animations belongs to.
+    // It is used when the accumulated weight for a bone on all layers is
+    // less than the threshold value, in order to fall back on valid transforms.
+    rest_pose: Span(SoaTransform) = .{},
+
+    // Job output.
+    // The range of output transforms to be filled with blended layer
+    // transforms during job execution.
+    // Must be at least as big as the rest pose buffer, but only the number of
+    // transforms defined by the rest pose buffer size will be processed.
+    output: Span(SoaTransform) = .{},
+
+    // Validates job parameters.
+    // Returns true for a valid job, false otherwise:
+    // -if layer range is not valid (can be empty though).
+    // -if additive layer range is not valid (can be empty though).
+    // -if any layer is not valid.
+    // -if output range is not valid.
+    // -if any buffer (including layers' content : transform, joint weights...) is
+    // smaller than the rest pose buffer.
+    // -if the threshold value is less than or equal to 0.f.
+    pub fn validate(self: *const @This()) bool {
+        return self.BlendingJob_Validate_c(@ptrCast(self));
+    }
+
+    // Runs job's blending task.
+    // The job is validated before any operation is performed, see Validate() for
+    // more details.
+    // Returns false if *this job is not valid.
+    pub fn run(self: *@This()) bool {
+        return BlendingJob_Run_c(@ptrCast(self));
+    }
+
+    pub extern fn BlendingJob_Validate_c(?*anyopaque) callconv(.C) bool;
+    pub extern fn BlendingJob_Run_c(?*anyopaque) callconv(.C) bool;
 };
 
 pub const std = @import("std");

@@ -124,6 +124,10 @@ pub fn destroyNameRegistry() void {
     allocator.destroy(gRegistry);
 }
 
+pub fn DefineName(comptime string: []const u8) Name {
+    return Name.MakeComptime(string);
+}
+
 pub fn MakeName(string: []const u8) Name {
     return Name.Make(string);
 }

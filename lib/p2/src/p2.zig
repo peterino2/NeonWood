@@ -62,6 +62,7 @@ pub const NameInvalid = names.NameInvalid;
 pub const Name = names.Name;
 pub const StaticName = names.StaticName;
 pub const MakeName = names.MakeName;
+pub const DefineName = names.DefineName;
 pub const createNameRegistry = names.createNameRegistry;
 pub const destroyNameRegistry = names.destroyNameRegistry;
 

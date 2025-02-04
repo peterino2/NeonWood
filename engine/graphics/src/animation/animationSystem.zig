@@ -69,6 +69,7 @@ pub const Animator = struct {
     finalsSpan: core.Span = undefined,
 
     entity: core.Entity = undefined,
+    jointLength: usize = 0,
 
     resolverRef: ?AnimResolverRef = null,
 
@@ -102,6 +103,7 @@ pub const Animator = struct {
         self.skeletonName = skName;
         self.skeleton = gAnimationSys.skeletons.get(self.skeletonName.?.handle()).?;
         const numJoints = self.skeleton.?.sk.numJoints();
+        self.jointLength = numJoints;
 
         self.sjc.resize(@intCast(numJoints));
         try self.locals.resize(allocator, self.skeleton.?.sk.numSoaJoints());
