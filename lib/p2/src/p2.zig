@@ -70,6 +70,8 @@ pub const spans = @import("structures/spans.zig");
 pub const MergedSpans = spans.MergedSpans;
 pub const Span = spans.Span;
 
+pub const shell = @import("utils/shell.zig");
+
 comptime {
     // std.testing.refAllDecls(utils);
     // std.testing.refAllDecls(static_structures);
@@ -84,6 +86,28 @@ comptime {
 
 // ---- aliases ----
 pub const ObjectHandle = SetHandle;
+
+pub inline fn u32_to_slice(array: *u32) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 4;
+    return slice;
+}
+
+pub inline fn u64_to_slice(array: *u64) []u8 {
+    var slice: []u8 = undefined;
+    slice.ptr = @ptrCast(array);
+    slice.len = 8;
+    return slice;
+}
+
+pub inline fn arrayTo_u32(array: anytype) u32 {
+    return @as(*const u32, @ptrCast(@alignCast(&array))).*;
+}
+
+pub inline fn arrayTo_u64(array: anytype) u64 {
+    return @as(*const u64, @ptrCast(@alignCast(&array))).*;
+}
 
 // ---- tests ----
 test "multi-sparse-basic" {
@@ -276,24 +300,18 @@ test "ringBuffer" {
     try expect(b.peek().?.* == 44);
 }
 
-pub inline fn u32_to_slice(array: *u32) []u8 {
-    var slice: []u8 = undefined;
-    slice.ptr = @ptrCast(array);
-    slice.len = 4;
-    return slice;
-}
+test "spin child process echo" {
+    {
+        std.debug.print("spin child process\n", .{});
+        const process = try shell.ShellProcess.init(std.testing.allocator, &.{ "echo", "lmao 2 nova" });
+        defer process.deinit();
+        std.debug.print("child process created: {s}\n", .{process.argv});
+    }
 
-pub inline fn u64_to_slice(array: *u64) []u8 {
-    var slice: []u8 = undefined;
-    slice.ptr = @ptrCast(array);
-    slice.len = 8;
-    return slice;
-}
-
-pub inline fn arrayTo_u32(array: anytype) u32 {
-    return @as(*const u32, @ptrCast(@alignCast(&array))).*;
-}
-
-pub inline fn arrayTo_u64(array: anytype) u64 {
-    return @as(*const u64, @ptrCast(@alignCast(&array))).*;
+    {
+        std.debug.print("spin child process 2\n", .{});
+        const process = try shell.ShellProcess.initCmd(std.testing.allocator, "echo lmao2nova -target='lmao 3 nova'");
+        defer process.deinit();
+        std.debug.print("{s}\n", .{process.argv});
+    }
 }

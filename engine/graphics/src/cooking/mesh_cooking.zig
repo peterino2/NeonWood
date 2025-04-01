@@ -165,6 +165,7 @@ fn cookAnimations(allocator: std.mem.Allocator, dir: std.fs.Dir, path: []const u
             unreachable;
         },
     }
+
     if (success) {
         core.engine_log("generated animations for {s}", .{path});
     } else {
