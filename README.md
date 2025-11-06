@@ -1,6 +1,7 @@
 
 ![](https://i.imgur.com/U3uyhEX.png)
 
+**Important** This is no longer in active development, I've taken the project closed-source for now. there may be interesting things on the horizon..
 
 # Neonwood
 
@@ -148,3 +149,4 @@ That is, the engine should be just a framework for your core programmming team t
 ### Cognesia Game
 
 * [halcyon](https://github.com/peterino2/zig-halcyon)
+
